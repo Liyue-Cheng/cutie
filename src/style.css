@@ -1,0 +1,150 @@
+/* src/style.css */
+
+/* --- 1. 尺寸规范基准 --- */
+html {
+  /* 设定 1rem = 10px 的基准，便于计算 */
+  font-size: 62.5%;
+}
+
+
+/* --- 2. 颜色规范 (亮色主题 - 默认) --- */
+:root {
+  /**
+   * 基础调色盘 (Base Palette)
+   * 灵感来源: Things 3 & Apple Human Interface Guidelines
+   * 命名约定: --c-{color}-{shade}，如 --c-gray-100
+   */
+
+  /* A. 中性色 (Neutrals) */
+  --c-white: #FFFFFF;
+  --c-gray-50: #FAFAFC;   /* 最柔和的背景色 */
+  --c-gray-100: #F5F5F7;  /* 次级背景色 (如侧边栏) */
+  --c-gray-200: #EAEAEA;  /* 默认边框色 */
+  --c-gray-300: #D1D1D1;  /* 悬浮/交互边框色 */
+  --c-gray-500: #9C9C9C;  /* 提示性/禁用文字 */
+  --c-gray-700: #6B6B6B;  /* 次要文字 */
+  --c-gray-900: #1A1A1A;  /* 主要文字/标题 (近黑) */
+  --c-black: #000000;
+
+  /* B. 主强调色 (Primary Accent - Blue) */
+  --c-blue-100: #E5F2FF;  /* 高亮背景 */
+  --c-blue-500: #007AFF;  /* 主要交互色 */
+  --c-blue-600: #0056B3;  /* 按下状态色 */
+
+  /* C. 功能性语义色 (Functional Semantic Colors) */
+  --c-green-500: #34C759; /* 成功 */
+  --c-yellow-500: #FFCC00;/* 警告 */
+  --c-red-500: #FF3B30;  /* 危险/错误 */
+
+
+  /**
+   * 语义化颜色 (Semantic Colors)
+   * 将基础调色盘赋予“角色”，我们在代码中只使用这些变量。
+   */
+
+  /* 文本 */
+  --color-text-primary: var(--c-gray-900);
+  --color-text-secondary: var(--c-gray-700);
+  --color-text-tertiary: var(--c-gray-500);
+  --color-text-accent: var(--c-blue-500);
+  --color-text-on-accent: var(--c-white); /* 在强调色背景上的文字 */
+
+  /* 背景 */
+  --color-background-primary: var(--c-white);
+  --color-background-secondary: var(--c-gray-100);
+  --color-background-tertiary: var(--c-gray-50);
+  --color-background-accent: var(--c-blue-500);
+  --color-background-accent-light: var(--c-blue-100);
+
+  /* 边框与分隔线 */
+  --color-border-default: var(--c-gray-200);
+  --color-border-hover: var(--c-gray-300);
+  --color-separator: var(--c-gray-200);
+
+  /* 功能性 */
+  --color-success: var(--c-green-500);
+  --color-warning: var(--c-yellow-500);
+  --color-danger: var(--c-red-500);
+  --color-info: var(--c-blue-500);
+}
+
+
+/* --- 3. 黑暗模式变量覆盖 --- */
+body.theme-dark {
+  /* 覆盖基础调色盘中的中性色 */
+  --c-white: #000000;
+  --c-gray-50: #1C1C1E;
+  --c-gray-100: #2C2C2E;
+  --c-gray-200: #3A3A3C;
+  --c-gray-300: #48484A;
+  --c-gray-500: #8E8E93;
+  --c-gray-700: #AEAEB2;
+  --c-gray-900: #F2F2F7; /* 亮色文字 */
+  --c-black: #FFFFFF;
+
+  /* 覆盖主强调色，使其在暗色背景下更明亮 */
+  --c-blue-500: #0A84FF;
+  --c-blue-100: rgba(10, 132, 255, 0.2);
+
+  /* 功能性颜色也需要调整以保证可读性 */
+  --c-green-500: #30D158;
+  --c-yellow-500: #FFD60A;
+  --c-red-500: #FF453A;
+  
+  /* 语义化颜色会自动更新，因为它们引用了上面的基础色！ */
+  /* 但我们也可以在这里微调个别语义颜色 */
+  --color-background-primary: #0F0F0F; /* 可以用一个更深的黑色作为主背景 */
+  --color-background-secondary: #1C1C1E;
+}
+
+
+/* --- 4. 可爱模式占位符 --- */
+/* 当你准备好实现可爱风格时，在这里定义它的调色盘 */
+body.theme-cute {
+  /* 例如: */
+  /* --c-accent: #FF70A6; (粉色) */
+  /* --c-bg-1: #FFF9F2; (奶油色) */
+  /* --c-text-1: #5D4037; (深棕色) */
+  /* ... etc ... */
+}
+
+
+/* --- 5. 全局基础样式 --- */
+body {
+  margin: 0;
+  padding: 0;
+  
+  /* 使用系统原生字体栈，获得最佳阅读体验 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  
+  /* 开启字体抗锯齿，使文字更清晰平滑 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* 应用语义化颜色变量 */
+  color: var(--color-text-primary);
+  background-color: var(--color-background-primary);
+
+  /* 为颜色相关的属性添加平滑过渡效果 */
+  transition: color 0.25s ease-out, background-color 0.25s ease-out;
+
+  /* 防止在移动设备上出现奇怪的点击高亮 */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 一些全局的重置和默认样式 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box; /* 让盒模型计算更符合直觉 */
+}
+
+a {
+  color: var(--color-text-accent);
+  text-decoration: none; /* 默认去掉下划线 */
+  transition: color 0.2s;
+}
+
+a:hover {
+  text-decoration: underline;
+}
