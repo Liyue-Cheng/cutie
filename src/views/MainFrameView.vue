@@ -1,10 +1,10 @@
 <template>
-  <div class="main-frame" data-tauri-drag-region>
-    <div class="title-bar">
+  <div class="main-frame">
+    <div class="title-bar" data-tauri-drag-region>
       <div class="window-controls">
-        <button class="control-btn">—</button>
-        <button class="control-btn">口</button>
-        <button class="control-btn">X</button>
+        <button class="control-btn" @click="appWindow.minimize()">—</button>
+        <button class="control-btn" @click="appWindow.toggleMaximize()">口</button>
+        <button class="control-btn" @click="appWindow.close()">X</button>
       </div>
     </div>
     <div class="main-content">
@@ -14,7 +14,11 @@
 </template>
 
 <script setup lang="ts">
-// No script logic needed for this basic component yet.
+// 1. 从 '@tauri-apps/api/window' 这个子模块导入 getCurrentWindow 函数
+import { getCurrentWindow } from '@tauri-apps/api/window'
+// 2. 调用函数来获取当前窗口的实例
+const appWindow = getCurrentWindow()
+// 3. 在模板中就可以直接使用 appWindow.close() 等方法了
 </script>
 
 <style scoped>
@@ -39,6 +43,8 @@
 .window-controls {
   display: flex;
   gap: 0.5rem;
+  /* This is crucial to allow clicks to pass through the drag region */
+  -webkit-app-region: no-drag;
 }
 
 .control-btn {
@@ -52,7 +58,7 @@
 }
 
 .control-btn:hover {
-  background-color: var(--color-background-mute);
+  background-color: var(--color-border-default);
 }
 
 .main-content {
