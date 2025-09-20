@@ -1,0 +1,9 @@
+# 忽略打包产物和依赖
+/dist/
+/node_modules/
+/src-tauri/target/
+
+# 忽略非样式文件
+*.js
+*.ts
+*.json
