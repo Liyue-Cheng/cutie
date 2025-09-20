@@ -43,7 +43,6 @@ const appWindow = getCurrentWindow()
 .window-controls {
   display: flex;
   gap: 0.5rem;
-  /* This is crucial to allow clicks to pass through the drag region */
   -webkit-app-region: no-drag;
 }
 

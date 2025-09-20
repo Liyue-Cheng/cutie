@@ -126,7 +126,7 @@ body {
   background-color: var(--color-background-primary);
 
   /* 为颜色相关的属性添加平滑过渡效果 */
-  transition: color 0.25s ease-out, background-color 0.25s ease-out;
+  /* transition: color 0.25s ease-out, background-color 0.25s ease-out; */
 
   /* 防止在移动设备上出现奇怪的点击高亮 */
   -webkit-tap-highlight-color: transparent;
