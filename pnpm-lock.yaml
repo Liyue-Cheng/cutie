@@ -48,6 +48,9 @@ importers:
       eslint-plugin-vue:
         specifier: ^10.4.0
         version: 10.4.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.8.3))(eslint@9.36.0)(vue-eslint-parser@10.2.0(eslint@9.36.0))
+      postcss-html:
+        specifier: ^1.8.0
+        version: 1.8.0
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
