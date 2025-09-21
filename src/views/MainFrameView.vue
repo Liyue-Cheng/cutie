@@ -50,6 +50,7 @@ const appWindow = getCurrentWindow()
   border-top: none;
   border-left: none;
   border-right: none;
+  background-color: var(--color-background-secondary);
 }
 
 .window-controls {
