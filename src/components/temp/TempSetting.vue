@@ -7,6 +7,7 @@
             <li :class="{ active: activeTab === 'language' }" @click="activeTab = 'language'">
               Language
             </li>
+            <li :class="{ active: activeTab === 'scale' }" @click="activeTab = 'scale'">Scale</li>
             <li :class="{ active: activeTab === 'timezone' }" @click="activeTab = 'timezone'">
               Timezone
             </li>
@@ -21,6 +22,16 @@
             <div class="button-group">
               <CuteButton @click="setLocale('en')">English</CuteButton>
               <CuteButton @click="setLocale('zh-CN')">Chinese</CuteButton>
+            </div>
+          </div>
+          <div v-if="activeTab === 'scale'">
+            <h4>Display Scaling</h4>
+            <div class="preset-buttons">
+              <CuteButton @click="setZoom(80)">80%</CuteButton>
+              <CuteButton @click="setZoom(90)">90%</CuteButton>
+              <CuteButton @click="setZoom(100)">100%</CuteButton>
+              <CuteButton @click="setZoom(110)">110%</CuteButton>
+              <CuteButton @click="setZoom(120)">120%</CuteButton>
             </div>
           </div>
           <div v-if="activeTab === 'timezone'">
@@ -51,6 +62,11 @@ const { locale } = useI18n()
 
 function setLocale(newLocale: string) {
   locale.value = newLocale
+}
+
+function setZoom(percentage: number) {
+  const newSize = (percentage / 100) * 62.5
+  document.documentElement.style.fontSize = `${newSize}%`
 }
 </script>
 
@@ -121,6 +137,12 @@ function setLocale(newLocale: string) {
 
 .button-group {
   display: flex;
+  gap: 1rem;
+}
+
+.preset-buttons {
+  display: flex;
+  justify-content: center;
   gap: 1rem;
 }
 </style>
