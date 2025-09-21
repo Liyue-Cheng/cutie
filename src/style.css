@@ -108,6 +108,23 @@ body.theme-cute {
   /* ... etc ... */
 }
 
+/* --- X. Susamacopy Temp Theme --- */
+body.theme-temp-susamacopy {
+  /* A. 新的基础调色盘 */
+  --c-susa-bg: #ECEDEE;
+  --c-susa-content-bg: #F8F8F9;
+  --c-susa-border: #DCDCDC; 
+  
+  /* B. 覆盖语义化颜色 */
+  --color-background-primary: var(--c-susa-bg);
+  --color-background-secondary: var(--c-susa-bg); /* 左侧边栏和背景同色 */
+  --color-background-content: var(--c-susa-content-bg); /* 右侧内容区 */
+  --color-border-default: var(--c-susa-border);
+
+  /* 为了让其他组件（如按钮、文字）在新背景下看起来和谐，我们可能也需要微调其他颜色 */
+  /* 暂时保持不变，后续根据视觉效果调整 */
+}
+
 
 /* --- 5. 全局基础样式 --- */
 body {
