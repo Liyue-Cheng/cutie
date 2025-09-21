@@ -16,10 +16,5 @@
 .cute-pane {
   width: 100%;
   height: 100%;
-  padding: 1.6rem;
-  background-color: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-
-  /* No border-radius, margin, or shadow by default */
 }
 </style>

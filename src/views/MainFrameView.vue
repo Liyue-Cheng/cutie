@@ -1,5 +1,5 @@
 <template>
-  <CuteSurface class="main-frame">
+  <CutePane class="main-frame">
     <CutePane class="title-bar" data-tauri-drag-region>
       <div class="window-controls">
         <CuteButton class="control-btn" @click="appWindow.minimize()">
@@ -16,7 +16,7 @@
     <CutePane class="main-content">
       <h1>Cutie App</h1>
     </CutePane>
-  </CuteSurface>
+  </CutePane>
 </template>
 
 <script setup lang="ts">
