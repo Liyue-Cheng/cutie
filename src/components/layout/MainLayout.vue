@@ -75,9 +75,9 @@
           </ul>
         </div>
       </CutePane>
-      <CutePane class="main-content-pane">
-        <p>Main content goes here...</p>
-      </CutePane>
+      <main class="main-content-pane">
+        <router-view />
+      </main>
     </CutePane>
   </CutePane>
 </template>
@@ -85,10 +85,10 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. 导入生命周期钩子和 ref
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import CuteButton from '../components/ui/CuteButton.vue'
-import CuteIcon from '../components/ui/CuteIcon.vue'
-import CutePane from '../components/ui/CutePane.vue'
-import SettingsView from '../components/temp/TempSetting.vue'
+import CuteButton from '../ui/CuteButton.vue'
+import CuteIcon from '../ui/CuteIcon.vue'
+import CutePane from '../ui/CutePane.vue'
+import SettingsView from '../temp/TempSetting.vue'
 
 const appWindow = getCurrentWindow()
 
@@ -273,7 +273,11 @@ onBeforeUnmount(() => {
 
 .main-content-pane {
   flex-grow: 1;
-  background-color: var(--color-background-content);
-  border: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content-pane > :deep(*) {
+  flex-grow: 1;
 }
 </style>
