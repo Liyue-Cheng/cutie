@@ -1,10 +1,11 @@
 use crate::core::{db::DbPool, models::Project};
 use chrono::Utc;
 use serde_json::Value as JsonValue;
+use sqlx::Error as SqlxError;
 use tauri::State;
 use uuid::Uuid;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Default)]
 pub struct CreateProjectPayload {
     pub title: String,
     pub description: Option<String>,
@@ -14,11 +15,12 @@ pub struct CreateProjectPayload {
     pub metadata: Option<JsonValue>,
 }
 
-#[tauri::command]
-pub async fn create_project(
-    pool: State<'_, DbPool>,
+// --- Core Logic Functions (Testable) ---
+
+pub async fn create_project_core(
+    pool: &DbPool,
     payload: CreateProjectPayload,
-) -> Result<Project, String> {
+) -> Result<Project, SqlxError> {
     let project = Project {
         id: Uuid::new_v4(),
         title: payload.title,
@@ -34,47 +36,39 @@ pub async fn create_project(
     };
 
     sqlx::query(
-    "INSERT INTO projects (id, title, description, icon, color, status, metadata, created_at, updated_at, deleted_at, remote_updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-  )
-  .bind(&project.id)
-  .bind(&project.title)
-  .bind(&project.description)
-  .bind(&project.icon)
-  .bind(&project.color)
-  .bind(&project.status)
-  .bind(&project.metadata)
-  .bind(&project.created_at)
-  .bind(&project.updated_at)
-  .bind(&project.deleted_at)
-  .bind(&project.remote_updated_at)
-  .execute(&*pool)
-  .await
-  .map_err(|e| e.to_string())?;
+        "INSERT INTO projects (id, title, description, icon, color, status, metadata, created_at, updated_at, deleted_at, remote_updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+    )
+    .bind(&project.id)
+    .bind(&project.title)
+    .bind(&project.description)
+    .bind(&project.icon)
+    .bind(&project.color)
+    .bind(&project.status)
+    .bind(&project.metadata)
+    .bind(&project.created_at)
+    .bind(&project.updated_at)
+    .bind(&project.deleted_at)
+    .bind(&project.remote_updated_at)
+    .execute(pool)
+    .await?;
 
     Ok(project)
 }
 
-#[tauri::command]
-pub async fn get_project(pool: State<'_, DbPool>, id: Uuid) -> Result<Project, String> {
-    let project =
-        sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1 AND deleted_at IS NULL")
-            .bind(id)
-            .fetch_one(&*pool)
-            .await
-            .map_err(|e| e.to_string())?;
-    Ok(project)
+pub async fn get_project_core(pool: &DbPool, id: Uuid) -> Result<Project, SqlxError> {
+    sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1 AND deleted_at IS NULL")
+        .bind(id)
+        .fetch_one(pool)
+        .await
 }
 
-#[tauri::command]
-pub async fn list_projects(pool: State<'_, DbPool>) -> Result<Vec<Project>, String> {
-    let projects = sqlx::query_as::<_, Project>(
+pub async fn list_projects_core(pool: &DbPool) -> Result<Vec<Project>, SqlxError> {
+    sqlx::query_as::<_, Project>(
         "SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC",
     )
-    .fetch_all(&*pool)
+    .fetch_all(pool)
     .await
-    .map_err(|e| e.to_string())?;
-    Ok(projects)
 }
 
 #[derive(serde::Deserialize)]
@@ -87,20 +81,16 @@ pub struct UpdateProjectPayload {
     pub metadata: Option<JsonValue>,
 }
 
-#[tauri::command]
-pub async fn update_project(
-    pool: State<'_, DbPool>,
+pub async fn update_project_core(
+    pool: &DbPool,
     id: Uuid,
     payload: UpdateProjectPayload,
-) -> Result<Project, String> {
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
-
-    let mut project =
-        sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1 FOR UPDATE")
-            .bind(id)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|e| e.to_string())?;
+) -> Result<Project, SqlxError> {
+    let mut tx = pool.begin().await?;
+    let mut project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1")
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
 
     if let Some(title) = payload.title {
         project.title = title;
@@ -123,32 +113,68 @@ pub async fn update_project(
     project.updated_at = Utc::now();
 
     sqlx::query(
-    "UPDATE projects SET title = $1, description = $2, icon = $3, color = $4, status = $5, metadata = $6, updated_at = $7 WHERE id = $8",
-  )
-  .bind(&project.title)
-  .bind(&project.description)
-  .bind(&project.icon)
-  .bind(&project.color)
-  .bind(&project.status)
-  .bind(&project.metadata)
-  .bind(&project.updated_at)
-  .bind(&project.id)
-  .execute(&mut *tx)
-  .await
-  .map_err(|e| e.to_string())?;
+        "UPDATE projects SET title = $1, description = $2, icon = $3, color = $4, status = $5, metadata = $6, updated_at = $7 WHERE id = $8",
+    )
+    .bind(&project.title)
+    .bind(&project.description)
+    .bind(&project.icon)
+    .bind(&project.color)
+    .bind(&project.status)
+    .bind(&project.metadata)
+    .bind(&project.updated_at)
+    .bind(&project.id)
+    .execute(&mut *tx)
+    .await?;
 
-    tx.commit().await.map_err(|e| e.to_string())?;
-
+    tx.commit().await?;
     Ok(project)
+}
+
+pub async fn delete_project_core(pool: &DbPool, id: Uuid) -> Result<(), SqlxError> {
+    sqlx::query("UPDATE projects SET deleted_at = $1 WHERE id = $2")
+        .bind(Utc::now())
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+// --- Tauri Commands (Wrappers) ---
+
+#[tauri::command]
+pub async fn create_project(
+    pool: State<'_, DbPool>,
+    payload: CreateProjectPayload,
+) -> Result<Project, String> {
+    create_project_core(&pool, payload)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_project(pool: State<'_, DbPool>, id: Uuid) -> Result<Project, String> {
+    get_project_core(&pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_projects(pool: State<'_, DbPool>) -> Result<Vec<Project>, String> {
+    list_projects_core(&pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn update_project(
+    pool: State<'_, DbPool>,
+    id: Uuid,
+    payload: UpdateProjectPayload,
+) -> Result<Project, String> {
+    update_project_core(&pool, id, payload)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn delete_project(pool: State<'_, DbPool>, id: Uuid) -> Result<(), String> {
-    sqlx::query("UPDATE projects SET deleted_at = $1 WHERE id = $2")
-        .bind(Utc::now())
-        .bind(id)
-        .execute(&*pool)
+    delete_project_core(&pool, id)
         .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
+        .map_err(|e| e.to_string())
 }
