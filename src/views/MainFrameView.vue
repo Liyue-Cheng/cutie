@@ -2,9 +2,9 @@
   <div class="main-frame">
     <div class="title-bar" data-tauri-drag-region>
       <div class="window-controls">
-        <button class="control-btn" @click="appWindow.minimize()">—</button>
-        <button class="control-btn" @click="appWindow.toggleMaximize()">口</button>
-        <button class="control-btn" @click="appWindow.close()">X</button>
+        <CuteButton class="control-btn" @click="appWindow.minimize()">—</CuteButton>
+        <CuteButton class="control-btn" @click="appWindow.toggleMaximize()">口</CuteButton>
+        <CuteButton class="control-btn" @click="appWindow.close()">X</CuteButton>
       </div>
     </div>
     <div class="main-content">
@@ -16,6 +16,7 @@
 <script setup lang="ts">
 // 1. 从 '@tauri-apps/api/window' 这个子模块导入 getCurrentWindow 函数
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import CuteButton from '../components/ui/CuteButton.vue'
 // 2. 调用函数来获取当前窗口的实例
 const appWindow = getCurrentWindow()
 // 3. 在模板中就可以直接使用 appWindow.close() 等方法了
@@ -47,17 +48,10 @@ const appWindow = getCurrentWindow()
 }
 
 .control-btn {
-  background: none;
-  border: none;
-  color: var(--color-text);
+  padding: 0.2rem 1rem;
   font-size: 1.4rem;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  border-radius: 0.4rem;
-}
-
-.control-btn:hover {
-  background-color: var(--color-border-default);
+  background-color: transparent;
+  border: none;
 }
 
 .main-content {
