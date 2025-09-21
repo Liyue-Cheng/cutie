@@ -1,6 +1,6 @@
 <template>
-  <div class="main-frame">
-    <div class="title-bar" data-tauri-drag-region>
+  <CuteSurface class="main-frame">
+    <CutePane class="title-bar" data-tauri-drag-region>
       <div class="window-controls">
         <CuteButton class="control-btn" @click="appWindow.minimize()">
           <CuteIcon name="Minus" :size="16" />
@@ -12,11 +12,11 @@
           <CuteIcon name="X" :size="16" />
         </CuteButton>
       </div>
-    </div>
-    <div class="main-content">
+    </CutePane>
+    <CutePane class="main-content">
       <h1>Cutie App</h1>
-    </div>
-  </div>
+    </CutePane>
+  </CuteSurface>
 </template>
 
 <script setup lang="ts">
@@ -24,6 +24,8 @@
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import CuteButton from '../components/ui/CuteButton.vue'
 import CuteIcon from '../components/ui/CuteIcon.vue'
+import CutePane from '../components/ui/CutePane.vue'
+import CuteSurface from '../components/ui/CuteSurface.vue'
 // 2. 调用函数来获取当前窗口的实例
 const appWindow = getCurrentWindow()
 // 3. 在模板中就可以直接使用 appWindow.close() 等方法了
@@ -31,21 +33,23 @@ const appWindow = getCurrentWindow()
 
 <style scoped>
 .main-frame {
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background-color: var(--color-background);
+  display: flex;
+  flex-direction: column;
 }
 
 .title-bar {
-  height: 3rem;
-  background-color: var(--color-background-secondary);
+  height: 3.2rem;
+  padding: 0 0.8rem;
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 0 1rem;
-  flex-shrink: 0;
+  border-radius: 0; /* Override default pane radius */
+  border-top: none;
+  border-left: none;
+  border-right: none;
 }
 
 .window-controls {
@@ -65,6 +69,8 @@ const appWindow = getCurrentWindow()
   display: flex;
   justify-content: center;
   align-items: center;
+  border-radius: 0; /* Override default pane radius */
+  border: none;
 }
 
 .main-content h1 {
