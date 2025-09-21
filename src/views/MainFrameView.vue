@@ -1,4 +1,5 @@
 <template>
+  <SettingsView v-if="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
     <div class="title-bar" data-tauri-drag-region>
       <div class="title-bar-bg">
@@ -18,12 +19,61 @@
 
     <CutePane class="content-wrapper">
       <CutePane class="sidebar-pane">
-        <ul>
-          <li>Dashboard</li>
-          <li>Analytics</li>
-          <li>Settings</li>
-          <li>About</li>
-        </ul>
+        <div class="sidebar-header">
+          <span>{{ $t('sidebar.header') }}</span>
+        </div>
+        <div class="sidebar-content">
+          <ul class="nav-group">
+            <li>
+              <CuteIcon name="Inbox" :size="16" /><span>{{ $t('sidebar.inbox') }}</span>
+            </li>
+            <li>
+              <CuteIcon name="Calendar" :size="16" /><span>{{ $t('sidebar.today') }}</span>
+            </li>
+            <li>
+              <CuteIcon name="Send" :size="16" /><span>{{ $t('sidebar.upcoming') }}</span>
+            </li>
+            <li>
+              <CuteIcon name="List" :size="16" /><span>{{ $t('sidebar.allTasks') }}</span>
+            </li>
+          </ul>
+
+          <div class="collapsible-section">
+            <div class="section-header" @click="isProjectsOpen = !isProjectsOpen">
+              <div class="section-title">
+                <CuteIcon name="Folder" :size="16" />
+                <span>{{ $t('sidebar.projects') }}</span>
+              </div>
+              <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isProjectsOpen }" />
+            </div>
+            <ul v-if="isProjectsOpen" class="sub-list">
+              <li>{{ $t('projects.alpha') }}</li>
+              <li>{{ $t('projects.beta') }}</li>
+            </ul>
+          </div>
+
+          <div class="collapsible-section">
+            <div class="section-header" @click="isExperienceOpen = !isExperienceOpen">
+              <div class="section-title">
+                <CuteIcon name="Briefcase" :size="16" />
+                <span>{{ $t('sidebar.experience') }}</span>
+              </div>
+              <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isExperienceOpen }" />
+            </div>
+            <ul v-if="isExperienceOpen" class="sub-list">
+              <li>{{ $t('experience.acme') }}</li>
+              <li>{{ $t('experience.opensource') }}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sidebar-footer">
+          <ul class="nav-group">
+            <li @click="isSettingsOpen = !isSettingsOpen">
+              <CuteIcon name="Settings" :size="16" />
+              <span>{{ $t('sidebar.settings') }}</span>
+            </li>
+          </ul>
+        </div>
       </CutePane>
       <CutePane class="main-content-pane">
         <p>Main content goes here...</p>
@@ -33,15 +83,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue' // 1. 导入生命周期钩子
+import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. 导入生命周期钩子和 ref
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import CuteButton from '../components/ui/CuteButton.vue'
 import CuteIcon from '../components/ui/CuteIcon.vue'
 import CutePane from '../components/ui/CutePane.vue'
-// CuteSurface 在这个模板里没用到，可以暂时去掉
-// import CuteSurface from '../components/ui/CuteSurface.vue'
+import SettingsView from '../components/temp/TempSetting.vue'
 
 const appWindow = getCurrentWindow()
+
+const isProjectsOpen = ref(false)
+const isExperienceOpen = ref(false)
+const isSettingsOpen = ref(false)
 
 const themeClassName = 'theme-temp-susamacopy'
 
@@ -119,29 +172,103 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-pane {
-  width: 20rem;
+  width: 24rem; /* A bit wider */
   flex-shrink: 0;
   background-color: var(--color-background-secondary);
   border: none; /* Melts into the background */
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
 }
 
-.sidebar-pane ul {
-  list-style: none;
-  padding: 1rem;
-  margin: 0;
-  font-size: 1.4rem;
+.sidebar-header {
+  font-size: 1.8rem;
+  font-weight: bold;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
   color: var(--color-text-secondary);
 }
 
-.sidebar-pane li {
-  padding: 0.8rem 1.2rem;
+.sidebar-content {
+  flex-grow: 1;
+}
+
+.sidebar-footer {
+  flex-shrink: 0;
+}
+
+.collapsible-section {
+  font-size: 1.4rem;
+}
+
+.nav-group {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 1.5rem; /* Increased font size */
+  color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.nav-group li {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem; /* Space between icon and text */
+  padding: 0.6rem 1rem; /* Reduced padding */
   border-radius: 0.6rem;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.sidebar-pane li:hover {
+.sub-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+}
+
+.sub-list li {
+  padding: 0.6rem 1rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.sub-list li:hover {
+  color: var(--color-text-primary);
   background-color: rgb(0 0 0 / 5%);
+}
+
+.nav-group li:hover {
+  background-color: rgb(0 0 0 / 5%);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1.2rem;
+  cursor: pointer;
+  border-radius: 0.6rem;
+  color: var(--color-text-secondary);
+}
+
+.section-header:hover {
+  background-color: rgb(0 0 0 / 5%);
+}
+
+.section-header .icon {
+  transition: transform 0.2s ease-in-out;
+}
+
+.section-header .icon.is-rotated {
+  transform: rotate(180deg);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
 }
 
 .main-content-pane {
