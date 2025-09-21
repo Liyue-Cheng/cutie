@@ -86,14 +86,12 @@ pub struct TaskActivityLink {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-#[sqlx(from_row)]
 pub struct ProjectTag {
     pub project_id: Uuid,
     pub tag_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-#[sqlx(from_row)]
 pub struct TaskTag {
     pub task_id: Uuid,
     pub tag_id: Uuid,

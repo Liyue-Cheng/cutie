@@ -55,7 +55,7 @@ pub async fn create_activity(
     .bind(&activity.remote_updated_at)
     .bind(&activity.origin_id)
     .bind(&activity.connector_id)
-    .execute(&**pool)
+    .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -64,20 +64,24 @@ pub async fn create_activity(
 
 #[tauri::command]
 pub async fn get_activity(pool: State<'_, DbPool>, id: Uuid) -> Result<Activity, String> {
-    let activity = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE id = $1 AND deleted_at IS NULL")
-        .bind(id)
-        .fetch_one(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let activity = sqlx::query_as::<_, Activity>(
+        "SELECT * FROM activities WHERE id = $1 AND deleted_at IS NULL",
+    )
+    .bind(id)
+    .fetch_one(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(activity)
 }
 
 #[tauri::command]
 pub async fn list_activities(pool: State<'_, DbPool>) -> Result<Vec<Activity>, String> {
-    let activities = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE deleted_at IS NULL ORDER BY start_time ASC")
-        .fetch_all(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let activities = sqlx::query_as::<_, Activity>(
+        "SELECT * FROM activities WHERE deleted_at IS NULL ORDER BY start_time ASC",
+    )
+    .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(activities)
 }
 
@@ -100,12 +104,13 @@ pub async fn update_activity(
 ) -> Result<Activity, String> {
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
 
-    let mut activity = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE id = $1 FOR UPDATE")
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-    
+    let mut activity =
+        sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE id = $1 FOR UPDATE")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
     if let Some(title) = payload.title {
         activity.title = Some(title);
     }
@@ -155,7 +160,7 @@ pub async fn delete_activity(pool: State<'_, DbPool>, id: Uuid) -> Result<(), St
     sqlx::query("UPDATE activities SET deleted_at = $1 WHERE id = $2")
         .bind(Utc::now())
         .bind(id)
-        .execute(&**pool)
+        .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())

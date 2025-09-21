@@ -40,7 +40,7 @@ pub async fn create_checkpoint(
     .bind(&checkpoint.updated_at)
     .bind(&checkpoint.deleted_at)
     .bind(&checkpoint.remote_updated_at)
-    .execute(&**pool)
+    .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -49,21 +49,28 @@ pub async fn create_checkpoint(
 
 #[tauri::command]
 pub async fn get_checkpoint(pool: State<'_, DbPool>, id: Uuid) -> Result<Checkpoint, String> {
-    let checkpoint = sqlx::query_as::<_, Checkpoint>("SELECT * FROM checkpoints WHERE id = $1 AND deleted_at IS NULL")
-        .bind(id)
-        .fetch_one(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let checkpoint = sqlx::query_as::<_, Checkpoint>(
+        "SELECT * FROM checkpoints WHERE id = $1 AND deleted_at IS NULL",
+    )
+    .bind(id)
+    .fetch_one(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(checkpoint)
 }
 
 #[tauri::command]
-pub async fn list_checkpoints_for_task(pool: State<'_, DbPool>, task_id: Uuid) -> Result<Vec<Checkpoint>, String> {
-    let checkpoints = sqlx::query_as::<_, Checkpoint>("SELECT * FROM checkpoints WHERE task_id = $1 AND deleted_at IS NULL ORDER BY sort_key ASC")
-        .bind(task_id)
-        .fetch_all(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+pub async fn list_checkpoints_for_task(
+    pool: State<'_, DbPool>,
+    task_id: Uuid,
+) -> Result<Vec<Checkpoint>, String> {
+    let checkpoints = sqlx::query_as::<_, Checkpoint>(
+        "SELECT * FROM checkpoints WHERE task_id = $1 AND deleted_at IS NULL ORDER BY sort_key ASC",
+    )
+    .bind(task_id)
+    .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(checkpoints)
 }
 
@@ -82,11 +89,12 @@ pub async fn update_checkpoint(
 ) -> Result<Checkpoint, String> {
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
 
-    let mut checkpoint = sqlx::query_as::<_, Checkpoint>("SELECT * FROM checkpoints WHERE id = $1 FOR UPDATE")
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
+    let mut checkpoint =
+        sqlx::query_as::<_, Checkpoint>("SELECT * FROM checkpoints WHERE id = $1 FOR UPDATE")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
 
     if let Some(title) = payload.title {
         checkpoint.title = title;
@@ -121,7 +129,7 @@ pub async fn delete_checkpoint(pool: State<'_, DbPool>, id: Uuid) -> Result<(), 
     sqlx::query("UPDATE checkpoints SET deleted_at = $1 WHERE id = $2")
         .bind(Utc::now())
         .bind(id)
-        .execute(&**pool)
+        .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())

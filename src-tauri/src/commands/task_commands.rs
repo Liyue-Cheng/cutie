@@ -50,7 +50,7 @@ pub async fn create_task(
     .bind(&task.updated_at)
     .bind(&task.deleted_at)
     .bind(&task.remote_updated_at)
-    .execute(&**pool)
+    .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -59,20 +59,23 @@ pub async fn create_task(
 
 #[tauri::command]
 pub async fn get_task(pool: State<'_, DbPool>, id: Uuid) -> Result<Task, String> {
-    let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1 AND deleted_at IS NULL")
-        .bind(id)
-        .fetch_one(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let task =
+        sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1 AND deleted_at IS NULL")
+            .bind(id)
+            .fetch_one(&*pool)
+            .await
+            .map_err(|e| e.to_string())?;
     Ok(task)
 }
 
 #[tauri::command]
 pub async fn list_tasks(pool: State<'_, DbPool>) -> Result<Vec<Task>, String> {
-    let tasks = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY sort_key ASC")
-        .fetch_all(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let tasks = sqlx::query_as::<_, Task>(
+        "SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY sort_key ASC",
+    )
+    .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(tasks)
 }
 
@@ -100,7 +103,7 @@ pub async fn update_task(
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
-    
+
     if let Some(project_id) = payload.project_id {
         task.project_id = Some(project_id);
     }
@@ -150,7 +153,7 @@ pub async fn delete_task(pool: State<'_, DbPool>, id: Uuid) -> Result<(), String
     sqlx::query("UPDATE tasks SET deleted_at = $1 WHERE id = $2")
         .bind(Utc::now())
         .bind(id)
-        .execute(&**pool)
+        .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -165,9 +168,9 @@ pub async fn list_inbox_tasks(pool: State<'_, DbPool>) -> Result<Vec<Task>, Stri
          WHERE t.project_id IS NULL 
            AND tal.task_id IS NULL
            AND t.deleted_at IS NULL
-         ORDER BY t.sort_key ASC"
+         ORDER BY t.sort_key ASC",
     )
-    .fetch_all(&**pool)
+    .fetch_all(&*pool)
     .await
     .map_err(|e| e.to_string())?;
     Ok(tasks)

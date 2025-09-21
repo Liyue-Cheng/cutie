@@ -11,10 +11,7 @@ pub struct CreateTagPayload {
 }
 
 #[tauri::command]
-pub async fn create_tag(
-    pool: State<'_, DbPool>,
-    payload: CreateTagPayload,
-) -> Result<Tag, String> {
+pub async fn create_tag(pool: State<'_, DbPool>, payload: CreateTagPayload) -> Result<Tag, String> {
     let tag = Tag {
         id: Uuid::new_v4(),
         title: payload.title,
@@ -38,7 +35,7 @@ pub async fn create_tag(
     .bind(&tag.updated_at)
     .bind(&tag.deleted_at)
     .bind(&tag.remote_updated_at)
-    .execute(&**pool)
+    .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -49,7 +46,7 @@ pub async fn create_tag(
 pub async fn get_tag(pool: State<'_, DbPool>, id: Uuid) -> Result<Tag, String> {
     let tag = sqlx::query_as::<_, Tag>("SELECT * FROM tags WHERE id = $1 AND deleted_at IS NULL")
         .bind(id)
-        .fetch_one(&**pool)
+        .fetch_one(&*pool)
         .await
         .map_err(|e| e.to_string())?;
     Ok(tag)
@@ -57,10 +54,12 @@ pub async fn get_tag(pool: State<'_, DbPool>, id: Uuid) -> Result<Tag, String> {
 
 #[tauri::command]
 pub async fn list_tags(pool: State<'_, DbPool>) -> Result<Vec<Tag>, String> {
-    let tags = sqlx::query_as::<_, Tag>("SELECT * FROM tags WHERE deleted_at IS NULL ORDER BY sort_key ASC")
-        .fetch_all(&**pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let tags = sqlx::query_as::<_, Tag>(
+        "SELECT * FROM tags WHERE deleted_at IS NULL ORDER BY sort_key ASC",
+    )
+    .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(tags)
 }
 
@@ -118,7 +117,7 @@ pub async fn delete_tag(pool: State<'_, DbPool>, id: Uuid) -> Result<(), String>
     sqlx::query("UPDATE tags SET deleted_at = $1 WHERE id = $2")
         .bind(Utc::now())
         .bind(id)
-        .execute(&**pool)
+        .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
