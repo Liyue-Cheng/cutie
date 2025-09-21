@@ -36,7 +36,7 @@ export const useCheckpointStore = defineStore('checkpoint', () => {
     error.value = null
     try {
       const checkpointList = await invoke<Checkpoint[]>('list_checkpoints_for_task', {
-        task_id: taskId,
+        taskId: taskId,
       })
       checkpointsByTask.value.set(taskId, checkpointList)
     } catch (e) {
