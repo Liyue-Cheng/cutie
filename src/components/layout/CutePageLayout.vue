@@ -1,36 +1,38 @@
 <template>
   <div class="cute-page-layout">
-    <aside class="cute-page-layout__sidebar">
+    <aside class="cute-page-layout-sidebar">
       <slot name="sidebar" />
     </aside>
-    <main class="cute-page-layout__main">
+    <main class="cute-page-layout-main">
       <slot />
     </main>
   </div>
 </template>
 
 <script lang="ts" setup>
-// No script logic needed for this basic component yet.
+/**
+ * @description A structural component for macro page layout.
+ * It defines main functional areas like a sidebar and a main content area.
+ * It has no visual styling itself (no color, padding, or borders).
+ */
 </script>
 
 <style scoped>
 .cute-page-layout {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  background-color: var(--color-background);
+  height: 100%;
+  width: 100%;
 }
 
-.cute-page-layout__sidebar {
+.cute-page-layout-sidebar {
   width: 24rem;
-  padding: 1.6rem;
-  border-right: 1px solid var(--color-border);
   flex-shrink: 0;
+  height: 100%;
 }
 
-.cute-page-layout__main {
+.cute-page-layout-main {
   flex-grow: 1;
-  padding: 1.6rem;
+  height: 100%;
   overflow-y: auto;
 }
 </style>
