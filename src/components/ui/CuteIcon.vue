@@ -2,6 +2,7 @@
   <component :is="icon" :size="size" :stroke-width="strokeWidth" />
 </template>
 
+/** * @description A wrapper for lucide-vue-next icons, providing a consistent API. */
 <script setup lang="ts">
 import { computed } from 'vue'
 import { icons } from 'lucide-vue-next'

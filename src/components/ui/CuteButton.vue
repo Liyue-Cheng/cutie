@@ -3,6 +3,7 @@
     <slot />
   </button>
 </template>
+/** * @description The base button component for all interactions. */
 
 <script lang="ts" setup>
 // No script logic needed for this basic component yet.
