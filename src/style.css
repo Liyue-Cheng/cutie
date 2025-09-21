@@ -120,6 +120,7 @@ body.theme-temp-susamacopy {
   --color-background-secondary: var(--c-susa-bg); /* 左侧边栏和背景同色 */
   --color-background-content: var(--c-susa-content-bg); /* 右侧内容区 */
   --color-border-default: var(--c-susa-border);
+  --color-card-available: var(--c-white);
 
   /* 为了让其他组件（如按钮、文字）在新背景下看起来和谐，我们可能也需要微调其他颜色 */
   /* 暂时保持不变，后续根据视觉效果调整 */
@@ -147,6 +148,7 @@ body {
 
   /* 防止在移动设备上出现奇怪的点击高亮 */
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 /* 一些全局的重置和默认样式 */

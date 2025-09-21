@@ -1,9 +1,9 @@
 <template>
   <SettingsView v-if="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
-    <div class="title-bar" data-tauri-drag-region>
+    <div class="title-bar" @mousedown="appWindow.startDragging()">
       <div class="title-bar-bg">
-        <div class="window-controls">
+        <div class="window-controls" @mousedown.stop>
           <CuteButton class="control-btn" @click="appWindow.minimize()">
             <CuteIcon name="Minus" :size="16" />
           </CuteButton>
@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. 导入生命周期钩子和 ref
+import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. Import lifecycle hooks and ref
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import CuteButton from '../ui/CuteButton.vue'
 import CuteIcon from '../ui/CuteIcon.vue'
@@ -98,17 +98,17 @@ const isSettingsOpen = ref(false)
 
 const themeClassName = 'theme-temp-susamacopy'
 
-// 2. 使用 onMounted 钩子
-// onMounted 会在组件被挂载到 DOM 上之后执行
+// 2. Use onMounted hook
+// onMounted is executed after the component is mounted to the DOM
 onMounted(() => {
-  // 当组件加载时，给 body 标签加上我们的主题 class
+  // When the component loads, add our theme class to the body tag
   document.body.classList.add(themeClassName)
 })
 
-// 3. 使用 onBeforeUnmount 钩子（好习惯）
-// onBeforeUnmount 会在组件被卸载之前执行
+// 3. Use onBeforeUnmount hook (good practice)
+// onBeforeUnmount is executed before the component is unmounted
 onBeforeUnmount(() => {
-  // 当组件离开时，把我们加上的 class 清理掉，避免影响其他页面
+  // When the component unmounts, remove the class to avoid affecting other pages
   document.body.classList.remove(themeClassName)
 })
 </script>
@@ -153,7 +153,6 @@ onBeforeUnmount(() => {
 .window-controls {
   display: flex;
   gap: 0.5rem;
-  -webkit-app-region: no-drag;
 }
 
 .control-btn {

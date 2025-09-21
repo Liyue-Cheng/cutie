@@ -15,10 +15,10 @@ type ID = string
  * Timestamps are stored as numbers (Unix epoch in milliseconds).
  */
 interface Timestamps {
-  created_at: number
-  updated_at: number
-  deleted_at: number | null
-  remote_updated_at: number | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  remote_updated_at: string | null
 }
 
 // --- Core Entities ---
@@ -61,8 +61,8 @@ export interface Task extends Timestamps {
   project_id: ID | null
   title: string
   status: TaskStatus
-  due_date: number | null
-  completed_at: number | null
+  due_date: string | null
+  completed_at: string | null
   sort_key: string
   metadata: Record<string, any> | null
 }
@@ -84,8 +84,8 @@ export interface Checkpoint extends Timestamps {
 export interface Activity extends Timestamps {
   id: ID
   title: string | null
-  start_time: number
-  end_time: number
+  start_time: string
+  end_time: string
   timezone: string | null
   is_all_day: boolean
   color: string | null

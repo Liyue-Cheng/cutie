@@ -7,8 +7,8 @@ type ID = string
 
 export interface CreateActivityPayload {
   title?: string | null
-  start_time: number
-  end_time: number
+  start_time: string
+  end_time: string
   timezone?: string | null
   is_all_day?: boolean
   color?: string | null
@@ -17,8 +17,8 @@ export interface CreateActivityPayload {
 
 export interface UpdateActivityPayload {
   title?: string | null
-  start_time?: number
-  end_time?: number
+  start_time?: string
+  end_time?: string
   timezone?: string | null
   is_all_day?: boolean
   color?: string | null
@@ -32,7 +32,11 @@ export const useActivityStore = defineStore('activity', () => {
 
   const allActivities = computed(() => {
     // Activities are typically sorted by start time.
-    return Array.from(activities.value.values()).sort((a, b) => a.start_time - b.start_time)
+    return Array.from(activities.value.values()).sort((a, b) => {
+      const dateA = new Date(a.start_time).getTime()
+      const dateB = new Date(b.start_time).getTime()
+      return dateA - dateB
+    })
   })
 
   function getActivityById(id: ID): Activity | undefined {

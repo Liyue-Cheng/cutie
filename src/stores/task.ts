@@ -20,8 +20,8 @@ export interface UpdateTaskPayload {
   project_id?: ID | null
   title?: string
   status?: TaskStatus
-  due_date?: number | null
-  completed_at?: number | null
+  due_date?: string | null
+  completed_at?: string | null
   sort_key?: string
   metadata?: Record<string, any> | null
 }
@@ -79,12 +79,14 @@ export const useTaskStore = defineStore('task', () => {
   async function createTask(payload: CreateTaskPayload) {
     isLoading.value = true
     error.value = null
+    console.log(`[TaskStore] Attempting to create task with payload:`, payload)
     try {
       const newTask = await invoke<Task>('create_task', { payload })
       tasks.value.set(newTask.id, newTask)
+      console.log(`[TaskStore] Successfully created task:`, newTask)
     } catch (e) {
       error.value = `Failed to create task: ${e}`
-      console.error(e)
+      console.error(`[TaskStore] Error creating task:`, e)
     } finally {
       isLoading.value = false
     }
@@ -98,12 +100,14 @@ export const useTaskStore = defineStore('task', () => {
   async function updateTask(id: ID, payload: UpdateTaskPayload) {
     isLoading.value = true
     error.value = null
+    console.log(`[TaskStore] Attempting to update task ${id} with payload:`, payload)
     try {
       const updatedTask = await invoke<Task>('update_task', { id, payload })
       tasks.value.set(id, updatedTask)
+      console.log(`[TaskStore] Successfully updated task ${id}:`, updatedTask)
     } catch (e) {
       error.value = `Failed to update task ${id}: ${e}`
-      console.error(e)
+      console.error(`[TaskStore] Error updating task ${id}:`, e)
     } finally {
       isLoading.value = false
     }
