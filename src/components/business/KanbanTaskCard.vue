@@ -110,7 +110,7 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 .note-text {
@@ -134,7 +134,7 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
 
 .checkpoint-title {
   font-size: 1.4rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 .main-checkbox {
