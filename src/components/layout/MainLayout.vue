@@ -25,10 +25,10 @@
         <div class="sidebar-content">
           <ul class="nav-group">
             <li>
-              <CuteIcon name="Inbox" :size="16" /><span>{{ $t('sidebar.inbox') }}</span>
+              <CuteIcon name="Clock" :size="16" /><span>{{ $t('sidebar.timeline') }}</span>
             </li>
             <li>
-              <CuteIcon name="Calendar" :size="16" /><span>{{ $t('sidebar.today') }}</span>
+              <CuteIcon name="Clipboard" :size="16" /><span>{{ $t('sidebar.planning') }}</span>
             </li>
             <li>
               <CuteIcon name="Send" :size="16" /><span>{{ $t('sidebar.upcoming') }}</span>
@@ -171,7 +171,7 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-pane {
-  width: 24rem; /* A bit wider */
+  width: 19.2rem;
   flex-shrink: 0;
   background-color: var(--color-background-secondary);
   border: none; /* Melts into the background */

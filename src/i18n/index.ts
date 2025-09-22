@@ -4,7 +4,7 @@ import zhCN from '../locales/zh-CN'
 
 const i18n = createI18n({
   legacy: false, // Use Composition API
-  locale: 'zh-CN', // Set default locale
+  locale: 'en', // Set default locale
   fallbackLocale: 'en', // Fallback locale
   messages: {
     en,

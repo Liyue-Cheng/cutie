@@ -1,8 +1,8 @@
 export default {
   sidebar: {
     header: 'Cutie .',
-    inbox: '收件箱',
-    today: '今天',
+    timeline: '时间轴',
+    planning: '计划',
     upcoming: '即将到来',
     allTasks: '所有任务',
     projects: '项目',

@@ -1,5 +1,5 @@
 <template>
-  <component :is="icon" :size="size" :stroke-width="strokeWidth" />
+  <component :is="icon" :size="size" :stroke-width="strokeWidth" :color="color" />
 </template>
 
 /** * @description A wrapper for lucide-vue-next icons, providing a consistent API. */
@@ -21,6 +21,10 @@ const props = defineProps({
   strokeWidth: {
     type: Number,
     default: 2,
+  },
+  color: {
+    type: String,
+    default: 'currentColor',
   },
 })
 

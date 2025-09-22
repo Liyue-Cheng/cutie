@@ -35,6 +35,7 @@ html {
   --c-green-500: #34C759; /* 成功 */
   --c-yellow-500: #FFCC00;/* 警告 */
   --c-red-500: #FF3B30;  /* 危险/错误 */
+  --c-done-green: #01C260; /* 完成绿 */
 
 
   /**
@@ -66,6 +67,7 @@ html {
   --color-warning: var(--c-yellow-500);
   --color-danger: var(--c-red-500);
   --color-info: var(--c-blue-500);
+  --color-status-done: var(--c-done-green);
 }
 
 

@@ -1,8 +1,8 @@
 export default {
   sidebar: {
     header: 'Cutie .',
-    inbox: 'Inbox',
-    today: 'Today',
+    timeline: 'Timeline',
+    planning: 'Planning',
     upcoming: 'Upcoming',
     allTasks: 'All Tasks',
     projects: 'Projects',
