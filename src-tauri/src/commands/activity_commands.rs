@@ -35,6 +35,12 @@ pub async fn create_activity_core(
     pool: &DbPool,
     payload: CreateActivityPayload,
 ) -> Result<Activity, SqlxError> {
+    if check_for_overlapping_activity(pool, payload.start_time, payload.end_time, None).await? {
+        return Err(SqlxError::Protocol(
+            "An overlapping activity already exists.".into(),
+        ));
+    }
+
     let activity = Activity {
         id: Uuid::new_v4(),
         title: payload.title,
@@ -83,6 +89,17 @@ pub async fn update_activity_core(
         .fetch_one(&mut *tx)
         .await?;
 
+    let new_start_time = payload.start_time.unwrap_or(activity.start_time);
+    let new_end_time = payload.end_time.unwrap_or(activity.end_time);
+
+    if (payload.start_time.is_some() || payload.end_time.is_some())
+        && check_for_overlapping_activity(pool, new_start_time, new_end_time, Some(id)).await?
+    {
+        return Err(SqlxError::Protocol(
+            "An overlapping activity already exists.".into(),
+        ));
+    }
+
     if let Some(title) = payload.title {
         activity.title = Some(title);
     }
@@ -121,6 +138,37 @@ pub async fn delete_activity_core(pool: &DbPool, id: Uuid) -> Result<(), SqlxErr
         .execute(pool)
         .await?;
     Ok(())
+}
+
+// --- Private Helper Functions ---
+
+/// Checks for any activity that overlaps with the given time range.
+/// Optionally excludes a specific activity ID from the check (useful for updates).
+async fn check_for_overlapping_activity(
+    pool: &DbPool,
+    start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
+    exclude_id: Option<Uuid>,
+) -> Result<bool, SqlxError> {
+    let base_query = "SELECT COUNT(*) FROM activities WHERE deleted_at IS NULL AND start_time < $1 AND end_time > $2";
+
+    let count: (i64,) = if let Some(id) = exclude_id {
+        let query = format!("{} AND id != $3", base_query);
+        sqlx::query_as(&query)
+            .bind(end_time)
+            .bind(start_time)
+            .bind(id)
+            .fetch_one(pool)
+            .await?
+    } else {
+        sqlx::query_as(base_query)
+            .bind(end_time)
+            .bind(start_time)
+            .fetch_one(pool)
+            .await?
+    };
+
+    Ok(count.0 > 0)
 }
 
 // --- Tauri Commands (Wrappers) ---

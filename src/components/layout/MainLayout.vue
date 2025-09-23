@@ -1,7 +1,7 @@
 <template>
   <SettingsView v-if="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
-    <div class="title-bar" @mousedown="appWindow.startDragging()">
+    <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
       <div class="title-bar-bg">
         <div class="window-controls" @mousedown.stop>
           <CuteButton class="control-btn" @click="appWindow.minimize()">

@@ -4,6 +4,9 @@ import type { Task } from '@/types/models'
 import KanbanTaskList from '@/components/business/KanbanTaskList.vue'
 import KanbanTaskEditorModal from '@/components/business/KanbanTaskEditorModal.vue'
 import CuteCalendar from '@/components/ui/CuteCalendar.vue'
+import CuteIcon from '@/components/ui/CuteIcon.vue'
+import CuteButton from '@/components/ui/CuteButton.vue'
+import TwoRowLayout from '@/components/layout/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
 
 const taskStore = useTaskStore()
@@ -28,14 +31,45 @@ onMounted(() => {
 
 <template>
   <div class="home-view-container">
-    <div class="left-pane">
-      <div class="task-view-pane">
-        <KanbanTaskList title="Todo" :tasks="todayTasks" @open-editor="handleOpenEditor" />
-        <KanbanTaskList title="In Progress" :tasks="inboxTasks" @open-editor="handleOpenEditor" />
-      </div>
+    <div class="main-content-pane">
+      <TwoRowLayout>
+        <template #top>
+          <CuteButton>Test Button 1</CuteButton>
+        </template>
+        <template #bottom>
+          <div class="task-view-pane">
+            <KanbanTaskList title="Todo" :tasks="todayTasks" @open-editor="handleOpenEditor" />
+            <KanbanTaskList
+              title="In Progress"
+              :tasks="inboxTasks"
+              @open-editor="handleOpenEditor"
+            />
+          </div>
+        </template>
+      </TwoRowLayout>
     </div>
-    <div class="right-pane">
-      <CuteCalendar />
+    <div class="calendar-pane">
+      <TwoRowLayout>
+        <template #top>
+          <CuteButton>Test Button 2</CuteButton>
+        </template>
+        <template #bottom>
+          <CuteCalendar />
+        </template>
+      </TwoRowLayout>
+    </div>
+    <div class="toolbar-pane">
+      <TwoRowLayout>
+        <template #top>
+          <CuteButton>Test</CuteButton>
+        </template>
+        <template #bottom>
+          <div class="toolbar-icons">
+            <CuteIcon name="Calendar" :size="28" />
+            <CuteIcon name="Theater" :size="28" />
+          </div>
+        </template>
+      </TwoRowLayout>
     </div>
     <KanbanTaskEditorModal
       v-if="isEditorOpen"
@@ -51,21 +85,50 @@ onMounted(() => {
   height: 100vh;
   width: 100%;
   background-color: var(--color-background-content);
-}
-
-.left-pane,
-.right-pane {
-  flex: 1;
-  min-width: 0; /* Prevents flexbox overflow */
-  padding: 1rem;
   border: 1px solid var(--color-border-default);
   border-radius: 0.8rem;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
+}
+
+.main-content-pane {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid var(--color-border-default);
+  box-shadow: 4px 0 12px -2px rgb(0 0 0 / 5%);
+  position: relative; /* for shadow to be on top */
+}
+
+.calendar-pane {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid var(--color-border-default);
+}
+
+.toolbar-pane {
+  width: 6rem; /* 96px */
+  min-width: 6rem;
+}
+
+.toolbar-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+  padding-top: 1rem;
 }
 
 .task-view-pane {
   display: flex;
   gap: 1rem;
   height: 100%;
+}
+
+:deep(.top-row .cute-button) {
+  background-color: #4a90e2; /* A nice blue */
+  color: #fff; /* White text */
+  border-color: transparent;
+}
+
+:deep(.top-row .cute-button:hover) {
+  background-color: #357abd; /* A darker blue for hover */
 }
 </style>

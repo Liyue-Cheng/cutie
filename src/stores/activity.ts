@@ -70,6 +70,8 @@ export const useActivityStore = defineStore('activity', () => {
     } catch (e) {
       error.value = `Failed to create activity: ${e}`
       console.error(e)
+      // Re-throw the error so the component can handle it
+      throw e
     } finally {
       isLoading.value = false
     }
@@ -84,6 +86,8 @@ export const useActivityStore = defineStore('activity', () => {
     } catch (e) {
       error.value = `Failed to update activity ${id}: ${e}`
       console.error(e)
+      // Re-throw the error so the component can handle it
+      throw e
     } finally {
       isLoading.value = false
     }

@@ -1,6 +1,6 @@
 use app_lib::commands::activity_commands::*;
 use app_lib::core::db::DbPool;
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 
 async fn setup_test_db() -> DbPool {
@@ -36,6 +36,36 @@ async fn test_create_activity_core() {
     assert!(result.is_ok());
     let activity = result.unwrap();
     assert_eq!(activity.title, Some("Test Activity".to_string()));
+}
+
+#[tokio::test]
+async fn test_create_activity_fails_if_overlapping() {
+    // Arrange
+    let pool = setup_test_db().await;
+    let now = Utc::now();
+    let existing_payload = CreateActivityPayload {
+        title: Some("Existing Activity".to_string()),
+        start_time: now,
+        end_time: now + Duration::hours(2),
+        ..Default::default()
+    };
+    create_activity_core(&pool, existing_payload).await.unwrap();
+
+    // Overlaps at the start
+    let overlapping_payload = CreateActivityPayload {
+        title: Some("Overlapping Activity".to_string()),
+        start_time: now + Duration::hours(1),
+        end_time: now + Duration::hours(3),
+        ..Default::default()
+    };
+
+    // Act
+    let result = create_activity_core(&pool, overlapping_payload).await;
+
+    // Assert
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("An overlapping activity already exists."));
 }
 
 #[tokio::test]
@@ -126,6 +156,78 @@ async fn test_update_activity_core() {
     assert!(result.is_ok());
     let updated = result.unwrap();
     assert_eq!(updated.title, Some("Updated".to_string()));
+}
+
+#[tokio::test]
+async fn test_update_activity_succeeds_with_same_times() {
+    // Arrange
+    let pool = setup_test_db().await;
+    let now = Utc::now();
+    let activity = create_activity_core(
+        &pool,
+        CreateActivityPayload {
+            start_time: now,
+            end_time: now + Duration::hours(2),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    let payload = UpdateActivityPayload {
+        title: Some("Updated Title".to_string()),
+        start_time: Some(activity.start_time),
+        end_time: Some(activity.end_time),
+        ..Default::default()
+    };
+
+    // Act
+    let result = update_activity_core(&pool, activity.id, payload).await;
+
+    // Assert
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_update_activity_fails_if_overlapping() {
+    // Arrange
+    let pool = setup_test_db().await;
+    let now = Utc::now();
+    // Create first activity
+    create_activity_core(
+        &pool,
+        CreateActivityPayload {
+            start_time: now,
+            end_time: now + Duration::hours(2),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    // Create the activity we are going to update
+    let activity_to_update = create_activity_core(
+        &pool,
+        CreateActivityPayload {
+            start_time: now + Duration::hours(3),
+            end_time: now + Duration::hours(4),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    // Act: Try to update the second activity to overlap with the first
+    let payload = UpdateActivityPayload {
+        start_time: Some(now + Duration::hours(1)),
+        end_time: Some(now + Duration::hours(3)),
+        ..Default::default()
+    };
+    let result = update_activity_core(&pool, activity_to_update.id, payload).await;
+
+    // Assert
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("An overlapping activity already exists."));
 }
 
 #[tokio::test]
