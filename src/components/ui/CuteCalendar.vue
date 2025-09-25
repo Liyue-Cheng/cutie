@@ -1,17 +1,19 @@
 <template>
-  <FullCalendar :options="calendarOptions" :key="activityStore.activities.size" />
+  <FullCalendar :options="calendarOptions" />
 </template>
 
 <script setup lang="ts">
 import FullCalendar from '@fullcalendar/vue3'
-import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { reactive, onMounted, computed } from 'vue'
 import { useActivityStore } from '@/stores/activity'
-import type { EventInput, EventChangeArg, DateSelectArg } from '@fullcalendar/core'
+import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
+import { useContextMenu } from '@/composables/useContextMenu'
+import CalendarEventMenu from '@/components/business/CalendarEventMenu.vue'
 
 const activityStore = useActivityStore()
+const contextMenu = useContextMenu()
 
 onMounted(() => {
   activityStore.fetchActivities()
@@ -66,6 +68,12 @@ async function handleEventChange(changeInfo: EventChangeArg) {
   }
 }
 
+function handleEventContextMenu(info: EventMountArg) {
+  info.el.addEventListener('contextmenu', (e: MouseEvent) => {
+    contextMenu.show(CalendarEventMenu, { event: info.event }, e)
+  })
+}
+
 const calendarOptions = reactive({
   plugins: [interactionPlugin, timeGridPlugin],
   headerToolbar: false as const,
@@ -83,47 +91,104 @@ const calendarOptions = reactive({
   events: calendarEvents,
   select: handleDateSelect,
   eventChange: handleEventChange,
+  eventDidMount: handleEventContextMenu,
 })
 </script>
 
 <style>
 /*
- * FullCalendar Customizations
- *
- * To customize the calendar's appearance, you can override its CSS variables
- * or target its specific classes. Using the browser's developer tools is the
- * best way to inspect elements and find the right selectors.
- *
- * Example: Change the background color of the current day.
+ * ===============================================
+ * FullCalendar 自定义样式
+ * ===============================================
+ * 
+ * 本文件包含对 FullCalendar 组件的所有自定义样式修改，
+ * 按功能模块分组，便于维护和理解。
  */
+
+/* ===============================================
+ * 1. 今日高亮样式
+ * =============================================== */
 .fc .fc-day-today {
-  background-color: rgb(74 144 226 / 15%) !important; /* A light, translucent blue */
+  background-color: transparent !important; /* 移除今日的默认蓝色背景 */
 }
 
-/* Remove the border from minor timegrid slots */
+/* ===============================================
+ * 2. 时间标签样式修复
+ * =============================================== */
+
+/* 时间标签垂直居中 */
 .fc .fc-timegrid-slot-label {
   transform: translateY(-50%);
 }
 
+/* 移除时间槽边框 */
 .fc .fc-timegrid-slot-label,
 .fc .fc-timegrid-slot-minor {
   border: none !important;
 }
 
-/* Hide the default vertical scrollbar */
+/* 为时间标签容器添加上边距，防止 translateY(-50%) 导致的裁切问题 */
+.fc .fc-timegrid-slots {
+  padding-top: 1rem !important;
+}
+
+/* ===============================================
+ * 3. 滚动条样式美化
+ * =============================================== */
+
+/* 隐藏默认滚动条 */
 .fc .fc-scroller::-webkit-scrollbar {
   width: 8px;
   background-color: transparent;
 }
 
-/* Style the track */
+/* 滚动条轨道样式 */
 .fc .fc-scroller::-webkit-scrollbar-track {
   background-color: transparent;
 }
 
-/* Style the thumb */
+/* 滚动条滑块样式 */
 .fc .fc-scroller::-webkit-scrollbar-thumb {
   background-color: var(--color-border-hover);
   border-radius: 4px;
+}
+
+/* ===============================================
+ * 4. 时间网格分隔线样式
+ * =============================================== */
+.fc .fc-timegrid-divider {
+  padding: 1rem !important; /* 增加分隔线区域的内边距 */
+  background-color: transparent !important; /* 设置透明背景 */
+}
+
+/* ===============================================
+ * 5. 边框移除 - 解决多余边框显示问题
+ * =============================================== */
+
+/* 移除主网格边框 */
+.fc-theme-standard .fc-scrollgrid {
+  border: none !important;
+}
+
+/* 移除表格单元格右边框 */
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-right: none !important;
+}
+
+/* 移除特定容器的边框 */
+.fc .fc-scrollgrid-section-liquid > td {
+  border: none !important;
+}
+
+/* ===============================================
+ * 6. 事件样式自定义
+ * =============================================== */
+
+/* 事件边框和视觉效果 */
+.fc-event,
+.fc-timegrid-event {
+  border-color: #ddd !important; /* 设置事件边框为灰色 */
+  box-shadow: none !important; /* 移除默认阴影效果 */
 }
 </style>

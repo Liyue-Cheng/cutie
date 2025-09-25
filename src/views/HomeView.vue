@@ -82,7 +82,7 @@ onMounted(() => {
 <style scoped>
 .home-view-container {
   display: flex;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   background-color: var(--color-background-content);
   border: 1px solid var(--color-border-default);

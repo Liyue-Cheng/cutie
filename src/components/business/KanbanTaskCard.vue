@@ -3,6 +3,8 @@ import { computed, onMounted } from 'vue'
 import type { Task, Checkpoint } from '@/types/models'
 import { useTaskStore } from '@/stores/task'
 import { useCheckpointStore } from '@/stores/checkpoint'
+import { useContextMenu } from '@/composables/useContextMenu'
+import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/ui/CuteCard.vue'
 import CuteCheckbox from '@/components/ui/CuteCheckbox.vue'
 import CuteIcon from '@/components/ui/CuteIcon.vue'
@@ -15,7 +17,13 @@ const taskStore = useTaskStore()
 const checkpointStore = useCheckpointStore()
 const emit = defineEmits(['openEditor'])
 
+const contextMenu = useContextMenu()
+
 const checkpoints = computed(() => checkpointStore.getCheckpointsForTask(props.task.id))
+
+function showContextMenu(event: MouseEvent) {
+  contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
+}
 
 onMounted(() => {
   checkpointStore.fetchCheckpointsForTask(props.task.id)
@@ -40,7 +48,7 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
 </script>
 
 <template>
-  <CuteCard class="task-card" @click="emit('openEditor')">
+  <CuteCard class="task-card" @click="emit('openEditor')" @contextmenu="showContextMenu">
     <div class="main-content">
       <span class="title">{{ task.title }}</span>
 
