@@ -55,7 +55,9 @@ CREATE TABLE activities (
     deleted_at INTEGER,
     remote_updated_at INTEGER,
     origin_id TEXT,
-    connector_id TEXT
+    connector_id TEXT,
+    task_id TEXT,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
 );
 
 CREATE TABLE tags (

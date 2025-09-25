@@ -3,9 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useCheckpointStore } from '@/stores/checkpoint'
 import type { Checkpoint } from '@/types/models'
-import CuteCard from '@/components/ui/CuteCard.vue'
-import CuteCheckbox from '@/components/ui/CuteCheckbox.vue'
-import CuteButton from '@/components/ui/CuteButton.vue'
+import CuteCard from '@/components/templates/CuteCard.vue'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
+import CuteButton from '@/components/parts/CuteButton.vue'
 
 const props = defineProps<{
   taskId: string | null

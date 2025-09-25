@@ -85,10 +85,10 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. Import lifecycle hooks and ref
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import CuteButton from '../ui/CuteButton.vue'
-import CuteIcon from '../ui/CuteIcon.vue'
-import CutePane from '../ui/CutePane.vue'
-import SettingsView from '../temp/TempSetting.vue'
+import CuteButton from '../components/parts/CuteButton.vue'
+import CuteIcon from '../components/parts/CuteIcon.vue'
+import CutePane from '../components/alias/CutePane.vue'
+import SettingsView from '../components/temp/TempSetting.vue'
 
 const appWindow = getCurrentWindow()
 

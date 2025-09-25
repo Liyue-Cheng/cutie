@@ -2,7 +2,7 @@
   <n-card class="context-menu" content-style="padding: 5px;">
     <n-button text @click="handleAction('edit')">编辑任务</n-button>
     <n-divider vertical />
-    <n-button text @click="handleAction('delete')">删除任务</n-button>
+    <n-button text type="error" @click="handleAction('delete')">删除任务</n-button>
   </n-card>
 </template>
 
@@ -10,6 +10,7 @@
 import { defineProps, defineEmits } from 'vue'
 import { NCard, NButton, NDivider } from 'naive-ui'
 import type { Task } from '@/types/models'
+import { useTaskStore } from '@/stores/task'
 
 const props = defineProps<{
   task: Task
@@ -17,11 +18,22 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 
-const handleAction = (action: 'edit' | 'delete') => {
-  console.log(`Action: ${action} on task:`, props.task)
-  // Here you would typically emit an event or call a store action
-  // For example: taskStore.deleteTask(props.task.id);
-  emit('close') // Close the context menu after action
+const taskStore = useTaskStore()
+
+const handleAction = async (action: 'edit' | 'delete') => {
+  if (action === 'delete') {
+    try {
+      await taskStore.deleteTask(props.task.id)
+      console.log(`任务 "${props.task.title}" 已删除`)
+    } catch (error) {
+      console.error('删除任务失败:', error)
+    }
+  } else if (action === 'edit') {
+    console.log(`Action: ${action} on task:`, props.task)
+    // TODO: 实现编辑功能
+  }
+
+  emit('close')
 }
 </script>
 

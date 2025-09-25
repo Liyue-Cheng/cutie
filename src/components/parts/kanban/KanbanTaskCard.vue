@@ -5,9 +5,9 @@ import { useTaskStore } from '@/stores/task'
 import { useCheckpointStore } from '@/stores/checkpoint'
 import { useContextMenu } from '@/composables/useContextMenu'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
-import CuteCard from '@/components/ui/CuteCard.vue'
-import CuteCheckbox from '@/components/ui/CuteCheckbox.vue'
-import CuteIcon from '@/components/ui/CuteIcon.vue'
+import CuteCard from '@/components/templates/CuteCard.vue'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
   task: Task

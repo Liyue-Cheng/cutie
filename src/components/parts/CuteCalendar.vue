@@ -10,7 +10,7 @@ import { reactive, onMounted, computed } from 'vue'
 import { useActivityStore } from '@/stores/activity'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
-import CalendarEventMenu from '@/components/business/CalendarEventMenu.vue'
+import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 
 const activityStore = useActivityStore()
 const contextMenu = useContextMenu()
@@ -52,13 +52,32 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
 }
 
 async function handleEventChange(changeInfo: EventChangeArg) {
-  const { event } = changeInfo
+  const { event, oldEvent } = changeInfo
+
+  // Check if this is a drag from all-day to timed event
+  const wasAllDay = oldEvent.allDay
+  const isNowTimed = !event.allDay
+
+  let startTime = event.start?.toISOString()
+  let endTime = event.end?.toISOString()
+
+  // If dragging from all-day to timed, set duration to 1 hour
+  if (wasAllDay && isNowTimed && event.start) {
+    const start = new Date(event.start)
+    const end = new Date(start.getTime() + 60 * 60 * 1000) // Add 1 hour
+    startTime = start.toISOString()
+    endTime = end.toISOString()
+
+    console.log(
+      `[Calendar] Converting all-day event to 1-hour timed event: ${startTime} - ${endTime}`
+    )
+  }
 
   try {
     await activityStore.updateActivity(event.id, {
       title: event.title,
-      start_time: event.start?.toISOString(),
-      end_time: event.end?.toISOString(),
+      start_time: startTime,
+      end_time: endTime,
       is_all_day: event.allDay,
     })
   } catch (error) {

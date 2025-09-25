@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
 import type { Task } from '@/types/models'
-import KanbanTaskList from '@/components/business/KanbanTaskList.vue'
-import KanbanTaskEditorModal from '@/components/business/KanbanTaskEditorModal.vue'
-import CuteCalendar from '@/components/ui/CuteCalendar.vue'
-import CuteIcon from '@/components/ui/CuteIcon.vue'
-import CuteButton from '@/components/ui/CuteButton.vue'
-import TwoRowLayout from '@/components/layout/TwoRowLayout.vue'
+import KanbanTaskList from '@/components/parts/kanban/KanbanTaskList.vue'
+import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
+import CuteCalendar from '@/components/parts/CuteCalendar.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CuteButton from '@/components/parts/CuteButton.vue'
+import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
 
 const taskStore = useTaskStore()

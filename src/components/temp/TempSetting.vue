@@ -51,9 +51,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import CuteCard from '../ui/CuteCard.vue'
-import CutePane from '../ui/CutePane.vue'
-import CuteButton from '../ui/CuteButton.vue'
+import CuteCard from '../templates/CuteCard.vue'
+import CutePane from '../alias/CutePane.vue'
+import CuteButton from '../parts/CuteButton.vue'
 
 const emit = defineEmits(['close'])
 

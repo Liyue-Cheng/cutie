@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
 import { NCard, NButton } from 'naive-ui'
-import CuteIcon from '@/components/ui/CuteIcon.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import type { EventApi } from '@fullcalendar/core'
 import { useActivityStore } from '@/stores/activity'
 

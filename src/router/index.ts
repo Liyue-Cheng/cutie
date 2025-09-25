@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import MainLayout from '../components/layout/MainLayout.vue'
+import MainLayout from '../views/MainLayout.vue'
 
 const routes: Array<RouteRecordRaw> = [
   // 路由组 1: 所有使用 MainLayout 标准布局的页面

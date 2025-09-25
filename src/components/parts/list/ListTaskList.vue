@@ -3,16 +3,13 @@ import { ref } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 import type { Task } from '@/types/models'
 import { useTaskStore } from '@/stores/task'
-import CutePane from '@/components/ui/CutePane.vue'
-import CuteCard from '@/components/ui/CuteCard.vue'
-import KanbanTaskCard from './KanbanTaskCard.vue'
+import CutePane from '@/components/alias/CutePane.vue'
+import ListTaskCard from './ListTaskCard.vue'
 
 defineProps<{
   title: string
   tasks: Task[]
 }>()
-
-const emit = defineEmits(['openEditor'])
 
 const taskStore = useTaskStore()
 const newTaskTitle = ref('')
@@ -61,12 +58,7 @@ async function handleAddTask() {
     </div>
 
     <div class="task-list-scroll-area">
-      <KanbanTaskCard
-        v-for="task in tasks"
-        :key="task.id"
-        :task="task"
-        @open-editor="emit('openEditor', task)"
-      />
+      <ListTaskCard v-for="task in tasks" :key="task.id" :task="task" />
     </div>
   </CutePane>
 </template>
@@ -77,8 +69,6 @@ async function handleAddTask() {
   flex-direction: column;
   height: 100%;
   background-color: var(--color-background-content);
-  width: 21rem;
-  flex-shrink: 0;
 }
 
 .header {

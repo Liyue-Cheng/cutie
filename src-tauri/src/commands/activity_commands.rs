@@ -35,7 +35,10 @@ pub async fn create_activity_core(
     pool: &DbPool,
     payload: CreateActivityPayload,
 ) -> Result<Activity, SqlxError> {
-    if check_for_overlapping_activity(pool, payload.start_time, payload.end_time, None).await? {
+    let is_all_day = payload.is_all_day.unwrap_or(false);
+    if check_for_overlapping_activity(pool, payload.start_time, payload.end_time, None, is_all_day)
+        .await?
+    {
         return Err(SqlxError::Protocol(
             "An overlapping activity already exists.".into(),
         ));
@@ -91,9 +94,17 @@ pub async fn update_activity_core(
 
     let new_start_time = payload.start_time.unwrap_or(activity.start_time);
     let new_end_time = payload.end_time.unwrap_or(activity.end_time);
+    let new_is_all_day = payload.is_all_day.unwrap_or(activity.is_all_day);
 
-    if (payload.start_time.is_some() || payload.end_time.is_some())
-        && check_for_overlapping_activity(pool, new_start_time, new_end_time, Some(id)).await?
+    if (payload.start_time.is_some() || payload.end_time.is_some() || payload.is_all_day.is_some())
+        && check_for_overlapping_activity(
+            pool,
+            new_start_time,
+            new_end_time,
+            Some(id),
+            new_is_all_day,
+        )
+        .await?
     {
         return Err(SqlxError::Protocol(
             "An overlapping activity already exists.".into(),
@@ -144,13 +155,25 @@ pub async fn delete_activity_core(pool: &DbPool, id: Uuid) -> Result<(), SqlxErr
 
 /// Checks for any activity that overlaps with the given time range.
 /// Optionally excludes a specific activity ID from the check (useful for updates).
+///
+/// Overlap logic:
+/// - All-day events only conflict with other all-day events on the same day
+/// - Non-all-day events only conflict with other non-all-day events that have time overlap
+/// - All-day and non-all-day events do not conflict with each other
 async fn check_for_overlapping_activity(
     pool: &DbPool,
     start_time: DateTime<Utc>,
     end_time: DateTime<Utc>,
     exclude_id: Option<Uuid>,
+    is_all_day: bool,
 ) -> Result<bool, SqlxError> {
-    let base_query = "SELECT COUNT(*) FROM activities WHERE deleted_at IS NULL AND start_time < $1 AND end_time > $2";
+    let base_query = if is_all_day {
+        // For all-day events, only check conflicts with other all-day events on the same day
+        "SELECT COUNT(*) FROM activities WHERE deleted_at IS NULL AND is_all_day = true AND DATE(start_time) <= DATE($1) AND DATE(end_time) >= DATE($2)"
+    } else {
+        // For non-all-day events, only check conflicts with other non-all-day events that have time overlap
+        "SELECT COUNT(*) FROM activities WHERE deleted_at IS NULL AND is_all_day = false AND start_time < $1 AND end_time > $2"
+    };
 
     let count: (i64,) = if let Some(id) = exclude_id {
         let query = format!("{} AND id != $3", base_query);
