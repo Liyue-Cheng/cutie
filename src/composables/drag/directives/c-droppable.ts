@@ -3,17 +3,17 @@ import { useDroppable } from '../useDroppable'
 import type { DroppableOptions } from '../types'
 
 /**
- * v-droppable 指令
+ * c-droppable 指令
  * 使元素成为可放置区域
  *
  * 使用方式：
- * <div v-droppable="{ acceptedDataTypes: ['task'], onDrop: handleDrop }">...</div>
+ * <div v-c-droppable="{ acceptedDataTypes: ['task'], onDrop: handleDrop }">...</div>
  */
-export const vDroppable: Directive<HTMLElement, DroppableOptions> = {
+export const cDroppable: Directive<HTMLElement, DroppableOptions> = {
   mounted(el, binding) {
     const options = binding.value
     if (!options || !options.acceptedDataTypes || options.acceptedDataTypes.length === 0) {
-      console.warn('v-droppable: 需要提供 acceptedDataTypes')
+      console.warn('c-droppable: 需要提供 acceptedDataTypes')
       return
     }
 
@@ -86,7 +86,7 @@ export const vDroppable: Directive<HTMLElement, DroppableOptions> = {
 
     // 验证新选项
     if (!newOptions || !newOptions.acceptedDataTypes || newOptions.acceptedDataTypes.length === 0) {
-      console.warn('v-droppable: 需要提供 acceptedDataTypes')
+      console.warn('c-droppable: 需要提供 acceptedDataTypes')
       return
     }
 

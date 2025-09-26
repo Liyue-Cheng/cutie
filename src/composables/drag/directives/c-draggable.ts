@@ -32,17 +32,17 @@ function createModifiedPointerEvent(
 }
 
 /**
- * v-draggable 指令
+ * c-draggable 指令
  * 使元素可拖拽
  *
  * 使用方式：
- * <div v-draggable="{ data: item, dataType: 'task' }">...</div>
+ * <div v-c-draggable="{ data: item, dataType: 'task' }">...</div>
  */
-export const vDraggable: Directive<HTMLElement, DraggableOptions> = {
+export const cDraggable: Directive<HTMLElement, DraggableOptions> = {
   mounted(el, binding) {
     const options = binding.value
     if (!options || !options.data || !options.dataType) {
-      console.warn('v-draggable: 需要提供 data 和 dataType')
+      console.warn('c-draggable: 需要提供 data 和 dataType')
       return
     }
 
@@ -100,7 +100,7 @@ export const vDraggable: Directive<HTMLElement, DraggableOptions> = {
 
     // 验证新选项
     if (!newOptions || !newOptions.data || !newOptions.dataType) {
-      console.warn('v-draggable: 需要提供 data 和 dataType')
+      console.warn('c-draggable: 需要提供 data 和 dataType')
       return
     }
 

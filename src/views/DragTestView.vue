@@ -10,7 +10,7 @@
           <div
             v-for="item in draggableItems"
             :key="item.id"
-            v-draggable="{ data: item, dataType: 'task' }"
+            v-c-draggable="{ data: item, dataType: 'task' }"
             class="draggable-item"
           >
             <span class="item-icon">📋</span>
@@ -23,7 +23,7 @@
         <h3>放置区域</h3>
         <div class="drop-zone-container">
           <div
-            v-droppable="{
+            v-c-droppable="{
               acceptedDataTypes: ['task'],
               onDrop: handleDrop,
               onDragEnter: handleDragEnter,
@@ -86,8 +86,8 @@
           <div
             v-for="item in displayScrollableTaskList"
             :key="item.isPreview ? `preview-${item.id}` : item.id"
-            v-draggable="!item.isPreview ? { data: item, dataType: 'scrollable-task' } : null"
-            v-droppable="
+            v-c-draggable="!item.isPreview ? { data: item, dataType: 'scrollable-task' } : null"
+            v-c-droppable="
               !item.isPreview
                 ? {
                     acceptedDataTypes: ['scrollable-task', 'task'],
@@ -124,7 +124,7 @@
       <div class="drop-zones">
         <div class="drop-zone-container">
           <div
-            v-droppable="{
+            v-c-droppable="{
               acceptedDataTypes: ['task', 'scrollable-task'],
               onDrop: handleBottomDrop,
               onDragEnter: handleBottomDragEnter,
