@@ -36,6 +36,9 @@
             <li>
               <CuteIcon name="List" :size="16" /><span>{{ $t('sidebar.allTasks') }}</span>
             </li>
+            <li @click="$router.push('/drag-test')">
+              <CuteIcon name="Move" :size="16" /><span>拖放测试</span>
+            </li>
           </ul>
 
           <div class="collapsible-section">
