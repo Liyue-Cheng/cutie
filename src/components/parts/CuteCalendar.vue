@@ -345,6 +345,7 @@ const calendarOptions = reactive({
   slotMaxTime: '24:00:00', // 到24:00结束
   slotDuration: '00:10:00', // 10分钟时间槽
   snapDuration: '00:10:00', // 10分钟对齐精度
+  nowIndicator: true, // 显示当前时间指示器
   height: '100%',
   weekends: true,
   editable: true,
@@ -380,6 +381,18 @@ const calendarOptions = reactive({
   background-color: #4a90e2 !important;
   color: #fff !important;
   border-color: #357abd !important;
+}
+
+/* 当前时间指示器样式 */
+.fc-timegrid-now-indicator-line {
+  border-color: #ff6b6b !important;
+  border-width: 2px !important;
+  z-index: 10 !important;
+}
+
+.fc-timegrid-now-indicator-arrow {
+  border-left-color: #ff6b6b !important;
+  border-right-color: #ff6b6b !important;
 }
 
 /* ===============================================
