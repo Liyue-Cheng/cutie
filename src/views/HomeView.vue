@@ -93,8 +93,8 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
-  box-shadow: 4px 0 12px -2px rgb(0 0 0 / 5%);
-  position: relative; /* for shadow to be on top */
+  box-shadow: inset -4px 0 12px -2px rgb(0 0 0 / 5%);
+  position: relative;
 }
 
 .calendar-pane {
