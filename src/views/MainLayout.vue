@@ -24,20 +24,15 @@
         </div>
         <div class="sidebar-content">
           <ul class="nav-group">
-            <li>
-              <CuteIcon name="Clock" :size="16" /><span>{{ $t('sidebar.timeline') }}</span>
+            <li @click="$router.push('/')"><CuteIcon name="House" :size="16" /><span>Home</span></li>
+            <li @click="$router.push('/staging')">
+              <CuteIcon name="Layers" :size="16" /><span>Staging</span>
             </li>
-            <li>
-              <CuteIcon name="Clipboard" :size="16" /><span>{{ $t('sidebar.planning') }}</span>
+            <li @click="$router.push('/calendar')">
+              <CuteIcon name="Calendar" :size="16" /><span>Calendar</span>
             </li>
-            <li>
-              <CuteIcon name="Send" :size="16" /><span>{{ $t('sidebar.upcoming') }}</span>
-            </li>
-            <li>
-              <CuteIcon name="List" :size="16" /><span>{{ $t('sidebar.allTasks') }}</span>
-            </li>
-            <li @click="$router.push('/drag-test')">
-              <CuteIcon name="Move" :size="16" /><span>拖放测试</span>
+            <li @click="$router.push('/daily-shutdown')">
+              <CuteIcon name="PowerOff" :size="16" /><span>Daily Shutdown</span>
             </li>
           </ul>
 

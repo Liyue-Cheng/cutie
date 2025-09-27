@@ -26,4 +26,4 @@
 
 ---
 
-*此文档将随着项目发展持续更新 / This document will be updated as the project evolves*
+_此文档将随着项目发展持续更新 / This document will be updated as the project evolves_

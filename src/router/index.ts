@@ -12,12 +12,21 @@ const routes: Array<RouteRecordRaw> = [
         name: 'home',
         component: () => import('../views/HomeView.vue'),
       },
-      // 可以在这里为未来页面预留位置
-      // {
-      //   path: 'settings',
-      //   name: 'settings',
-      //   component: () => import('../views/SettingsView.vue'),
-      // }
+      {
+        path: 'staging',
+        name: 'staging',
+        component: () => import('../views/StagingView.vue'),
+      },
+      {
+        path: 'calendar',
+        name: 'calendar',
+        component: () => import('../views/CalendarView.vue'),
+      },
+      {
+        path: 'daily-shutdown',
+        name: 'daily-shutdown',
+        component: () => import('../views/DailyShutdownView.vue'),
+      },
     ],
   },
 
@@ -27,7 +36,6 @@ const routes: Array<RouteRecordRaw> = [
     name: 'ai-chat',
     component: () => import('../views/AIChatView.vue'),
   },
-
 ]
 
 const router = createRouter({
