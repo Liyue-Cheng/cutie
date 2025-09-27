@@ -55,6 +55,7 @@ function handleGlobalDragStart(event: DragEvent) {
 function handleGlobalDragEnd() {
   currentDraggedTask.value = null
   clearPreviewEvent()
+  stopAutoScroll()
 }
 
 onUnmounted(() => {
@@ -178,6 +179,9 @@ function handleEventContextMenu(info: EventMountArg) {
 
 let lastUpdateTime = 0
 const UPDATE_THROTTLE = 16 // 约60fps
+const SCROLL_ZONE_SIZE = 100 // 触发滚动的边缘区域大小（像素）
+const SCROLL_SPEED = 5 // 滚动速度（像素/次）
+let scrollTimer: number | null = null
 
 function handleDragOver(event: DragEvent) {
   event.preventDefault()
@@ -189,6 +193,7 @@ function handleDragOver(event: DragEvent) {
   const now = Date.now()
   if (isDragging.value && now - lastUpdateTime > UPDATE_THROTTLE) {
     updatePreviewEvent(event)
+    handleAutoScroll(event)
     lastUpdateTime = now
   }
 }
@@ -210,6 +215,62 @@ function handleDragLeave(event: DragEvent) {
 
   if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
     clearPreviewEvent()
+    stopAutoScroll()
+  }
+}
+
+function handleAutoScroll(event: DragEvent) {
+  const calendarContainer = event.currentTarget as HTMLElement
+  const scrollableEl = calendarContainer.querySelector('.fc-scroller') as HTMLElement
+
+  if (!scrollableEl) return
+
+  const rect = scrollableEl.getBoundingClientRect()
+  const mouseY = event.clientY
+  const relativeY = mouseY - rect.top
+
+  let scrollDirection = 0
+
+  // 检查是否在顶部滚动区域
+  if (relativeY < SCROLL_ZONE_SIZE) {
+    scrollDirection = -1 // 向上滚动
+  }
+  // 检查是否在底部滚动区域
+  else if (relativeY > rect.height - SCROLL_ZONE_SIZE) {
+    scrollDirection = 1 // 向下滚动
+  }
+
+  if (scrollDirection !== 0) {
+    startAutoScroll(scrollableEl, scrollDirection)
+  } else {
+    stopAutoScroll()
+  }
+}
+
+function startAutoScroll(scrollableEl: HTMLElement, direction: number) {
+  // 如果已经在滚动，就不重复启动
+  if (scrollTimer !== null) return
+
+  scrollTimer = window.setInterval(() => {
+    const scrollAmount = SCROLL_SPEED * direction
+    scrollableEl.scrollTop += scrollAmount
+
+    // 检查是否已经到达边界
+    if (direction < 0 && scrollableEl.scrollTop <= 0) {
+      stopAutoScroll()
+    } else if (
+      direction > 0 &&
+      scrollableEl.scrollTop >= scrollableEl.scrollHeight - scrollableEl.clientHeight
+    ) {
+      stopAutoScroll()
+    }
+  }, 16) // 约60fps
+}
+
+function stopAutoScroll() {
+  if (scrollTimer !== null) {
+    clearInterval(scrollTimer)
+    scrollTimer = null
   }
 }
 
@@ -241,6 +302,8 @@ function clearPreviewEvent() {
   // 清理缓存
   cachedCalendarEl = null
   cachedRect = null
+  // 停止自动滚动
+  stopAutoScroll()
 }
 
 async function handleDrop(event: DragEvent) {
