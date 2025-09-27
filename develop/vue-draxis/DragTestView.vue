@@ -84,32 +84,46 @@
       <div class="scrollable-list-container">
         <div class="scrollable-task-list" ref="scrollableListRef">
           <div
-            v-for="item in displayScrollableTaskList"
-            :key="item.isPreview ? `preview-${item.id}` : item.id"
-            v-c-draggable="!item.isPreview ? { data: item, dataType: 'scrollable-task' } : null"
-            v-c-droppable="
-              !item.isPreview
-                ? {
-                    acceptedDataTypes: ['scrollable-task', 'task'],
-                    onDrop: (data: any) => handleScrollableListDrop(data, item.displayIndex),
-                    onDragEnter: () => handleScrollableListDragEnter(item.displayIndex),
-                    onDragOver: (_data: any, _dataType: string, event?: PointerEvent) =>
-                      event && handleScrollableListDragOver(event, item.displayIndex),
-                    onDragLeave: handleScrollableListDragLeave,
-                  }
-                : null
-            "
+            v-for="(item, index) in sortableTaskList"
+            :key="item.id"
             class="scrollable-task-item"
             :class="{
-              'is-preview': item.isPreview,
-              'is-hidden': item.isHidden,
+              'is-dragging': dragState.isDragging && dragState.draggedItemId === item.id,
+              'drag-over-before':
+                dragState.insertPosition === 'before' && dragState.targetIndex === index,
+              'drag-over-after':
+                dragState.insertPosition === 'after' && dragState.targetIndex === index,
             }"
+            :data-index="index"
+            @pointerdown="handleItemPointerDown($event, item, index)"
           >
-            <span class="task-order">{{ item.displayIndex + 1 }}</span>
+            <span class="task-order">{{ index + 1 }}</span>
             <span class="item-icon">📝</span>
             <span class="task-title">{{ item.title }}</span>
             <span class="task-priority" :class="`priority-${item.priority}`">
               {{ item.priority === 'high' ? '🔴' : item.priority === 'medium' ? '🟡' : '🟢' }}
+            </span>
+          </div>
+
+          <!-- 拖拽预览元素 -->
+          <div
+            v-if="dragState.showPreview"
+            class="scrollable-task-item preview-item"
+            :style="{
+              transform: `translateY(${dragState.previewPosition}px)`,
+            }"
+          >
+            <span class="task-order">{{ dragState.previewItem?.newIndex || 0 }}</span>
+            <span class="item-icon">📝</span>
+            <span class="task-title">{{ dragState.previewItem?.title }}</span>
+            <span class="task-priority" :class="`priority-${dragState.previewItem?.priority}`">
+              {{
+                dragState.previewItem?.priority === 'high'
+                  ? '🔴'
+                  : dragState.previewItem?.priority === 'medium'
+                    ? '🟡'
+                    : '🟢'
+              }}
             </span>
           </div>
         </div>
@@ -155,7 +169,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 import { dragManager, useDragCreator } from '@/composables/drag'
 import type { DragData } from '@/composables/drag'
 import NewTaskGhost from '@/components/NewTaskGhost.vue'
@@ -176,15 +190,11 @@ const bottomDroppedItems = ref<any[]>([])
 const isDropZoneActive = ref(false)
 const isBottomDropZoneActive = ref(false)
 
-// 可滚动列表相关
+// 新的拖拽排序系统
 const scrollableListRef = ref<HTMLElement>()
-const scrollableListDragOverIndex = ref(-1)
-const scrollableListInsertPosition = ref<'before' | 'after'>('after')
-const scrollableListDragSourceIndex = ref(-1)
-const scrollableListPreviewData = ref<any>(null)
 
-// 生成大量任务数据用于滚动测试
-const scrollableTaskList = ref(
+// 任务列表数据
+const sortableTaskList = ref(
   Array.from({ length: 50 }, (_, i) => ({
     id: 1000 + i,
     title: `任务 ${i + 1}: ${['完成UI设计', '代码重构', '性能优化', 'bug修复', '功能测试', '文档更新', '部署上线'][i % 7]}`,
@@ -193,61 +203,166 @@ const scrollableTaskList = ref(
   }))
 )
 
-// 计算带预览的显示列表
-const displayScrollableTaskList = computed(() => {
-  const sourceIndex = scrollableListDragSourceIndex.value
-  const targetIndex = scrollableListDragOverIndex.value
-  const hasPreview = targetIndex !== -1 && scrollableListPreviewData.value
-  const insertBefore = scrollableListInsertPosition.value === 'before'
-
-  if (!hasPreview) {
-    // 没有预览时，只标记隐藏源元素（如果在拖动中）
-    return scrollableTaskList.value.map((item, index) => ({
-      ...item,
-      isPreview: false,
-      isHidden: sourceIndex === index && sourceIndex !== -1,
-      displayIndex: index,
-    }))
-  }
-
-  const result: any[] = []
-  let displayIndex = 0
-
-  for (let i = 0; i < scrollableTaskList.value.length; i++) {
-    const item = scrollableTaskList.value[i]
-    const isSourceItem = i === sourceIndex
-
-    // 在目标位置之前插入预览元素
-    if (insertBefore && i === targetIndex) {
-      result.push({
-        ...scrollableListPreviewData.value,
-        isPreview: true,
-        isHidden: false,
-        displayIndex: displayIndex++,
-      })
-    }
-
-    // 添加当前元素（源元素设为隐藏）
-    result.push({
-      ...item,
-      isPreview: false,
-      isHidden: isSourceItem,
-      displayIndex: displayIndex++,
-    })
-
-    // 在目标位置之后插入预览元素
-    if (!insertBefore && i === targetIndex) {
-      result.push({
-        ...scrollableListPreviewData.value,
-        isPreview: true,
-        isHidden: false,
-        displayIndex: displayIndex++,
-      })
-    }
-  }
-
-  return result
+// 拖拽状态
+const dragState = ref({
+  isDragging: false,
+  draggedItemId: null as number | null,
+  draggedItemIndex: -1,
+  targetIndex: -1,
+  insertPosition: 'after' as 'before' | 'after',
+  showPreview: false,
+  previewPosition: 0,
+  previewItem: null as any,
+  startY: 0,
+  currentY: 0,
+  itemHeight: 0,
 })
+
+// 拖拽阈值
+const DRAG_THRESHOLD = 5
+
+// 新的拖拽事件处理器
+const handleItemPointerDown = (event: PointerEvent, item: any, index: number) => {
+  event.preventDefault()
+
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+
+  // 初始化拖拽状态
+  dragState.value = {
+    isDragging: false,
+    draggedItemId: item.id,
+    draggedItemIndex: index,
+    targetIndex: -1,
+    insertPosition: 'after',
+    showPreview: false,
+    previewPosition: 0,
+    previewItem: { ...item },
+    startY: event.clientY,
+    currentY: event.clientY,
+    itemHeight: rect.height,
+  }
+
+  // 添加全局事件监听器
+  document.addEventListener('pointermove', handlePointerMove)
+  document.addEventListener('pointerup', handlePointerUp)
+}
+
+const handlePointerMove = (event: PointerEvent) => {
+  const deltaY = event.clientY - dragState.value.startY
+
+  // 检查是否达到拖拽阈值
+  if (!dragState.value.isDragging && Math.abs(deltaY) > DRAG_THRESHOLD) {
+    dragState.value.isDragging = true
+    dragState.value.showPreview = true
+  }
+
+  if (!dragState.value.isDragging) return
+
+  dragState.value.currentY = event.clientY
+
+  // 计算目标位置
+  updateDropTarget(event)
+}
+
+const updateDropTarget = (event: PointerEvent) => {
+  if (!scrollableListRef.value) return
+
+  const listRect = scrollableListRef.value.getBoundingClientRect()
+  const mouseY = event.clientY - listRect.top + scrollableListRef.value.scrollTop
+  const itemHeight = dragState.value.itemHeight
+
+  // 计算鼠标位置对应的项目索引
+  let targetIndex = Math.floor(mouseY / itemHeight)
+  targetIndex = Math.max(0, Math.min(targetIndex, sortableTaskList.value.length - 1))
+
+  // 确定插入位置（before 或 after）
+  const itemY = targetIndex * itemHeight
+  const mouseRelativeY = mouseY - itemY
+  const insertPosition = mouseRelativeY < itemHeight / 2 ? 'before' : 'after'
+
+  // 更新状态
+  dragState.value.targetIndex = targetIndex
+  dragState.value.insertPosition = insertPosition
+
+  // 计算预览位置
+  let previewY = targetIndex * itemHeight
+  if (insertPosition === 'after') {
+    previewY += itemHeight
+  }
+  dragState.value.previewPosition = previewY
+
+  // 更新预览项的索引
+  let newIndex = targetIndex
+  if (insertPosition === 'after') {
+    newIndex++
+  }
+  // 如果拖拽的项在目标位置之前，需要调整索引
+  if (dragState.value.draggedItemIndex < newIndex) {
+    newIndex--
+  }
+  dragState.value.previewItem.newIndex = newIndex + 1
+}
+
+const handlePointerUp = () => {
+  // 清理事件监听器
+  document.removeEventListener('pointermove', handlePointerMove)
+  document.removeEventListener('pointerup', handlePointerUp)
+
+  // 如果正在拖拽，执行排序
+  if (dragState.value.isDragging) {
+    performSort()
+  }
+
+  // 重置状态
+  resetDragState()
+}
+
+const performSort = () => {
+  const { draggedItemIndex, targetIndex, insertPosition } = dragState.value
+
+  if (draggedItemIndex === -1 || targetIndex === -1) return
+
+  const items = [...sortableTaskList.value]
+  const draggedItem = items[draggedItemIndex]
+
+  if (!draggedItem) return
+
+  // 移除拖拽的项
+  items.splice(draggedItemIndex, 1)
+
+  // 计算新的插入位置
+  let insertIndex = targetIndex
+  if (insertPosition === 'after') {
+    insertIndex++
+  }
+  // 如果拖拽的项在目标位置之前，插入位置需要减1
+  if (draggedItemIndex < insertIndex) {
+    insertIndex--
+  }
+
+  // 插入到新位置
+  items.splice(insertIndex, 0, draggedItem)
+
+  // 更新列表
+  sortableTaskList.value = items
+}
+
+const resetDragState = () => {
+  dragState.value = {
+    isDragging: false,
+    draggedItemId: null,
+    draggedItemIndex: -1,
+    targetIndex: -1,
+    insertPosition: 'after',
+    showPreview: false,
+    previewPosition: 0,
+    previewItem: null,
+    startY: 0,
+    currentY: 0,
+    itemHeight: 0,
+  }
+}
 
 // 拖放事件处理
 const handleDrop = (data: DragData) => {
@@ -295,111 +410,6 @@ const handleBottomDragLeave = () => {
   isBottomDropZoneActive.value = false
 }
 
-// 可滚动列表事件处理
-const handleScrollableListDrop = (data: DragData, targetIndex: number) => {
-  console.log('可滚动列表放置:', data, '目标索引:', targetIndex)
-
-  // 如果是从其他地方拖入的新任务
-  if (data.dataType !== 'scrollable-task') {
-    // 检查是否已经存在相同的任务（避免重复）
-    const existingTask = scrollableTaskList.value.find((item) => item.id === data.id)
-    if (!existingTask) {
-      const newTask = {
-        id: data.id || Date.now(),
-        title: data.title || `新任务: ${data.dataType}`,
-        priority: 'medium' as const,
-        completed: false,
-      }
-
-      // 根据预览位置插入
-      const actualIndex =
-        scrollableListInsertPosition.value === 'before' ? targetIndex : targetIndex + 1
-      scrollableTaskList.value.splice(actualIndex, 0, newTask)
-    }
-  } else {
-    // 如果是列表内部的排序
-    const realSourceIndex = scrollableTaskList.value.findIndex((item) => item.id === data.id)
-
-    if (realSourceIndex !== -1) {
-      console.log('内部排序:', {
-        realSourceIndex,
-        targetIndex,
-        insertPosition: scrollableListInsertPosition.value,
-      })
-
-      // 移动任务到新位置
-      const movedItem = scrollableTaskList.value[realSourceIndex]
-      if (movedItem) {
-        // 先移除源元素
-        scrollableTaskList.value.splice(realSourceIndex, 1)
-
-        // 计算插入位置
-        let insertIndex = targetIndex
-        if (scrollableListInsertPosition.value === 'after') {
-          insertIndex = realSourceIndex < targetIndex ? targetIndex : targetIndex + 1
-        } else {
-          insertIndex = realSourceIndex < targetIndex ? targetIndex - 1 : targetIndex
-        }
-
-        // 确保插入索引不超出范围
-        insertIndex = Math.max(0, Math.min(insertIndex, scrollableTaskList.value.length))
-
-        // 插入到新位置
-        scrollableTaskList.value.splice(insertIndex, 0, movedItem)
-
-        console.log('排序完成:', {
-          insertIndex,
-          newLength: scrollableTaskList.value.length,
-          newOrder: scrollableTaskList.value.map((item) => item.title),
-        })
-      }
-    }
-  }
-
-  // 清理状态
-  clearScrollableListDragState()
-}
-
-const handleScrollableListDragEnter = (index: number) => {
-  if (scrollableListDragOverIndex.value !== index) {
-    scrollableListDragOverIndex.value = index
-    scrollableListInsertPosition.value = 'after'
-  }
-}
-
-const handleScrollableListDragOver = (event: PointerEvent, index: number) => {
-  // 根据鼠标在元素中的位置决定插入位置
-  const element = event.currentTarget as HTMLElement
-  const rect = element.getBoundingClientRect()
-  const mouseY = event.clientY
-  const elementMiddle = rect.top + rect.height / 2
-  const newInsertPosition = mouseY < elementMiddle ? 'before' : 'after'
-
-  // 只有当位置真正发生变化时才更新状态
-  if (
-    scrollableListDragOverIndex.value !== index ||
-    scrollableListInsertPosition.value !== newInsertPosition
-  ) {
-    scrollableListDragOverIndex.value = index
-    scrollableListInsertPosition.value = newInsertPosition
-  }
-}
-
-const handleScrollableListDragLeave = () => {
-  // 延迟清理，避免在相邻元素间移动时闪烁
-  setTimeout(() => {
-    scrollableListDragOverIndex.value = -1
-    scrollableListInsertPosition.value = 'after'
-  }, 100) // 增加延迟时间，减少闪烁
-}
-
-const clearScrollableListDragState = () => {
-  scrollableListDragOverIndex.value = -1
-  scrollableListInsertPosition.value = 'after'
-  scrollableListDragSourceIndex.value = -1
-  scrollableListPreviewData.value = null
-}
-
 // 程序化拖拽创建器
 const taskCreator = useDragCreator({
   createData: () => {
@@ -424,30 +434,6 @@ const createNewTask = (event: MouseEvent) => {
   console.log('创建新任务')
   taskCreator.startDragFromEvent(event)
 }
-
-// 监听拖拽状态变化
-watch(
-  () => dragManager.state.value.isDragging,
-  (isDragging, wasIsDragging) => {
-    if (isDragging && !wasIsDragging) {
-      // 拖拽开始
-      const dragData = dragManager.state.value.dragData
-      const dataType = dragManager.state.value.dataType
-
-      if (dataType === 'scrollable-task' && dragData) {
-        // 如果是可滚动列表内的任务开始拖拽
-        const sourceIndex = scrollableTaskList.value.findIndex((item) => item.id === dragData.id)
-        if (sourceIndex !== -1) {
-          scrollableListDragSourceIndex.value = sourceIndex
-          scrollableListPreviewData.value = { ...dragData }
-        }
-      }
-    } else if (!isDragging && wasIsDragging) {
-      // 拖拽结束
-      clearScrollableListDragState()
-    }
-  }
-)
 </script>
 
 <style scoped>
@@ -635,6 +621,7 @@ watch(
   max-height: 400px;
   overflow-y: auto;
   background: #fff;
+  position: relative; /* 为预览元素提供定位上下文 */
 }
 
 .scrollable-task-item {
@@ -643,46 +630,53 @@ watch(
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid #f0f0f0;
-  cursor: move;
+  cursor: grab;
   transition: all 0.2s ease;
   background: white;
   user-select: none;
+}
+
+.scrollable-task-item:active {
+  cursor: grabbing;
 }
 
 .scrollable-task-item:hover {
   background: #f8f9fa;
 }
 
-.scrollable-task-item.drag-over {
-  background: #e3f2fd;
-  border-color: #2196f3;
-}
-
-.scrollable-task-item.insert-before {
-  border-top: 3px solid #2196f3;
-}
-
-.scrollable-task-item.insert-after {
-  border-bottom: 3px solid #2196f3;
-}
-
-.scrollable-task-item.is-preview {
-  opacity: 0.6;
-  background: #e3f2fd !important;
-  border: 2px dashed #2196f3 !important;
-  transform: scale(0.98);
-  transition: none; /* 移除过渡动画，减少闪烁 */
-  pointer-events: none; /* 防止鼠标事件干扰 */
-}
-
-.scrollable-task-item.is-hidden {
-  opacity: 0;
+/* 拖拽中的元素样式 */
+.scrollable-task-item.is-dragging {
+  opacity: 0.3;
   transform: scale(0.95);
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease; /* 只对关键属性添加过渡 */
-
   pointer-events: none;
+  transition: none !important;
+}
+
+/* 拖拽目标指示器 */
+.scrollable-task-item.drag-over-before {
+  border-top: 3px solid #2196f3;
+  border-radius: 8px 8px 0 0;
+}
+
+.scrollable-task-item.drag-over-after {
+  border-bottom: 3px solid #2196f3;
+  border-radius: 0 0 8px 8px;
+}
+
+/* 预览元素样式 */
+.scrollable-task-item.preview-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  opacity: 0.8;
+  background: #e3f2fd !important;
+  border: 2px solid #2196f3 !important;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(33 150 243 / 30%);
+  pointer-events: none;
+  z-index: 1000;
+  transition: none !important;
 }
 
 .task-order {

@@ -28,12 +28,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/AIChatView.vue'),
   },
 
-  // Vue-Draxis 拖放测试页面
-  {
-    path: '/drag-test',
-    name: 'drag-test',
-    component: () => import('../views/DragTestView.vue'),
-  },
 ]
 
 const router = createRouter({

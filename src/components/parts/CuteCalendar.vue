@@ -1,26 +1,70 @@
 <template>
-  <FullCalendar :options="calendarOptions" />
+  <div
+    class="calendar-container"
+    @dragenter="handleDragEnter"
+    @dragover="handleDragOver"
+    @dragleave="handleDragLeave"
+    @drop="handleDrop"
+  >
+    <FullCalendar :options="calendarOptions" />
+  </div>
 </template>
 
 <script setup lang="ts">
 import FullCalendar from '@fullcalendar/vue3'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import { reactive, onMounted, computed } from 'vue'
+import { reactive, onMounted, onUnmounted, computed, ref } from 'vue'
+import { useMessage } from 'naive-ui'
 import { useActivityStore } from '@/stores/activity'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
+import type { Task } from '@/types/models'
 
 const activityStore = useActivityStore()
 const contextMenu = useContextMenu()
+const message = useMessage()
+
+// 预览时间块状态
+const previewEvent = ref<EventInput | null>(null)
+const isDragging = ref(false)
+const currentDraggedTask = ref<Task | null>(null)
 
 onMounted(() => {
   activityStore.fetchActivities()
+
+  // 监听全局拖拽开始事件
+  document.addEventListener('dragstart', handleGlobalDragStart)
+  document.addEventListener('dragend', handleGlobalDragEnd)
+})
+
+function handleGlobalDragStart(event: DragEvent) {
+  try {
+    if (event.dataTransfer) {
+      const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
+      if (dragData.type === 'task' && dragData.task) {
+        currentDraggedTask.value = dragData.task
+      }
+    }
+  } catch (error) {
+    // 忽略解析错误
+  }
+}
+
+function handleGlobalDragEnd() {
+  currentDraggedTask.value = null
+  clearPreviewEvent()
+}
+
+onUnmounted(() => {
+  // 清理事件监听器
+  document.removeEventListener('dragstart', handleGlobalDragStart)
+  document.removeEventListener('dragend', handleGlobalDragEnd)
 })
 
 const calendarEvents = computed((): EventInput[] => {
-  return activityStore.allActivities.map((activity) => ({
+  const events = activityStore.allActivities.map((activity) => ({
     id: activity.id,
     title: activity.title ?? 'Untitled',
     start: activity.start_time,
@@ -28,6 +72,20 @@ const calendarEvents = computed((): EventInput[] => {
     allDay: activity.is_all_day,
     color: activity.color ?? undefined,
   }))
+
+  // 添加预览事件
+  if (previewEvent.value) {
+    events.push({
+      id: previewEvent.value.id || 'preview-event',
+      title: previewEvent.value.title || '预览',
+      start: typeof previewEvent.value.start === 'string' ? previewEvent.value.start : '',
+      end: typeof previewEvent.value.end === 'string' ? previewEvent.value.end : '',
+      allDay: previewEvent.value.allDay || false,
+      color: previewEvent.value.color,
+    })
+  }
+
+  return events
 })
 
 async function handleDateSelect(selectInfo: DateSelectArg) {
@@ -45,7 +103,19 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
       })
     } catch (error) {
       console.error('Failed to create event:', error)
-      alert(`Error: Could not create the event. It might be overlapping with another event.`)
+
+      // 显示错误信息给用户
+      let errorMessage = 'Could not create the event. It might be overlapping with another event.'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      }
+
+      message.error(`创建事件失败: ${errorMessage}`, {
+        duration: 5000,
+        closable: true,
+      })
       // No need to manually revert, as it was never added to the store successfully
     }
   }
@@ -82,7 +152,20 @@ async function handleEventChange(changeInfo: EventChangeArg) {
     })
   } catch (error) {
     console.error('Failed to update event:', error)
-    alert(`Error: Could not update the event. It might be overlapping with another event.`)
+
+    // 显示错误信息给用户
+    let errorMessage = 'Could not update the event. It might be overlapping with another event.'
+    if (error instanceof Error) {
+      errorMessage = error.message
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    }
+
+    message.error(`更新事件失败: ${errorMessage}`, {
+      duration: 5000,
+      closable: true,
+    })
+
     changeInfo.revert() // Revert the change on the calendar
   }
 }
@@ -91,6 +174,161 @@ function handleEventContextMenu(info: EventMountArg) {
   info.el.addEventListener('contextmenu', (e: MouseEvent) => {
     contextMenu.show(CalendarEventMenu, { event: info.event }, e)
   })
+}
+
+let lastUpdateTime = 0
+const UPDATE_THROTTLE = 16 // 约60fps
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  // 节流更新预览，避免过于频繁的计算
+  const now = Date.now()
+  if (isDragging.value && now - lastUpdateTime > UPDATE_THROTTLE) {
+    updatePreviewEvent(event)
+    lastUpdateTime = now
+  }
+}
+
+function handleDragEnter(event: DragEvent) {
+  event.preventDefault()
+
+  // 检查是否包含任务数据
+  if (event.dataTransfer && event.dataTransfer.types.includes('application/json')) {
+    isDragging.value = true
+  }
+}
+
+function handleDragLeave(event: DragEvent) {
+  // 检查是否真的离开了日历区域
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const x = event.clientX
+  const y = event.clientY
+
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+    clearPreviewEvent()
+  }
+}
+
+function updatePreviewEvent(event: DragEvent) {
+  const dropTime = getTimeFromDropPosition(event)
+
+  if (dropTime) {
+    const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+
+    // 使用全局状态中的任务信息
+    const previewTitle = currentDraggedTask.value?.title || '任务'
+
+    previewEvent.value = {
+      id: 'preview-event',
+      title: previewTitle,
+      start: dropTime.toISOString(),
+      end: endTime.toISOString(),
+      allDay: false,
+      color: '#4a90e2',
+      classNames: ['preview-event'],
+      display: 'block',
+    }
+  }
+}
+
+function clearPreviewEvent() {
+  previewEvent.value = null
+  isDragging.value = false
+  // 清理缓存
+  cachedCalendarEl = null
+  cachedRect = null
+}
+
+async function handleDrop(event: DragEvent) {
+  event.preventDefault()
+
+  // 清除预览事件
+  clearPreviewEvent()
+
+  if (!event.dataTransfer) return
+
+  try {
+    const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
+
+    if (dragData.type === 'task' && dragData.task) {
+      // 获取拖拽位置对应的时间
+      const dropTime = getTimeFromDropPosition(event)
+
+      if (dropTime) {
+        // 创建一个默认1小时的活动
+        const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+
+        await activityStore.createActivity({
+          title: dragData.task.title,
+          start_time: dropTime.toISOString(),
+          end_time: endTime.toISOString(),
+          is_all_day: false,
+          metadata: {
+            task_id: dragData.task.id,
+            created_from_task: true,
+          },
+        })
+
+        console.log(`创建时间块: ${dragData.task.title} at ${dropTime.toISOString()}`)
+      }
+    }
+  } catch (error) {
+    console.error('处理拖拽失败:', error)
+
+    // 显示错误信息给用户
+    let errorMessage = '创建时间块失败'
+    if (error instanceof Error) {
+      errorMessage = error.message
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    }
+
+    // 使用 Naive UI 消息组件显示错误
+    message.error(`创建时间块失败: ${errorMessage}`, {
+      duration: 5000, // 显示5秒
+      closable: true,
+    })
+  }
+}
+
+let cachedCalendarEl: HTMLElement | null = null
+let cachedRect: DOMRect | null = null
+
+function getTimeFromDropPosition(event: DragEvent): Date | null {
+  // 缓存DOM元素和位置信息，避免重复查询
+  if (!cachedCalendarEl) {
+    cachedCalendarEl = (event.currentTarget as HTMLElement).querySelector('.fc-timegrid-body')
+  }
+  if (!cachedCalendarEl) return null
+
+  // 只在必要时重新计算位置
+  const now = Date.now()
+  if (!cachedRect || now - lastUpdateTime > UPDATE_THROTTLE) {
+    cachedRect = cachedCalendarEl.getBoundingClientRect()
+  }
+
+  const relativeY = event.clientY - cachedRect.top
+
+  // 计算相对于日历顶部的百分比
+  const percentage = relativeY / cachedRect.height
+
+  // 获取当前日期
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // 计算时间（从0:00到24:00，共24小时）
+  const totalMinutes = percentage * 24 * 60
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = Math.floor((totalMinutes % 60) / 10) * 10 // 10分钟间隔对齐
+
+  const dropTime = new Date(today)
+  dropTime.setHours(hours, minutes, 0, 0)
+
+  return dropTime
 }
 
 const calendarOptions = reactive({
@@ -103,10 +341,15 @@ const calendarOptions = reactive({
     minute: '2-digit' as const,
     hour12: false,
   },
+  slotMinTime: '00:00:00', // 从0:00开始显示
+  slotMaxTime: '24:00:00', // 到24:00结束
+  slotDuration: '00:10:00', // 10分钟时间槽
+  snapDuration: '00:10:00', // 10分钟对齐精度
   height: '100%',
   weekends: true,
   editable: true,
   selectable: true,
+  eventResizableFromStart: true, // 允许从开始时间调整大小
   events: calendarEvents,
   select: handleDateSelect,
   eventChange: handleEventChange,
@@ -123,6 +366,21 @@ const calendarOptions = reactive({
  * 本文件包含对 FullCalendar 组件的所有自定义样式修改，
  * 按功能模块分组，便于维护和理解。
  */
+
+/* ===============================================
+ * 0. 日历容器样式
+ * =============================================== */
+.calendar-container {
+  height: 100%;
+  position: relative;
+}
+
+/* 预览事件样式 */
+.fc-event.preview-event {
+  background-color: #4a90e2 !important;
+  color: #fff !important;
+  border-color: #357abd !important;
+}
 
 /* ===============================================
  * 1. 今日高亮样式

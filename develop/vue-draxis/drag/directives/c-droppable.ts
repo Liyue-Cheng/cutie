@@ -1,4 +1,5 @@
 import type { Directive } from 'vue'
+import { watch } from 'vue'
 import { useDroppable } from '../useDroppable'
 import type { DroppableOptions } from '../types'
 
@@ -43,22 +44,17 @@ export const cDroppable: Directive<HTMLElement, DroppableOptions> = {
     // 初始更新
     updateClasses()
 
-    // 监听状态变化（使用 requestAnimationFrame 进行轮询检查）
-    let animationId: number | null = null
-    const checkAndUpdate = () => {
-      updateClasses()
-      animationId = requestAnimationFrame(checkAndUpdate)
-    }
-    animationId = requestAnimationFrame(checkAndUpdate)
+    // 使用 watch 替代 requestAnimationFrame 轮询，提高性能
+    const stopWatcher = watch([isOver, isValidDropTarget], updateClasses, { 
+      immediate: false,
+      flush: 'post' // 在 DOM 更新后执行
+    })
 
     // 保存清理函数
     ;(el as any).__dropCleanup = () => {
       unregisterDropzone(el)
       el.classList.remove('droppable', 'drag-over', 'drag-valid-target')
-      if (animationId !== null) {
-        cancelAnimationFrame(animationId)
-        animationId = null
-      }
+      stopWatcher() // 停止 watcher
     }
 
     // 保存初始选项用于后续比较
@@ -115,20 +111,15 @@ export const cDroppable: Directive<HTMLElement, DroppableOptions> = {
 
     updateClasses()
 
-    // 监听状态变化（使用 requestAnimationFrame 进行轮询检查）
-    let animationId: number | null = null
-    const checkAndUpdate = () => {
-      updateClasses()
-      animationId = requestAnimationFrame(checkAndUpdate)
-    }
-    animationId = requestAnimationFrame(checkAndUpdate)
+    // 使用 watch 替代 requestAnimationFrame 轮询，提高性能
+    const stopWatcher2 = watch([isOver, isValidDropTarget], updateClasses, { 
+      immediate: false,
+      flush: 'post' // 在 DOM 更新后执行
+    })
     ;(el as any).__dropCleanup = () => {
       unregisterDropzone(el)
       el.classList.remove('droppable', 'drag-over', 'drag-valid-target')
-      if (animationId !== null) {
-        cancelAnimationFrame(animationId)
-        animationId = null
-      }
+      stopWatcher2() // 停止 watcher
     }
 
     // 保存当前选项用于下次比较

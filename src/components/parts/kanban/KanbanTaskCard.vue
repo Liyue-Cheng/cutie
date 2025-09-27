@@ -45,10 +45,43 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
     props.task.id
   )
 }
+
+function handleDragStart(event: DragEvent) {
+  if (!event.dataTransfer) return
+
+  // 设置拖拽数据
+  event.dataTransfer.setData(
+    'application/json',
+    JSON.stringify({
+      type: 'task',
+      task: props.task,
+    })
+  )
+
+  // 设置拖拽效果
+  event.dataTransfer.effectAllowed = 'copy'
+
+  // 添加拖拽样式
+  const element = event.target as HTMLElement
+  element.classList.add('dragging')
+}
+
+function handleDragEnd(event: DragEvent) {
+  // 移除拖拽样式
+  const element = event.target as HTMLElement
+  element.classList.remove('dragging')
+}
 </script>
 
 <template>
-  <CuteCard class="task-card" @click="emit('openEditor')" @contextmenu="showContextMenu">
+  <CuteCard
+    class="task-card draggable-task"
+    :draggable="true"
+    @click="emit('openEditor')"
+    @contextmenu="showContextMenu"
+    @dragstart="handleDragStart"
+    @dragend="handleDragEnd"
+  >
     <div class="main-content">
       <span class="title">{{ task.title }}</span>
 
@@ -156,5 +189,22 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
 .checkpoint-item:has(.n-checkbox--checked) .checkpoint-title {
   text-decoration: line-through;
   color: var(--color-text-secondary);
+}
+
+/* 拖拽样式 */
+.draggable-task {
+  cursor: grab;
+}
+
+.draggable-task:active {
+  cursor: grabbing;
+}
+
+.draggable-task.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
 }
 </style>
