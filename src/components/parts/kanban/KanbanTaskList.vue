@@ -22,14 +22,12 @@ async function handleAddTask() {
   if (!title) return
   console.log(`[TaskList] User initiated task creation with title: "${title}"`)
 
-  // Use a UUID for the sort key to ensure uniqueness.
-  // Note: For chronological sorting, a time-based UUID (v1 or v7) might be
-  // preferable in a real application, but v4 is sufficient for this example.
-  const sortKey = uuidv4()
-
   await taskStore.createTask({
     title,
-    sort_key: sortKey,
+    context: {
+      context_type: 'MISC',
+      context_id: 'floating',
+    },
   })
 
   // Clear the input after creation

@@ -46,25 +46,47 @@ export interface Project extends Timestamps {
 
 /**
  * Represents the status of a task.
- * 'todo': The task has not been started.
- * 'in_progress': The task is currently being worked on.
- * 'done': The task is completed.
- * 'canceled': The task has been canceled.
+ * Based on completed_at field: null = not completed, string = completed
  */
-export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'canceled'
+export type TaskStatus = 'todo' | 'done'
 
 /**
  * Represents a Task: a concrete, actionable item.
+ * Updated to match the new backend API structure.
  */
-export interface Task extends Timestamps {
-  id: ID
-  project_id: ID | null
+export interface Task {
+  id: string
   title: string
-  status: TaskStatus
+  glance_note: string | null
+  detail_note: string | null
+  estimated_duration: number | null
+  subtasks: Subtask[] | null
+  project_id: string | null
+  area_id: string | null
   due_date: string | null
+  due_date_type: 'SOFT' | 'HARD' | null
   completed_at: string | null
-  sort_key: string
-  metadata: Record<string, any> | null
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  source_info: Record<string, any> | null
+  external_source_id: string | null
+  external_source_provider: string | null
+  external_source_metadata: Record<string, any> | null
+  recurrence_rule: string | null
+  recurrence_parent_id: string | null
+  recurrence_original_date: string | null
+  recurrence_exclusions: string[] | null
+}
+
+/**
+ * Represents a subtask within a task.
+ */
+export interface Subtask {
+  id: string
+  title: string
+  is_completed: boolean
+  sort_order: string
 }
 
 /**

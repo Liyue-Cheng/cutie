@@ -30,12 +30,13 @@ onMounted(() => {
 })
 
 async function handleStatusChange(isChecked: boolean) {
-  const newStatus = isChecked ? 'done' : 'todo'
-  const completedAt = isChecked ? new Date().toISOString() : null
-  await taskStore.updateTask(props.task.id, {
-    status: newStatus,
-    completed_at: completedAt,
-  })
+  if (isChecked) {
+    // 完成任务
+    await taskStore.completeTask(props.task.id)
+  } else {
+    // 重新打开任务
+    await taskStore.reopenTask(props.task.id)
+  }
 }
 
 async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted: boolean) {
@@ -85,9 +86,9 @@ function handleDragEnd(event: DragEvent) {
     <div class="main-content">
       <span class="title">{{ task.title }}</span>
 
-      <div v-if="task.metadata?.notes" class="notes-section">
+      <div v-if="task.glance_note" class="notes-section">
         <CuteIcon name="CornerDownRight" :size="14" />
-        <span class="note-text">{{ task.metadata.notes }}</span>
+        <span class="note-text">{{ task.glance_note }}</span>
       </div>
 
       <div v-if="checkpoints.length > 0" class="checkpoints-section">
@@ -106,7 +107,7 @@ function handleDragEnd(event: DragEvent) {
 
       <CuteCheckbox
         class="main-checkbox"
-        :checked="task.status === 'done'"
+        :checked="!!task.completed_at"
         size="large"
         @update:checked="handleStatusChange"
         @click.stop

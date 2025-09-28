@@ -18,10 +18,9 @@ function handleOpenEditor(task: Task) {
   isEditorOpen.value = true
 }
 
-// For now, we use all tasks for both lists as placeholder data.
-// In the future, this would be filtered based on task properties.
-const inboxTasks = computed(() => taskStore.allTasks)
-const todayTasks = computed(() => taskStore.allTasks.filter((t) => t.status !== 'done'))
+// Use unscheduled tasks for the staging area
+const inboxTasks = computed(() => taskStore.unscheduledTasks)
+const todayTasks = computed(() => taskStore.unscheduledTasks.filter((t) => !t.completed_at))
 
 onMounted(() => {
   // Fetch tasks when the component mounts

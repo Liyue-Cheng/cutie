@@ -1,0 +1,281 @@
+-- Cutie V1.0 数据库初始化迁移脚本
+-- 基于架构纲领 V1.8 "定稿版" 数据库Schema
+
+-- 启用外键约束
+PRAGMA foreign_keys = ON;
+
+-- 创建 areas 表 (领域表)
+CREATE TABLE areas (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    parent_area_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    FOREIGN KEY (parent_area_id) REFERENCES areas(id)
+);
+
+-- 为 areas 表创建索引
+CREATE INDEX idx_areas_updated_at ON areas(updated_at);
+CREATE INDEX idx_areas_is_deleted ON areas(is_deleted);
+CREATE INDEX idx_areas_parent_area_id ON areas(parent_area_id);
+
+-- 创建 projects 表 (项目表) - V1.0仅建表，不提供API
+CREATE TABLE projects (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED')),
+    type TEXT NOT NULL DEFAULT 'PROJECT' CHECK (type IN ('PROJECT', 'EXPERIENCE')),
+    resources TEXT, -- JSON
+    area_id TEXT,
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    external_source_id TEXT,
+    external_source_provider TEXT,
+    external_source_metadata TEXT, -- JSON
+    
+    FOREIGN KEY (area_id) REFERENCES areas(id)
+);
+
+-- 为 projects 表创建索引
+CREATE INDEX idx_projects_updated_at ON projects(updated_at);
+CREATE INDEX idx_projects_is_deleted ON projects(is_deleted);
+CREATE INDEX idx_projects_area_id ON projects(area_id);
+CREATE INDEX idx_projects_external_source_id ON projects(external_source_id);
+
+-- 创建 tasks 表 (任务表)
+CREATE TABLE tasks (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    glance_note TEXT,
+    detail_note TEXT,
+    estimated_duration INTEGER,
+    subtasks TEXT, -- JSON: [{"id": UUID, "title": String, "is_completed": Boolean, "sort_order": String}]
+    project_id TEXT,
+    area_id TEXT,
+    due_date TEXT,
+    due_date_type TEXT CHECK (due_date_type IN ('SOFT', 'HARD')),
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    source_info TEXT, -- JSON
+    external_source_id TEXT,
+    external_source_provider TEXT,
+    external_source_metadata TEXT, -- JSON
+    recurrence_rule TEXT,
+    recurrence_parent_id TEXT,
+    recurrence_original_date TEXT,
+    recurrence_exclusions TEXT, -- JSON: Array of Timestamps
+    
+    FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (area_id) REFERENCES areas(id),
+    FOREIGN KEY (recurrence_parent_id) REFERENCES tasks(id),
+    
+    -- 确保due_date和due_date_type的一致性
+    CHECK (
+        (due_date IS NULL AND due_date_type IS NULL) OR 
+        (due_date IS NOT NULL AND due_date_type IS NOT NULL)
+    )
+);
+
+-- 为 tasks 表创建索引
+CREATE INDEX idx_tasks_updated_at ON tasks(updated_at);
+CREATE INDEX idx_tasks_is_deleted ON tasks(is_deleted);
+CREATE INDEX idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX idx_tasks_area_id ON tasks(area_id);
+CREATE INDEX idx_tasks_external_source_id ON tasks(external_source_id);
+CREATE INDEX idx_tasks_completed_at ON tasks(completed_at);
+CREATE INDEX idx_tasks_due_date ON tasks(due_date);
+
+-- 创建 time_blocks 表 (时间块表)
+CREATE TABLE time_blocks (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT,
+    glance_note TEXT,
+    detail_note TEXT,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    area_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    source_info TEXT, -- JSON
+    external_source_id TEXT,
+    external_source_provider TEXT,
+    external_source_metadata TEXT, -- JSON
+    recurrence_rule TEXT,
+    recurrence_parent_id TEXT,
+    recurrence_original_date TEXT,
+    recurrence_exclusions TEXT, -- JSON
+    
+    FOREIGN KEY (area_id) REFERENCES areas(id),
+    FOREIGN KEY (recurrence_parent_id) REFERENCES time_blocks(id),
+    
+    -- 确保时间范围有效
+    CHECK (start_time <= end_time)
+);
+
+-- 为 time_blocks 表创建索引
+CREATE INDEX idx_time_blocks_updated_at ON time_blocks(updated_at);
+CREATE INDEX idx_time_blocks_is_deleted ON time_blocks(is_deleted);
+CREATE INDEX idx_time_blocks_area_id ON time_blocks(area_id);
+CREATE INDEX idx_time_blocks_start_time ON time_blocks(start_time);
+CREATE INDEX idx_time_blocks_end_time ON time_blocks(end_time);
+
+-- 创建 templates 表 (模板表)
+CREATE TABLE templates (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    title_template TEXT NOT NULL,
+    glance_note_template TEXT,
+    detail_note_template TEXT,
+    estimated_duration_template INTEGER,
+    subtasks_template TEXT, -- JSON
+    area_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    FOREIGN KEY (area_id) REFERENCES areas(id)
+);
+
+-- 为 templates 表创建索引
+CREATE INDEX idx_templates_updated_at ON templates(updated_at);
+CREATE INDEX idx_templates_is_deleted ON templates(is_deleted);
+CREATE INDEX idx_templates_area_id ON templates(area_id);
+
+-- 创建 task_schedules 表 (任务日程表)
+CREATE TABLE task_schedules (
+    id TEXT PRIMARY KEY NOT NULL,
+    task_id TEXT NOT NULL,
+    scheduled_day TEXT NOT NULL,
+    outcome TEXT NOT NULL DEFAULT 'PLANNED' CHECK (outcome IN ('PLANNED', 'PRESENCE_LOGGED', 'COMPLETED_ON_DAY', 'CARRIED_OVER')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+-- 为 task_schedules 表创建索引
+CREATE INDEX idx_task_schedules_task_id ON task_schedules(task_id);
+CREATE INDEX idx_task_schedules_scheduled_day ON task_schedules(scheduled_day);
+CREATE INDEX idx_task_schedules_outcome ON task_schedules(outcome);
+
+-- 创建 ordering 表 (统一排序表)
+CREATE TABLE ordering (
+    id TEXT PRIMARY KEY NOT NULL,
+    context_type TEXT NOT NULL CHECK (context_type IN ('DAILY_KANBAN', 'PROJECT_LIST', 'AREA_FILTER', 'MISC')),
+    context_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    sort_order TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    
+    -- 复合唯一约束
+    UNIQUE(context_type, context_id, task_id)
+);
+
+-- 为 ordering 表创建索引
+CREATE INDEX idx_ordering_context ON ordering(context_type, context_id);
+CREATE INDEX idx_ordering_task_id ON ordering(task_id);
+CREATE INDEX idx_ordering_sort_order ON ordering(sort_order);
+CREATE INDEX idx_ordering_updated_at ON ordering(updated_at);
+
+-- 创建 task_time_block_links 表 (任务-时间块链接表)
+CREATE TABLE task_time_block_links (
+    task_id TEXT NOT NULL,
+    time_block_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    
+    PRIMARY KEY (task_id, time_block_id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE
+);
+
+-- 为链接表创建索引
+CREATE INDEX idx_task_time_block_links_task_id ON task_time_block_links(task_id);
+CREATE INDEX idx_task_time_block_links_time_block_id ON task_time_block_links(time_block_id);
+
+-- 创建延迟实现的表 (V1.0仅建表，不提供API)
+
+-- 创建 time_points 表 (时间点表)
+CREATE TABLE time_points (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    point_time TEXT NOT NULL,
+    area_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    FOREIGN KEY (area_id) REFERENCES areas(id)
+);
+
+CREATE INDEX idx_time_points_point_time ON time_points(point_time);
+CREATE INDEX idx_time_points_area_id ON time_points(area_id);
+
+-- 创建 tags 表 (标签表)
+CREATE TABLE tags (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL UNIQUE,
+    color TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_tags_name ON tags(name);
+
+-- 创建 task_tag_links 表 (任务-标签链接表)
+CREATE TABLE task_tag_links (
+    task_id TEXT NOT NULL,
+    tag_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    
+    PRIMARY KEY (task_id, tag_id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+-- 创建 time_block_tag_links 表 (时间块-标签链接表)
+CREATE TABLE time_block_tag_links (
+    time_block_id TEXT NOT NULL,
+    tag_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    
+    PRIMARY KEY (time_block_id, tag_id),
+    FOREIGN KEY (time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+-- 创建 reminders 表 (提醒表)
+CREATE TABLE reminders (
+    id TEXT PRIMARY KEY NOT NULL,
+    task_id TEXT,
+    time_block_id TEXT,
+    reminder_time TEXT NOT NULL,
+    message TEXT,
+    is_sent BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE,
+    
+    -- 确保关联到任务或时间块之一
+    CHECK (
+        (task_id IS NOT NULL AND time_block_id IS NULL) OR 
+        (task_id IS NULL AND time_block_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX idx_reminders_reminder_time ON reminders(reminder_time);
+CREATE INDEX idx_reminders_task_id ON reminders(task_id);
+CREATE INDEX idx_reminders_time_block_id ON reminders(time_block_id);
