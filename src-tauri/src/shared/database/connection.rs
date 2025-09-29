@@ -46,9 +46,20 @@ impl SynchronousMode {
     pub fn as_pragma_value(&self) -> &'static str {
         match self {
             SynchronousMode::Off => "OFF",
-            SynchronousMode::Normal => "NORMAL", 
+            SynchronousMode::Normal => "NORMAL",
             SynchronousMode::Full => "FULL",
             SynchronousMode::Extra => "EXTRA",
+        }
+    }
+}
+
+/// 从config模块的SynchronousMode转换为shared模块的SynchronousMode
+impl From<&crate::config::SynchronousMode> for SynchronousMode {
+    fn from(config_mode: &crate::config::SynchronousMode) -> Self {
+        match config_mode {
+            crate::config::SynchronousMode::Off => Self::Off,
+            crate::config::SynchronousMode::Normal => Self::Normal,
+            crate::config::SynchronousMode::Full => Self::Full,
         }
     }
 }
@@ -65,6 +76,23 @@ impl Default for DatabaseConfig {
             cache_size_kb: 64000, // 64MB
             foreign_keys: true,
             wal_mode: true,
+        }
+    }
+}
+
+/// 从config模块的DatabaseConfig转换为shared模块的DatabaseConfig
+impl From<&crate::config::DatabaseConfig> for DatabaseConfig {
+    fn from(config: &crate::config::DatabaseConfig) -> Self {
+        Self {
+            max_connections: config.max_connections,
+            min_connections: config.min_connections,
+            connect_timeout_seconds: config.connect_timeout_seconds,
+            idle_timeout_seconds: config.idle_timeout_seconds,
+            auto_migrate: config.auto_migrate,
+            synchronous: (&config.synchronous).into(),
+            cache_size_kb: config.cache_size_kb,
+            foreign_keys: config.foreign_keys,
+            wal_mode: config.wal_mode,
         }
     }
 }
@@ -397,7 +425,7 @@ impl DatabaseStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
+    use tempfile;
 
     #[tokio::test]
     async fn test_create_test_database() {
@@ -501,4 +529,3 @@ mod tests {
         pool.close().await;
     }
 }
-
