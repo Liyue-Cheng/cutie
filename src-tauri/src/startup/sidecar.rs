@@ -107,21 +107,6 @@ async fn health_check_handler(
             };
             Ok(Json(response))
         }
-        Ok(HealthStatus::Degraded) => {
-            let response = HealthCheckResponse {
-                status: "degraded".to_string(),
-                timestamp: chrono::Utc::now(),
-                version: build_info::version().to_string(),
-                details: Some(serde_json::json!({
-                    "database": "slow",
-                    "architecture": "feature_sliced",
-                    "build_time": build_info::build_time(),
-                    "git_commit": build_info::git_commit_hash(),
-                    "rust_version": build_info::rust_version()
-                })),
-            };
-            Ok(Json(response))
-        }
         Ok(HealthStatus::Unhealthy) => Err(StatusCode::SERVICE_UNAVAILABLE),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }

@@ -60,7 +60,6 @@ impl AppState {
 #[derive(Debug, Clone)]
 pub enum HealthStatus {
     Healthy,
-    Degraded,
     Unhealthy,
 }
 
