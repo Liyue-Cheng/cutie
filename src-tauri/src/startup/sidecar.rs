@@ -142,6 +142,9 @@ async fn server_info_handler() -> Json<ServerInfoResponse> {
 
 /// Sidecar进程的主入口点
 pub async fn run_sidecar() -> Result<(), AppError> {
+    // 尝试初始化日志，如果已经初始化则忽略错误
+    let _ = env_logger::try_init(); // 忽略重复初始化的错误
+
     log::info!("=== Cutie Sidecar Server Starting (New Architecture) ===");
 
     // 加载配置
