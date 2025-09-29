@@ -326,15 +326,8 @@ impl CreateTimeBlockData {
             ));
         }
         
-        // 验证时间不能在过去（可选验证）
-        let now = chrono::Utc::now();
-        if self.end_time < now {
-            errors.push(crate::common::error::ValidationError::new(
-                "end_time",
-                "End time cannot be in the past",
-                "END_TIME_PAST"
-            ));
-        }
+        // 注意：允许创建过去的时间块，这在日历应用中是合理的需求
+        // 例如用户可能需要记录已经发生的事件或补充遗漏的时间块
         
         if errors.is_empty() {
             Ok(())

@@ -12,7 +12,7 @@
 
       <div v-else-if="taskStore.error" class="error">
         <p>错误: {{ taskStore.error }}</p>
-        <button @click="taskStore.fetchTasks()">重试</button>
+        <button @click="taskStore.fetchUnscheduledTasks()">重试</button>
       </div>
 
       <div v-else class="task-container">
@@ -50,7 +50,7 @@ function handleOpenEditor(task: Task) {
 
 onMounted(() => {
   // 加载未安排的任务
-  taskStore.fetchTasks()
+  taskStore.fetchUnscheduledTasks()
 })
 </script>
 

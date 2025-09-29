@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import type { Task, Checkpoint } from '@/types/models'
+import { computed } from 'vue'
+import type { Task } from '@/types/models'
 import { useTaskStore } from '@/stores/task'
-import { useCheckpointStore } from '@/stores/checkpoint'
 import { useContextMenu } from '@/composables/useContextMenu'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/templates/CuteCard.vue'
@@ -14,20 +13,16 @@ const props = defineProps<{
 }>()
 
 const taskStore = useTaskStore()
-const checkpointStore = useCheckpointStore()
 const emit = defineEmits(['openEditor'])
 
 const contextMenu = useContextMenu()
 
-const checkpoints = computed(() => checkpointStore.getCheckpointsForTask(props.task.id))
+// 使用任务的subtasks字段替代checkpoints
+const subtasks = computed(() => props.task.subtasks || [])
 
 function showContextMenu(event: MouseEvent) {
   contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
 }
-
-onMounted(() => {
-  checkpointStore.fetchCheckpointsForTask(props.task.id)
-})
 
 async function handleStatusChange(isChecked: boolean) {
   if (isChecked) {
@@ -39,12 +34,16 @@ async function handleStatusChange(isChecked: boolean) {
   }
 }
 
-async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted: boolean) {
-  await checkpointStore.updateCheckpoint(
-    checkpoint.id,
-    { is_completed: isCompleted },
-    props.task.id
+async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean) {
+  // 更新subtask状态
+  const updatedSubtasks = subtasks.value.map((subtask) =>
+    subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
+
+  // 更新任务的subtasks
+  await taskStore.updateTask(props.task.id, {
+    subtasks: updatedSubtasks,
+  })
 }
 
 function handleDragStart(event: DragEvent) {
@@ -91,17 +90,17 @@ function handleDragEnd(event: DragEvent) {
         <span class="note-text">{{ task.glance_note }}</span>
       </div>
 
-      <div v-if="checkpoints.length > 0" class="checkpoints-section">
-        <div v-for="checkpoint in checkpoints" :key="checkpoint.id" class="checkpoint-item">
+      <div v-if="subtasks.length > 0" class="subtasks-section">
+        <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item">
           <CuteCheckbox
-            :checked="checkpoint.is_completed"
+            :checked="subtask.is_completed"
             size="small"
             @update:checked="
-              (isChecked: boolean) => handleCheckpointStatusChange(checkpoint, isChecked)
+              (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
             "
             @click.stop
           />
-          <span class="checkpoint-title">{{ checkpoint.title }}</span>
+          <span class="subtask-title">{{ subtask.title }}</span>
         </div>
       </div>
 
@@ -162,19 +161,19 @@ function handleDragEnd(event: DragEvent) {
   text-overflow: ellipsis;
 }
 
-.checkpoints-section {
+.subtasks-section {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
 }
 
-.checkpoint-item {
+.subtask-item {
   display: flex;
   align-items: center;
   gap: 0.8rem;
 }
 
-.checkpoint-title {
+.subtask-title {
   font-size: 1.4rem;
   color: var(--color-text-primary);
 }
@@ -187,7 +186,7 @@ function handleDragEnd(event: DragEvent) {
 /* stylelint-disable-next-line selector-class-pattern */
 .task-card:has(.n-checkbox--checked) .title,
 /* stylelint-disable-next-line selector-class-pattern */
-.checkpoint-item:has(.n-checkbox--checked) .checkpoint-title {
+.subtask-item:has(.n-checkbox--checked) .subtask-title {
   text-decoration: line-through;
   color: var(--color-text-secondary);
 }

@@ -298,13 +298,21 @@ impl TaskRepository for SqlxTaskRepository {
                         entity_id: task_id.to_string(),
                     })
                 } else {
-                    // 重新查询更新后的任务
-                    self.find_by_id(task_id)
-                        .await?
-                        .ok_or_else(|| DbError::NotFound {
+                    // 重新查询更新后的任务（在事务内）
+                    let query_result =
+                        sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+                            .bind(task_id.to_string())
+                            .fetch_optional(&mut **tx)
+                            .await
+                            .map_err(DbError::ConnectionError)?;
+
+                    match query_result {
+                        Some(row) => Ok(Self::row_to_task(&row).map_err(DbError::ConnectionError)?),
+                        None => Err(DbError::NotFound {
                             entity_type: "Task".to_string(),
                             entity_id: task_id.to_string(),
-                        })
+                        }),
+                    }
                 }
             }
             Err(e) => Err(DbError::ConnectionError(e)),
@@ -328,13 +336,21 @@ impl TaskRepository for SqlxTaskRepository {
                         entity_id: task_id.to_string(),
                     })
                 } else {
-                    // 重新查询更新后的任务
-                    self.find_by_id(task_id)
-                        .await?
-                        .ok_or_else(|| DbError::NotFound {
+                    // 重新查询更新后的任务（在事务内）
+                    let query_result =
+                        sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+                            .bind(task_id.to_string())
+                            .fetch_optional(&mut **tx)
+                            .await
+                            .map_err(DbError::ConnectionError)?;
+
+                    match query_result {
+                        Some(row) => Ok(Self::row_to_task(&row).map_err(DbError::ConnectionError)?),
+                        None => Err(DbError::NotFound {
                             entity_type: "Task".to_string(),
                             entity_id: task_id.to_string(),
-                        })
+                        }),
+                    }
                 }
             }
             Err(e) => Err(DbError::ConnectionError(e)),

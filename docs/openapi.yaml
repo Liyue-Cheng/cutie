@@ -1,0 +1,2567 @@
+openapi: 3.0.3
+info:
+  title: Cutie Task Management API
+  description: |
+    Cutie后端API文档 - 完整的任务管理系统API
+    
+    ## 概述
+    
+    Cutie API提供了完整的任务管理功能，包括：
+    - 任务的CRUD操作
+    - 日程安排和管理
+    - 时间块管理
+    - 模板系统
+    - 领域层级管理
+    - 排序和组织
+    
+    ## 架构特点
+    
+    - **RESTful设计**: 遵循REST API最佳实践
+    - **类型安全**: 严格的数据类型定义
+    - **统一错误处理**: 一致的错误响应格式
+    - **分页支持**: 大数据集的分页查询
+    - **实时更新**: 支持WebSocket推送（未来版本）
+    
+    ## 认证
+    
+    V1.0版本为单用户桌面应用，暂不需要认证。未来版本将支持JWT认证。
+    
+    ## 错误处理
+    
+    所有错误响应都遵循统一格式，包含错误类型、消息、详细信息和错误代码。
+    
+    ## 数据格式
+    
+    - 所有时间戳使用ISO 8601格式 (RFC 3339)
+    - 所有ID使用UUID v4格式
+    - JSON字段用于复杂数据结构
+    
+  version: 1.0.0
+  contact:
+    name: Cutie Development Team
+    email: dev@cutie.app
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3030/api
+    description: 开发环境服务器
+  - url: http://127.0.0.1:3030/api
+    description: 本地环境服务器
+
+paths:
+  # ==================== 任务管理 API ====================
+  
+  /tasks:
+    post:
+      tags:
+        - Tasks
+      summary: 创建任务
+      description: |
+        在指定的上下文中创建一个新任务。
+        
+        **业务逻辑**:
+        - 根据上下文自动安排任务的初始位置
+        - 支持项目、日程、或浮动上下文
+        - 自动生成UUID和时间戳
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskPayload'
+            examples:
+              simple_task:
+                summary: 简单任务
+                value:
+                  title: "完成项目文档"
+                  context:
+                    context_type: "MISC"
+                    context_id: "floating"
+              detailed_task:
+                summary: 详细任务
+                value:
+                  title: "设计用户界面"
+                  glance_note: "需要考虑用户体验"
+                  detail_note: "包括响应式设计和无障碍访问"
+                  estimated_duration: 120
+                  due_date: "2024-12-31T23:59:59Z"
+                  due_date_type: "SOFT"
+                  context:
+                    context_type: "PROJECT_LIST"
+                    context_id: "project::123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '201':
+          description: 任务创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                data:
+                  id: "123e4567-e89b-12d3-a456-426614174000"
+                  title: "完成项目文档"
+                  glance_note: null
+                  detail_note: null
+                  estimated_duration: null
+                  subtasks: null
+                  project_id: null
+                  area_id: null
+                  due_date: null
+                  due_date_type: null
+                  completed_at: null
+                  created_at: "2024-09-29T10:00:00Z"
+                  updated_at: "2024-09-29T10:00:00Z"
+                  is_deleted: false
+                timestamp: "2024-09-29T10:00:00Z"
+                request_id: "req-123e4567-e89b-12d3-a456-426614174000"
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    
+    get:
+      tags:
+        - Tasks
+      summary: 搜索任务
+      description: |
+        根据关键词搜索任务，如果没有提供搜索词则返回未安排的任务。
+      operationId: searchTasks
+      parameters:
+        - name: q
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+          example: "项目文档"
+        - name: limit
+          in: query
+          description: 限制返回数量
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 20
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  timestamp:
+                    type: string
+                    format: date-time
+                  request_id:
+                    type: string
+
+  /tasks/unscheduled:
+    get:
+      tags:
+        - Tasks
+      summary: 获取未安排任务
+      description: |
+        获取所有未安排到具体日期的任务（Staging区）。
+        
+        **业务逻辑**:
+        - 返回未在任何日程中的任务
+        - 按创建时间排序
+        - 不包括已删除和已完成的任务
+      operationId: getUnscheduledTasks
+      responses:
+        '200':
+          description: 未安排任务列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /tasks/stats:
+    get:
+      tags:
+        - Tasks
+      summary: 获取任务统计
+      description: 获取任务的各种统计信息
+      operationId: getTaskStats
+      responses:
+        '200':
+          description: 任务统计信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+  /tasks/{id}:
+    get:
+      tags:
+        - Tasks
+      summary: 获取任务详情
+      description: 根据ID获取单个任务的详细信息
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 任务详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Tasks
+      summary: 更新任务
+      description: |
+        更新任务的一个或多个属性。
+        
+        **业务逻辑**:
+        - 支持部分更新（只更新提供的字段）
+        - 自动更新updated_at时间戳
+        - 保持数据一致性
+      operationId: updateTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskPayload'
+      responses:
+        '200':
+          description: 任务更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags:
+        - Tasks
+      summary: 删除任务
+      description: |
+        软删除任务（标记为已删除，不物理删除）。
+        
+        **业务逻辑**:
+        - 软删除，设置is_deleted=true
+        - 清理相关的日程和排序记录
+        - 保留历史数据用于审计
+      operationId: deleteTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '204':
+          description: 任务删除成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{id}/completion:
+    post:
+      tags:
+        - Tasks
+      summary: 完成任务
+      description: |
+        全局完成一个任务。
+        
+        **业务逻辑**:
+        - 设置completed_at时间戳
+        - 截断正在进行的时间块
+        - 删除未来的日程安排
+        - 更新当天日程状态为COMPLETED_ON_DAY
+      operationId: completeTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 任务完成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{id}/reopen:
+    post:
+      tags:
+        - Tasks
+      summary: 重新打开任务
+      description: |
+        重新打开一个已完成的任务。
+        
+        **业务逻辑**:
+        - 清除completed_at时间戳
+        - 重置相关日程状态为PLANNED
+        - 幂等操作（如果任务未完成则无操作）
+      operationId: reopenTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 任务重新打开成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{id}/schedules:
+    get:
+      tags:
+        - Tasks
+      summary: 获取任务的所有日程
+      description: 获取指定任务的所有日程安排
+      operationId: getTaskSchedules
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 任务日程列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TaskSchedule'
+
+  /tasks/{id}/ordering:
+    get:
+      tags:
+        - Tasks
+      summary: 获取任务的排序记录
+      description: 获取指定任务在各个上下文中的排序记录
+      operationId: getTaskOrderings
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 任务排序记录列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ordering'
+
+  # ==================== 日程管理 API ====================
+  
+  /schedules:
+    post:
+      tags:
+        - Schedules
+      summary: 安排任务
+      description: |
+        安排一个任务到某一天，支持"移动"或"链接"模式。
+        
+        **模式说明**:
+        - **link**: 为任务创建额外的日程安排
+        - **move**: 移动现有日程到新日期
+      operationId: scheduleTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleTaskPayload'
+      responses:
+        '201':
+          description: 日程创建成功 (link模式)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TaskSchedule'
+        '200':
+          description: 日程移动成功 (move模式)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TaskSchedule'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    get:
+      tags:
+        - Schedules
+      summary: 获取日程列表
+      description: |
+        获取指定日期或日期范围内的日程安排。
+        
+        **查询模式**:
+        - 提供date参数：获取特定日期的日程
+        - 提供start_date和end_date：获取日期范围内的日程
+      operationId: getSchedules
+      parameters:
+        - name: date
+          in: query
+          description: 特定日期 (与日期范围参数互斥)
+          required: false
+          schema:
+            type: string
+            format: date-time
+          example: "2024-09-29T00:00:00Z"
+        - name: start_date
+          in: query
+          description: 开始日期 (需要与end_date一起使用)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: 结束日期 (需要与start_date一起使用)
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 日程列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TaskSchedule'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /schedules/stats:
+    get:
+      tags:
+        - Schedules
+      summary: 获取日程统计
+      description: 获取日程安排的统计信息
+      operationId: getScheduleStats
+      responses:
+        '200':
+          description: 日程统计信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+  /schedules/{id}:
+    delete:
+      tags:
+        - Schedules
+      summary: 删除日程
+      description: |
+        删除一个具体的日程安排。
+        
+        **业务逻辑**:
+        - 如果任务没有其他日程，自动回归Staging区
+        - 清理相关的排序记录
+        - 幂等操作
+      operationId: deleteSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 日程ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 日程删除成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /schedules/{id}/presence:
+    post:
+      tags:
+        - Schedules
+      summary: 记录努力
+      description: |
+        为指定的日程记录"努力已付出"。
+        
+        **业务逻辑**:
+        - 将日程状态更新为PRESENCE_LOGGED
+        - 不能对已完成的日程记录努力
+      operationId: logPresence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 日程ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 努力记录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TaskSchedule'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /schedules/tasks/{taskId}:
+    delete:
+      tags:
+        - Schedules
+      summary: 取消任务所有日程
+      description: |
+        将一个任务从所有日程中移除，使其回归Staging区。
+        
+        **业务逻辑**:
+        - 删除任务的所有日程记录
+        - 清理所有相关的排序记录
+        - 在适当的上下文中重新创建排序记录
+      operationId: unscheduleTaskCompletely
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: 任务ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 任务日程取消成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== 排序管理 API ====================
+  
+  /ordering:
+    put:
+      tags:
+        - Ordering
+      summary: 更新排序
+      description: |
+        更新一个任务在特定上下文中的排序位置。
+        
+        **排序算法**:
+        - 使用LexoRank算法确保排序的稳定性
+        - 支持多种上下文类型
+      operationId: updateOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderPayload'
+      responses:
+        '204':
+          description: 排序更新成功
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    get:
+      tags:
+        - Ordering
+      summary: 获取上下文排序
+      description: 获取指定上下文中的所有排序记录
+      operationId: getContextOrdering
+      parameters:
+        - name: context_type
+          in: query
+          required: true
+          description: 上下文类型
+          schema:
+            $ref: '#/components/schemas/ContextType'
+        - name: context_id
+          in: query
+          required: true
+          description: 上下文ID
+          schema:
+            type: string
+          example: "floating"
+      responses:
+        '200':
+          description: 排序记录列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ordering'
+
+    delete:
+      tags:
+        - Ordering
+      summary: 清理上下文排序
+      description: 删除指定上下文中的所有排序记录
+      operationId: clearContextOrdering
+      parameters:
+        - name: context_type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ContextType'
+        - name: context_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 排序清理成功
+
+  /ordering/batch:
+    put:
+      tags:
+        - Ordering
+      summary: 批量更新排序
+      description: 批量更新多个排序记录
+      operationId: batchUpdateOrdering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Ordering'
+      responses:
+        '204':
+          description: 批量排序更新成功
+
+  /ordering/calculate:
+    get:
+      tags:
+        - Ordering
+      summary: 计算排序位置
+      description: |
+        计算两个排序位置之间的新排序值。
+        
+        **算法说明**:
+        - 使用LexoRank算法
+        - 确保排序值的唯一性和稳定性
+      operationId: calculateSortOrder
+      parameters:
+        - name: context_type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ContextType'
+        - name: context_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: prev_sort_order
+          in: query
+          required: false
+          description: 前一个排序位置
+          schema:
+            type: string
+        - name: next_sort_order
+          in: query
+          required: false
+          description: 后一个排序位置
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 计算的排序位置
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sort_order:
+                        type: string
+                        example: "n"
+
+  # ==================== 时间块管理 API ====================
+  
+  /time-blocks:
+    post:
+      tags:
+        - TimeBlocks
+      summary: 创建时间块
+      description: |
+        创建一个新的时间块，并可选择性地链接任务。
+        
+        **业务逻辑**:
+        - 验证时间范围的有效性
+        - 检查时间冲突
+        - 自动链接指定的任务
+      operationId: createTimeBlock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimeBlockPayload'
+      responses:
+        '201':
+          description: 时间块创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeBlock'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    get:
+      tags:
+        - TimeBlocks
+      summary: 获取时间块列表
+      description: |
+        根据不同条件获取时间块列表。
+        
+        **查询模式**:
+        - date: 获取特定日期的时间块
+        - start_date + end_date: 获取日期范围内的时间块
+        - task_id: 获取与任务关联的时间块
+      operationId: getTimeBlocks
+      parameters:
+        - name: date
+          in: query
+          description: 特定日期
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: start_date
+          in: query
+          description: 开始日期
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: 结束日期
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: task_id
+          in: query
+          description: 任务ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: area_id
+          in: query
+          description: 领域ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 时间块列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TimeBlock'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /time-blocks/{id}:
+    get:
+      tags:
+        - TimeBlocks
+      summary: 获取时间块详情
+      operationId: getTimeBlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 时间块ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 时间块详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeBlock'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - TimeBlocks
+      summary: 更新时间块
+      operationId: updateTimeBlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTimeBlockPayload'
+      responses:
+        '200':
+          description: 时间块更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeBlock'
+
+    delete:
+      tags:
+        - TimeBlocks
+      summary: 删除时间块
+      operationId: deleteTimeBlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 时间块删除成功
+
+  /time-blocks/{id}/tasks:
+    post:
+      tags:
+        - TimeBlocks
+      summary: 链接任务到时间块
+      operationId: linkTaskToBlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 时间块ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_id:
+                  type: string
+                  format: uuid
+              required:
+                - task_id
+      responses:
+        '204':
+          description: 任务链接成功
+
+  /time-blocks/{id}/tasks/{taskId}:
+    delete:
+      tags:
+        - TimeBlocks
+      summary: 取消任务关联
+      operationId: unlinkTaskFromBlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 时间块ID
+          schema:
+            type: string
+            format: uuid
+        - name: taskId
+          in: path
+          required: true
+          description: 任务ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 任务关联取消成功
+
+  /time-blocks/conflicts:
+    get:
+      tags:
+        - TimeBlocks
+      summary: 检查时间冲突
+      description: 检查指定时间范围是否与现有时间块冲突
+      operationId: checkTimeConflict
+      parameters:
+        - name: start_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: exclude_id
+          in: query
+          required: false
+          description: 排除的时间块ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 冲突检查结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      has_conflict:
+                        type: boolean
+                      start_time:
+                        type: string
+                        format: date-time
+                      end_time:
+                        type: string
+                        format: date-time
+
+  /time-blocks/free-slots:
+    get:
+      tags:
+        - TimeBlocks
+      summary: 查找空闲时间段
+      description: 在指定时间范围内查找未被时间块占用的空闲时间段
+      operationId: findFreeSlots
+      parameters:
+        - name: start_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: min_duration_minutes
+          in: query
+          required: true
+          description: 最小时长（分钟）
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 空闲时间段列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FreeTimeSlot'
+
+  # ==================== 模板管理 API ====================
+  
+  /templates:
+    post:
+      tags:
+        - Templates
+      summary: 创建模板
+      operationId: createTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplatePayload'
+      responses:
+        '201':
+          description: 模板创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Template'
+
+    get:
+      tags:
+        - Templates
+      summary: 获取模板列表
+      description: |
+        获取模板列表，支持多种查询模式。
+        
+        **查询模式**:
+        - 无参数：获取所有模板
+        - q参数：按名称搜索模板
+        - area_id参数：按领域查找模板
+        - variable参数：查找包含特定变量的模板
+      operationId: getTemplates
+      parameters:
+        - name: q
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: area_id
+          in: query
+          description: 领域ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: variable
+          in: query
+          description: 变量名
+          required: false
+          schema:
+            type: string
+          example: "date"
+      responses:
+        '200':
+          description: 模板列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+
+  /templates/stats:
+    get:
+      tags:
+        - Templates
+      summary: 获取模板统计
+      operationId: getTemplateStats
+      responses:
+        '200':
+          description: 模板统计信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+  /templates/{id}:
+    get:
+      tags:
+        - Templates
+      summary: 获取模板详情
+      operationId: getTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 模板详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Template'
+
+    put:
+      tags:
+        - Templates
+      summary: 更新模板
+      operationId: updateTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplatePayload'
+      responses:
+        '200':
+          description: 模板更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Template'
+
+    delete:
+      tags:
+        - Templates
+      summary: 删除模板
+      operationId: deleteTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 模板删除成功
+
+  /templates/{id}/clone:
+    post:
+      tags:
+        - Templates
+      summary: 克隆模板
+      operationId: cloneTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_name:
+                  type: string
+                  description: 新模板名称
+              required:
+                - new_name
+      responses:
+        '201':
+          description: 模板克隆成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Template'
+
+  /templates/{id}/tasks:
+    post:
+      tags:
+        - Templates
+      summary: 基于模板创建任务
+      description: |
+        使用模板创建新任务。
+        
+        **业务逻辑**:
+        - 解析模板中的变量（如{{date}}）
+        - 使用当前上下文替换变量
+        - 创建具体的任务实例
+      operationId: createTaskFromTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 模板ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context:
+                  $ref: '#/components/schemas/CreationContext'
+              required:
+                - context
+      responses:
+        '201':
+          description: 基于模板创建任务成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+
+  # ==================== 领域管理 API ====================
+  
+  /areas:
+    post:
+      tags:
+        - Areas
+      summary: 创建领域
+      operationId: createArea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAreaPayload'
+      responses:
+        '201':
+          description: 领域创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Area'
+
+    get:
+      tags:
+        - Areas
+      summary: 获取领域列表
+      description: |
+        获取领域列表，支持层级查询。
+        
+        **查询模式**:
+        - roots_only=true: 只获取根领域
+        - parent_id: 获取指定父领域的子领域
+        - parent_id + include_descendants=true: 获取所有后代领域
+      operationId: getAreas
+      parameters:
+        - name: parent_id
+          in: query
+          description: 父领域ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: roots_only
+          in: query
+          description: 是否只获取根领域
+          required: false
+          schema:
+            type: boolean
+        - name: include_descendants
+          in: query
+          description: 是否包含后代领域
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 领域列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Area'
+
+  /areas/stats:
+    get:
+      tags:
+        - Areas
+      summary: 获取领域统计
+      operationId: getAreaStats
+      responses:
+        '200':
+          description: 领域使用统计
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+  /areas/{id}:
+    get:
+      tags:
+        - Areas
+      summary: 获取领域详情
+      operationId: getArea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 领域详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Area'
+
+    put:
+      tags:
+        - Areas
+      summary: 更新领域
+      operationId: updateArea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAreaPayload'
+      responses:
+        '200':
+          description: 领域更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Area'
+
+    delete:
+      tags:
+        - Areas
+      summary: 删除领域
+      description: |
+        删除领域，包含使用检查。
+        
+        **业务逻辑**:
+        - 检查是否有任务或项目在使用此领域
+        - 如果有使用则拒绝删除
+        - 软删除方式
+      operationId: deleteArea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 领域删除成功
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /areas/{id}/path:
+    get:
+      tags:
+        - Areas
+      summary: 获取领域路径
+      description: 获取从根领域到指定领域的完整路径
+      operationId: getAreaPath
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 领域路径
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Area'
+
+  /areas/{id}/move:
+    post:
+      tags:
+        - Areas
+      summary: 移动领域
+      description: |
+        移动领域到新的父领域下。
+        
+        **业务逻辑**:
+        - 检查循环引用
+        - 验证目标父领域存在
+        - 更新层级关系
+      operationId: moveArea
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_parent_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: 新的父领域ID，null表示移动到根级别
+      responses:
+        '200':
+          description: 领域移动成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Area'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /areas/{id}/can-delete:
+    get:
+      tags:
+        - Areas
+      summary: 检查领域是否可删除
+      description: 检查领域是否被任务或项目使用，确定是否可以安全删除
+      operationId: checkAreaCanDelete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 删除检查结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      can_delete:
+                        type: boolean
+                      area_id:
+                        type: string
+                        format: uuid
+
+  # ==================== 系统端点 ====================
+  
+  /ping:
+    get:
+      tags:
+        - System
+      summary: Ping测试
+      description: 简单的连通性测试端点
+      operationId: ping
+      responses:
+        '200':
+          description: Pong响应
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "pong"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: 健康检查
+      description: |
+        系统健康状态检查。
+        
+        **检查项目**:
+        - 数据库连接状态
+        - 服务可用性
+        - 系统资源状态
+      operationId: healthCheck
+      responses:
+        '200':
+          description: 系统健康
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy, degraded]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                  details:
+                    type: object
+                    additionalProperties:
+                      type: string
+        '503':
+          description: 系统不健康
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /info:
+    get:
+      tags:
+        - System
+      summary: 服务器信息
+      description: 获取服务器的基本信息和配置
+      operationId: getServerInfo
+      responses:
+        '200':
+          description: 服务器信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                  build_time:
+                    type: string
+                  rust_version:
+                    type: string
+                  features:
+                    type: array
+                    items:
+                      type: string
+
+components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      description: 任务的唯一标识符
+      schema:
+        type: string
+        format: uuid
+      example: "123e4567-e89b-12d3-a456-426614174000"
+
+  schemas:
+    # ==================== 核心实体 ====================
+    
+    Task:
+      type: object
+      description: 任务实体
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 任务唯一标识符
+        title:
+          type: string
+          description: 任务标题
+          maxLength: 255
+        glance_note:
+          type: string
+          nullable: true
+          description: 快览笔记
+        detail_note:
+          type: string
+          nullable: true
+          description: 详细笔记
+        estimated_duration:
+          type: integer
+          nullable: true
+          description: 预估时长（分钟）
+          minimum: 0
+        subtasks:
+          type: array
+          nullable: true
+          description: 子任务列表
+          items:
+            $ref: '#/components/schemas/Subtask'
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 所属项目ID
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 所属领域ID
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: 截止日期
+        due_date_type:
+          type: string
+          enum: [SOFT, HARD]
+          nullable: true
+          description: 截止日期类型
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 完成时间
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+        is_deleted:
+          type: boolean
+          description: 是否已删除
+        source_info:
+          type: object
+          nullable: true
+          description: 来源信息
+        external_source_id:
+          type: string
+          nullable: true
+          description: 外部来源ID
+        external_source_provider:
+          type: string
+          nullable: true
+          description: 外部来源提供商
+        external_source_metadata:
+          type: object
+          nullable: true
+          description: 外部来源元数据
+        recurrence_rule:
+          type: string
+          nullable: true
+          description: 重复规则
+        recurrence_parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 重复父任务ID
+        recurrence_original_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: 重复原始日期
+        recurrence_exclusions:
+          type: array
+          nullable: true
+          description: 重复排除日期
+          items:
+            type: string
+            format: date-time
+      required:
+        - id
+        - title
+        - created_at
+        - updated_at
+        - is_deleted
+
+    Subtask:
+      type: object
+      description: 子任务
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        is_completed:
+          type: boolean
+        sort_order:
+          type: string
+          description: LexoRank排序值
+      required:
+        - id
+        - title
+        - is_completed
+        - sort_order
+
+    TaskSchedule:
+      type: object
+      description: 任务日程
+      properties:
+        id:
+          type: string
+          format: uuid
+        task_id:
+          type: string
+          format: uuid
+        scheduled_day:
+          type: string
+          format: date-time
+          description: 安排的日期（零点时间戳）
+        outcome:
+          type: string
+          enum: [PLANNED, PRESENCE_LOGGED, COMPLETED_ON_DAY, CARRIED_OVER]
+          description: 日程结局
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - task_id
+        - scheduled_day
+        - outcome
+        - created_at
+        - updated_at
+
+    TimeBlock:
+      type: object
+      description: 时间块实体
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        glance_note:
+          type: string
+          nullable: true
+        detail_note:
+          type: string
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_deleted:
+          type: boolean
+      required:
+        - id
+        - start_time
+        - end_time
+        - created_at
+        - updated_at
+        - is_deleted
+
+    Template:
+      type: object
+      description: 模板实体
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: 模板名称
+        title_template:
+          type: string
+          description: 标题模板（支持变量如{{date}}）
+        glance_note_template:
+          type: string
+          nullable: true
+          description: 快览笔记模板
+        detail_note_template:
+          type: string
+          nullable: true
+          description: 详细笔记模板
+        estimated_duration_template:
+          type: integer
+          nullable: true
+          description: 预估时长模板
+        subtasks_template:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Subtask'
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_deleted:
+          type: boolean
+      required:
+        - id
+        - name
+        - title_template
+        - created_at
+        - updated_at
+        - is_deleted
+
+    Area:
+      type: object
+      description: 领域实体
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: 领域名称
+        color:
+          type: string
+          description: 颜色代码
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        parent_area_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 父领域ID
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_deleted:
+          type: boolean
+      required:
+        - id
+        - name
+        - color
+        - created_at
+        - updated_at
+        - is_deleted
+
+    Ordering:
+      type: object
+      description: 排序记录
+      properties:
+        id:
+          type: string
+          format: uuid
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        context_id:
+          type: string
+          description: 上下文ID
+        task_id:
+          type: string
+          format: uuid
+        sort_order:
+          type: string
+          description: LexoRank排序值
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - context_type
+        - context_id
+        - task_id
+        - sort_order
+        - updated_at
+
+    FreeTimeSlot:
+      type: object
+      description: 空闲时间段
+      properties:
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+          description: 时长（分钟）
+      required:
+        - start_time
+        - end_time
+        - duration_minutes
+
+    # ==================== 枚举类型 ====================
+    
+    ContextType:
+      type: string
+      enum:
+        - DAILY_KANBAN
+        - PROJECT_LIST
+        - AREA_FILTER
+        - MISC
+      description: |
+        上下文类型：
+        - DAILY_KANBAN: 日程看板
+        - PROJECT_LIST: 项目列表
+        - AREA_FILTER: 领域筛选
+        - MISC: 杂项（如floating）
+
+    DueDateType:
+      type: string
+      enum:
+        - SOFT
+        - HARD
+      description: |
+        截止日期类型：
+        - SOFT: 软截止（建议）
+        - HARD: 硬截止（必须）
+
+    ScheduleOutcome:
+      type: string
+      enum:
+        - PLANNED
+        - PRESENCE_LOGGED
+        - COMPLETED_ON_DAY
+        - CARRIED_OVER
+      description: |
+        日程结局：
+        - PLANNED: 已计划
+        - PRESENCE_LOGGED: 已记录努力
+        - COMPLETED_ON_DAY: 当日完成
+        - CARRIED_OVER: 延期
+
+    ScheduleMode:
+      type: string
+      enum:
+        - link
+        - move
+      description: |
+        安排模式：
+        - link: 创建额外日程
+        - move: 移动现有日程
+
+    # ==================== 请求载荷 ====================
+    
+    CreateTaskPayload:
+      type: object
+      description: 创建任务请求载荷
+      properties:
+        title:
+          type: string
+          description: 任务标题
+          maxLength: 255
+        glance_note:
+          type: string
+          nullable: true
+          description: 快览笔记
+        detail_note:
+          type: string
+          nullable: true
+          description: 详细笔记
+        estimated_duration:
+          type: integer
+          nullable: true
+          description: 预估时长（分钟）
+          minimum: 0
+        subtasks:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Subtask'
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        due_date_type:
+          $ref: '#/components/schemas/DueDateType'
+        context:
+          $ref: '#/components/schemas/CreationContext'
+      required:
+        - title
+        - context
+
+    UpdateTaskPayload:
+      type: object
+      description: 更新任务请求载荷
+      properties:
+        title:
+          type: string
+          nullable: true
+        glance_note:
+          type: string
+          nullable: true
+        detail_note:
+          type: string
+          nullable: true
+        estimated_duration:
+          type: integer
+          nullable: true
+          minimum: 0
+        subtasks:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Subtask'
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        due_date_type:
+          $ref: '#/components/schemas/DueDateType'
+
+    CreationContext:
+      type: object
+      description: 创建上下文
+      properties:
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        context_id:
+          type: string
+          description: |
+            上下文ID，格式根据类型而定：
+            - DAILY_KANBAN: Unix时间戳字符串
+            - PROJECT_LIST: "project::{project_id}"
+            - AREA_FILTER: "area::{area_id}"
+            - MISC: 小写蛇形命名（如"floating"）
+      required:
+        - context_type
+        - context_id
+      examples:
+        floating:
+          summary: 浮动任务
+          value:
+            context_type: "MISC"
+            context_id: "floating"
+        daily_kanban:
+          summary: 日程看板
+          value:
+            context_type: "DAILY_KANBAN"
+            context_id: "1729555200"
+        project_list:
+          summary: 项目列表
+          value:
+            context_type: "PROJECT_LIST"
+            context_id: "project::123e4567-e89b-12d3-a456-426614174000"
+
+    ScheduleTaskPayload:
+      type: object
+      description: 安排任务请求载荷
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        target_day:
+          type: string
+          format: date-time
+          description: 目标日期（零点时间戳）
+        mode:
+          $ref: '#/components/schemas/ScheduleMode'
+        source_schedule_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 源日程ID（move模式时必需）
+      required:
+        - task_id
+        - target_day
+        - mode
+
+    UpdateOrderPayload:
+      type: object
+      description: 更新排序请求载荷
+      properties:
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        context_id:
+          type: string
+        task_id:
+          type: string
+          format: uuid
+        new_sort_order:
+          type: string
+          description: 新的LexoRank排序值
+      required:
+        - context_type
+        - context_id
+        - task_id
+        - new_sort_order
+
+    CreateTimeBlockPayload:
+      type: object
+      description: 创建时间块请求载荷
+      properties:
+        title:
+          type: string
+          nullable: true
+        glance_note:
+          type: string
+          nullable: true
+        detail_note:
+          type: string
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+        task_ids:
+          type: array
+          description: 要关联的任务ID列表
+          items:
+            type: string
+            format: uuid
+      required:
+        - start_time
+        - end_time
+        - task_ids
+
+    UpdateTimeBlockPayload:
+      type: object
+      description: 更新时间块请求载荷
+      properties:
+        title:
+          type: string
+          nullable: true
+        glance_note:
+          type: string
+          nullable: true
+        detail_note:
+          type: string
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    CreateTemplatePayload:
+      type: object
+      description: 创建模板请求载荷
+      properties:
+        name:
+          type: string
+          description: 模板名称
+        title_template:
+          type: string
+          description: 标题模板
+        glance_note_template:
+          type: string
+          nullable: true
+        detail_note_template:
+          type: string
+          nullable: true
+        estimated_duration_template:
+          type: integer
+          nullable: true
+          minimum: 0
+        subtasks_template:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Subtask'
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+        - name
+        - title_template
+
+    UpdateTemplatePayload:
+      type: object
+      description: 更新模板请求载荷
+      properties:
+        name:
+          type: string
+          nullable: true
+        title_template:
+          type: string
+          nullable: true
+        glance_note_template:
+          type: string
+          nullable: true
+        detail_note_template:
+          type: string
+          nullable: true
+        estimated_duration_template:
+          type: integer
+          nullable: true
+          minimum: 0
+        subtasks_template:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Subtask'
+        area_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    CreateAreaPayload:
+      type: object
+      description: 创建领域请求载荷
+      properties:
+        name:
+          type: string
+          description: 领域名称
+        color:
+          type: string
+          description: 颜色代码
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        parent_area_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 父领域ID
+      required:
+        - name
+        - color
+
+    UpdateAreaPayload:
+      type: object
+      description: 更新领域请求载荷
+      properties:
+        name:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        parent_area_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    # ==================== 响应结构 ====================
+    
+    ApiResponse:
+      type: object
+      description: 标准API响应包装器
+      properties:
+        data:
+          description: 响应数据
+        timestamp:
+          type: string
+          format: date-time
+          description: 响应时间戳
+        request_id:
+          type: string
+          nullable: true
+          description: 请求ID（用于追踪）
+      required:
+        - data
+        - timestamp
+
+    ErrorResponse:
+      type: object
+      description: 错误响应结构
+      properties:
+        error_type:
+          type: string
+          description: 错误类型
+        message:
+          type: string
+          description: 错误消息
+        details:
+          type: object
+          nullable: true
+          description: 详细信息
+        code:
+          type: string
+          nullable: true
+          description: 错误代码
+        timestamp:
+          type: string
+          format: date-time
+        request_id:
+          type: string
+          nullable: true
+      required:
+        - error_type
+        - message
+        - timestamp
+
+    StatsResponse:
+      type: object
+      description: 统计响应结构
+      properties:
+        stats:
+          type: object
+          description: 统计数据
+        generated_at:
+          type: string
+          format: date-time
+          description: 生成时间
+        range:
+          type: object
+          nullable: true
+          description: 统计范围
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+      required:
+        - stats
+        - generated_at
+
+    ValidationError:
+      type: object
+      description: 验证错误详情
+      properties:
+        field:
+          type: string
+          description: 错误字段
+        message:
+          type: string
+          description: 错误消息
+        code:
+          type: string
+          description: 错误代码
+      required:
+        - field
+        - message
+        - code
+
+  # ==================== 响应模板 ====================
+  
+  responses:
+    ValidationError:
+      description: 输入数据验证失败
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  error_type:
+                    type: string
+                    enum: [ValidationError]
+                  code:
+                    type: string
+                    enum: [VALIDATION_FAILED]
+          example:
+            error_type: "ValidationError"
+            message: "输入数据验证失败"
+            details:
+              validation_errors:
+                - field: "title"
+                  message: "Title cannot be empty"
+                  code: "TITLE_EMPTY"
+            code: "VALIDATION_FAILED"
+            timestamp: "2024-09-29T10:00:00Z"
+
+    NotFound:
+      description: 请求的资源未找到
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  error_type:
+                    type: string
+                    enum: [NotFound]
+                  code:
+                    type: string
+                    enum: [NOT_FOUND]
+          example:
+            error_type: "NotFound"
+            message: "Task with id 123e4567-e89b-12d3-a456-426614174000 not found"
+            details:
+              entity_type: "Task"
+              entity_id: "123e4567-e89b-12d3-a456-426614174000"
+            code: "NOT_FOUND"
+            timestamp: "2024-09-29T10:00:00Z"
+
+    Conflict:
+      description: 请求与当前状态冲突
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  error_type:
+                    type: string
+                    enum: [Conflict]
+                  code:
+                    type: string
+                    enum: [CONFLICT]
+          example:
+            error_type: "Conflict"
+            message: "不能为已完成的任务安排日程"
+            code: "CONFLICT"
+            timestamp: "2024-09-29T10:00:00Z"
+
+    InternalError:
+      description: 内部服务器错误
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  error_type:
+                    type: string
+                    enum: [InternalError]
+                  code:
+                    type: string
+                    enum: [INTERNAL_ERROR]
+          example:
+            error_type: "InternalError"
+            message: "内部服务器错误"
+            code: "INTERNAL_ERROR"
+            timestamp: "2024-09-29T10:00:00Z"
+
+tags:
+  - name: Tasks
+    description: 任务管理相关API
+  - name: Schedules
+    description: 日程安排相关API
+  - name: Ordering
+    description: 排序管理相关API
+  - name: TimeBlocks
+    description: 时间块管理相关API
+  - name: Templates
+    description: 模板系统相关API
+  - name: Areas
+    description: 领域管理相关API
+  - name: System
+    description: 系统级API（健康检查、信息等）
+
+externalDocs:
+  description: Cutie后端架构文档
+  url: https://github.com/cutie-app/backend/docs

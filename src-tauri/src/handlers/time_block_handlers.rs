@@ -43,13 +43,15 @@ pub async fn create_time_block_handler(
     Json(payload): Json<CreateTimeBlockPayload>,
 ) -> Result<impl axum::response::IntoResponse, AppError> {
     log::debug!(
-        "Creating time block from {} to {}",
+        "Creating time block from {} to {} with payload: {:?}",
         payload.start_time,
-        payload.end_time
+        payload.end_time,
+        payload
     );
 
     // 转换载荷为服务层数据结构
-    let create_data = crate::services::CreateTimeBlockData::from(payload);
+    let create_data = crate::services::CreateTimeBlockData::from(payload.clone());
+    log::debug!("Converted to CreateTimeBlockData: {:?}", create_data);
 
     // 调用服务层
     let created_time_block = app_state

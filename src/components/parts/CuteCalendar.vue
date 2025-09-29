@@ -16,13 +16,13 @@ import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { reactive, onMounted, onUnmounted, computed, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { useActivityStore } from '@/stores/activity'
+import { useTimeBlockStore } from '@/stores/timeblock'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 import type { Task } from '@/types/models'
 
-const activityStore = useActivityStore()
+const timeBlockStore = useTimeBlockStore()
 const contextMenu = useContextMenu()
 const message = useMessage()
 
@@ -32,7 +32,15 @@ const isDragging = ref(false)
 const currentDraggedTask = ref<Task | null>(null)
 
 onMounted(() => {
-  activityStore.fetchActivities()
+  // 获取当前日期范围的时间块
+  const today = new Date()
+  const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()))
+  const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6))
+  
+  timeBlockStore.fetchTimeBlocksForRange(
+    startOfWeek.toISOString(),
+    endOfWeek.toISOString()
+  )
 
   // 监听全局拖拽开始事件
   document.addEventListener('dragstart', handleGlobalDragStart)
@@ -65,13 +73,13 @@ onUnmounted(() => {
 })
 
 const calendarEvents = computed((): EventInput[] => {
-  const events = activityStore.allActivities.map((activity) => ({
-    id: activity.id,
-    title: activity.title ?? 'Untitled',
-    start: activity.start_time,
-    end: activity.end_time,
-    allDay: activity.is_all_day,
-    color: activity.color ?? undefined,
+  const events = timeBlockStore.allTimeBlocks.map((timeBlock) => ({
+    id: timeBlock.id,
+    title: timeBlock.title ?? 'Time Block',
+    start: timeBlock.start_time,
+    end: timeBlock.end_time,
+    allDay: false, // 时间块总是有具体时间
+    color: '#4a90e2', // 默认颜色，可以根据area_id来设置不同颜色
   }))
 
   // 添加预览事件
@@ -82,7 +90,7 @@ const calendarEvents = computed((): EventInput[] => {
       start: typeof previewEvent.value.start === 'string' ? previewEvent.value.start : '',
       end: typeof previewEvent.value.end === 'string' ? previewEvent.value.end : '',
       allDay: previewEvent.value.allDay || false,
-      color: previewEvent.value.color,
+      color: previewEvent.value.color || '#4a90e2',
     })
   }
 
@@ -93,14 +101,14 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
   const calendarApi = selectInfo.view.calendar
   calendarApi.unselect() // clear date selection
 
-  const title = prompt('Please enter a new title for your event')
+  const title = prompt('Please enter a new title for your time block')
   if (title) {
     try {
-      await activityStore.createActivity({
+      await timeBlockStore.createTimeBlock({
         title,
         start_time: selectInfo.start.toISOString(),
         end_time: selectInfo.end.toISOString(),
-        is_all_day: selectInfo.allDay,
+        task_ids: [], // 空的任务ID列表
       })
     } catch (error) {
       console.error('Failed to create event:', error)
@@ -145,11 +153,10 @@ async function handleEventChange(changeInfo: EventChangeArg) {
   }
 
   try {
-    await activityStore.updateActivity(event.id, {
+    await timeBlockStore.updateTimeBlock(event.id, {
       title: event.title,
       start_time: startTime,
       end_time: endTime,
-      is_all_day: event.allDay,
     })
   } catch (error) {
     console.error('Failed to update event:', error)
@@ -325,15 +332,11 @@ async function handleDrop(event: DragEvent) {
         // 创建一个默认1小时的活动
         const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
 
-        await activityStore.createActivity({
+        await timeBlockStore.createTimeBlock({
           title: dragData.task.title,
           start_time: dropTime.toISOString(),
           end_time: endTime.toISOString(),
-          is_all_day: false,
-          metadata: {
-            task_id: dragData.task.id,
-            created_from_task: true,
-          },
+          task_ids: [dragData.task.id], // 关联拖拽的任务
         })
 
         console.log(`创建时间块: ${dragData.task.title} at ${dropTime.toISOString()}`)

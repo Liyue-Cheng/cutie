@@ -14,17 +14,17 @@ import { defineProps, defineEmits } from 'vue'
 import { NCard, NButton } from 'naive-ui'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import type { EventApi } from '@fullcalendar/core'
-import { useActivityStore } from '@/stores/activity'
+import { useTimeBlockStore } from '@/stores/timeblock'
 
 const props = defineProps<{
   event: EventApi
 }>()
 
 const emit = defineEmits(['close'])
-const activityStore = useActivityStore()
+const timeBlockStore = useTimeBlockStore()
 
 const handleDelete = async () => {
-  await activityStore.deleteActivity(props.event.id)
+  await timeBlockStore.deleteTimeBlock(props.event.id)
   emit('close') // Close the context menu
 }
 </script>

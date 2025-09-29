@@ -20,11 +20,11 @@ function handleOpenEditor(task: Task) {
 
 // Use unscheduled tasks for the staging area
 const inboxTasks = computed(() => taskStore.unscheduledTasks)
-const todayTasks = computed(() => taskStore.unscheduledTasks.filter((t) => !t.completed_at))
+const todayTasks = computed(() => taskStore.unscheduledTasks)
 
 onMounted(() => {
-  // Fetch tasks when the component mounts
-  taskStore.fetchTasks()
+  // Fetch unscheduled tasks when the component mounts
+  taskStore.fetchUnscheduledTasks()
 })
 </script>
 

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { Task, Checkpoint } from '@/types/models'
+import { ref, computed } from 'vue'
+import type { Task, Subtask } from '@/types/models'
 import { useTaskStore } from '@/stores/task'
-import { useCheckpointStore } from '@/stores/checkpoint'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteButton from '../CuteButton.vue'
@@ -12,59 +11,61 @@ const props = defineProps<{
 }>()
 
 const taskStore = useTaskStore()
-const checkpointStore = useCheckpointStore()
 
 const isExpanded = ref(false)
-const notes = ref(props.task.metadata?.notes || '')
-const newCheckpointTitle = ref('')
+const notes = ref(props.task.detail_note || '')
+const newSubtaskTitle = ref('')
 
-const checkpoints = computed(() => checkpointStore.getCheckpointsForTask(props.task.id))
+const subtasks = computed(() => props.task.subtasks || [])
 
 async function handleStatusChange(isChecked: boolean) {
-  const newStatus = isChecked ? 'done' : 'todo'
-  const completedAt = isChecked ? new Date().toISOString() : null
-
-  await taskStore.updateTask(props.task.id, {
-    status: newStatus,
-    completed_at: completedAt,
-  })
+  if (isChecked) {
+    await taskStore.completeTask(props.task.id)
+  } else {
+    await taskStore.reopenTask(props.task.id)
+  }
 }
 
 async function toggleExpand() {
   isExpanded.value = !isExpanded.value
-  if (isExpanded.value && checkpoints.value.length === 0) {
-    await checkpointStore.fetchCheckpointsForTask(props.task.id)
-  }
 }
 
 async function updateNotes() {
-  if (notes.value !== (props.task.metadata?.notes || '')) {
+  if (notes.value !== (props.task.detail_note || '')) {
     await taskStore.updateTask(props.task.id, {
-      metadata: { ...props.task.metadata, notes: notes.value },
+      detail_note: notes.value,
     })
   }
 }
 
-async function handleAddCheckpoint() {
-  if (!newCheckpointTitle.value.trim()) return
+async function handleAddSubtask() {
+  if (!newSubtaskTitle.value.trim()) return
 
-  // Basic sort key generation, just append current time
-  const sort_key = `checkpoint_${Date.now()}`
+  // 生成新的subtask
+  const newSubtask: Subtask = {
+    id: crypto.randomUUID(),
+    title: newSubtaskTitle.value.trim(),
+    is_completed: false,
+    sort_order: `subtask_${Date.now()}`,
+  }
 
-  await checkpointStore.createCheckpoint({
-    task_id: props.task.id,
-    title: newCheckpointTitle.value.trim(),
-    sort_key,
+  const updatedSubtasks = [...subtasks.value, newSubtask]
+
+  await taskStore.updateTask(props.task.id, {
+    subtasks: updatedSubtasks,
   })
-  newCheckpointTitle.value = ''
+
+  newSubtaskTitle.value = ''
 }
 
-async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted: boolean) {
-  await checkpointStore.updateCheckpoint(
-    checkpoint.id,
-    { is_completed: isCompleted },
-    props.task.id
+async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean) {
+  const updatedSubtasks = subtasks.value.map((subtask) =>
+    subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
+
+  await taskStore.updateTask(props.task.id, {
+    subtasks: updatedSubtasks,
+  })
 }
 </script>
 
@@ -73,7 +74,7 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
     <div class="main-content" @click="toggleExpand">
       <div class="left-section">
         <CuteCheckbox
-          :checked="task.status === 'done'"
+          :checked="!!task.completed_at"
           size="large"
           @update:checked="handleStatusChange"
           @click.stop
@@ -90,24 +91,24 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
       />
       <div class="separator" />
 
-      <div class="checkpoints-section">
-        <div v-for="checkpoint in checkpoints" :key="checkpoint.id" class="checkpoint-item">
+      <div class="subtasks-section">
+        <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item">
           <CuteCheckbox
-            :checked="checkpoint.is_completed"
+            :checked="subtask.is_completed"
             @update:checked="
-              (isChecked: boolean) => handleCheckpointStatusChange(checkpoint, isChecked)
+              (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
             "
           />
-          <span class="checkpoint-title">{{ checkpoint.title }}</span>
+          <span class="subtask-title">{{ subtask.title }}</span>
         </div>
-        <div class="add-checkpoint-form">
+        <div class="add-subtask-form">
           <input
-            v-model="newCheckpointTitle"
-            class="add-checkpoint-input"
-            placeholder="Add a checkpoint..."
-            @keyup.enter="handleAddCheckpoint"
+            v-model="newSubtaskTitle"
+            class="add-subtask-input"
+            placeholder="Add a subtask..."
+            @keyup.enter="handleAddSubtask"
           />
-          <CuteButton @click="handleAddCheckpoint"> Add </CuteButton>
+          <CuteButton @click="handleAddSubtask"> Add </CuteButton>
         </div>
       </div>
     </div>
@@ -182,31 +183,31 @@ async function handleCheckpointStatusChange(checkpoint: Checkpoint, isCompleted:
   margin: 1rem 0;
 }
 
-.checkpoint-item {
+.subtask-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
-.checkpoint-title {
+.subtask-title {
   font-size: 1rem;
   color: var(--color-text-secondary);
 }
 
 /* stylelint-disable-next-line selector-class-pattern */
-.checkpoint-item:has(.n-checkbox--checked) .checkpoint-title {
+.subtask-item:has(.n-checkbox--checked) .subtask-title {
   text-decoration: line-through;
   color: var(--color-text-tertiary);
 }
 
-.add-checkpoint-form {
+.add-subtask-form {
   display: flex;
   gap: 0.5rem;
   margin-top: 1rem;
 }
 
-.add-checkpoint-input {
+.add-subtask-input {
   flex-grow: 1;
   padding: 0.5rem;
   font-size: 1rem;
