@@ -1,19 +1,18 @@
 /// 排序工具模块
 ///
-/// **预期行为:** 实现一个确定性的排序字符串生成算法（如LexoRank的简化版）
-/// **后置条件:** get_mid_lexo_rank("a", "c")必须总是返回一个介于"a"和"c"之间的字符串（如"b"）
-/// **边界情况:** 必须能正确处理在列表头部、尾部插入，以及两个相邻字符串之间没有空间时的情况
-
-const CHARSET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-const BASE: usize = CHARSET.len();
-const MIN_CHAR: u8 = CHARSET[0]; // '0'
-const MAX_CHAR: u8 = CHARSET[BASE - 1]; // 'z'
+/// 使用 lexorank 库实现确定性的排序字符串生成
+/// 基于 LexoRank 算法，提供高效的列表项排序功能
+use lexorank::{Bucket, LexoRank, Rank};
 
 /// 生成初始排序字符串
 ///
 /// **预期行为:** 生成一个位于排序空间中间的初始字符串
 pub fn generate_initial_sort_order() -> String {
-    "n".to_string() // 位于字符集中间位置
+    // 使用 bucket 0 和中间位置的 rank "n"
+    let bucket = Bucket::new(0).expect("Failed to create bucket");
+    let rank = Rank::new("n").expect("Failed to create rank");
+    let lexo_rank = LexoRank::new(bucket, rank);
+    lexo_rank.to_string()
 }
 
 /// 在两个排序字符串之间生成中间值
@@ -30,67 +29,31 @@ pub fn get_mid_lexo_rank(prev: &str, next: &str) -> String {
         return get_rank_after(prev);
     }
 
-    if prev >= next {
-        // 如果顺序错误，返回next之后的排序
-        return get_rank_after(next);
-    }
-
-    // 找到第一个不同的位置
-    let mut i = 0;
-    let prev_bytes = prev.as_bytes();
-    let next_bytes = next.as_bytes();
-    let min_len = prev_bytes.len().min(next_bytes.len());
-
-    while i < min_len && prev_bytes[i] == next_bytes[i] {
-        i += 1;
-    }
-
-    // 构建结果字符串
-    let mut result = Vec::new();
-
-    // 复制相同的前缀
-    result.extend_from_slice(&prev_bytes[..i]);
-
-    if i < prev_bytes.len() && i < next_bytes.len() {
-        // 两个字符串在位置i处不同
-        let prev_char = prev_bytes[i];
-        let next_char = next_bytes[i];
-
-        if char_index(next_char) - char_index(prev_char) > 1 {
-            // 有空间插入中间字符
-            let mid_index = (char_index(prev_char) + char_index(next_char)) / 2;
-            result.push(CHARSET[mid_index]);
-        } else {
-            // 没有空间，需要扩展
-            result.push(prev_char);
-            result.extend(get_rank_between_suffix(
-                &prev_bytes[i + 1..],
-                &next_bytes[i + 1..],
-            ));
+    // 尝试解析两个 LexoRank
+    let prev_rank = match LexoRank::from_string(prev) {
+        Ok(rank) => rank,
+        Err(_) => {
+            // 如果解析失败，返回一个新的初始排序
+            return generate_initial_sort_order();
         }
-    } else if i < prev_bytes.len() {
-        // next是prev的前缀，在prev后添加字符
-        result.extend_from_slice(&prev_bytes[..i + 1]);
-        if i + 1 < prev_bytes.len() {
-            result.extend(increment_string(&prev_bytes[i + 1..]));
-        } else {
-            result.push(get_mid_char(MIN_CHAR));
+    };
+
+    let next_rank = match LexoRank::from_string(next) {
+        Ok(rank) => rank,
+        Err(_) => {
+            // 如果解析失败，返回 prev 之后的排序
+            return get_rank_after(prev);
         }
-    } else {
-        // prev是next的前缀，在next前添加字符
-        if i < next_bytes.len() {
-            let next_char = next_bytes[i];
-            if next_char > MIN_CHAR {
-                let mid_index = char_index(next_char) / 2;
-                result.push(CHARSET[mid_index]);
-            } else {
-                result.push(MIN_CHAR);
-                result.extend(get_rank_before_suffix(&next_bytes[i + 1..]));
-            }
+    };
+
+    // 使用 lexorank 的 between 方法生成中间值
+    match prev_rank.between(&next_rank) {
+        Some(mid_rank) => mid_rank.to_string(),
+        None => {
+            // 如果无法生成中间值，返回 prev 之后的排序
+            get_rank_after(prev)
         }
     }
-
-    String::from_utf8(result).unwrap_or_else(|_| generate_initial_sort_order())
 }
 
 /// 在指定字符串之前生成排序字符串
@@ -98,34 +61,16 @@ pub fn get_mid_lexo_rank(prev: &str, next: &str) -> String {
 /// **预期行为:** 返回一个字典序小于target的字符串
 pub fn get_rank_before(target: &str) -> String {
     if target.is_empty() {
-        return MIN_CHAR.to_string();
+        return generate_initial_sort_order();
     }
 
-    let target_bytes = target.as_bytes();
-    let mut result = Vec::new();
-
-    // 找到第一个不是最小字符的位置
-    let mut i = 0;
-    while i < target_bytes.len() && target_bytes[i] == MIN_CHAR {
-        result.push(MIN_CHAR);
-        i += 1;
-    }
-
-    if i < target_bytes.len() {
-        let char_idx = char_index(target_bytes[i]);
-        if char_idx > 0 {
-            let mid_index = char_idx / 2;
-            result.push(CHARSET[mid_index]);
-        } else {
-            result.push(MIN_CHAR);
-            result.push(get_mid_char(MAX_CHAR));
+    match LexoRank::from_string(target) {
+        Ok(target_rank) => target_rank.prev().to_string(),
+        Err(_) => {
+            // 如果解析失败，返回初始排序
+            generate_initial_sort_order()
         }
-    } else {
-        // 所有字符都是最小字符
-        result.push(get_mid_char(MAX_CHAR));
     }
-
-    String::from_utf8(result).unwrap_or_else(|_| MIN_CHAR.to_string())
 }
 
 /// 在指定字符串之后生成排序字符串
@@ -136,190 +81,585 @@ pub fn get_rank_after(target: &str) -> String {
         return generate_initial_sort_order();
     }
 
-    let target_bytes = target.as_bytes();
-    let mut result = Vec::new();
-
-    // 尝试递增最后一个字符
-    let mut i = target_bytes.len();
-    let mut carry = true;
-
-    while i > 0 && carry {
-        i -= 1;
-        let char_idx = char_index(target_bytes[i]);
-
-        if char_idx < BASE - 1 {
-            // 可以递增
-            result = target_bytes[..i].to_vec();
-            result.push(CHARSET[char_idx + 1]);
-            carry = false;
+    match LexoRank::from_string(target) {
+        Ok(target_rank) => target_rank.next().to_string(),
+        Err(_) => {
+            // 如果解析失败，返回初始排序
+            generate_initial_sort_order()
         }
     }
-
-    if carry {
-        // 所有字符都是最大字符，需要扩展
-        result = target_bytes.to_vec();
-        result.push(get_mid_char(MIN_CHAR));
-    }
-
-    String::from_utf8(result).unwrap_or_else(|_| generate_initial_sort_order())
-}
-
-/// 获取字符在字符集中的索引
-fn char_index(ch: u8) -> usize {
-    CHARSET.iter().position(|&c| c == ch).unwrap_or(0)
-}
-
-/// 获取两个字符的中间字符
-fn get_mid_char(base_char: u8) -> u8 {
-    let base_idx = char_index(base_char);
-    let mid_idx = (base_idx + BASE) / 2;
-    CHARSET[mid_idx % BASE]
-}
-
-/// 在两个后缀之间生成排序后缀
-fn get_rank_between_suffix(prev_suffix: &[u8], next_suffix: &[u8]) -> Vec<u8> {
-    if prev_suffix.is_empty() && next_suffix.is_empty() {
-        return vec![get_mid_char(MIN_CHAR)];
-    }
-
-    if prev_suffix.is_empty() {
-        return get_rank_before_suffix(next_suffix);
-    }
-
-    if next_suffix.is_empty() {
-        return increment_string(prev_suffix);
-    }
-
-    // 递归处理
-    let mid_rank = get_mid_lexo_rank(
-        &String::from_utf8_lossy(prev_suffix),
-        &String::from_utf8_lossy(next_suffix),
-    );
-
-    mid_rank.as_bytes().to_vec()
-}
-
-/// 在后缀之前生成排序后缀
-fn get_rank_before_suffix(suffix: &[u8]) -> Vec<u8> {
-    if suffix.is_empty() {
-        return vec![get_mid_char(MAX_CHAR)];
-    }
-
-    let before_rank = get_rank_before(&String::from_utf8_lossy(suffix));
-    before_rank.as_bytes().to_vec()
-}
-
-/// 递增字符串
-fn increment_string(s: &[u8]) -> Vec<u8> {
-    let mut result = s.to_vec();
-    let mut i = result.len();
-    let mut carry = true;
-
-    while i > 0 && carry {
-        i -= 1;
-        let char_idx = char_index(result[i]);
-
-        if char_idx < BASE - 1 {
-            result[i] = CHARSET[char_idx + 1];
-            carry = false;
-        } else {
-            result[i] = MIN_CHAR;
-        }
-    }
-
-    if carry {
-        result.insert(0, CHARSET[1]); // 在前面添加字符
-    }
-
-    result
 }
 
 /// 验证排序字符串的有效性
 ///
-/// **预期行为:** 检查字符串是否只包含有效的排序字符
+/// **预期行为:** 检查字符串是否是有效的 LexoRank 格式
 pub fn is_valid_sort_order(sort_order: &str) -> bool {
     if sort_order.is_empty() {
         return false;
     }
 
-    sort_order
-        .as_bytes()
-        .iter()
-        .all(|&ch| CHARSET.contains(&ch))
+    LexoRank::from_string(sort_order).is_ok()
 }
 
 /// 比较两个排序字符串
 ///
 /// **预期行为:** 返回字典序比较结果
 pub fn compare_sort_orders(a: &str, b: &str) -> std::cmp::Ordering {
+    // 尝试解析为 LexoRank 进行比较
+    match (LexoRank::from_string(a), LexoRank::from_string(b)) {
+        (Ok(rank_a), Ok(rank_b)) => {
+            // 使用 LexoRank 的字符串表示进行比较
+            rank_a.to_string().cmp(&rank_b.to_string())
+        }
+        _ => {
+            // 如果解析失败，回退到字符串比较
     a.cmp(b)
+        }
+    }
+}
+
+/// 创建一个新的 LexoRank 实例
+///
+/// **预期行为:** 创建指定 bucket 和 rank 的 LexoRank
+pub fn create_lexo_rank(
+    bucket_value: u8,
+    rank_value: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let bucket = Bucket::new(bucket_value)?;
+    let rank = Rank::new(rank_value)?;
+    let lexo_rank = LexoRank::new(bucket, rank);
+    Ok(lexo_rank.to_string())
+}
+
+/// 从字符串解析 LexoRank
+///
+/// **预期行为:** 将字符串解析为 LexoRank 结构
+pub fn parse_lexo_rank(value: &str) -> Result<(u8, String), Box<dyn std::error::Error>> {
+    let lexo_rank = LexoRank::from_string(value)?;
+    Ok((
+        lexo_rank.bucket().value(),
+        lexo_rank.rank().value().to_string(),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cmp::Ordering;
 
+    // ===== 我们自己的测试 =====
     #[test]
     fn test_generate_initial_sort_order() {
         let order = generate_initial_sort_order();
         assert!(!order.is_empty());
         assert!(is_valid_sort_order(&order));
+        // 应该是 "0|n" 格式
+        assert_eq!(order, "0|n");
     }
 
     #[test]
     fn test_get_mid_lexo_rank() {
-        let mid = get_mid_lexo_rank("a", "c");
-        assert!(mid.as_str() > "a");
-        assert!(mid.as_str() < "c");
+        let initial = "0|n";
+        let after = get_rank_after(initial);
+        let mid = get_mid_lexo_rank(initial, &after);
+
+        assert!(mid.as_str() > initial);
+        assert!(mid.as_str() < after.as_str());
         assert!(is_valid_sort_order(&mid));
     }
 
     #[test]
     fn test_get_rank_before() {
-        let before = get_rank_before("b");
-        assert!(before.as_str() < "b");
+        let initial = "0|n";
+        let before = get_rank_before(initial);
+        assert!(before.as_str() < initial);
         assert!(is_valid_sort_order(&before));
     }
 
     #[test]
     fn test_get_rank_after() {
-        let after = get_rank_after("b");
-        assert!(after.as_str() > "b");
+        let initial = "0|n";
+        let after = get_rank_after(initial);
+        assert!(after.as_str() > initial);
         assert!(is_valid_sort_order(&after));
     }
 
     #[test]
     fn test_ordering_consistency() {
-        let a = "a";
-        let mid = get_mid_lexo_rank(a, "c");
+        let a = "0|n";
+        let c = get_rank_after(a);
+        let mid = get_mid_lexo_rank(a, &c);
         let b = get_mid_lexo_rank(a, &mid);
 
         assert!(a < b.as_str());
-        assert!(b < mid);
-        assert!(mid.as_str() < "c");
+        assert!(b.as_str() < mid.as_str());
+        assert!(mid.as_str() < c.as_str());
     }
 
     #[test]
     fn test_is_valid_sort_order() {
-        assert!(is_valid_sort_order("abc123"));
-        assert!(is_valid_sort_order("0"));
-        assert!(is_valid_sort_order("z"));
+        let valid_order = generate_initial_sort_order();
+        assert!(is_valid_sort_order(&valid_order));
+        assert!(is_valid_sort_order("0|1"));
+        assert!(is_valid_sort_order("1|abc"));
+        assert!(is_valid_sort_order("2|z9"));
+
         assert!(!is_valid_sort_order(""));
-        assert!(!is_valid_sort_order("abc@123")); // 包含非法字符
+        assert!(!is_valid_sort_order("invalid_format"));
+        assert!(!is_valid_sort_order("3|abc")); // bucket > 2
+        assert!(!is_valid_sort_order("0|a0")); // rank ends with 0
     }
 
     #[test]
     fn test_edge_cases() {
-        // 测试相邻字符
-        let mid = get_mid_lexo_rank("a", "b");
-        assert!(mid.as_str() > "a");
-        assert!(mid.as_str() < "b");
-
         // 测试空字符串
         let before_empty = get_rank_before("");
         let after_empty = get_rank_after("");
         assert!(is_valid_sort_order(&before_empty));
         assert!(is_valid_sort_order(&after_empty));
+
+        // 测试中间值生成
+        let mid_empty_prev = get_mid_lexo_rank("", &after_empty);
+        let mid_empty_next = get_mid_lexo_rank(&before_empty, "");
+        assert!(is_valid_sort_order(&mid_empty_prev));
+        assert!(is_valid_sort_order(&mid_empty_next));
+    }
+
+    #[test]
+    fn test_create_and_parse_lexo_rank() {
+        let rank_str = create_lexo_rank(0, "abc").expect("Failed to create LexoRank");
+        assert!(is_valid_sort_order(&rank_str));
+        assert_eq!(rank_str, "0|abc");
+
+        let (bucket, rank) = parse_lexo_rank(&rank_str).expect("Failed to parse LexoRank");
+        assert_eq!(bucket, 0);
+        assert_eq!(rank, "abc");
+    }
+
+    #[test]
+    fn test_lexorank_between_functionality() {
+        // 测试基于实际 lexorank 库的 between 功能
+        let test_cases = [
+            ("0|1", "0|3", "0|2"),
+            ("0|a", "0|z", "0|b"),
+            ("0|1", "0|2", "0|11"),
+            ("0|a", "0|b", "0|a1"),
+        ];
+
+        for (rank1, rank2, expected_between) in test_cases {
+            let between = get_mid_lexo_rank(rank1, rank2);
+            assert_eq!(between, expected_between);
+            assert!(rank1 < between.as_str());
+            assert!(between.as_str() < rank2);
+        }
+    }
+
+    #[test]
+    fn test_compare_sort_orders() {
+        assert_eq!(compare_sort_orders("0|1", "0|2"), Ordering::Less);
+        assert_eq!(compare_sort_orders("0|2", "0|1"), Ordering::Greater);
+        assert_eq!(compare_sort_orders("0|1", "0|1"), Ordering::Equal);
+        assert_eq!(compare_sort_orders("0|a", "0|z"), Ordering::Less);
+        assert_eq!(compare_sort_orders("1|a", "0|z"), Ordering::Greater);
+    }
+
+    // ===== 原作者的测试 - Constructor Tests =====
+    #[test]
+    fn create() {
+        let lex_tuples = [(0, "2a", "0|2a"), (1, "01", "1|01"), (2, "abc", "2|abc")];
+
+        for (bucket, value, lex_string) in lex_tuples {
+            let lex_bucket = Bucket::new(bucket).unwrap();
+            let lex_value = Rank::new(value).unwrap();
+            let lexorank = LexoRank::new(lex_bucket, lex_value);
+
+            assert_eq!(*lexorank.bucket(), Bucket::new(bucket).unwrap());
+            assert_eq!(*lexorank.rank(), Rank::new(value).unwrap());
+            assert_eq!(lexorank.to_string(), lex_string);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "LexoRank bucket value must be between 0 and 2 inclusive. Found: 4")]
+    fn create_with_invalid_bucket() {
+        let buckets = [3, 4, 10, 100];
+
+        for bucket in buckets {
+            let bucket = Bucket::new(bucket);
+            assert!(bucket.is_err());
+        }
+
+        Bucket::new(4).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Lexorank value must only include 0-9 and a-z and must not end with 0. Found: a0"
+    )]
+    fn create_with_invalid_rank() {
+        let values = ["a90", "0", "12B", "C"];
+
+        for value in values {
+            let value = Rank::new(value);
+            assert!(value.is_err());
+        }
+
+        Rank::new("a0").unwrap();
+    }
+
+    #[test]
+    fn create_from_string() {
+        let lex_tuples = [(0, "2a"), (1, "01"), (2, "abc")];
+
+        for (bucket, value) in lex_tuples {
+            let lex_string = format!("{}|{}", bucket, value);
+            let lexorank = LexoRank::from_string(&lex_string).unwrap();
+
+            assert_eq!(*lexorank.bucket(), Bucket::new(bucket).unwrap());
+            assert_eq!(*lexorank.rank(), Rank::new(value).unwrap());
+            assert_eq!(lexorank.to_string(), lex_string);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "LexoRank bucket value must be between 0 and 2 inclusive. Found: 4")]
+    fn create_from_string_with_invalid_bucket() {
+        let buckets = [3, 4, 10, 100];
+
+        for bucket in buckets {
+            let lex_string = format!("{}|abc", bucket);
+            let value = LexoRank::from_string(&lex_string);
+            assert!(value.is_err());
+        }
+
+        LexoRank::from_string("4|abc").unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Lexorank value must only include 0-9 and a-z and must not end with 0. Found: a0"
+    )]
+    fn create_from_string_with_invalid_rank() {
+        let values = ["a90", "0", "12B", "C"];
+
+        for value in values {
+            let lex_string = format!("0|{}", value);
+            let value = LexoRank::from_string(&lex_string);
+            assert!(value.is_err());
+        }
+
+        LexoRank::from_string("0|a0").unwrap();
+    }
+
+    // ===== 原作者的测试 - Between Tests =====
+    #[test]
+    fn between_ranks() {
+        let test_cases = [
+            ("1", "3", "2"),
+            ("1", "9", "2"),
+            ("a", "z", "b"),
+            ("1", "2", "11"),
+            ("a", "b", "a1"),
+            ("12", "1a", "13"),
+            ("101", "123", "102"),
+            ("11", "12", "111"),
+            ("az", "b", "az1"),
+            ("1a1", "1a11", "1a101"),
+            ("z4", "z41", "z401"),
+            ("z4", "z401", "z4001"),
+            ("z401", "z40100001", "z401000001"),
+        ];
+
+        for (rank1, rank2, between) in test_cases {
+            println!("{} -> {} <- {}", rank1, between, rank2);
+            let rank1 = Rank::new(rank1).unwrap();
+            let rank2 = Rank::new(rank2).unwrap();
+            let between = Rank::new(between).unwrap();
+            assert_eq!(rank1.between(&rank2).unwrap(), between);
+            assert_eq!(rank2.between(&rank1).unwrap(), between);
+        }
+    }
+
+    #[test]
+    fn between_equal_ranks() {
+        let test_cases = ["1", "z", "1a1", "z4", "z401", "z40100001"];
+
+        for rank in test_cases {
+            println!("{} -> {} <- {}", rank, rank, rank);
+            let rank1 = Rank::new(rank).unwrap();
+            let rank2 = Rank::new(rank).unwrap();
+            assert_eq!(rank1.between(&rank2), None);
+            assert_eq!(rank2.between(&rank1), None);
+        }
+    }
+
+    #[test]
+    fn between_lexoranks() {
+        let test_cases = [
+            ("0|1", "0|3", "0|2"),
+            ("0|1", "0|9", "0|2"),
+            ("0|a", "0|z", "0|b"),
+            ("0|1", "0|2", "0|11"),
+            ("0|a", "0|b", "0|a1"),
+            ("0|12", "0|1a", "0|13"),
+            ("0|101", "0|123", "0|102"),
+            ("0|11", "0|12", "0|111"),
+            ("0|az", "0|b", "0|az1"),
+            ("0|1a1", "0|1a11", "0|1a101"),
+            ("0|z4", "0|z41", "0|z401"),
+            ("0|z4", "0|z401", "0|z4001"),
+            ("0|z401", "0|z40100001", "0|z401000001"),
+        ];
+
+        for (lexorank1, lexorank2, between) in test_cases {
+            println!("{} -> {} <- {}", lexorank1, between, lexorank2);
+            let lexorank1: LexoRank = lexorank1.try_into().unwrap();
+            let lexorank2: LexoRank = lexorank2.try_into().unwrap();
+            let between: LexoRank = between.try_into().unwrap();
+            assert_eq!(lexorank1.between(&lexorank2).unwrap(), between);
+            assert_eq!(lexorank2.between(&lexorank1).unwrap(), between);
+        }
+    }
+
+    #[test]
+    fn between_equal_lexoranks() {
+        let test_cases = [
+            ("0|1", "0|1"),
+            ("2|z", "2|z"),
+            ("0|1a1", "0|1a1"),
+            ("2|z4", "2|z4"),
+            ("0|z401", "0|z401"),
+            ("1|z40100001", "1|z40100001"),
+        ];
+
+        for (lexorank1, rank2) in test_cases {
+            println!("{} -> {} <- {}", lexorank1, lexorank1, rank2);
+            let rank1: LexoRank = lexorank1.try_into().unwrap();
+            let rank2: LexoRank = rank2.try_into().unwrap();
+            assert_eq!(rank1.between(&rank2), None);
+            assert_eq!(rank2.between(&rank1), None);
+        }
+    }
+
+    // ===== 原作者的测试 - Increment Tests =====
+    #[test]
+    fn increment_bucket() {
+        let bucket_pairs = [(0, 1), (1, 2), (2, 0)];
+
+        for (before, after) in bucket_pairs {
+            println!("{} -> {}", before, after);
+            let before_bucket = Bucket::new(before).unwrap();
+            let after_bucket = Bucket::new(after).unwrap();
+            assert_eq!(before_bucket.next(), after_bucket);
+        }
+    }
+
+    #[test]
+    fn decrement_bucket() {
+        let bucket_pairs = [(0, 2), (1, 0), (2, 1)];
+
+        for (before, after) in bucket_pairs {
+            println!("{} -> {}", before, after);
+            let before_bucket = Bucket::new(before).unwrap();
+            let after_bucket = Bucket::new(after).unwrap();
+            assert_eq!(before_bucket.prev(), after_bucket);
+        }
+    }
+
+    #[test]
+    fn increment_rank() {
+        let test_cases = [
+            ("1", "2"),
+            ("8", "9"),
+            ("9", "a"),
+            ("a", "b"),
+            ("y", "z"),
+            ("z", "z1"),
+            ("11", "12"),
+            ("2b", "2c"),
+            ("109", "10a"),
+            ("abz", "ac"),
+            ("yzz", "z"),
+            ("y2wzz", "y2x"),
+            ("zzz", "zzz1"),
+        ];
+
+        for (before, after) in test_cases {
+            println!("{} -> {}", before, after);
+            let before_rank = Rank::new(before).unwrap();
+            let after_rank = Rank::new(after).unwrap();
+            assert_eq!(before_rank.next(), after_rank);
+        }
+    }
+
+    #[test]
+    fn decrement_rank() {
+        let test_cases = [
+            ("1", "01"),
+            ("8", "7"),
+            ("9", "8"),
+            ("a", "9"),
+            ("b", "a"),
+            ("z", "y"),
+            ("11", "1"),
+            ("2c", "2b"),
+            ("10a", "109"),
+            ("abz", "aby"),
+            ("z1", "z"),
+            ("01", "001"),
+            ("01001", "01"),
+        ];
+
+        for (before, after) in test_cases {
+            println!("{} -> {}", before, after);
+            let before_rank = Rank::new(before).unwrap();
+            let after_rank = Rank::new(after).unwrap();
+            assert_eq!(before_rank.prev(), after_rank);
+        }
+    }
+
+    #[test]
+    fn increment_lexorank() {
+        let test_cases = [
+            ("1|01", "1|02"),
+            ("0|9", "0|a"),
+            ("0|a", "0|b"),
+            ("1|y", "1|z"),
+            ("0|z", "0|z1"),
+            ("2|11", "2|12"),
+            ("0|2b", "0|2c"),
+            ("0|109", "0|10a"),
+            ("2|abz", "2|ac"),
+            ("0|yzz", "0|z"),
+            ("1|y2wzz", "1|y2x"),
+            ("0|zzz", "0|zzz1"),
+        ];
+
+        for (before, after) in test_cases {
+            println!("{} -> {}", before, after);
+            let before_lexorank: LexoRank = before.try_into().unwrap();
+            let after_lexorank: LexoRank = after.try_into().unwrap();
+            assert_eq!(before_lexorank.next(), after_lexorank);
+        }
+    }
+
+    #[test]
+    fn decrement_lexorank() {
+        let test_cases = [
+            ("1|1", "1|01"),
+            ("0|8", "0|7"),
+            ("2|9", "2|8"),
+            ("0|a", "0|9"),
+            ("0|b", "0|a"),
+            ("2|z", "2|y"),
+            ("1|11", "1|1"),
+            ("0|2c", "0|2b"),
+            ("0|10a", "0|109"),
+            ("1|abz", "1|aby"),
+            ("0|z1", "0|z"),
+            ("0|01", "0|001"),
+            ("2|01001", "2|01"),
+        ];
+
+        for (before, after) in test_cases {
+            println!("{} -> {}", before, after);
+            let before_lexorank: LexoRank = before.try_into().unwrap();
+            let after_lexorank: LexoRank = after.try_into().unwrap();
+            assert_eq!(before_lexorank.prev(), after_lexorank);
+        }
+    }
+
+    // ===== 原作者的测试 - Equality Tests =====
+    #[test]
+    fn compare_equal_buckets() {
+        let bucket1 = Bucket::new(0).unwrap();
+        let bucket2 = Bucket::new(0).unwrap();
+        assert_eq!(bucket1, bucket2);
+    }
+
+    #[test]
+    fn compare_unequal_buckets() {
+        let bucket1 = Bucket::new(0).unwrap();
+        let bucket2 = Bucket::new(1).unwrap();
+        assert_ne!(bucket1, bucket2);
+        assert!(
+            bucket1 < bucket2,
+            "{:?} was not less than {:?}",
+            bucket1,
+            bucket2
+        );
+        assert!(
+            bucket2 > bucket1,
+            "{:?} was not greater than {:?}",
+            bucket2,
+            bucket1
+        );
+    }
+
+    #[test]
+    fn compare_equal_ranks() {
+        let rank1 = Rank::new("01").unwrap();
+        let rank2 = Rank::new("01").unwrap();
+        assert_eq!(rank1, rank2);
+    }
+
+    #[test]
+    fn compare_unequal_ranks() {
+        let rank1 = Rank::new("01").unwrap();
+        let rank2 = Rank::new("02").unwrap();
+        assert_ne!(rank1, rank2);
+        assert!(rank1 < rank2, "{:?} was not less than {:?}", rank1, rank2);
+        assert!(
+            rank2 > rank1,
+            "{:?} was not greater than {:?}",
+            rank2,
+            rank1
+        );
+    }
+
+    #[test]
+    fn compare_unequal_ranks_2() {
+        let rank_pairs = [
+            ("1", "9"),
+            ("a", "z"),
+            ("9", "a"),
+            ("5", "f"),
+            ("1322", "1323"),
+            ("1a22", "1b21"),
+            ("azdb", "xabd"),
+            ("1zzz", "abz"),
+            ("010001", "01001"),
+        ];
+
+        for (r1, r2) in rank_pairs {
+            let rank1 = Rank::new(r1).unwrap();
+            let rank2 = Rank::new(r2).unwrap();
+            assert_ne!(rank1, rank2);
+            assert!(rank1 < rank2, "{:?} was not less than {:?}", rank1, rank2);
+            assert!(
+                rank2 > rank1,
+                "{:?} was not greater than {:?}",
+                rank2,
+                rank1
+            );
+        }
+    }
+
+    #[test]
+    fn compare_equal_lexoranks() {
+        let lexorank1: LexoRank = "0|01".try_into().unwrap();
+        let lexorank2: LexoRank = "0|01".try_into().unwrap();
+        assert_eq!(lexorank1, lexorank2);
+    }
+
+    #[test]
+    fn compare_unequal_lexoranks() {
+        let lexorank1: LexoRank = "0|01".try_into().unwrap();
+        let lexorank2: LexoRank = "1|01".try_into().unwrap();
+        assert_ne!(lexorank1, lexorank2);
+
+        let lexorank1: LexoRank = "0|01".try_into().unwrap();
+        let lexorank2: LexoRank = "0|02".try_into().unwrap();
+        assert_ne!(lexorank1, lexorank2);
     }
 }
-
