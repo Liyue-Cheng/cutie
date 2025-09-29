@@ -46,24 +46,40 @@ pub fn set_sidecar_port(port: u16) {
     }
 }
 
+/// 初始化日志系统
+/// 使用 try_init() 避免重复初始化时的 panic
+fn init_logging() {
+    // 初始化日志系统，设置默认级别
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+    // 使用 try_init() 避免重复初始化时的 panic
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .try_init();
+}
+
+/// 构建基础的 Tauri 应用程序构建器
+/// 在这里统一处理日志初始化和应用构建
+fn build_tauri_app() -> tauri::Builder<tauri::Wry> {
+    // 首先初始化日志系统
+    init_logging();
+
+    // 记录应用构建日志
+    tracing::info!("Building Cutie application with Tauri");
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![greet, get_sidecar_port])
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 初始化端口存储
     let _ = SIDECAR_PORT.set(Arc::new(Mutex::new(None)));
 
-    // 初始化日志系统，设置默认级别
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    tracing::info!("Starting Cutie application with new architecture");
-
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_sidecar_port])
+    // 构建并运行应用（日志初始化在 build_tauri_app 中完成）
+    build_tauri_app()
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -73,20 +89,12 @@ pub fn run_with_port_discovery(discovered_port: Arc<Mutex<Option<u16>>>) {
     // 初始化端口存储
     let _ = SIDECAR_PORT.set(discovered_port);
 
-    // 初始化日志系统，设置默认级别
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    tracing::info!("Starting Cutie application with port discovery");
-
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_sidecar_port])
+    // 构建应用并添加端口发现功能（日志初始化在 build_tauri_app 中完成）
+    build_tauri_app()
         .setup(|app| {
+            // 记录端口发现模式启动
+            tracing::info!("Starting Cutie application with port discovery mode");
+
             // 启动端口监听器
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
