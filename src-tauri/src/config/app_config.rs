@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 
-use crate::common::error::AppError;
+use crate::shared::core::AppError;
 use super::{DatabaseConfig, ServerConfig};
 
 /// 应用主配置结构

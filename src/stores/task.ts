@@ -1,13 +1,10 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { Task, Subtask } from '@/types/models'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 // --- Type Aliases from models.ts ---
 type ID = string
-
-// --- API Base URL ---
-// 使用固定端口3030，避免与8080端口冲突
-const API_BASE_URL = 'http://localhost:3030/api'
 
 // --- Payload Types for API calls ---
 export interface CreateTaskPayload {
@@ -65,8 +62,18 @@ export const useTaskStore = defineStore('task', () => {
   const unscheduledTasks = computed(() => {
     const allTasks = Array.from(tasks.value.values())
     const filtered = allTasks.filter((task) => !task.is_deleted && !task.completed_at)
-    console.log(`[TaskStore] unscheduledTasks computed - Total tasks: ${allTasks.length}, Unscheduled: ${filtered.length}`)
-    console.log(`[TaskStore] All tasks:`, allTasks.map(t => ({ id: t.id, title: t.title, completed_at: t.completed_at, is_deleted: t.is_deleted })))
+    console.log(
+      `[TaskStore] unscheduledTasks computed - Total tasks: ${allTasks.length}, Unscheduled: ${filtered.length}`
+    )
+    console.log(
+      `[TaskStore] All tasks:`,
+      allTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        completed_at: t.completed_at,
+        is_deleted: t.is_deleted,
+      }))
+    )
     return filtered
   })
 
@@ -87,7 +94,8 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/unscheduled`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/unscheduled`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -121,7 +129,8 @@ export const useTaskStore = defineStore('task', () => {
       if (params.q) searchParams.append('q', params.q)
       if (params.limit) searchParams.append('limit', params.limit.toString())
 
-      const url = `${API_BASE_URL}/tasks${searchParams.toString() ? '?' + searchParams.toString() : ''}`
+      const apiBaseUrl = await waitForApiReady()
+      const url = `${apiBaseUrl}/tasks${searchParams.toString() ? '?' + searchParams.toString() : ''}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -154,7 +163,8 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -186,7 +196,8 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     console.log(`[TaskStore] Attempting to create task with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -225,7 +236,8 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     console.log(`[TaskStore] Attempting to update task ${id} with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -262,7 +274,8 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
         method: 'DELETE',
       })
 
@@ -292,7 +305,8 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}/completion`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
         method: 'POST',
       })
 
@@ -333,7 +347,8 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${id}/reopen`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}/reopen`, {
         method: 'POST',
       })
 

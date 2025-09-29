@@ -1,7 +1,6 @@
-/// 应用启动模块
-/// 
-/// 负责应用的初始化、依赖注入容器的构建、数据库连接池的创建等启动相关工作
-
+/// 新的启动模块
+///
+/// 基于功能切片架构的全新启动逻辑，专为sidecar架构设计
 pub mod app_state;
 pub mod database;
 pub mod sidecar;

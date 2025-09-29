@@ -27,7 +27,7 @@ export interface UpdateAreaPayload {
 }
 
 // --- API Base URL ---
-const API_BASE_URL = 'http://localhost:3030/api'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 export const useAreaStore = defineStore('area', () => {
   // --- State ---
@@ -99,7 +99,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }

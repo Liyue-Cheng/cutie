@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 
-use crate::common::error::AppError;
+use crate::shared::core::AppError;
 
 /// 数据库配置结构
 #[derive(Debug, Clone, Serialize, Deserialize)]

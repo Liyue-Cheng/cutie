@@ -28,7 +28,7 @@ export interface CalculateSortOrderParams {
 }
 
 // --- API Base URL ---
-const API_BASE_URL = 'http://localhost:3030/api'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 export const useOrderingStore = defineStore('ordering', () => {
   // --- State ---

@@ -21,7 +21,7 @@ export interface ScheduleTaskPayload {
 }
 
 // --- API Base URL ---
-const API_BASE_URL = 'http://localhost:3030/api'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 export const useScheduleStore = defineStore('schedule', () => {
   // --- State ---

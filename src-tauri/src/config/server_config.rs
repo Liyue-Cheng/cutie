@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::{IpAddr, Ipv4Addr};
 
-use crate::common::error::AppError;
+use crate::shared::core::AppError;
 
 /// 服务器配置结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,7 +70,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), // localhost
-            port: 3030,                                    // 固定端口，避免冲突
+            port: 0,                                       // 动态端口，由操作系统分配
             cors_enabled: true,
             cors_origins: vec!["http://localhost:1420".to_string()], // Tauri默认端口
             max_request_size_bytes: 10 * 1024 * 1024,                // 10MB

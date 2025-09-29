@@ -45,7 +45,7 @@ export interface CreationContext {
 }
 
 // --- API Base URL ---
-const API_BASE_URL = 'http://localhost:3030/api'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 export const useTemplateStore = defineStore('template', () => {
   // --- State ---
@@ -91,7 +91,8 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/templates`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
