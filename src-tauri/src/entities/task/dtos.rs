@@ -1,11 +1,13 @@
-/// 任务功能的数据传输对象
+/// Task相关的数据传输对象
 ///
-/// 定义所有任务API端点共享的DTO结构
+/// 从features/tasks/shared/dtos.rs迁移而来
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{ContextType, DueDateType, Subtask, Task};
+use super::{ContextType, DueDateType, Subtask};
+use super::model::Task;
 
 /// 创建任务的请求载荷
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -132,6 +132,12 @@ impl From<String> for AppError {
     }
 }
 
+impl From<SortOrderError> for AppError {
+    fn from(err: SortOrderError) -> Self {
+        AppError::StringError(err.to_string())
+    }
+}
+
 impl AppError {
     /// 创建未找到错误
     pub fn not_found(entity_type: impl Into<String>, entity_id: impl Into<String>) -> Self {
@@ -179,6 +185,21 @@ impl AppError {
 /// 应用结果类型别名
 pub type AppResult<T> = Result<T, AppError>;
 
+/// 排序相关的错误类型
+#[derive(Debug, Error)]
+pub enum SortOrderError {
+    #[error("Invalid sort order format: {0}")]
+    InvalidFormat(String),
+    #[error("Cannot generate rank between identical values: {0}")]
+    IdenticalValues(String),
+    #[error("Invalid rank order: prev '{prev}' should be less than next '{next}'")]
+    InvalidOrder { prev: String, next: String },
+    #[error("LexoRank error: {0}")]
+    LexoRankError(String),
+}
+
 /// 数据库结果类型别名
 pub type DbResult<T> = Result<T, DbError>;
 
+/// 排序结果类型别名
+pub type SortResult<T> = Result<T, SortOrderError>;

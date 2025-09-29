@@ -3,7 +3,9 @@ pub mod config; // 保留配置模块
 pub mod startup; // 保留启动模块（sidecar功能需要）
 
 // 新的功能切片模块
+pub mod entities;
 pub mod features;
+pub mod repositories;
 pub mod shared;
 
 // 重新导出新架构的类型

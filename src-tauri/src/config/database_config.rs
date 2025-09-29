@@ -161,7 +161,32 @@ impl DatabaseConfig {
 
     /// 构建SQLite连接字符串
     pub fn connection_string(&self, db_path: &PathBuf) -> String {
-        format!("sqlite://{}", db_path.to_string_lossy())
+        let mut params = Vec::new();
+
+        // 添加WAL模式
+        if self.wal_mode {
+            params.push("journal_mode=WAL".to_string());
+        }
+
+        // 添加外键约束
+        if self.foreign_keys {
+            params.push("foreign_keys=ON".to_string());
+        } else {
+            params.push("foreign_keys=OFF".to_string());
+        }
+
+        // 添加同步模式
+        params.push(format!(
+            "synchronous={}",
+            self.synchronous.as_pragma_value()
+        ));
+
+        // 添加缓存大小
+        params.push(format!("cache_size={}", self.cache_size_kb));
+
+        // 构建完整的连接字符串
+        let query_string = params.join("&");
+        format!("sqlite://{}?{}", db_path.to_string_lossy(), query_string)
     }
 
     /// 验证数据库配置
@@ -249,7 +274,6 @@ impl SynchronousMode {
 #[cfg(test)]
 mod tests_db_config {
     use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn test_database_config_default() {

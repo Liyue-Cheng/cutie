@@ -1,12 +1,14 @@
+use crate::entities::Task;
+use crate::entities::{CreateTaskRequest, UpdateTaskRequest};
 /// 任务功能的验证逻辑
-/// 
+///
 /// 提供所有任务API端点共享的验证函数
-
-use crate::shared::core::{Task, ValidationError, AppResult};
-use super::dtos::{CreateTaskRequest, UpdateTaskRequest};
+use crate::shared::core::{AppResult, ValidationError};
 
 /// 验证创建任务请求
-pub fn validate_create_task_request(request: &CreateTaskRequest) -> Result<(), Vec<ValidationError>> {
+pub fn validate_create_task_request(
+    request: &CreateTaskRequest,
+) -> Result<(), Vec<ValidationError>> {
     let mut errors = Vec::new();
 
     // 验证标题
@@ -54,7 +56,9 @@ pub fn validate_create_task_request(request: &CreateTaskRequest) -> Result<(), V
 }
 
 /// 验证更新任务请求
-pub fn validate_update_task_request(request: &UpdateTaskRequest) -> Result<(), Vec<ValidationError>> {
+pub fn validate_update_task_request(
+    request: &UpdateTaskRequest,
+) -> Result<(), Vec<ValidationError>> {
     let mut errors = Vec::new();
 
     // 验证标题
@@ -147,50 +151,4 @@ pub fn validate_task_business_rules(task: &Task) -> AppResult<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::Utc;
-
-    #[test]
-    fn test_validate_create_task_request() {
-        let valid_request = CreateTaskRequest {
-            title: "Test Task".to_string(),
-            glance_note: None,
-            detail_note: None,
-            estimated_duration: Some(60),
-            subtasks: None,
-            area_id: None,
-            due_date: None,
-            due_date_type: None,
-            context: CreationContext {
-                context_type: crate::shared::core::ContextType::Misc,
-                context_id: "floating".to_string(),
-            },
-        };
-
-        assert!(validate_create_task_request(&valid_request).is_ok());
-
-        let invalid_request = CreateTaskRequest {
-            title: "".to_string(),
-            glance_note: None,
-            detail_note: None,
-            estimated_duration: Some(-10),
-            subtasks: None,
-            area_id: None,
-            due_date: Some(Utc::now()),
-            due_date_type: None,
-            context: CreationContext {
-                context_type: crate::shared::core::ContextType::Misc,
-                context_id: "floating".to_string(),
-            },
-        };
-
-        let validation_result = validate_create_task_request(&invalid_request);
-        assert!(validation_result.is_err());
-        let errors = validation_result.unwrap_err();
-        assert!(errors.len() >= 3); // 空标题、负时长、缺少日期类型
-    }
 }

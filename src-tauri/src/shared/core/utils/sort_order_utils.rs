@@ -1,24 +1,9 @@
+use crate::shared::core::{SortOrderError, SortResult};
 /// 排序工具模块
 ///
 /// 使用 lexorank 库实现确定性的排序字符串生成
 /// 基于 LexoRank 算法，提供高效的列表项排序功能
 use lexorank::{Bucket, LexoRank, Rank};
-use thiserror::Error;
-
-/// 排序相关的错误类型
-#[derive(Debug, Error)]
-pub enum SortOrderError {
-    #[error("Invalid sort order format: {0}")]
-    InvalidFormat(String),
-    #[error("Cannot generate rank between identical values: {0}")]
-    IdenticalValues(String),
-    #[error("Invalid rank order: prev '{prev}' should be less than next '{next}'")]
-    InvalidOrder { prev: String, next: String },
-    #[error("LexoRank error: {0}")]
-    LexoRankError(String),
-}
-
-pub type SortResult<T> = Result<T, SortOrderError>;
 
 /// 生成初始排序字符串
 ///

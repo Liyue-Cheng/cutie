@@ -162,12 +162,12 @@ pub async fn extract_request_id(headers: &axum::http::HeaderMap) -> Option<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shared::core::ValidationError;
+    use crate::shared::{core::ValidationError, http::responses::ApiResponse};
 
     #[test]
     fn test_api_response_creation() {
         let data = "test_data";
-        let response = super::responses::ApiResponse::success(data);
+        let response = ApiResponse::success(data);
 
         assert_eq!(response.data, "test_data");
         assert!(response.request_id.is_none());
