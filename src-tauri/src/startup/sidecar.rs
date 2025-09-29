@@ -224,7 +224,8 @@ mod tests {
         });
 
         // 基本的组件创建测试
-        assert!(!config.server.host.is_empty());
+        // 验证主机地址不是未指定地址
+        assert!(!config.server.host.is_unspecified());
         assert!(config.server.port > 0);
     }
 }
