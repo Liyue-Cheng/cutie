@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { v4 as uuidv4 } from 'uuid'
 import type { Task } from '@/types/models'
 import { useTaskStore } from '@/stores/task'
 import CutePane from '@/components/alias/CutePane.vue'
-import CuteCard from '@/components/templates/CuteCard.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 
 defineProps<{
@@ -16,26 +14,34 @@ const emit = defineEmits(['openEditor'])
 
 const taskStore = useTaskStore()
 const newTaskTitle = ref('')
+const isCreatingTask = ref(false)
 
 async function handleAddTask() {
   const title = newTaskTitle.value.trim()
-  if (!title) return
+  if (!title || isCreatingTask.value) return
+
   console.log(`[TaskList] User initiated task creation with title: "${title}"`)
 
-  await taskStore.createTask({
-    title,
-    context: {
-      context_type: 'MISC',
-      context_id: 'floating',
-    },
-  })
+  isCreatingTask.value = true
+  // 立即清空输入框，提供即时反馈
+  const originalTitle = newTaskTitle.value
+  newTaskTitle.value = ''
 
-  // Clear the input after creation
-  if (!taskStore.error) {
-    console.log(`[TaskList] Task creation successful, clearing input.`)
-    newTaskTitle.value = ''
-  } else {
-    console.error(`[TaskList] Task creation failed. Error from store:`, taskStore.error)
+  try {
+    await taskStore.createTask({
+      title,
+      context: {
+        context_type: 'MISC',
+        context_id: 'floating',
+      },
+    })
+    console.log(`[TaskList] Task creation successful.`)
+  } catch (error) {
+    console.error(`[TaskList] Task creation failed:`, error)
+    // 如果创建失败，恢复输入框内容
+    newTaskTitle.value = originalTitle
+  } finally {
+    isCreatingTask.value = false
   }
 }
 </script>
@@ -54,8 +60,10 @@ async function handleAddTask() {
         type="text"
         placeholder="+ Add task"
         class="add-task-input"
+        :disabled="isCreatingTask"
         @keydown.enter="handleAddTask"
       />
+      <div v-if="isCreatingTask" class="creating-indicator">Creating...</div>
     </div>
 
     <div class="task-list-scroll-area">
@@ -113,6 +121,18 @@ async function handleAddTask() {
 
 .add-task-input::placeholder {
   color: var(--color-text-secondary);
+}
+
+.add-task-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.creating-indicator {
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  padding: 0.5rem 0.75rem;
+  font-style: italic;
 }
 
 .task-list-scroll-area {

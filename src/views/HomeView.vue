@@ -22,9 +22,13 @@ function handleOpenEditor(task: Task) {
 const inboxTasks = computed(() => taskStore.unscheduledTasks)
 const todayTasks = computed(() => taskStore.unscheduledTasks)
 
-onMounted(() => {
-  // Fetch unscheduled tasks when the component mounts
-  taskStore.fetchUnscheduledTasks()
+onMounted(async () => {
+  // 预先加载任务数据，避免UI跳动
+  try {
+    await taskStore.fetchUnscheduledTasks()
+  } catch (error) {
+    console.error('[HomeView] Failed to fetch initial tasks:', error)
+  }
 })
 </script>
 

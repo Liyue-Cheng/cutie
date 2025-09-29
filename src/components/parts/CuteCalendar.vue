@@ -14,7 +14,7 @@
 import FullCalendar from '@fullcalendar/vue3'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import { reactive, onMounted, onUnmounted, computed, ref } from 'vue'
+import { reactive, onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
@@ -31,20 +31,24 @@ const previewEvent = ref<EventInput | null>(null)
 const isDragging = ref(false)
 const currentDraggedTask = ref<Task | null>(null)
 
-onMounted(() => {
-  // 获取当前日期范围的时间块
-  const today = new Date()
-  const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()))
-  const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6))
-  
-  timeBlockStore.fetchTimeBlocksForRange(
-    startOfWeek.toISOString(),
-    endOfWeek.toISOString()
-  )
-
+onMounted(async () => {
   // 监听全局拖拽开始事件
   document.addEventListener('dragstart', handleGlobalDragStart)
   document.addEventListener('dragend', handleGlobalDragEnd)
+
+  // 使用 nextTick 确保DOM完全渲染后再获取数据
+  await nextTick()
+
+  try {
+    // 获取当前日期范围的时间块
+    const today = new Date()
+    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()))
+    const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6))
+
+    await timeBlockStore.fetchTimeBlocksForRange(startOfWeek.toISOString(), endOfWeek.toISOString())
+  } catch (error) {
+    console.error('[CuteCalendar] Failed to fetch initial time blocks:', error)
+  }
 })
 
 function handleGlobalDragStart(event: DragEvent) {
@@ -103,6 +107,20 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
 
   const title = prompt('Please enter a new title for your time block')
   if (title) {
+    // 创建临时预览事件，减少视觉跳动
+    const tempEvent = {
+      id: 'temp-creating',
+      title: title,
+      start: selectInfo.start.toISOString(),
+      end: selectInfo.end.toISOString(),
+      allDay: false,
+      color: '#4a90e2',
+      classNames: ['creating-event'],
+    }
+
+    // 添加临时预览
+    previewEvent.value = tempEvent
+
     try {
       await timeBlockStore.createTimeBlock({
         title,
@@ -110,8 +128,14 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
         end_time: selectInfo.end.toISOString(),
         task_ids: [], // 空的任务ID列表
       })
+
+      // 清除临时预览，真实事件会通过store更新显示
+      previewEvent.value = null
     } catch (error) {
       console.error('Failed to create event:', error)
+
+      // 清除临时预览
+      previewEvent.value = null
 
       // 显示错误信息给用户
       let errorMessage = 'Could not create the event. It might be overlapping with another event.'
@@ -125,7 +149,6 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
         duration: 5000,
         closable: true,
       })
-      // No need to manually revert, as it was never added to the store successfully
     }
   }
 }
@@ -447,6 +470,26 @@ const calendarOptions = reactive({
   background-color: #4a90e2 !important;
   color: #fff !important;
   border-color: #357abd !important;
+}
+
+/* 创建中事件样式 */
+.fc-event.creating-event {
+  background-color: #4a90e2 !important;
+  color: #fff !important;
+  border-color: #357abd !important;
+  opacity: 0.8;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 /* 当前时间指示器样式 */

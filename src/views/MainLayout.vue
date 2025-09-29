@@ -98,11 +98,16 @@ const isSettingsOpen = ref(false)
 
 const themeClassName = 'theme-temp-susamacopy'
 
+// 立即应用主题类名，避免初始渲染时的样式闪烁
+document.body.classList.add(themeClassName)
+
 // 2. Use onMounted hook
 // onMounted is executed after the component is mounted to the DOM
 onMounted(() => {
-  // When the component loads, add our theme class to the body tag
-  document.body.classList.add(themeClassName)
+  // 确保主题类名已应用（防御性编程）
+  if (!document.body.classList.contains(themeClassName)) {
+    document.body.classList.add(themeClassName)
+  }
 })
 
 // 3. Use onBeforeUnmount hook (good practice)
