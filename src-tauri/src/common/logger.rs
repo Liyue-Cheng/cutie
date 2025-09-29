@@ -1,6 +1,97 @@
 use env_logger::{Builder, Target};
 use log::LevelFilter;
-use std::io::Write;
+use std::fs::OpenOptions;
+use std::io::{stdout, BufWriter, Write};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+/// 双重输出写入器，支持同时写入控制台和文件
+#[derive(Clone)]
+pub struct DualWriter {
+    file_writer: Option<Arc<Mutex<BufWriter<std::fs::File>>>>,
+    output_to_console: bool,
+}
+
+impl DualWriter {
+    pub fn new(
+        log_file_path: Option<PathBuf>,
+        output_to_both: bool,
+    ) -> Result<Self, std::io::Error> {
+        let file_writer = if let Some(path) = log_file_path {
+            // 确保日志目录存在
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            let file = OpenOptions::new().create(true).append(true).open(&path)?;
+
+            Some(Arc::new(Mutex::new(BufWriter::new(file))))
+        } else {
+            None
+        };
+
+        let output_to_console = output_to_both || file_writer.is_none();
+
+        Ok(Self {
+            file_writer,
+            output_to_console,
+        })
+    }
+}
+
+impl Write for DualWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let mut result = Ok(buf.len());
+
+        // 写入文件
+        if let Some(ref file_writer) = self.file_writer {
+            if let Ok(mut writer) = file_writer.lock() {
+                if let Err(e) = writer.write_all(buf) {
+                    eprintln!("Failed to write to log file: {}", e);
+                    result = Err(e);
+                }
+                if let Err(e) = writer.flush() {
+                    eprintln!("Failed to flush log file: {}", e);
+                }
+            }
+        }
+
+        // 写入控制台
+        if self.output_to_console {
+            if let Err(e) = stdout().write_all(buf) {
+                eprintln!("Failed to write to stdout: {}", e);
+                result = Err(e);
+            }
+            if let Err(e) = stdout().flush() {
+                eprintln!("Failed to flush stdout: {}", e);
+            }
+        }
+
+        result
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let mut result = Ok(());
+
+        // 刷新文件
+        if let Some(ref file_writer) = self.file_writer {
+            if let Ok(mut writer) = file_writer.lock() {
+                if let Err(e) = writer.flush() {
+                    result = Err(e);
+                }
+            }
+        }
+
+        // 刷新控制台
+        if self.output_to_console {
+            if let Err(e) = stdout().flush() {
+                result = Err(e);
+            }
+        }
+
+        result
+    }
+}
 
 /// 日志配置结构
 #[derive(Debug, Clone)]
@@ -15,6 +106,10 @@ pub struct LoggerConfig {
     pub show_thread_id: bool,
     /// 自定义格式
     pub custom_format: Option<String>,
+    /// 日志文件路径（如果为None则只输出到控制台）
+    pub log_file_path: Option<PathBuf>,
+    /// 是否同时输出到控制台和文件
+    pub output_to_both: bool,
 }
 
 impl Default for LoggerConfig {
@@ -25,6 +120,8 @@ impl Default for LoggerConfig {
             show_module_path: true,
             show_thread_id: false,
             custom_format: None,
+            log_file_path: None,
+            output_to_both: false,
         }
     }
 }
@@ -38,13 +135,22 @@ impl Default for LoggerConfig {
 /// **预期副作用:** 这是一个全局状态修改操作，会注册一个全局的Log trait实现。它在应用的生命周期中只应被调用一次
 /// **边界情况:** 如果重复调用，应有一个明确的行为（返回一个错误），以防止意外的重置配置
 pub fn init_logger(config: LoggerConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // 创建双重写入器
+    let dual_writer = DualWriter::new(config.log_file_path.clone(), config.output_to_both)?;
+
     let mut builder = Builder::from_default_env();
 
     // 设置日志级别
     builder.filter_level(config.level);
 
-    // 设置输出目标为标准输出
-    builder.target(Target::Stdout);
+    // 根据配置决定输出目标
+    if config.log_file_path.is_some() && !config.output_to_both {
+        // 只输出到文件时，我们需要使用自定义写入器
+        builder.target(Target::Pipe(Box::new(dual_writer)));
+    } else {
+        // 输出到控制台或同时输出
+        builder.target(Target::Pipe(Box::new(dual_writer)));
+    }
 
     // 自定义格式化函数
     builder.format(move |buf, record| {
@@ -147,12 +253,18 @@ pub fn init_dev_logger() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
     if is_logger_initialized() {
         return Ok(());
     }
+
+    // 获取日志文件路径
+    let log_file_path = get_default_log_file_path("cutie-dev.log");
+
     let config = LoggerConfig {
         level: LevelFilter::Debug,
         show_timestamp: true,
         show_module_path: true,
         show_thread_id: false,
         custom_format: None,
+        log_file_path: Some(log_file_path),
+        output_to_both: true, // 开发环境同时输出到控制台和文件
     };
 
     init_logger(config)
@@ -162,12 +274,17 @@ pub fn init_dev_logger() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 ///
 /// **预期行为简介:** 使用适合生产环境的默认配置初始化日志记录器
 pub fn init_prod_logger() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // 获取日志文件路径
+    let log_file_path = get_default_log_file_path("cutie.log");
+
     let config = LoggerConfig {
         level: LevelFilter::Info,
         show_timestamp: true,
         show_module_path: false,
         show_thread_id: false,
         custom_format: Some("{timestamp} {level} {args}".to_string()),
+        log_file_path: Some(log_file_path),
+        output_to_both: false, // 生产环境只输出到文件
     };
 
     init_logger(config)
@@ -183,6 +300,8 @@ pub fn init_test_logger() -> Result<(), Box<dyn std::error::Error + Send + Sync>
         show_module_path: true,
         show_thread_id: true,
         custom_format: None,
+        log_file_path: None, // 测试环境不输出到文件
+        output_to_both: false,
     };
 
     init_logger(config)
@@ -200,6 +319,33 @@ pub fn get_current_log_level() -> Option<LevelFilter> {
 pub fn is_logger_initialized() -> bool {
     // 尝试获取当前的最大日志级别
     log::max_level() != LevelFilter::Off
+}
+
+/// 获取默认日志文件路径
+///
+/// **预期行为简介:** 返回项目根目录下的日志文件路径
+pub fn get_default_log_file_path(filename: &str) -> PathBuf {
+    // 直接在项目根目录生成日志文件
+    PathBuf::from(filename)
+}
+
+/// 创建带有文件输出的日志配置
+///
+/// **预期行为简介:** 创建一个配置了文件输出的LoggerConfig
+pub fn create_file_logger_config(
+    level: LevelFilter,
+    filename: &str,
+    output_to_both: bool,
+) -> LoggerConfig {
+    LoggerConfig {
+        level,
+        show_timestamp: true,
+        show_module_path: true,
+        show_thread_id: false,
+        custom_format: None,
+        log_file_path: Some(get_default_log_file_path(filename)),
+        output_to_both,
+    }
 }
 
 #[cfg(test)]
