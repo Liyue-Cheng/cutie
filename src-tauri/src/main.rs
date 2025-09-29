@@ -76,9 +76,7 @@ fn run_tauri_with_sidecar() {
                                 *port_guard = Some(port);
                             }
 
-                            // 将端口号传递给前端环境
-                            // 注意：这里需要通过Tauri的IPC机制传递给前端
-                            break;
+                            // 端口发现后继续读取其他日志，不要break
                         }
                     } else {
                         // 转发其他输出到控制台

@@ -1,6 +1,7 @@
 /// Sidecar服务器模块 - 基于新架构重写
 use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use serde::{Deserialize, Serialize};
+use std::io::{self, Write};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 
@@ -142,7 +143,10 @@ async fn server_info_handler() -> Json<ServerInfoResponse> {
 
 /// Sidecar进程的主入口点
 pub async fn run_sidecar() -> Result<(), AppError> {
-    // 尝试初始化日志，如果已经初始化则忽略错误
+    // 初始化日志系统，设置默认级别为info
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
     let _ = env_logger::try_init(); // 忽略重复初始化的错误
 
     log::info!("=== Cutie Sidecar Server Starting (New Architecture) ===");

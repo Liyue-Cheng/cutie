@@ -51,7 +51,10 @@ pub fn run() {
     // 初始化端口存储
     let _ = SIDECAR_PORT.set(Arc::new(Mutex::new(None)));
 
-    // 初始化日志
+    // 初始化日志系统，设置默认级别
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
     env_logger::init();
 
     log::info!("Starting Cutie application with new architecture");
@@ -68,7 +71,10 @@ pub fn run_with_port_discovery(discovered_port: Arc<Mutex<Option<u16>>>) {
     // 初始化端口存储
     let _ = SIDECAR_PORT.set(discovered_port);
 
-    // 初始化日志
+    // 初始化日志系统，设置默认级别
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
     env_logger::init();
 
     log::info!("Starting Cutie application with port discovery");
