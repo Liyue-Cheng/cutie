@@ -3,6 +3,22 @@
 /// 使用 lexorank 库实现确定性的排序字符串生成
 /// 基于 LexoRank 算法，提供高效的列表项排序功能
 use lexorank::{Bucket, LexoRank, Rank};
+use thiserror::Error;
+
+/// 排序相关的错误类型
+#[derive(Debug, Error)]
+pub enum SortOrderError {
+    #[error("Invalid sort order format: {0}")]
+    InvalidFormat(String),
+    #[error("Cannot generate rank between identical values: {0}")]
+    IdenticalValues(String),
+    #[error("Invalid rank order: prev '{prev}' should be less than next '{next}'")]
+    InvalidOrder { prev: String, next: String },
+    #[error("LexoRank error: {0}")]
+    LexoRankError(String),
+}
+
+pub type SortResult<T> = Result<T, SortOrderError>;
 
 /// 生成初始排序字符串
 ///
@@ -20,7 +36,13 @@ pub fn generate_initial_sort_order() -> String {
 /// **预期行为:** 返回一个字典序位于prev和next之间的字符串
 /// **前置条件:** prev < next（字典序）
 /// **后置条件:** prev < result < next（字典序）
-pub fn get_mid_lexo_rank(prev: &str, next: &str) -> String {
+/// **错误处理:** 当输入无效时返回具体错误信息
+pub fn get_mid_lexo_rank(prev: &str, next: &str) -> SortResult<String> {
+    // 处理空字符串情况
+    if prev.is_empty() && next.is_empty() {
+        return Ok(generate_initial_sort_order());
+    }
+
     if prev.is_empty() {
         return get_rank_before(next);
     }
@@ -29,65 +51,56 @@ pub fn get_mid_lexo_rank(prev: &str, next: &str) -> String {
         return get_rank_after(prev);
     }
 
-    // 尝试解析两个 LexoRank
-    let prev_rank = match LexoRank::from_string(prev) {
-        Ok(rank) => rank,
-        Err(_) => {
-            // 如果解析失败，返回一个新的初始排序
-            return generate_initial_sort_order();
-        }
-    };
+    // 解析两个 LexoRank，如果失败则返回错误
+    let prev_rank =
+        LexoRank::from_string(prev).map_err(|_| SortOrderError::InvalidFormat(prev.to_string()))?;
 
-    let next_rank = match LexoRank::from_string(next) {
-        Ok(rank) => rank,
-        Err(_) => {
-            // 如果解析失败，返回 prev 之后的排序
-            return get_rank_after(prev);
-        }
-    };
+    let next_rank =
+        LexoRank::from_string(next).map_err(|_| SortOrderError::InvalidFormat(next.to_string()))?;
+
+    // 检查顺序是否正确
+    if prev >= next {
+        return Err(SortOrderError::InvalidOrder {
+            prev: prev.to_string(),
+            next: next.to_string(),
+        });
+    }
 
     // 使用 lexorank 的 between 方法生成中间值
     match prev_rank.between(&next_rank) {
-        Some(mid_rank) => mid_rank.to_string(),
-        None => {
-            // 如果无法生成中间值，返回 prev 之后的排序
-            get_rank_after(prev)
-        }
+        Some(mid_rank) => Ok(mid_rank.to_string()),
+        None => Err(SortOrderError::IdenticalValues(prev.to_string())),
     }
 }
 
 /// 在指定字符串之前生成排序字符串
 ///
 /// **预期行为:** 返回一个字典序小于target的字符串
-pub fn get_rank_before(target: &str) -> String {
+/// **错误处理:** 当输入无效时返回具体错误信息
+pub fn get_rank_before(target: &str) -> SortResult<String> {
     if target.is_empty() {
-        return generate_initial_sort_order();
+        return Ok(generate_initial_sort_order());
     }
 
-    match LexoRank::from_string(target) {
-        Ok(target_rank) => target_rank.prev().to_string(),
-        Err(_) => {
-            // 如果解析失败，返回初始排序
-            generate_initial_sort_order()
-        }
-    }
+    let target_rank = LexoRank::from_string(target)
+        .map_err(|_| SortOrderError::InvalidFormat(target.to_string()))?;
+
+    Ok(target_rank.prev().to_string())
 }
 
 /// 在指定字符串之后生成排序字符串
 ///
 /// **预期行为:** 返回一个字典序大于target的字符串
-pub fn get_rank_after(target: &str) -> String {
+/// **错误处理:** 当输入无效时返回具体错误信息
+pub fn get_rank_after(target: &str) -> SortResult<String> {
     if target.is_empty() {
-        return generate_initial_sort_order();
+        return Ok(generate_initial_sort_order());
     }
 
-    match LexoRank::from_string(target) {
-        Ok(target_rank) => target_rank.next().to_string(),
-        Err(_) => {
-            // 如果解析失败，返回初始排序
-            generate_initial_sort_order()
-        }
-    }
+    let target_rank = LexoRank::from_string(target)
+        .map_err(|_| SortOrderError::InvalidFormat(target.to_string()))?;
+
+    Ok(target_rank.next().to_string())
 }
 
 /// 验证排序字符串的有效性
@@ -113,7 +126,7 @@ pub fn compare_sort_orders(a: &str, b: &str) -> std::cmp::Ordering {
         }
         _ => {
             // 如果解析失败，回退到字符串比较
-    a.cmp(b)
+            a.cmp(b)
         }
     }
 }
@@ -134,8 +147,9 @@ pub fn create_lexo_rank(
 /// 从字符串解析 LexoRank
 ///
 /// **预期行为:** 将字符串解析为 LexoRank 结构
-pub fn parse_lexo_rank(value: &str) -> Result<(u8, String), Box<dyn std::error::Error>> {
-    let lexo_rank = LexoRank::from_string(value)?;
+pub fn parse_lexo_rank(value: &str) -> SortResult<(u8, String)> {
+    let lexo_rank = LexoRank::from_string(value)
+        .map_err(|_| SortOrderError::InvalidFormat(value.to_string()))?;
     Ok((
         lexo_rank.bucket().value(),
         lexo_rank.rank().value().to_string(),
@@ -160,8 +174,8 @@ mod tests {
     #[test]
     fn test_get_mid_lexo_rank() {
         let initial = "0|n";
-        let after = get_rank_after(initial);
-        let mid = get_mid_lexo_rank(initial, &after);
+        let after = get_rank_after(initial).unwrap();
+        let mid = get_mid_lexo_rank(initial, &after).unwrap();
 
         assert!(mid.as_str() > initial);
         assert!(mid.as_str() < after.as_str());
@@ -171,7 +185,7 @@ mod tests {
     #[test]
     fn test_get_rank_before() {
         let initial = "0|n";
-        let before = get_rank_before(initial);
+        let before = get_rank_before(initial).unwrap();
         assert!(before.as_str() < initial);
         assert!(is_valid_sort_order(&before));
     }
@@ -179,7 +193,7 @@ mod tests {
     #[test]
     fn test_get_rank_after() {
         let initial = "0|n";
-        let after = get_rank_after(initial);
+        let after = get_rank_after(initial).unwrap();
         assert!(after.as_str() > initial);
         assert!(is_valid_sort_order(&after));
     }
@@ -187,9 +201,9 @@ mod tests {
     #[test]
     fn test_ordering_consistency() {
         let a = "0|n";
-        let c = get_rank_after(a);
-        let mid = get_mid_lexo_rank(a, &c);
-        let b = get_mid_lexo_rank(a, &mid);
+        let c = get_rank_after(a).unwrap();
+        let mid = get_mid_lexo_rank(a, &c).unwrap();
+        let b = get_mid_lexo_rank(a, &mid).unwrap();
 
         assert!(a < b.as_str());
         assert!(b.as_str() < mid.as_str());
@@ -213,14 +227,14 @@ mod tests {
     #[test]
     fn test_edge_cases() {
         // 测试空字符串
-        let before_empty = get_rank_before("");
-        let after_empty = get_rank_after("");
+        let before_empty = get_rank_before("").unwrap();
+        let after_empty = get_rank_after("").unwrap();
         assert!(is_valid_sort_order(&before_empty));
         assert!(is_valid_sort_order(&after_empty));
 
         // 测试中间值生成
-        let mid_empty_prev = get_mid_lexo_rank("", &after_empty);
-        let mid_empty_next = get_mid_lexo_rank(&before_empty, "");
+        let mid_empty_prev = get_mid_lexo_rank("", &after_empty).unwrap();
+        let mid_empty_next = get_mid_lexo_rank(&before_empty, "").unwrap();
         assert!(is_valid_sort_order(&mid_empty_prev));
         assert!(is_valid_sort_order(&mid_empty_next));
     }
@@ -247,7 +261,7 @@ mod tests {
         ];
 
         for (rank1, rank2, expected_between) in test_cases {
-            let between = get_mid_lexo_rank(rank1, rank2);
+            let between = get_mid_lexo_rank(rank1, rank2).unwrap();
             assert_eq!(between, expected_between);
             assert!(rank1 < between.as_str());
             assert!(between.as_str() < rank2);
@@ -261,6 +275,38 @@ mod tests {
         assert_eq!(compare_sort_orders("0|1", "0|1"), Ordering::Equal);
         assert_eq!(compare_sort_orders("0|a", "0|z"), Ordering::Less);
         assert_eq!(compare_sort_orders("1|a", "0|z"), Ordering::Greater);
+    }
+
+    // ===== 新的错误处理测试 =====
+
+    #[test]
+    fn test_error_handling_invalid_format() {
+        // 测试无效格式
+        assert!(get_mid_lexo_rank("invalid", "0|n").is_err());
+        assert!(get_mid_lexo_rank("0|n", "invalid").is_err());
+        assert!(get_rank_before("invalid").is_err());
+        assert!(get_rank_after("invalid").is_err());
+
+        // 测试错误类型
+        match get_mid_lexo_rank("invalid", "0|n") {
+            Err(SortOrderError::InvalidFormat(s)) => assert_eq!(s, "invalid"),
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+
+    #[test]
+    fn test_error_handling_invalid_order() {
+        // 测试错误的顺序
+        let result = get_mid_lexo_rank("0|z", "0|a");
+        assert!(result.is_err());
+
+        match result {
+            Err(SortOrderError::InvalidOrder { prev, next }) => {
+                assert_eq!(prev, "0|z");
+                assert_eq!(next, "0|a");
+            }
+            _ => panic!("Expected InvalidOrder error"),
+        }
     }
 
     // ===== 原作者的测试 - Constructor Tests =====
