@@ -1,12 +1,11 @@
 /// Sidecar服务器模块 - 基于新架构重写
 use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use serde::{Deserialize, Serialize};
-use std::io::{self, Write};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 
 use crate::config::AppConfig;
-use crate::shared::core::AppError;
+use crate::shared::core::{build_info, AppError};
 use crate::startup::{AppState, HealthStatus};
 
 /// 启动Sidecar服务器
@@ -97,10 +96,13 @@ async fn health_check_handler(
             let response = HealthCheckResponse {
                 status: "healthy".to_string(),
                 timestamp: chrono::Utc::now(),
-                version: "1.0.0".to_string(),
+                version: build_info::version().to_string(),
                 details: Some(serde_json::json!({
                     "database": "connected",
-                    "architecture": "feature_sliced"
+                    "architecture": "feature_sliced",
+                    "build_time": build_info::build_time(),
+                    "git_commit": build_info::git_commit_hash(),
+                    "rust_version": build_info::rust_version()
                 })),
             };
             Ok(Json(response))
@@ -109,10 +111,13 @@ async fn health_check_handler(
             let response = HealthCheckResponse {
                 status: "degraded".to_string(),
                 timestamp: chrono::Utc::now(),
-                version: "1.0.0".to_string(),
+                version: build_info::version().to_string(),
                 details: Some(serde_json::json!({
                     "database": "slow",
-                    "architecture": "feature_sliced"
+                    "architecture": "feature_sliced",
+                    "build_time": build_info::build_time(),
+                    "git_commit": build_info::git_commit_hash(),
+                    "rust_version": build_info::rust_version()
                 })),
             };
             Ok(Json(response))
@@ -126,9 +131,9 @@ async fn health_check_handler(
 async fn server_info_handler() -> Json<ServerInfoResponse> {
     Json(ServerInfoResponse {
         name: "Cutie API".to_string(),
-        version: "1.0.0".to_string(),
-        build_time: "2024-09-29T00:00:00Z".to_string(),
-        rust_version: "1.70+".to_string(),
+        version: build_info::version().to_string(),
+        build_time: build_info::build_time().to_string(),
+        rust_version: build_info::rust_version().to_string(),
         features: vec![
             "feature_sliced_architecture".to_string(),
             "task_management".to_string(),
