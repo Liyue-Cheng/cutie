@@ -44,10 +44,13 @@ tower-http = { version = "0.5", features = [
 async-trait = "0.1"
 thiserror = "1.0"
 anyhow = "1.0"
-log = "0.4"
-env_logger = "0.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
 toml = "0.8"
 dirs = "5.0"
 tempfile = "3.0"
 serde_urlencoded = "0.7"
-io = "0.0.2"

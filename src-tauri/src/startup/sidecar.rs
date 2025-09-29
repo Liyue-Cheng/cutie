@@ -10,7 +10,7 @@ use crate::startup::{AppState, HealthStatus};
 
 /// 启动Sidecar服务器
 pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
-    log::info!("Starting Cutie Sidecar Server with new feature-sliced architecture...");
+    tracing::info!("Starting Cutie Sidecar Server with new feature-sliced architecture...");
 
     let config = app_state.config();
 
@@ -30,7 +30,7 @@ pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
     // 在日志输出之前，先输出端口号到stdout（供前端发现）
     println!("SIDECAR_PORT={}", actual_addr.port());
 
-    log::info!("Sidecar server listening on {}", actual_addr);
+    tracing::info!("Sidecar server listening on {}", actual_addr);
 
     // 启动服务器
     axum::serve(listener, app)
@@ -83,7 +83,7 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
         config.server.max_request_size_bytes,
     ));
 
-    log::info!("Router created with new feature-sliced architecture");
+    tracing::info!("Router created with new feature-sliced architecture");
     Ok(app)
 }
 
@@ -148,30 +148,33 @@ async fn server_info_handler() -> Json<ServerInfoResponse> {
 
 /// Sidecar进程的主入口点
 pub async fn run_sidecar() -> Result<(), AppError> {
-    // 初始化日志系统，设置默认级别为info
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-    let _ = env_logger::try_init(); // 忽略重复初始化的错误
-
-    log::info!("=== Cutie Sidecar Server Starting (New Architecture) ===");
-
-    // 加载配置
+    // 加载配置（先加载配置以获取日志级别）
     let config = AppConfig::from_env()?;
-    log::info!("Configuration loaded successfully");
+
+    // 初始化日志系统，使用配置中的日志级别
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", config.log_level_string());
+    }
+    // 使用 try_init 避免重复初始化错误
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .try_init();
+
+    tracing::info!("=== Cutie Sidecar Server Starting (New Architecture) ===");
+    tracing::info!("Configuration loaded successfully");
 
     // 初始化数据库
     let db_pool = crate::startup::database::initialize_database(&config).await?;
-    log::info!("Database initialized successfully");
+    tracing::info!("Database initialized successfully");
 
     // 创建应用状态
     let app_state = AppState::new_production(config, db_pool);
-    log::info!("Application state created");
+    tracing::info!("Application state created");
 
     // 启动服务器
     start_sidecar_server(app_state).await?;
 
-    log::info!("=== Cutie Sidecar Server Stopped ===");
+    tracing::info!("=== Cutie Sidecar Server Stopped ===");
     Ok(())
 }
 

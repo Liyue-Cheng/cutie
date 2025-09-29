@@ -81,7 +81,7 @@ pub async fn initialize_database(
     db_path: &std::path::Path,
     config: &DatabaseConfig,
 ) -> Result<SqlitePool, AppError> {
-    log::info!("Initializing database connection pool...");
+    tracing::info!("Initializing database connection pool...");
 
     // 确保数据库目录存在
     if let Some(parent) = db_path.parent() {
@@ -95,7 +95,7 @@ pub async fn initialize_database(
         .filename(db_path)
         .create_if_missing(true);
 
-    log::debug!("Database connection options: {:?}", connection_options);
+    tracing::debug!("Database connection options: {:?}", connection_options);
 
     // 创建连接池
     let pool = SqlitePoolOptions::new()
@@ -108,7 +108,7 @@ pub async fn initialize_database(
         .await
         .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 
-    log::info!("Database connection pool created successfully");
+    tracing::info!("Database connection pool created successfully");
 
     // 配置SQLite特定设置
     configure_sqlite(&pool, config).await?;
@@ -121,7 +121,7 @@ pub async fn initialize_database(
     // 验证数据库连接
     verify_database_connection(&pool).await?;
 
-    log::info!("Database initialization completed");
+    tracing::info!("Database initialization completed");
     Ok(pool)
 }
 
@@ -129,7 +129,7 @@ pub async fn initialize_database(
 ///
 /// **预期行为简介:** 执行SQLite特定的PRAGMA语句来优化数据库性能和行为
 async fn configure_sqlite(pool: &SqlitePool, config: &DatabaseConfig) -> Result<(), AppError> {
-    log::debug!("Configuring SQLite settings...");
+    tracing::debug!("Configuring SQLite settings...");
 
     // 设置同步模式
     let sync_pragma = format!(
@@ -175,7 +175,7 @@ async fn configure_sqlite(pool: &SqlitePool, config: &DatabaseConfig) -> Result<
         .await
         .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 
-    log::debug!("SQLite configuration completed");
+    tracing::debug!("SQLite configuration completed");
     Ok(())
 }
 
@@ -188,7 +188,7 @@ async fn configure_sqlite(pool: &SqlitePool, config: &DatabaseConfig) -> Result<
 /// **边界情况:** 如果迁移失败，返回详细的错误信息
 /// **预期副作用:** 修改数据库schema，创建或修改表结构
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
-    log::info!("Running database migrations...");
+    tracing::info!("Running database migrations...");
 
     // 使用sqlx的内置迁移功能
     sqlx::migrate!("./migrations")
@@ -196,7 +196,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
         .await
         .map_err(|e| AppError::DatabaseError(DbError::MigrationError(e.to_string())))?;
 
-    log::info!("Database migrations completed successfully");
+    tracing::info!("Database migrations completed successfully");
     Ok(())
 }
 
@@ -204,7 +204,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
 ///
 /// **预期行为简介:** 执行简单的查询来验证数据库连接是否正常工作
 async fn verify_database_connection(pool: &SqlitePool) -> Result<(), AppError> {
-    log::debug!("Verifying database connection...");
+    tracing::debug!("Verifying database connection...");
 
     // 执行简单的查询来测试连接
     let result: (i32,) = sqlx::query_as("SELECT 1")
@@ -232,7 +232,7 @@ async fn verify_database_connection(pool: &SqlitePool) -> Result<(), AppError> {
         )));
     }
 
-    log::debug!("Database connection verified successfully");
+    tracing::debug!("Database connection verified successfully");
     Ok(())
 }
 
@@ -240,7 +240,7 @@ async fn verify_database_connection(pool: &SqlitePool) -> Result<(), AppError> {
 ///
 /// **预期行为简介:** 创建一个用于测试的内存数据库连接池
 pub async fn create_test_database() -> Result<SqlitePool, AppError> {
-    log::debug!("Creating test database...");
+    tracing::debug!("Creating test database...");
 
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
@@ -252,7 +252,7 @@ pub async fn create_test_database() -> Result<SqlitePool, AppError> {
     // 运行迁移
     run_migrations(&pool).await?;
 
-    log::debug!("Test database created successfully");
+    tracing::debug!("Test database created successfully");
     Ok(pool)
 }
 
@@ -263,7 +263,7 @@ pub async fn backup_database(
     pool: &SqlitePool,
     backup_path: &std::path::Path,
 ) -> Result<(), AppError> {
-    log::info!("Creating database backup to: {:?}", backup_path);
+    tracing::info!("Creating database backup to: {:?}", backup_path);
 
     // 确保备份目录存在
     if let Some(parent) = backup_path.parent() {
@@ -279,7 +279,7 @@ pub async fn backup_database(
         .await
         .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 
-    log::info!("Database backup completed successfully");
+    tracing::info!("Database backup completed successfully");
     Ok(())
 }
 
@@ -287,7 +287,7 @@ pub async fn backup_database(
 ///
 /// **预期行为简介:** 收集数据库的统计信息，如表大小、索引使用情况等
 pub async fn get_database_stats(pool: &SqlitePool) -> Result<DatabaseStats, AppError> {
-    log::debug!("Collecting database statistics...");
+    tracing::debug!("Collecting database statistics...");
 
     // 获取数据库大小
     let size_result: (i64,) = sqlx::query_as(
@@ -337,7 +337,7 @@ pub async fn get_database_stats(pool: &SqlitePool) -> Result<DatabaseStats, AppE
         });
     }
 
-    log::debug!("Database statistics collected");
+    tracing::debug!("Database statistics collected");
 
     Ok(DatabaseStats {
         database_size_bytes,

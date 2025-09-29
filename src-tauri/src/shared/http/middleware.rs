@@ -58,7 +58,7 @@ pub async fn logging_middleware(request: Request, next: Next) -> Response {
         .map(|id| id.0.clone())
         .unwrap_or_else(|| "unknown".to_string());
 
-    log::info!(
+    tracing::info!(
         "Started {} {} HTTP/{:?} [{}]",
         method,
         uri,
@@ -72,7 +72,7 @@ pub async fn logging_middleware(request: Request, next: Next) -> Response {
     let duration = start_time.elapsed();
     let status = response.status();
 
-    log::info!(
+    tracing::info!(
         "Completed {} {} {} in {:.2}ms [{}]",
         method,
         uri,

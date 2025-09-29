@@ -20,23 +20,25 @@ use super::api_router::create_new_api_router;
 /// 启动新架构的HTTP服务器
 pub async fn run_new_server() -> Result<(), Box<dyn std::error::Error>> {
     // 初始化日志
-    env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
-    log::info!("Starting Cutie server with new feature-sliced architecture...");
+    tracing::info!("Starting Cutie server with new feature-sliced architecture...");
 
     // 创建数据库连接
     let db_config = DatabaseConfig::default();
     let db_path = std::path::Path::new("cutie.db");
     let pool = initialize_database(db_path, &db_config).await?;
 
-    log::info!("Database initialized successfully");
+    tracing::info!("Database initialized successfully");
 
     // 创建应用路由
     let app = create_app_router(pool).await?;
 
     // 启动服务器
     let addr = SocketAddr::from(([127, 0, 0, 1], 3030));
-    log::info!("Server listening on {}", addr);
+    tracing::info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -59,13 +61,13 @@ async fn create_app_router(pool: SqlitePool) -> Result<Router, Box<dyn std::erro
         .layer(CompressionLayer::new())
         .layer(RequestBodyLimitLayer::new(1024 * 1024 * 16)); // 16MB limit
 
-    log::info!("Application router created with new architecture");
+    tracing::info!("Application router created with new architecture");
     Ok(app)
 }
 
 /// 演示如何使用新的任务功能模块
 pub async fn demo_new_task_api() -> Result<(), Box<dyn std::error::Error>> {
-    log::info!("Running demo of new task API...");
+    tracing::info!("Running demo of new task API...");
 
     // 创建数据库连接
     let pool = crate::shared::database::connection::create_test_database().await?;
@@ -99,7 +101,7 @@ pub async fn demo_new_task_api() -> Result<(), Box<dyn std::error::Error>> {
     let created_task =
         crate::features::tasks::endpoints::create_task::logic::execute(&app_state, create_payload)
             .await?;
-    log::info!(
+    tracing::info!(
         "Created task: {} (ID: {})",
         created_task.title,
         created_task.id
@@ -109,7 +111,7 @@ pub async fn demo_new_task_api() -> Result<(), Box<dyn std::error::Error>> {
     let retrieved_task =
         crate::features::tasks::endpoints::get_task::logic::execute(&app_state, created_task.id)
             .await?;
-    log::info!("Retrieved task: {}", retrieved_task.title);
+    tracing::info!("Retrieved task: {}", retrieved_task.title);
 
     // 演示完成任务
     let completed_task = crate::features::tasks::endpoints::complete_task::logic::execute(
@@ -117,9 +119,9 @@ pub async fn demo_new_task_api() -> Result<(), Box<dyn std::error::Error>> {
         created_task.id,
     )
     .await?;
-    log::info!("Completed task: {}", completed_task.title);
+    tracing::info!("Completed task: {}", completed_task.title);
 
-    log::info!("Demo completed successfully!");
+    tracing::info!("Demo completed successfully!");
     Ok(())
 }
 
@@ -145,6 +147,6 @@ mod tests {
 
         // 验证路由器创建成功
         // 这里我们只检查路由器能否创建，不做具体的HTTP测试
-        log::info!("Router created successfully in test");
+        tracing::info!("Router created successfully in test");
     }
 }

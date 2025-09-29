@@ -12,7 +12,7 @@ use crate::config::AppConfig;
 /// 
 /// 使用新的shared模块中的数据库初始化功能
 pub async fn initialize_database(config: &AppConfig) -> Result<SqlitePool, AppError> {
-    log::info!("Initializing database with new architecture...");
+    tracing::info!("Initializing database with new architecture...");
 
     let db_path = config.database_path();
     
@@ -36,7 +36,7 @@ pub async fn initialize_database(config: &AppConfig) -> Result<SqlitePool, AppEr
     // 使用shared模块的数据库初始化功能
     let pool = shared_initialize_database(&db_path, &db_config).await?;
 
-    log::info!("Database initialized successfully with new architecture");
+    tracing::info!("Database initialized successfully with new architecture");
     Ok(pool)
 }
 

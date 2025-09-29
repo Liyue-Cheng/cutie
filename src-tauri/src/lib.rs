@@ -55,9 +55,11 @@ pub fn run() {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
-    env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
-    log::info!("Starting Cutie application with new architecture");
+    tracing::info!("Starting Cutie application with new architecture");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -75,9 +77,11 @@ pub fn run_with_port_discovery(discovered_port: Arc<Mutex<Option<u16>>>) {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
-    env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
-    log::info!("Starting Cutie application with port discovery");
+    tracing::info!("Starting Cutie application with port discovery");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -89,11 +93,11 @@ pub fn run_with_port_discovery(discovered_port: Arc<Mutex<Option<u16>>>) {
                 // 等待端口发现
                 loop {
                     if let Some(port) = get_sidecar_port() {
-                        log::info!("Port discovered: {}, notifying frontend", port);
+                        tracing::info!("Port discovered: {}, notifying frontend", port);
 
                         // 通知前端端口已发现
                         if let Err(e) = app_handle.emit("sidecar-port-discovered", port) {
-                            log::error!("Failed to emit port discovery event: {}", e);
+                            tracing::error!("Failed to emit port discovery event: {}", e);
                         }
                         break;
                     }

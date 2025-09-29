@@ -1,14 +1,13 @@
 /// 完成任务 API - 单文件组件
-/// 
+///
 /// 按照Vue单文件组件的思想，将一个API的所有逻辑聚合在一个文件中
-
 use axum::{
     extract::{Path, State},
-    response::{Response, IntoResponse},
+    response::{IntoResponse, Response},
     Json,
 };
 use chrono::Utc;
-use sqlx::{Transaction, Sqlite};
+use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -20,9 +19,7 @@ use crate::{
 };
 
 use super::super::shared::{
-    dtos::TaskResponse,
-    repository::TaskRepo,
-    validation::validate_task_business_rules,
+    dtos::TaskResponse, repository::TaskRepo, validation::validate_task_business_rules,
 };
 
 // ==================== 文档层 (Documentation Layer) ====================
@@ -36,11 +33,11 @@ POST /api/tasks/{id}/completion
 将指定的任务标记为已完成，设置completed_at时间戳，并执行相关的清理操作。
 
 ## 输入输出规范
-- **前置条件**: 
+- **前置条件**:
   - task_id必须是有效的UUID
   - 任务必须存在且未被删除
   - 任务当前状态必须是未完成
-- **后置条件**: 
+- **后置条件**:
   - 任务的completed_at字段被设置为当前时间
   - 任务的updated_at字段被更新
   - 返回更新后的任务对象
@@ -61,10 +58,7 @@ POST /api/tasks/{id}/completion
 
 // ==================== 路由层 (Router Layer) ====================
 /// 完成任务的HTTP处理器
-pub async fn handle(
-    State(app_state): State<AppState>,
-    Path(task_id): Path<Uuid>,
-) -> Response {
+pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
     match logic::execute(&app_state, task_id).await {
         Ok(task) => success_response(TaskResponse::from(task)).into_response(),
         Err(err) => err.into_response(),
@@ -77,18 +71,16 @@ pub mod logic {
     use super::*;
 
     /// 执行完成任务的业务逻辑
-    pub async fn execute(
-        app_state: &AppState,
-        task_id: Uuid,
-    ) -> AppResult<Task> {
+    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Task> {
         let now = Utc::now();
         let task_repo = TaskRepo::new(app_state.db_pool().clone());
-        
+
         // 开始事务
         let mut tx = task_repo.begin_transaction().await?;
 
         // 1. 检查任务是否存在
-        let task = database::find_by_id_in_tx(&mut tx, task_id).await?
+        let task = database::find_by_id_in_tx(&mut tx, task_id)
+            .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         // 2. 检查任务是否已完成
@@ -104,7 +96,7 @@ pub mod logic {
 
         // 5. 执行相关清理操作
         // TODO: 截断正在进行的时间块
-        // TODO: 删除未来的日程安排  
+        // TODO: 删除未来的日程安排
         // TODO: 更新当天日程状态为COMPLETED_ON_DAY
 
         // 6. 提交事务
@@ -132,12 +124,15 @@ pub mod database {
             .bind(task_id.to_string())
             .fetch_optional(&mut **tx)
             .await
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
 
         match row {
             Some(row) => {
-                let task = TaskRepo::row_to_task(&row)
-                    .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+                let task = TaskRepo::row_to_task(&row).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                })?;
                 Ok(Some(task))
             }
             None => Ok(None),
@@ -170,7 +165,8 @@ pub mod database {
         }
 
         // 获取更新后的任务
-        find_by_id_in_tx(tx, task_id).await?
+        find_by_id_in_tx(tx, task_id)
+            .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))
     }
 
@@ -182,9 +178,13 @@ pub mod database {
     ) -> AppResult<()> {
         // TODO: 实现时间块截断逻辑
         // 这里需要查找任务相关的进行中时间块，并将其结束时间设置为completed_at
-        
-        log::debug!("Truncating time blocks for task {} at {}", task_id, completed_at);
-        
+
+        tracing::debug!(
+            "Truncating time blocks for task {} at {}",
+            task_id,
+            completed_at
+        );
+
         // 暂时只记录日志，具体实现需要时间块模块的支持
         Ok(())
     }
@@ -197,9 +197,13 @@ pub mod database {
     ) -> AppResult<()> {
         // TODO: 实现日程清理逻辑
         // 这里需要删除任务在completed_at之后的所有日程安排
-        
-        log::debug!("Cleaning up future schedules for task {} after {}", task_id, completed_at);
-        
+
+        tracing::debug!(
+            "Cleaning up future schedules for task {} after {}",
+            task_id,
+            completed_at
+        );
+
         // 暂时只记录日志，具体实现需要日程模块的支持
         Ok(())
     }
@@ -213,10 +217,7 @@ mod tests {
     #[tokio::test]
     async fn test_complete_task_logic() {
         let pool = create_test_database().await.unwrap();
-        let app_state = crate::startup::AppState::new(
-            crate::config::AppConfig::default(),
-            pool,
-        );
+        let app_state = crate::startup::AppState::new(crate::config::AppConfig::default(), pool);
 
         // 创建测试任务
         let task_repo = TaskRepo::new(app_state.db_pool().clone());
@@ -225,7 +226,7 @@ mod tests {
 
         // 测试完成任务
         let result = logic::execute(&app_state, task.id).await;
-        
+
         // 由于repository还没完全实现，这里可能会失败
         // 这是预期的，因为我们正在重构中
         match result {

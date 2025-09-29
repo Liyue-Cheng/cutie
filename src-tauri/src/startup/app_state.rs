@@ -49,7 +49,7 @@ impl AppState {
         match result {
             Ok(_) => Ok(HealthStatus::Healthy),
             Err(e) => {
-                log::warn!("Database health check failed: {}", e);
+                tracing::warn!("Database health check failed: {}", e);
                 Ok(HealthStatus::Unhealthy)
             }
         }

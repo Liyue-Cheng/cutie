@@ -16,7 +16,7 @@ impl IntoResponse for AppError {
         let (status_code, error_response) = match self {
             // 数据库错误 -> 500 Internal Server Error
             AppError::DatabaseError(db_error) => {
-                log::error!("Database error: {}", db_error);
+                tracing::error!("Database error: {}", db_error);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ErrorResponse::internal_error(format!("数据库操作失败: {}", db_error)),
@@ -25,7 +25,7 @@ impl IntoResponse for AppError {
 
             // 未指定内部错误 -> 500 Internal Server Error
             AppError::UnspecifiedInternalError => {
-                log::error!("Unspecified internal error occurred");
+                tracing::error!("Unspecified internal error occurred");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ErrorResponse::internal_error("内部服务器错误".to_string()),
@@ -63,7 +63,7 @@ impl IntoResponse for AppError {
                 service_name,
                 error_message,
             } => {
-                log::error!(
+                tracing::error!(
                     "External service '{}' failed: {}",
                     service_name,
                     error_message
@@ -79,7 +79,7 @@ impl IntoResponse for AppError {
 
             // 配置错误 -> 500 Internal Server Error
             AppError::ConfigurationError { message } => {
-                log::error!("Configuration error: {}", message);
+                tracing::error!("Configuration error: {}", message);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ErrorResponse::internal_error(format!("配置错误: {}", message)),
@@ -88,7 +88,7 @@ impl IntoResponse for AppError {
 
             // 序列化错误 -> 400 Bad Request
             AppError::SerializationError(serde_error) => {
-                log::error!("Serialization error: {}", serde_error);
+                tracing::error!("Serialization error: {}", serde_error);
                 (
                     StatusCode::BAD_REQUEST,
                     ErrorResponse::new(
@@ -100,7 +100,7 @@ impl IntoResponse for AppError {
 
             // IO错误 -> 500 Internal Server Error
             AppError::IoError(io_error) => {
-                log::error!("IO error: {}", io_error);
+                tracing::error!("IO error: {}", io_error);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ErrorResponse::internal_error(format!("IO错误: {}", io_error)),
