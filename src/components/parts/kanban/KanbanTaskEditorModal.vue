@@ -20,7 +20,8 @@ defineEmits(['close'])
 
 const taskStore = useTaskStore()
 
-const notes = ref('')
+const glanceNote = ref('')
+const detailNote = ref('')
 const newSubtaskTitle = ref('')
 
 const task = computed(() => {
@@ -36,8 +37,9 @@ onMounted(async () => {
   if (props.taskId) {
     const detail = await taskStore.fetchTaskDetail(props.taskId)
     if (detail) {
-      // TaskDetail 包含 detail_note
-      notes.value = detail.detail_note || ''
+      // TaskDetail 包含完整的 note 信息
+      glanceNote.value = detail.card.glance_note || ''
+      detailNote.value = detail.detail_note || ''
     }
   }
 })
@@ -48,7 +50,8 @@ watch(
     if (newTaskId) {
       const detail = await taskStore.fetchTaskDetail(newTaskId)
       if (detail) {
-        notes.value = detail.detail_note || ''
+        glanceNote.value = detail.card.glance_note || ''
+        detailNote.value = detail.detail_note || ''
       }
     }
   }
@@ -64,11 +67,17 @@ async function handleStatusChange(isChecked: boolean) {
   }
 }
 
-async function updateNotes() {
+async function updateGlanceNote() {
   if (!props.taskId || !task.value) return
-  // TODO: 需要先 fetchTaskDetail 获取完整数据才能更新 detail_note
   await taskStore.updateTask(props.taskId, {
-    detail_note: notes.value,
+    glance_note: glanceNote.value || null,
+  })
+}
+
+async function updateDetailNote() {
+  if (!props.taskId || !task.value) return
+  await taskStore.updateTask(props.taskId, {
+    detail_note: detailNote.value || null,
   })
 }
 
@@ -119,12 +128,28 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
         <div class="separator"></div>
 
-        <textarea
-          v-model="notes"
-          class="notes-input"
-          placeholder="Add some notes..."
-          @blur="updateNotes"
-        ></textarea>
+        <div class="notes-section">
+          <label class="notes-label">快览笔记 (Glance Note)</label>
+          <input
+            v-model="glanceNote"
+            type="text"
+            class="glance-note-input"
+            placeholder="简短笔记（卡片上显示）..."
+            @blur="updateGlanceNote"
+          />
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="notes-section">
+          <label class="notes-label">详细笔记 (Detail Note)</label>
+          <textarea
+            v-model="detailNote"
+            class="detail-note-input"
+            placeholder="详细笔记（仅在编辑器中）..."
+            @blur="updateDetailNote"
+          ></textarea>
+        </div>
 
         <div class="separator"></div>
 
@@ -215,17 +240,50 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   margin: 2rem 0;
 }
 
-.notes-input {
+.notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.notes-label {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.glance-note-input {
+  width: 100%;
+  padding: 0.8rem;
+  font-family: inherit;
+  font-size: 1.5rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-primary);
+}
+
+.glance-note-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #4a90e2);
+}
+
+.detail-note-input {
   width: 100%;
   min-height: 120px;
   padding: 1rem;
   font-family: inherit;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   border: 1px solid var(--color-border-default);
   border-radius: 6px;
   background-color: var(--color-background-secondary);
   color: var(--color-text-primary);
   resize: vertical;
+}
+
+.detail-note-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #4a90e2);
 }
 
 .subtasks-section {
