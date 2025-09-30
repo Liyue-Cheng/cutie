@@ -17,12 +17,14 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import { reactive, onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useTimeBlockStore } from '@/stores/timeblock'
+import { useTaskStore } from '@/stores/task'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 import type { TaskCard } from '@/types/dtos'
 
 const timeBlockStore = useTimeBlockStore()
+const taskStore = useTaskStore()
 const contextMenu = useContextMenu()
 const message = useMessage()
 
@@ -377,6 +379,10 @@ async function handleDrop(event: DragEvent) {
         })
 
         console.log(`创建时间块: ${dragData.task.title} at ${dropTime.toISOString()}`)
+
+        // ✅ 关键：刷新 Staging 列表，因为任务现在应该从 Staging 移除
+        console.log('[Calendar] Refreshing staging tasks after creating time block')
+        await taskStore.fetchStagingTasks()
       }
     }
   } catch (error) {
