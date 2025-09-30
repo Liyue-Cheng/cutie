@@ -201,22 +201,17 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     error.value = null
 
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const params = new URLSearchParams()
-      // params.append('start_date', startDate)
-      // params.append('end_date', endDate)
-      // const response = await fetch(`${apiBaseUrl}/time-blocks?${params}`)
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const blocks: TimeBlockView[] = await response.json()
-      // addOrUpdateTimeBlocks(blocks)
-      // return blocks
-
-      console.log('[TimeBlockStore] fetchTimeBlocksForRange - API not implemented yet', {
-        startDate,
-        endDate,
-      })
-      return []
+      const apiBaseUrl = await waitForApiReady()
+      const params = new URLSearchParams()
+      params.append('start_date', startDate)
+      params.append('end_date', endDate)
+      const response = await fetch(`${apiBaseUrl}/time-blocks?${params}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const blocks: TimeBlockView[] = result.data
+      addOrUpdateTimeBlocks(blocks)
+      console.log('[TimeBlockStore] Fetched', blocks.length, 'time blocks for range')
+      return blocks
     } catch (e) {
       error.value = `Failed to fetch time blocks for range: ${e}`
       console.error('[TimeBlockStore] Error fetching time blocks for range:', e)
