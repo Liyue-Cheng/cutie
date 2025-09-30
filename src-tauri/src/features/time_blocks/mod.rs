@@ -5,7 +5,7 @@
 /// - 每个 SFC 文件导出 `pub async fn handle(...)`
 /// - 本文件直接声明 endpoints 子模块并在路由中使用
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 
@@ -15,10 +15,10 @@ use crate::startup::AppState;
 mod endpoints {
     pub mod create_from_task;  // POST /time-blocks/from-task (拖动任务到日历)
     pub mod create_time_block; // POST /time-blocks (直接创建空时间块)
+    pub mod delete_time_block; // DELETE /time-blocks/:id
     pub mod list_time_blocks;  // GET /time-blocks
     // 待实现的其他端点：
     // pub mod update_time_block;
-    // pub mod delete_time_block;
     // pub mod link_task;
     // pub mod unlink_task;
 }
@@ -31,8 +31,8 @@ pub fn create_routes() -> Router<AppState> {
             get(endpoints::list_time_blocks::handle).post(endpoints::create_time_block::handle),
         )
         .route("/from-task", post(endpoints::create_from_task::handle))
+        .route("/:id", delete(endpoints::delete_time_block::handle))
     // .route("/:id", patch(endpoints::update_time_block::handle))
-    // .route("/:id", delete(endpoints::delete_time_block::handle))
     // .route("/:id/tasks", post(endpoints::link_task::handle))
     // .route("/:id/tasks/:task_id", delete(endpoints::unlink_task::handle))
 }

@@ -352,17 +352,14 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     error.value = null
 
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
-      //   method: 'DELETE'
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // removeTimeBlock(id)
-      // return true
-
-      console.log('[TimeBlockStore] deleteTimeBlock - API not implemented yet', { id })
-      return false
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      removeTimeBlock(id)
+      console.log('[TimeBlockStore] Deleted time block:', id)
+      return true
     } catch (e) {
       error.value = `Failed to delete time block ${id}: ${e}`
       console.error('[TimeBlockStore] Error deleting time block:', e)

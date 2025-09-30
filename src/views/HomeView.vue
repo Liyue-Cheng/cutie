@@ -44,9 +44,9 @@ onMounted(async () => {
   // 加载所有视图的任务数据
   try {
     await Promise.all([
-      taskStore.fetchAllTasks(),           // All 列（包括已完成）
-      taskStore.fetchPlannedTasks(),       // Planned 列
-      taskStore.fetchStagingTasks(),       // Staging 列
+      taskStore.fetchAllTasks(), // All 列（包括已完成）
+      taskStore.fetchPlannedTasks(), // Planned 列
+      taskStore.fetchStagingTasks(), // Staging 列
     ])
     console.log('[HomeView] Loaded all task views')
   } catch (error) {
