@@ -48,7 +48,12 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 </script>
 
 <template>
-  <CuteCard class="task-card" @click="emit('openEditor')" @contextmenu="showContextMenu">
+  <CuteCard
+    class="task-card"
+    :data-completed="task.is_completed"
+    @click="emit('openEditor')"
+    @contextmenu="showContextMenu"
+  >
     <div class="main-content">
       <span class="title">{{ task.title }}</span>
 
@@ -71,13 +76,15 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
         </div>
       </div>
 
-      <CuteCheckbox
-        class="main-checkbox"
-        :checked="task.is_completed"
-        size="large"
-        @update:checked="handleStatusChange"
-        @click.stop
-      ></CuteCheckbox>
+      <div class="main-checkbox-wrapper">
+        <CuteCheckbox
+          class="main-checkbox"
+          :checked="task.is_completed"
+          size="large"
+          @update:checked="handleStatusChange"
+          @click.stop
+        ></CuteCheckbox>
+      </div>
     </div>
   </CuteCard>
 </template>
@@ -145,13 +152,25 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   color: var(--color-text-primary);
 }
 
-.main-checkbox {
+.main-checkbox-wrapper {
   margin-top: 0.5rem;
   align-self: flex-start;
 }
 
+/* 只有主复选框被选中时，主标题才划线 */
 /* stylelint-disable-next-line selector-class-pattern */
-.task-card:has(.n-checkbox--checked) .title,
+.main-checkbox-wrapper:has(.n-checkbox--checked) ~ .title {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+/* 或者使用更直接的方式：检查 task.is_completed */
+.task-card[data-completed='true'] .title {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+/* 子任务选中时，只划子任务的线 */
 /* stylelint-disable-next-line selector-class-pattern */
 .subtask-item:has(.n-checkbox--checked) .subtask-title {
   text-decoration: line-through;
