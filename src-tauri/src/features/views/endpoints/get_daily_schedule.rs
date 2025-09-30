@@ -123,8 +123,8 @@ mod database {
             "#,
         )
         .bind(&context_id)
-        .bind(day_start.to_rfc3339())
-        .bind(day_end.to_rfc3339())
+        .bind(day_start) // SQLx自动转换 DateTime<Utc> -> TEXT
+        .bind(day_end) // SQLx自动转换 DateTime<Utc> -> TEXT
         .fetch_all(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;

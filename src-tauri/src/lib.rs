@@ -6,7 +6,6 @@ pub mod startup; // 保留启动模块（sidecar功能需要）
 pub mod entities;
 pub mod features;
 pub mod shared;
-pub mod ts_export;
 
 // 重新导出新架构的类型
 pub use features::*;
