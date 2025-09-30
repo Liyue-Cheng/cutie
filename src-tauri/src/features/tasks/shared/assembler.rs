@@ -21,7 +21,7 @@ impl TaskAssembler {
     ///
     /// 只填充可以直接从 Task 实体获取的字段
     /// 需要额外数据的字段保持默认值，调用者需要手动设置：
-    /// - sort_order（需要从 Ordering 表获取）
+    /// - sort_order（需要从 Orderings 表获取）
     /// - schedule_status（需要从 Schedule 表判断）
     /// - area（需要从 Area 表获取）
     /// - schedule_info（需要从 Schedule 表计算）

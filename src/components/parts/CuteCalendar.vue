@@ -20,7 +20,7 @@ import { useTimeBlockStore } from '@/stores/timeblock'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
-import type { Task } from '@/types/models'
+import type { TaskCard } from '@/types/dtos'
 
 const timeBlockStore = useTimeBlockStore()
 const contextMenu = useContextMenu()
@@ -29,7 +29,7 @@ const message = useMessage()
 // 预览时间块状态
 const previewEvent = ref<EventInput | null>(null)
 const isDragging = ref(false)
-const currentDraggedTask = ref<Task | null>(null)
+const currentDraggedTask = ref<TaskCard | null>(null)
 
 onMounted(async () => {
   // 监听全局拖拽开始事件
@@ -76,14 +76,28 @@ onUnmounted(() => {
   document.removeEventListener('dragend', handleGlobalDragEnd)
 })
 
+/**
+ * 日历事件列表（响应式）
+ *
+ * ✅ 正确做法：
+ * - 使用 computed 包装，从 store.allTimeBlocks getter 读取
+ * - allTimeBlocks 是 computed，当 store.timeBlocks 变化时自动重新计算
+ * - 任何对 store 的操作（create/update/delete）都会触发 UI 更新
+ *
+ * ❌ 常见错误：
+ * - 不要缓存 timeBlocks 到本地 ref/reactive
+ * - 不要在组件内维护时间块列表的副本
+ * - 所有操作必须通过 store，不要直接修改本地状态
+ */
 const calendarEvents = computed((): EventInput[] => {
+  // ✅ 直接从 store 的 computed getter 读取，确保响应式更新
   const events = timeBlockStore.allTimeBlocks.map((timeBlock) => ({
     id: timeBlock.id,
     title: timeBlock.title ?? 'Time Block',
     start: timeBlock.start_time,
     end: timeBlock.end_time,
-    allDay: false, // 时间块总是有具体时间
-    color: '#4a90e2', // 默认颜色，可以根据area_id来设置不同颜色
+    allDay: false,
+    color: timeBlock.area?.color ?? '#4a90e2', // 使用区域颜色
   }))
 
   // 添加预览事件
@@ -126,7 +140,7 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
         title,
         start_time: selectInfo.start.toISOString(),
         end_time: selectInfo.end.toISOString(),
-        task_ids: [], // 空的任务ID列表
+        linked_task_ids: [], // 空的任务ID列表
       })
 
       // 清除临时预览，真实事件会通过store更新显示
@@ -359,7 +373,7 @@ async function handleDrop(event: DragEvent) {
           title: dragData.task.title,
           start_time: dropTime.toISOString(),
           end_time: endTime.toISOString(),
-          task_ids: [dragData.task.id], // 关联拖拽的任务
+          linked_task_ids: [dragData.task.id], // 关联拖拽的任务
         })
 
         console.log(`创建时间块: ${dragData.task.title} at ${dropTime.toISOString()}`)

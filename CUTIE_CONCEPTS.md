@@ -46,16 +46,16 @@
 
 ### 核心表名清单
 
-| 实体     | 表名                    | 单/复数  | ⚠️ 注意事项           |
-| -------- | ----------------------- | -------- | --------------------- |
-| 任务     | `tasks`                 | 复数     | -                     |
-| 时间块   | `time_blocks`           | 复数     | start_time < end_time |
-| 日程     | `task_schedules`        | 复数     | 任务在某天的安排      |
-| 排序     | `orderings`             | **单数** | lexorank              |
-| 区域     | `areas`                 | 复数     | 决定染色              |
-| 项目     | `projects`              | 复数     | -                     |
-| 模板     | `templates`             | 复数     | 快速创建仪式/流程     |
-| 任务链接 | `task_time_block_links` | 复数     | 多对多中间表          |
+| 实体     | 表名                    | 单/复数 | ⚠️ 注意事项           |
+| -------- | ----------------------- | ------- | --------------------- |
+| 任务     | `tasks`                 | 复数    | -                     |
+| 时间块   | `time_blocks`           | 复数    | start_time < end_time |
+| 日程     | `task_schedules`        | 复数    | 任务在某天的安排      |
+| 排序     | `orderings`             | 复数    | lexorank              |
+| 区域     | `areas`                 | 复数    | 决定染色              |
+| 项目     | `projects`              | 复数    | -                     |
+| 模板     | `templates`             | 复数    | 快速创建仪式/流程     |
+| 任务链接 | `task_time_block_links` | 复数    | 多对多中间表          |
 
 **注意：所有表名统一使用复数形式**
 
@@ -477,7 +477,7 @@ impl TaskAssembler {
 在编写任何代码前：
 
 - [ ] **查看了数据库 schema？**（`migrations/xxx.sql`）
-- [ ] 表名是否正确？（`ordering` 是单数！）
+- [ ] 表名是否正确？
 - [ ] 使用了正确的 trait 方法？
   - `app_state.id_generator().new_uuid()` ✅
   - `app_state.clock().now_utc()` ✅
