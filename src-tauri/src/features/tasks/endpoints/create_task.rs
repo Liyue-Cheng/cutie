@@ -21,8 +21,6 @@ use crate::{
 use super::super::shared::validation::validate_create_task_request;
 use crate::entities::{CreateTaskRequest, TaskResponse};
 
-use crate::repositories::{OrderingRepository, TaskRepository};
-
 // ==================== 文档层 (Documentation Layer) ====================
 /*
 CABC for `create_task`
@@ -70,14 +68,7 @@ pub async fn handle(
         return validation_error.into_response();
     }
 
-    match logic::execute(
-        &app_state,
-        app_state.task_repository(),
-        app_state.ordering_repository(),
-        request,
-    )
-    .await
-    {
+    match logic::execute(&app_state, request).await {
         Ok(task) => created_response(TaskResponse::from(task)).into_response(),
         Err(err) => err.into_response(),
     }
@@ -89,12 +80,7 @@ pub mod logic {
     use super::*;
 
     /// 执行创建任务的业务逻辑
-    pub async fn execute(
-        app_state: &AppState,
-        task_repo: &dyn TaskRepository,
-        ordering_repo: &dyn OrderingRepository,
-        request: CreateTaskRequest,
-    ) -> AppResult<Task> {
+    pub async fn execute(app_state: &AppState, request: CreateTaskRequest) -> AppResult<Task> {
         let now = Utc::now();
         let task_id = Uuid::new_v4();
 
@@ -118,19 +104,18 @@ pub mod logic {
         // 2. 验证业务规则
         crate::features::tasks::shared::validation::validate_task_business_rules(&task)?;
 
-        // 3. 在数据库中创建任务（使用 repository 中的方法）
-        let created_task = task_repo.create(&mut tx, &task).await?;
+        // 3. 在数据库中创建任务
+        let created_task = database::create_task_in_tx(&mut tx, &task).await?;
 
-        // 4. 在指定上下文中创建排序记录（使用 OrderingRepository）
-        ordering_repo
-            .create_for_new_task(
-                &mut tx,
-                &request.context.context_type,
-                &request.context.context_id,
-                task_id,
-                now,
-            )
-            .await?;
+        // 4. 在指定上下文中创建排序记录
+        database::create_ordering_for_new_task_in_tx(
+            &mut tx,
+            &request.context.context_type.to_string(),
+            &request.context.context_id,
+            task_id,
+            now,
+        )
+        .await?;
 
         // 5. 提交事务
         tx.commit().await.map_err(|e| {
@@ -140,5 +125,134 @@ pub mod logic {
         })?;
 
         Ok(created_task)
+    }
+}
+
+// ==================== 数据访问层 (Data Access Layer) ====================
+/// 创建任务功能专用的数据库操作
+pub mod database {
+    use super::*;
+    use sqlx::{Row, Sqlite, Transaction};
+
+    /// 在事务中创建任务
+    pub async fn create_task_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task: &Task,
+    ) -> AppResult<Task> {
+        let query = r#"
+            INSERT INTO tasks (
+                id, title, glance_note, detail_note, estimated_duration,
+                subtasks, project_id, area_id, due_date, due_date_type, completed_at,
+                created_at, updated_at, is_deleted, source_info,
+                external_source_id, external_source_provider, external_source_metadata,
+                recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#;
+
+        sqlx::query(query)
+            .bind(task.id.to_string())
+            .bind(&task.title)
+            .bind(&task.glance_note)
+            .bind(&task.detail_note)
+            .bind(task.estimated_duration)
+            .bind(
+                task.subtasks
+                    .as_ref()
+                    .and_then(|s| serde_json::to_string(s).ok()),
+            )
+            .bind(task.project_id.map(|id| id.to_string()))
+            .bind(task.area_id.map(|id| id.to_string()))
+            .bind(task.due_date.map(|dt| dt.to_rfc3339()))
+            .bind(
+                task.due_date_type
+                    .as_ref()
+                    .and_then(|dt| serde_json::to_string(dt).ok()),
+            )
+            .bind(task.completed_at.map(|dt| dt.to_rfc3339()))
+            .bind(task.created_at.to_rfc3339())
+            .bind(task.updated_at.to_rfc3339())
+            .bind(task.is_deleted)
+            .bind(
+                task.source_info
+                    .as_ref()
+                    .and_then(|si| serde_json::to_string(si).ok()),
+            )
+            .bind(&task.external_source_id)
+            .bind(&task.external_source_provider)
+            .bind(&task.external_source_metadata)
+            .bind(&task.recurrence_rule)
+            .bind(task.recurrence_parent_id.map(|id| id.to_string()))
+            .bind(task.recurrence_original_date.map(|dt| dt.to_rfc3339()))
+            .bind(
+                task.recurrence_exclusions
+                    .as_ref()
+                    .and_then(|re| serde_json::to_string(re).ok()),
+            )
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        Ok(task.clone())
+    }
+
+    /// 在事务中为新任务创建排序记录
+    pub async fn create_ordering_for_new_task_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        context_type: &str,
+        context_id: &str,
+        task_id: Uuid,
+        created_at: chrono::DateTime<Utc>,
+    ) -> AppResult<()> {
+        // 获取当前上下文中的最大排序位置
+        let max_position_query = r#"
+            SELECT COALESCE(MAX(position), 0) as max_position
+            FROM orderings
+            WHERE context_type = ? AND context_id = ? AND is_deleted = false
+        "#;
+
+        let max_position: i64 = sqlx::query(max_position_query)
+            .bind(context_type)
+            .bind(context_id)
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?
+            .get("max_position");
+
+        let new_position = max_position + 1;
+
+        // 创建排序记录
+        let insert_query = r#"
+            INSERT INTO orderings (
+                id, context_type, context_id, task_id, position,
+                created_at, updated_at, is_deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        "#;
+
+        let ordering_id = Uuid::new_v4();
+        sqlx::query(insert_query)
+            .bind(ordering_id.to_string())
+            .bind(context_type)
+            .bind(context_id)
+            .bind(task_id.to_string())
+            .bind(new_position)
+            .bind(created_at.to_rfc3339())
+            .bind(created_at.to_rfc3339())
+            .bind(false)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        tracing::info!(
+            "Created ordering record for task {} in context {}:{}",
+            task_id,
+            context_type,
+            context_id
+        );
+
+        Ok(())
     }
 }

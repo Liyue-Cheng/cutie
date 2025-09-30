@@ -1,15 +1,14 @@
 /// TimeBlockRepository的SQLite实现
 ///
 /// 提供TimeBlock实体的具体数据库操作实现
-
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::{AppResult, DbError};
-use crate::entities::{TimeBlock, SourceInfo};
+use crate::entities::{SourceInfo, TimeBlock};
 use crate::repositories::traits::TimeBlockRepository;
+use crate::shared::core::{AppResult, DbError};
 
 /// 时间块仓库的SQLite实现
 #[derive(Clone)]
@@ -111,7 +110,11 @@ impl SqliteTimeBlockRepository {
 #[async_trait]
 impl TimeBlockRepository for SqliteTimeBlockRepository {
     // --- 写操作 ---
-    async fn create(&self, tx: &mut Transaction<'_, Sqlite>, time_block: &TimeBlock) -> AppResult<TimeBlock> {
+    async fn create(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        time_block: &TimeBlock,
+    ) -> AppResult<TimeBlock> {
         sqlx::query(
             r#"
             INSERT INTO time_blocks (
@@ -133,22 +136,29 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
         .bind(time_block.updated_at.to_rfc3339())
         .bind(time_block.is_deleted)
         .bind(
-            time_block.source_info
+            time_block
+                .source_info
                 .as_ref()
                 .map(|s| serde_json::to_string(s).unwrap_or_default()),
         )
         .bind(&time_block.external_source_id)
         .bind(&time_block.external_source_provider)
         .bind(
-            time_block.external_source_metadata
+            time_block
+                .external_source_metadata
                 .as_ref()
                 .map(|m| serde_json::to_string(m).unwrap_or_default()),
         )
         .bind(&time_block.recurrence_rule)
         .bind(time_block.recurrence_parent_id.map(|id| id.to_string()))
-        .bind(time_block.recurrence_original_date.map(|dt| dt.to_rfc3339()))
         .bind(
-            time_block.recurrence_exclusions
+            time_block
+                .recurrence_original_date
+                .map(|dt| dt.to_rfc3339()),
+        )
+        .bind(
+            time_block
+                .recurrence_exclusions
                 .as_ref()
                 .map(|e| serde_json::to_string(e).unwrap_or_default()),
         )
@@ -159,7 +169,11 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
         Ok(time_block.clone())
     }
 
-    async fn update(&self, tx: &mut Transaction<'_, Sqlite>, time_block: &TimeBlock) -> AppResult<TimeBlock> {
+    async fn update(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        time_block: &TimeBlock,
+    ) -> AppResult<TimeBlock> {
         let result = sqlx::query(
             r#"
             UPDATE time_blocks SET 
@@ -178,22 +192,29 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
         .bind(time_block.area_id.map(|id| id.to_string()))
         .bind(time_block.updated_at.to_rfc3339())
         .bind(
-            time_block.source_info
+            time_block
+                .source_info
                 .as_ref()
                 .map(|s| serde_json::to_string(s).unwrap_or_default()),
         )
         .bind(&time_block.external_source_id)
         .bind(&time_block.external_source_provider)
         .bind(
-            time_block.external_source_metadata
+            time_block
+                .external_source_metadata
                 .as_ref()
                 .map(|m| serde_json::to_string(m).unwrap_or_default()),
         )
         .bind(&time_block.recurrence_rule)
         .bind(time_block.recurrence_parent_id.map(|id| id.to_string()))
-        .bind(time_block.recurrence_original_date.map(|dt| dt.to_rfc3339()))
         .bind(
-            time_block.recurrence_exclusions
+            time_block
+                .recurrence_original_date
+                .map(|dt| dt.to_rfc3339()),
+        )
+        .bind(
+            time_block
+                .recurrence_exclusions
                 .as_ref()
                 .map(|e| serde_json::to_string(e).unwrap_or_default()),
         )
@@ -256,10 +277,12 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
     }
 
     async fn find_all(&self) -> AppResult<Vec<TimeBlock>> {
-        let rows = sqlx::query("SELECT * FROM time_blocks WHERE is_deleted = FALSE ORDER BY start_time ASC")
-            .fetch_all(&self.pool)
-            .await
-            .map_err(DbError::ConnectionError)?;
+        let rows = sqlx::query(
+            "SELECT * FROM time_blocks WHERE is_deleted = FALSE ORDER BY start_time ASC",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(DbError::ConnectionError)?;
 
         let mut time_blocks = Vec::new();
         for row in rows {

@@ -1,15 +1,14 @@
 /// TaskScheduleRepository的SQLite实现
 ///
 /// 提供TaskSchedule实体的具体数据库操作实现
-
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::{AppResult, DbError};
-use crate::entities::{TaskSchedule, Outcome};
+use crate::entities::{Outcome, TaskSchedule};
 use crate::repositories::traits::TaskScheduleRepository;
+use crate::shared::core::{AppResult, DbError};
 
 /// 任务日程仓库的SQLite实现
 #[derive(Clone)]
@@ -31,13 +30,15 @@ impl SqliteTaskScheduleRepository {
             "PRESENCE_LOGGED" => Outcome::PresenceLogged,
             "COMPLETED_ON_DAY" => Outcome::CompletedOnDay,
             "CARRIED_OVER" => Outcome::CarriedOver,
-            _ => return Err(sqlx::Error::ColumnDecode {
-                index: "outcome".to_string(),
-                source: Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Invalid outcome value",
-                )),
-            }),
+            _ => {
+                return Err(sqlx::Error::ColumnDecode {
+                    index: "outcome".to_string(),
+                    source: Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Invalid outcome value",
+                    )),
+                })
+            }
         };
 
         Ok(TaskSchedule {
@@ -59,15 +60,17 @@ impl SqliteTaskScheduleRepository {
                     )),
                 }
             })?,
-            scheduled_day: DateTime::parse_from_rfc3339(&row.try_get::<String, _>("scheduled_day")?)
-                .map_err(|_| sqlx::Error::ColumnDecode {
-                    index: "scheduled_day".to_string(),
-                    source: Box::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Invalid datetime",
-                    )),
-                })?
-                .with_timezone(&Utc),
+            scheduled_day: DateTime::parse_from_rfc3339(
+                &row.try_get::<String, _>("scheduled_day")?,
+            )
+            .map_err(|_| sqlx::Error::ColumnDecode {
+                index: "scheduled_day".to_string(),
+                source: Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Invalid datetime",
+                )),
+            })?
+            .with_timezone(&Utc),
             outcome,
             created_at: DateTime::parse_from_rfc3339(&row.try_get::<String, _>("created_at")?)
                 .map_err(|_| sqlx::Error::ColumnDecode {
@@ -104,7 +107,11 @@ impl SqliteTaskScheduleRepository {
 #[async_trait]
 impl TaskScheduleRepository for SqliteTaskScheduleRepository {
     // --- 写操作 ---
-    async fn create(&self, tx: &mut Transaction<'_, Sqlite>, schedule: &TaskSchedule) -> AppResult<TaskSchedule> {
+    async fn create(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        schedule: &TaskSchedule,
+    ) -> AppResult<TaskSchedule> {
         sqlx::query(
             r#"
             INSERT INTO task_schedule (
@@ -125,7 +132,12 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
         Ok(schedule.clone())
     }
 
-    async fn update_outcome(&self, tx: &mut Transaction<'_, Sqlite>, schedule_id: Uuid, new_outcome: Outcome) -> AppResult<TaskSchedule> {
+    async fn update_outcome(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        schedule_id: Uuid,
+        new_outcome: Outcome,
+    ) -> AppResult<TaskSchedule> {
         let now = Utc::now();
         let result = sqlx::query(
             r#"
@@ -159,7 +171,12 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
         Self::row_to_task_schedule(&row).map_err(|e| DbError::ConnectionError(e).into())
     }
 
-    async fn reschedule(&self, tx: &mut Transaction<'_, Sqlite>, schedule_id: Uuid, new_day: DateTime<Utc>) -> AppResult<TaskSchedule> {
+    async fn reschedule(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        schedule_id: Uuid,
+        new_day: DateTime<Utc>,
+    ) -> AppResult<TaskSchedule> {
         let now = Utc::now();
         let result = sqlx::query(
             r#"
@@ -212,7 +229,11 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
         Ok(())
     }
 
-    async fn delete_all_for_task(&self, tx: &mut Transaction<'_, Sqlite>, task_id: Uuid) -> AppResult<()> {
+    async fn delete_all_for_task(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+    ) -> AppResult<()> {
         sqlx::query("DELETE FROM task_schedule WHERE task_id = ?")
             .bind(task_id.to_string())
             .execute(&mut **tx)
@@ -222,7 +243,12 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
         Ok(())
     }
 
-    async fn delete_future_for_task(&self, tx: &mut Transaction<'_, Sqlite>, task_id: Uuid, since: DateTime<Utc>) -> AppResult<()> {
+    async fn delete_future_for_task(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        since: DateTime<Utc>,
+    ) -> AppResult<()> {
         sqlx::query("DELETE FROM task_schedule WHERE task_id = ? AND scheduled_day > ?")
             .bind(task_id.to_string())
             .bind(since.to_rfc3339())
@@ -235,11 +261,13 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
 
     // --- 读操作 ---
     async fn find_by_day(&self, day: DateTime<Utc>) -> AppResult<Vec<TaskSchedule>> {
-        let rows = sqlx::query("SELECT * FROM task_schedule WHERE scheduled_day = ? ORDER BY created_at ASC")
-            .bind(day.to_rfc3339())
-            .fetch_all(&self.pool)
-            .await
-            .map_err(DbError::ConnectionError)?;
+        let rows = sqlx::query(
+            "SELECT * FROM task_schedule WHERE scheduled_day = ? ORDER BY created_at ASC",
+        )
+        .bind(day.to_rfc3339())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(DbError::ConnectionError)?;
 
         let mut schedules = Vec::new();
         for row in rows {
@@ -251,11 +279,12 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
     }
 
     async fn find_all_for_task(&self, task_id: Uuid) -> AppResult<Vec<TaskSchedule>> {
-        let rows = sqlx::query("SELECT * FROM task_schedule WHERE task_id = ? ORDER BY scheduled_day ASC")
-            .bind(task_id.to_string())
-            .fetch_all(&self.pool)
-            .await
-            .map_err(DbError::ConnectionError)?;
+        let rows =
+            sqlx::query("SELECT * FROM task_schedule WHERE task_id = ? ORDER BY scheduled_day ASC")
+                .bind(task_id.to_string())
+                .fetch_all(&self.pool)
+                .await
+                .map_err(DbError::ConnectionError)?;
 
         let mut schedules = Vec::new();
         for row in rows {

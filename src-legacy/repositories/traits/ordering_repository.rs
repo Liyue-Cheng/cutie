@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
-use crate::entities::{ContextType, Ordering};
 use crate::shared::core::AppResult;
+use crate::entities::{ContextType, Ordering};
 
 /// 排序仓库接口
 ///

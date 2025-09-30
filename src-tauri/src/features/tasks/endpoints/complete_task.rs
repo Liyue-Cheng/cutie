@@ -6,10 +6,9 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Row, Sqlite, Transaction};
 use uuid::Uuid;
 
-use crate::repositories::TaskRepository;
 use crate::{
     entities::Task,
     shared::{
@@ -58,7 +57,7 @@ POST /api/tasks/{id}/completion
 // ==================== 路由层 (Router Layer) ====================
 /// 完成任务的HTTP处理器
 pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
-    match logic::execute(&app_state, app_state.task_repository(), task_id).await {
+    match logic::execute(&app_state, task_id).await {
         Ok(task) => success_response(TaskResponse::from(task)).into_response(),
         Err(err) => err.into_response(),
     }
@@ -70,11 +69,7 @@ pub mod logic {
     use super::*;
 
     /// 执行完成任务的业务逻辑
-    pub async fn execute(
-        app_state: &AppState,
-        task_repo: &dyn TaskRepository,
-        task_id: Uuid,
-    ) -> AppResult<Task> {
+    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Task> {
         let now = Utc::now();
 
         // 开始事务
@@ -82,9 +77,8 @@ pub mod logic {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
 
-        // 1. 检查任务是否存在（使用 repository 中的方法）
-        let task = task_repo
-            .find_by_id_in_tx(&mut tx, task_id)
+        // 1. 检查任务是否存在
+        let task = database::find_task_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
@@ -96,8 +90,8 @@ pub mod logic {
         // 3. 验证业务规则
         validate_task_business_rules(&task)?;
 
-        // 4. 更新任务状态（使用 repository 中的方法）
-        let updated_task = task_repo.set_completed(&mut tx, task_id, now).await?;
+        // 4. 更新任务状态
+        let updated_task = database::set_task_completed_in_tx(&mut tx, task_id, now).await?;
 
         // 5. 执行相关清理操作（特定于完成任务的操作）
         database::truncate_time_blocks_in_tx(&mut tx, task_id, now).await?;
@@ -119,41 +113,197 @@ pub mod logic {
 pub mod database {
     use super::*;
 
+    /// 在事务中根据ID查找任务
+    pub async fn find_task_by_id_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+    ) -> AppResult<Option<Task>> {
+        let query = r#"
+            SELECT id, title, glance_note, detail_note, estimated_duration, 
+                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
+                   created_at, updated_at, is_deleted, source_info,
+                   external_source_id, external_source_provider, external_source_metadata,
+                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+            FROM tasks 
+            WHERE id = ? AND is_deleted = false
+        "#;
+
+        let row = sqlx::query(query)
+            .bind(task_id.to_string())
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        if let Some(row) = row {
+            let task = Task {
+                id: Uuid::parse_str(&row.get::<String, _>("id")).unwrap(),
+                title: row.get("title"),
+                glance_note: row.get("glance_note"),
+                detail_note: row.get("detail_note"),
+                estimated_duration: row.get("estimated_duration"),
+                subtasks: row
+                    .get::<Option<String>, _>("subtasks")
+                    .and_then(|s| serde_json::from_str(&s).ok()),
+                project_id: row
+                    .get::<Option<String>, _>("project_id")
+                    .and_then(|s| Uuid::parse_str(&s).ok()),
+                area_id: row
+                    .get::<Option<String>, _>("area_id")
+                    .and_then(|s| Uuid::parse_str(&s).ok()),
+                due_date: row
+                    .get::<Option<String>, _>("due_date")
+                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+                    .map(|dt| dt.with_timezone(&Utc)),
+                due_date_type: row
+                    .get::<Option<String>, _>("due_date_type")
+                    .and_then(|s| serde_json::from_str(&s).ok()),
+                completed_at: row.get::<Option<String>, _>("completed_at").map(|s| {
+                    chrono::DateTime::parse_from_rfc3339(&s)
+                        .unwrap()
+                        .with_timezone(&Utc)
+                }),
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )
+                .unwrap()
+                .with_timezone(&Utc),
+                updated_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("updated_at"),
+                )
+                .unwrap()
+                .with_timezone(&Utc),
+                is_deleted: row.get("is_deleted"),
+                source_info: row
+                    .get::<Option<String>, _>("source_info")
+                    .and_then(|s| serde_json::from_str(&s).ok()),
+                external_source_id: row.get("external_source_id"),
+                external_source_provider: row.get("external_source_provider"),
+                external_source_metadata: row.get("external_source_metadata"),
+                recurrence_rule: row.get("recurrence_rule"),
+                recurrence_parent_id: row
+                    .get::<Option<String>, _>("recurrence_parent_id")
+                    .and_then(|s| Uuid::parse_str(&s).ok()),
+                recurrence_original_date: row
+                    .get::<Option<String>, _>("recurrence_original_date")
+                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+                    .map(|dt| dt.with_timezone(&Utc)),
+                recurrence_exclusions: row
+                    .get::<Option<String>, _>("recurrence_exclusions")
+                    .and_then(|s| serde_json::from_str(&s).ok()),
+            };
+            Ok(Some(task))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 在事务中设置任务为已完成
+    pub async fn set_task_completed_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        completed_at: chrono::DateTime<Utc>,
+    ) -> AppResult<Task> {
+        let query = r#"
+            UPDATE tasks 
+            SET completed_at = ?, updated_at = ?
+            WHERE id = ? AND is_deleted = false
+        "#;
+
+        let rows_affected = sqlx::query(query)
+            .bind(completed_at.to_rfc3339())
+            .bind(completed_at.to_rfc3339())
+            .bind(task_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?
+            .rows_affected();
+
+        if rows_affected == 0 {
+            return Err(AppError::not_found("Task", task_id.to_string()));
+        }
+
+        // 返回更新后的任务
+        find_task_by_id_in_tx(tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))
+    }
+
     /// 截断任务相关的时间块（在事务中）- 只有完成任务时用到
     pub async fn truncate_time_blocks_in_tx(
-        _tx: &mut Transaction<'_, Sqlite>,
+        tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
         completed_at: chrono::DateTime<Utc>,
     ) -> AppResult<()> {
-        // TODO: 实现时间块截断逻辑
-        // 这里需要查找任务相关的进行中时间块，并将其结束时间设置为completed_at
+        // 查找任务相关的进行中时间块（end_time > completed_at）
+        let query = r#"
+            UPDATE time_blocks 
+            SET end_time = ?, updated_at = ?
+            WHERE task_id = ? 
+            AND end_time > ? 
+            AND is_deleted = false
+        "#;
 
-        tracing::debug!(
-            "Truncating time blocks for task {} at {}",
+        let rows_affected = sqlx::query(query)
+            .bind(completed_at)
+            .bind(completed_at)
+            .bind(task_id)
+            .bind(completed_at)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                crate::shared::core::AppError::DatabaseError(
+                    crate::shared::core::DbError::ConnectionError(e),
+                )
+            })?
+            .rows_affected();
+
+        tracing::info!(
+            "Truncated {} time blocks for task {} at {}",
+            rows_affected,
             task_id,
             completed_at
         );
 
-        // 暂时只记录日志，具体实现需要时间块模块的支持
         Ok(())
     }
 
     /// 清理任务的未来日程（在事务中）- 只有完成任务时用到
     pub async fn cleanup_future_schedules_in_tx(
-        _tx: &mut Transaction<'_, Sqlite>,
+        tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
         completed_at: chrono::DateTime<Utc>,
     ) -> AppResult<()> {
-        // TODO: 实现日程清理逻辑
-        // 这里需要删除任务在completed_at之后的所有日程安排
+        // 删除任务在completed_at之后的所有日程安排
+        // 只删除未来的日程，已经发生的日程保留作为历史记录
+        let completed_date = completed_at.date_naive();
 
-        tracing::debug!(
-            "Cleaning up future schedules for task {} after {}",
+        let query = r#"
+            DELETE FROM task_schedules 
+            WHERE task_id = ? 
+            AND DATE(scheduled_day) > DATE(?)
+        "#;
+
+        let rows_affected = sqlx::query(query)
+            .bind(task_id)
+            .bind(completed_date)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                crate::shared::core::AppError::DatabaseError(
+                    crate::shared::core::DbError::ConnectionError(e),
+                )
+            })?
+            .rows_affected();
+
+        tracing::info!(
+            "Cleaned up {} future schedules for task {} after {}",
+            rows_affected,
             task_id,
             completed_at
         );
 
-        // 暂时只记录日志，具体实现需要日程模块的支持
         Ok(())
     }
 }

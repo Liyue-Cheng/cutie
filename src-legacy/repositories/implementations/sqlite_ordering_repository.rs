@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::entities::{ContextType, Ordering};
 use crate::repositories::traits::OrderingRepository;
 use crate::shared::core::{AppResult, DbError};
+use crate::entities::{ContextType, Ordering};
 
 /// 排序仓库的SQLite实现
 #[derive(Clone)]
