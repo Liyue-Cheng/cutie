@@ -357,16 +357,92 @@ let query = "SELECT * FROM task_schedules WHERE ...";
 // 成功执行
 ```
 
-### 4.7 代码审查清单
+### 4.7 数据真实性原则 - ⚠️ 关键
+
+**后端返回的数据必须反映数据库的真实状态，不能依赖默认值或猜测！**
+
+#### **错误模式：依赖 Assembler 的默认值**
+
+```rust
+// ❌ 错误：返回带默认值的数据
+let task_card = TaskAssembler::task_to_card_basic(&task);
+// task_card.schedule_status = ScheduleStatus::Staging (默认值)
+return task_card;  // 返回了错误的状态！
+```
+
+**问题：**
+- Assembler 的 `_basic` 方法使用默认值作为占位符
+- 如果不查询实际状态就返回，前端会接收到错误数据
+- 导致 UI 状态不一致
+
+#### **正确模式：查询实际状态**
+
+```rust
+// ✅ 正确：查询实际状态并填充
+let mut task_card = TaskAssembler::task_to_card_basic(&task);
+
+// 查询实际的 schedule_status
+let schedules = database::get_task_schedules(pool, task_id).await?;
+task_card.schedule_status = if !schedules.is_empty() {
+    ScheduleStatus::Scheduled
+} else {
+    ScheduleStatus::Staging
+};
+
+// 查询其他关联信息
+task_card.sort_order = database::get_task_sort_order(pool, task_id).await?;
+task_card.area = database::get_area_summary(pool, area_id).await?;
+
+return task_card;  // 返回完整准确的数据 ✅
+```
+
+#### **避免冗余查询**
+
+```rust
+// ❌ 冗余：查询两次相同的表
+let schedules = get_task_schedules(task_id).await?;
+let has_schedule = has_any_schedule(task_id).await?;  // 冗余！
+
+// ✅ 高效：复用已查询的数据
+let schedules = get_task_schedules(task_id).await?;
+let has_schedule = !schedules.is_empty();  // 直接判断
+```
+
+#### **实际案例：get_task 端点**
+
+**错误版本（导致 UI bug）：**
+```rust
+let task_card = TaskAssembler::task_to_card_basic(&task);
+// schedule_status = 'staging' (默认)
+return TaskDetailDto { card: task_card };
+// 前端：点击任务 → 任务跳到 Staging 列 ❌
+```
+
+**正确版本：**
+```rust
+let mut task_card = TaskAssembler::task_to_card_basic(&task);
+let schedules = database::get_task_schedules(pool, task_id).await?;
+task_card.schedule_status = if !schedules.is_empty() { 
+    Scheduled 
+} else { 
+    Staging 
+};
+return TaskDetailDto { card: task_card };
+// 前端：点击任务 → 任务保持在正确列 ✅
+```
+
+### 4.8 代码审查清单
 
 在提交代码前检查：
 
 - [ ] **是否查看了数据库 schema？**（最重要！）
+- [ ] **返回的所有字段是否反映真实数据库状态？**（新增！）
 - [ ] 是否使用了正确的 trait 方法（`new_uuid()`, `now_utc()`）？
 - [ ] 是否复用了 `shared/` 中的现有工具？
 - [ ] 排序功能是否使用了 LexoRank 工具函数？
 - [ ] 错误处理是否使用了 `?` 操作符？
 - [ ] 是否在事务中执行了所有写操作？
 - [ ] SQL 查询的表名和字段名是否与 schema 完全一致？
+- [ ] **是否有冗余查询可以优化？**（新增！）
 
 通过遵循此规范，我们可以构建一个既灵活又有序、易于理解和扩展的后端系统。

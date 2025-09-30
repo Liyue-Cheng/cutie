@@ -62,9 +62,9 @@ mod logic {
         // 3. 查询 schedules 历史
         let schedules = database::get_task_schedules(pool, task_id).await?;
 
-        // 4. ✅ 关键：根据实际 schedules 设置正确的 schedule_status
-        let has_schedule = database::has_any_schedule(pool, task_id).await?;
-        task_card.schedule_status = if has_schedule {
+        // 4. ✅ 关键：根据实际 schedules 判断 schedule_status
+        // 如果有任何 schedule 记录，状态就是 scheduled
+        task_card.schedule_status = if !schedules.is_empty() {
             crate::entities::ScheduleStatus::Scheduled
         } else {
             crate::entities::ScheduleStatus::Staging
@@ -131,18 +131,6 @@ mod database {
         }
     }
 
-    pub async fn has_any_schedule(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<bool> {
-        let query = "SELECT COUNT(*) FROM task_schedules WHERE task_id = ?";
-        let count: i64 = sqlx::query_scalar(query)
-            .bind(task_id.to_string())
-            .fetch_one(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(count > 0)
-    }
-
     pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
         let query = "SELECT sort_order FROM orderings WHERE context_type = 'MISC' AND context_id = 'staging' AND task_id = ?";
         let result = sqlx::query_scalar::<_, String>(query)
@@ -168,11 +156,13 @@ mod database {
                 AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
             })?;
 
-        Ok(result.map(|(id, name, color)| crate::entities::task::response_dtos::AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
+        Ok(result.map(
+            |(id, name, color)| crate::entities::task::response_dtos::AreaSummary {
+                id: Uuid::parse_str(&id).unwrap(),
+                name,
+                color,
+            },
+        ))
     }
 
     /// 获取任务的所有日程记录
