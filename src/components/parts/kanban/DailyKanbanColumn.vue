@@ -23,7 +23,10 @@ const isCreatingTask = ref(false)
 
 // 本地任务列表（响应式副本，用于拖拽）
 const localTasks = computed({
-  get: () => props.tasks,
+  get: () => {
+    console.log(`[DailyKanban] localTasks get() called, tasks order:`, props.tasks.map(t => t.title))
+    return props.tasks
+  },
   set: () => {
     // 拖动过程中的临时变更由 vue-draggable-next 自动处理
     // 实际更新在 onDragEnd 中进行
@@ -70,7 +73,7 @@ async function handleAddTask() {
     // 使用毫秒时间戳作为 context_id，与排程时保持一致
     const dateStr = props.date.toISOString().split('T')[0] as string
     const contextId = new Date(dateStr).getTime().toString()
-    
+
     await taskStore.createTask({
       title,
       context: {

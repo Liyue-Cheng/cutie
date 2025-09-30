@@ -275,6 +275,25 @@ mod database {
             schedule.scheduled_day.format("%Y-%m-%d")
         );
 
+        // 检查是否已存在 ordering 记录（幂等性）
+        let existing_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM ordering WHERE context_type = ? AND context_id = ? AND task_id = ?",
+        )
+        .bind(ContextType::DailyKanban.to_string())
+        .bind(&context_id)
+        .bind(schedule.task_id.to_string())
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        if existing_count > 0 {
+            tracing::info!(
+                "[link_schedule] Ordering record already exists for task {}, skipping creation",
+                schedule.task_id
+            );
+            return Ok(());
+        }
+
         let max_sort_order: Option<String> = sqlx::query_scalar(
             "SELECT MAX(sort_order) FROM ordering WHERE context_type = ? AND context_id = ?",
         )

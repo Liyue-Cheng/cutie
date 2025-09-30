@@ -63,6 +63,8 @@ async function loadTasksForDate(dateStr: string) {
 
     const tasks: Task[] = await response.json()
 
+    console.log(`[HomeView] Loaded ${tasks.length} tasks for ${dateStr}, order:`, tasks.map(t => t.title))
+
     // 使用新的 Map 实例触发 Vue 响应式更新
     const newDailyTasks = new Map(dailyTasks.value)
     newDailyTasks.set(dateStr, tasks)
