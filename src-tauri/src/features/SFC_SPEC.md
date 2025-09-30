@@ -298,14 +298,74 @@ AppError::LexoRankError(...)  // 编译失败
 - 对于 `POST`（创建）和 `DELETE` 操作，应考虑幂等性
 - 如果资源已存在或已删除，通常应返回成功状态码（`200 OK` 或 `204 No Content`），而不是错误
 
-### 4.6 代码审查清单
+### 4.6 数据库 Schema - ⚠️ 关键
+
+**在编写任何数据库查询之前，必须先查看数据库 Schema！禁止猜测表名或字段名！**
+
+#### **查看 Schema 的位置**
+```
+src-tauri/migrations/20241001000000_initial_schema.sql
+```
+
+#### **常见错误示例**
+
+```rust
+// ❌ 错误：猜测表名为复数
+SELECT * FROM orderings WHERE ...  // 编译通过，但运行时报错！
+
+// ✅ 正确：查看 schema 后确认表名为单数
+SELECT * FROM ordering WHERE ...   // 数据库表名是 'ordering'
+```
+
+#### **开发流程**
+
+```
+1️⃣ 查看 migrations/xxx_initial_schema.sql
+   └─ 确认表名、字段名、类型、约束
+
+2️⃣ 编写 SQL 查询
+   └─ 使用准确的表名和字段名
+
+3️⃣ 编写 Rust 代码
+   └─ 确保绑定参数与字段类型匹配
+```
+
+#### **关键表名清单**（供快速参考）
+
+| 实体 | 表名（单数/复数） | 常见错误 |
+|------|------------------|----------|
+| 任务 | `tasks` | ✅ 复数 |
+| 区域 | `areas` | ✅ 复数 |
+| 日程 | `task_schedules` | ✅ 复数 |
+| 时间块 | `time_blocks` | ✅ 复数 |
+| 模板 | `templates` | ✅ 复数 |
+| 排序 | `ordering` | ⚠️ **单数** |
+| 项目 | `projects` | ✅ 复数 |
+
+**特别注意：** `ordering` 表是单数，不是 `orderings`！
+
+#### **实际案例**
+
+```rust
+// ❌ 错误：没有查看 schema，猜测表名
+let query = "SELECT * FROM orderings WHERE ...";
+// 运行时错误：no such table: orderings
+
+// ✅ 正确：查看 migrations/xxx.sql，确认表名
+let query = "SELECT * FROM ordering WHERE ...";
+// 成功执行
+```
+
+### 4.7 代码审查清单
 
 在提交代码前检查：
 
+- [ ] **是否查看了数据库 schema？**（最重要！）
 - [ ] 是否使用了正确的 trait 方法（`new_uuid()`, `now_utc()`）？
 - [ ] 是否复用了 `shared/` 中的现有工具？
 - [ ] 排序功能是否使用了 LexoRank 工具函数？
 - [ ] 错误处理是否使用了 `?` 操作符？
 - [ ] 是否在事务中执行了所有写操作？
+- [ ] SQL 查询的表名和字段名是否与 schema 完全一致？
 
 通过遵循此规范，我们可以构建一个既灵活又有序、易于理解和扩展的后端系统。

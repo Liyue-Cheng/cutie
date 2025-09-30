@@ -291,7 +291,7 @@ mod database {
     ) -> AppResult<String> {
         let query = r#"
             SELECT sort_order 
-            FROM orderings 
+            FROM ordering 
             WHERE context_type = 'MISC' AND context_id = 'staging'
             ORDER BY sort_order DESC
             LIMIT 1
@@ -330,7 +330,7 @@ mod database {
         let now = Utc::now();
 
         let query = r#"
-            INSERT INTO orderings (id, context_type, context_id, task_id, sort_order, updated_at)
+            INSERT INTO ordering (id, context_type, context_id, task_id, sort_order, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
         "#;
 
