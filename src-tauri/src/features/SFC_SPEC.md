@@ -311,11 +311,11 @@ src-tauri/migrations/20241001000000_initial_schema.sql
 #### **常见错误示例**
 
 ```rust
-// ❌ 错误：猜测表名为复数
-SELECT * FROM orderings WHERE ...  // 编译通过，但运行时报错！
+// ❌ 错误：猜测表名
+SELECT * FROM ordering WHERE ...  // 如果 schema 是复数，这会报错！
 
-// ✅ 正确：查看 schema 后确认表名为单数
-SELECT * FROM ordering WHERE ...   // 数据库表名是 'ordering'
+// ✅ 正确：查看 schema 后确认表名
+SELECT * FROM orderings WHERE ...  // 数据库表名是 'orderings'
 ```
 
 #### **开发流程**
@@ -340,20 +340,20 @@ SELECT * FROM ordering WHERE ...   // 数据库表名是 'ordering'
 | 日程   | `task_schedules`  | ✅ 复数     |
 | 时间块 | `time_blocks`     | ✅ 复数     |
 | 模板   | `templates`       | ✅ 复数     |
-| 排序   | `ordering`        | ⚠️ **单数** |
+| 排序   | `orderings`       | ✅ 复数     |
 | 项目   | `projects`        | ✅ 复数     |
 
-**特别注意：** `ordering` 表是单数，不是 `orderings`！
+**注意：** 所有表名统一使用复数形式。
 
 #### **实际案例**
 
 ```rust
 // ❌ 错误：没有查看 schema，猜测表名
-let query = "SELECT * FROM orderings WHERE ...";
-// 运行时错误：no such table: orderings
+let query = "SELECT * FROM task_schedule WHERE ...";
+// 运行时错误：no such table: task_schedule
 
 // ✅ 正确：查看 migrations/xxx.sql，确认表名
-let query = "SELECT * FROM ordering WHERE ...";
+let query = "SELECT * FROM task_schedules WHERE ...";
 // 成功执行
 ```
 

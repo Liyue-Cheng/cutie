@@ -159,7 +159,7 @@ mod database {
     pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
         let query = r#"
             SELECT sort_order 
-            FROM ordering 
+            FROM orderings 
             WHERE context_type = 'MISC' 
               AND context_id = 'staging' 
               AND task_id = ?

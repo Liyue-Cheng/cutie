@@ -170,8 +170,8 @@ CREATE INDEX idx_task_schedules_task_id ON task_schedules(task_id);
 CREATE INDEX idx_task_schedules_scheduled_day ON task_schedules(scheduled_day);
 CREATE INDEX idx_task_schedules_outcome ON task_schedules(outcome);
 
--- 创建 ordering 表 (统一排序表)
-CREATE TABLE ordering (
+-- 创建 orderings 表 (统一排序表)
+CREATE TABLE orderings (
     id TEXT PRIMARY KEY NOT NULL,
     context_type TEXT NOT NULL CHECK (context_type IN ('DAILY_KANBAN', 'PROJECT_LIST', 'AREA_FILTER', 'MISC')),
     context_id TEXT NOT NULL,
@@ -185,11 +185,11 @@ CREATE TABLE ordering (
     UNIQUE(context_type, context_id, task_id)
 );
 
--- 为 ordering 表创建索引
-CREATE INDEX idx_ordering_context ON ordering(context_type, context_id);
-CREATE INDEX idx_ordering_task_id ON ordering(task_id);
-CREATE INDEX idx_ordering_sort_order ON ordering(sort_order);
-CREATE INDEX idx_ordering_updated_at ON ordering(updated_at);
+-- 为 orderings 表创建索引
+CREATE INDEX idx_orderings_context ON orderings(context_type, context_id);
+CREATE INDEX idx_orderings_task_id ON orderings(task_id);
+CREATE INDEX idx_orderings_sort_order ON orderings(sort_order);
+CREATE INDEX idx_orderings_updated_at ON orderings(updated_at);
 
 -- 创建 task_time_block_links 表 (任务-时间块链接表)
 CREATE TABLE task_time_block_links (
