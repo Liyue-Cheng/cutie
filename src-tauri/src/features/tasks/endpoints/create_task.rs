@@ -245,7 +245,7 @@ pub mod logic {
 /// 创建任务功能专用的数据库操作
 pub mod database {
     use super::*;
-    use sqlx::{Row, Sqlite, Transaction};
+    use sqlx::{Sqlite, Transaction};
 
     /// 在事务中创建任务
     pub async fn create_task_in_tx(
@@ -318,30 +318,22 @@ pub mod database {
         task_id: Uuid,
         created_at: chrono::DateTime<Utc>,
     ) -> AppResult<()> {
-        // 获取当前上下文中的最大排序位置
-        let max_position_query = r#"
+        // 获取当前上下文中的最大排序值并生成新的排序值
+        let max_sort_order: String = sqlx::query_scalar(
+            r#"
             SELECT COALESCE(MAX(sort_order), '0') as max_position
             FROM ordering
             WHERE context_type = ? AND context_id = ?
-        "#;
+            "#,
+        )
+        .bind(context_type)
+        .bind(context_id)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
 
-        // 获取当前最大的排序值并生成新的排序值
-        let max_sort_order = match sqlx::query(max_position_query)
-            .bind(context_type)
-            .bind(context_id)
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })? {
-            Some(row) => {
-                let max_str: String = row.get("max_position");
-                max_str.parse::<i64>().unwrap_or(0)
-            }
-            None => 0,
-        };
-
-        let new_sort_order = (max_sort_order + 1).to_string();
+        let max_value = max_sort_order.parse::<i64>().unwrap_or(0);
+        let new_sort_order = (max_value + 1).to_string();
 
         // 创建排序记录
         let insert_query = r#"
