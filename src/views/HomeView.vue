@@ -91,7 +91,7 @@ onMounted(async () => {
       loadTasksForDate(tomorrowStr),
       loadTasksForDate(dayAfterTomorrowStr),
     ])
-    
+
     console.log('[HomeView] Loaded tasks for 3 days')
   } catch (error) {
     console.error('[HomeView] Failed to fetch initial tasks:', error)

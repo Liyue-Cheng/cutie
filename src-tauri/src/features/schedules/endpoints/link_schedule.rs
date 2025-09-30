@@ -171,7 +171,7 @@ mod logic {
 mod database {
     use super::*;
     use crate::{
-        entities::{ordering::Ordering, ContextType, TaskRow, TaskSchedule},
+        entities::{ordering::Ordering, ContextType, Outcome, TaskRow, TaskSchedule},
         shared::core::utils::sort_order_utils,
     };
     use chrono::{DateTime, Utc};
@@ -233,8 +233,13 @@ mod database {
         tx: &mut Transaction<'_, Sqlite>,
         schedule: &TaskSchedule,
     ) -> AppResult<TaskSchedule> {
-        let outcome_json =
-            serde_json::to_string(&schedule.outcome).unwrap_or_else(|_| "\"PLANNED\"".to_string());
+        // 将 Outcome 转换为数据库字符串格式（不带JSON引号）
+        let outcome_str = match schedule.outcome {
+            Outcome::Planned => "PLANNED",
+            Outcome::PresenceLogged => "PRESENCE_LOGGED",
+            Outcome::CompletedOnDay => "COMPLETED_ON_DAY",
+            Outcome::CarriedOver => "CARRIED_OVER",
+        };
 
         let row = sqlx::query_as::<_, crate::entities::schedule::TaskScheduleRow>(
             r#"
@@ -243,12 +248,12 @@ mod database {
             RETURNING *
             "#,
         )
-        .bind(schedule.id)
-        .bind(schedule.task_id)
-        .bind(schedule.scheduled_day)
-        .bind(outcome_json)
-        .bind(schedule.created_at)
-        .bind(schedule.updated_at)
+        .bind(schedule.id.to_string())
+        .bind(schedule.task_id.to_string())
+        .bind(schedule.scheduled_day.to_rfc3339())
+        .bind(outcome_str)
+        .bind(schedule.created_at.to_rfc3339())
+        .bind(schedule.updated_at.to_rfc3339())
         .fetch_one(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.into()))?;
