@@ -106,8 +106,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
    * Fetches time blocks for a specific date.
    */
   async function fetchTimeBlocksForDate(date: string) {
-    isLoading.value = true
-    error.value = null
+    // 不设置 loading 状态，因为可能被 fetchTimeBlocksForRange 批量调用
     try {
       const apiBaseUrl = await waitForApiReady()
       const response = await fetch(`${apiBaseUrl}/time-blocks?date=${encodeURIComponent(date)}`)
@@ -115,8 +114,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
-      const apiResponse = await response.json()
-      const blockList: TimeBlock[] = apiResponse.data
+      // 后端直接返回数组，不是 {data: []} 格式
+      const blockList: TimeBlock[] = await response.json()
 
       // Update time blocks in the store
       for (const block of blockList) {
@@ -127,10 +126,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       return blockList
     } catch (e) {
       error.value = `Failed to fetch time blocks for ${date}: ${e}`
-      console.error('[TimeBlockStore] Error fetching time blocks:', e)
+      console.error(`[TimeBlockStore] Error fetching time blocks for date ${date}:`, e)
       return []
-    } finally {
-      isLoading.value = false
     }
   }
 
