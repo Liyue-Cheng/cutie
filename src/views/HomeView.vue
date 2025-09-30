@@ -1,71 +1,48 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
-import type { Task } from '@/types/models'
-import DailyKanbanColumn from '@/components/parts/kanban/DailyKanbanColumn.vue'
+import type { TaskCard } from '@/types/dtos'
+import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import { useScheduleStore } from '@/stores/schedule'
+import { useTaskStore } from '@/stores/task'
 
-const scheduleStore = useScheduleStore()
+const taskStore = useTaskStore()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
-// 创建今天、明天、后天的日期对象
-const today = ref(new Date())
-today.value.setHours(0, 0, 0, 0)
-
-const tomorrow = computed(() => {
-  const date = new Date(today.value)
-  date.setDate(date.getDate() + 1)
-  return date
+// 获取不同状态的任务
+const allTasks = computed(() => {
+  return taskStore.allTasks.filter((task) => !task.is_completed)
 })
 
-const dayAfterTomorrow = computed(() => {
-  const date = new Date(today.value)
-  date.setDate(date.getDate() + 2)
-  return date
+const stagingTasks = computed(() => {
+  return taskStore.stagingTasks
 })
 
-// 从 scheduleStore 获取每天的任务
-const todayTasks = computed(() => {
-  const dateStr = today.value.toISOString().split('T')[0] as string
-  return scheduleStore.dailyTasks.get(dateStr) || []
+const plannedTasks = computed(() => {
+  return taskStore.scheduledTasks.filter((task) => !task.is_completed)
 })
 
-const tomorrowTasks = computed(() => {
-  const dateStr = tomorrow.value.toISOString().split('T')[0] as string
-  return scheduleStore.dailyTasks.get(dateStr) || []
-})
-
-const dayAfterTomorrowTasks = computed(() => {
-  const dateStr = dayAfterTomorrow.value.toISOString().split('T')[0] as string
-  return scheduleStore.dailyTasks.get(dateStr) || []
-})
-
-function handleOpenEditor(task: Task) {
+function handleOpenEditor(task: TaskCard) {
   selectedTaskId.value = task.id
   isEditorOpen.value = true
 }
 
+async function handleAddTask(title: string) {
+  await taskStore.createTask({ title })
+  console.log('[HomeView] Task created:', title)
+}
+
 onMounted(async () => {
-  // 加载今天、明天、后天的任务数据
+  // 加载 staging 区任务
   try {
-    const todayStr = today.value.toISOString().split('T')[0] as string
-    const tomorrowStr = tomorrow.value.toISOString().split('T')[0] as string
-    const dayAfterTomorrowStr = dayAfterTomorrow.value.toISOString().split('T')[0] as string
-
-    await Promise.all([
-      scheduleStore.fetchDailyTasks(todayStr),
-      scheduleStore.fetchDailyTasks(tomorrowStr),
-      scheduleStore.fetchDailyTasks(dayAfterTomorrowStr),
-    ])
-
-    console.log('[HomeView] Loaded tasks for 3 days')
+    await taskStore.fetchStagingTasks()
+    console.log('[HomeView] Loaded staging tasks')
   } catch (error) {
-    console.error('[HomeView] Failed to fetch initial tasks:', error)
+    console.error('[HomeView] Failed to fetch staging tasks:', error)
   }
 })
 </script>
@@ -79,23 +56,25 @@ onMounted(async () => {
         </template>
         <template #bottom>
           <div class="task-view-pane">
-            <DailyKanbanColumn
-              :date="today"
-              :tasks="todayTasks"
+            <SimpleKanbanColumn
+              title="All"
+              subtitle="所有未完成任务"
+              :tasks="allTasks"
               @open-editor="handleOpenEditor"
-              @task-created="scheduleStore.fetchDailyTasks"
             />
-            <DailyKanbanColumn
-              :date="tomorrow"
-              :tasks="tomorrowTasks"
+            <SimpleKanbanColumn
+              title="Staging"
+              subtitle="未排期"
+              :tasks="stagingTasks"
+              :show-add-input="true"
               @open-editor="handleOpenEditor"
-              @task-created="scheduleStore.fetchDailyTasks"
+              @add-task="handleAddTask"
             />
-            <DailyKanbanColumn
-              :date="dayAfterTomorrow"
-              :tasks="dayAfterTomorrowTasks"
+            <SimpleKanbanColumn
+              title="Planned"
+              subtitle="已排期"
+              :tasks="plannedTasks"
               @open-editor="handleOpenEditor"
-              @task-created="scheduleStore.fetchDailyTasks"
             />
           </div>
         </template>
