@@ -9,11 +9,11 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
 import { NCard, NButton, NDivider } from 'naive-ui'
-import type { Task } from '@/types/models'
+import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 
 const props = defineProps<{
-  task: Task
+  task: TaskCard
 }>()
 
 const emit = defineEmits(['close'])

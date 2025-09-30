@@ -80,11 +80,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
       ></CuteCheckbox>
     </div>
 
-    <!-- 调试信息 -->
-    <details class="debug-info">
-      <summary class="debug-summary">🔍 调试数据</summary>
-      <pre class="debug-content">{{ JSON.stringify(task, null, 2) }}</pre>
-    </details>
   </CuteCard>
 </template>
 
@@ -164,36 +159,4 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   color: var(--color-text-secondary);
 }
 
-/* 调试信息样式 */
-.debug-info {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--color-border-default);
-}
-
-.debug-summary {
-  font-size: 1.2rem;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  user-select: none;
-  padding: 0.5rem;
-}
-
-.debug-summary:hover {
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-hover, #f5f5f5);
-  border-radius: 4px;
-}
-
-.debug-content {
-  font-size: 1.1rem;
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-soft, #f9f9f9);
-  padding: 1rem;
-  border-radius: 4px;
-  margin-top: 0.5rem;
-  overflow-x: auto;
-  max-height: 300px;
-  overflow-y: auto;
-}
 </style>

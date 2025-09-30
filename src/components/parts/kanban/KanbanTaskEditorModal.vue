@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useTaskStore } from '@/stores/task'
-import type { Subtask } from '@/types/models'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
+
+interface Subtask {
+  id: string
+  title: string
+  is_completed: boolean
+  sort_order: string
+}
 
 const props = defineProps<{
   taskId: string | null
@@ -25,17 +31,32 @@ const subtasks = computed(() => {
   return task.value?.subtasks || []
 })
 
+// 当弹窗打开时，获取任务详情
+onMounted(async () => {
+  if (props.taskId) {
+    const detail = await taskStore.fetchTaskDetail(props.taskId)
+    if (detail) {
+      // TaskDetail 包含 detail_note
+      notes.value = detail.detail_note || ''
+    }
+  }
+})
+
 watch(
-  task,
-  (newTask) => {
-    notes.value = newTask?.detail_note || ''
-  },
-  { immediate: true }
+  () => props.taskId,
+  async (newTaskId) => {
+    if (newTaskId) {
+      const detail = await taskStore.fetchTaskDetail(newTaskId)
+      if (detail) {
+        notes.value = detail.detail_note || ''
+      }
+    }
+  }
 )
 
 async function handleStatusChange(isChecked: boolean) {
   if (!props.taskId) return
-  
+
   if (isChecked) {
     await taskStore.completeTask(props.taskId)
   } else {
@@ -45,16 +66,15 @@ async function handleStatusChange(isChecked: boolean) {
 
 async function updateNotes() {
   if (!props.taskId || !task.value) return
-  if (notes.value !== (task.value.detail_note || '')) {
-    await taskStore.updateTask(props.taskId, {
-      detail_note: notes.value,
-    })
-  }
+  // TODO: 需要先 fetchTaskDetail 获取完整数据才能更新 detail_note
+  await taskStore.updateTask(props.taskId, {
+    detail_note: notes.value,
+  })
 }
 
 async function handleAddSubtask() {
   if (!props.taskId || !newSubtaskTitle.value.trim()) return
-  
+
   const newSubtask: Subtask = {
     id: crypto.randomUUID(),
     title: newSubtaskTitle.value.trim(),
@@ -63,21 +83,21 @@ async function handleAddSubtask() {
   }
 
   const updatedSubtasks = [...subtasks.value, newSubtask]
-  
+
   await taskStore.updateTask(props.taskId, {
     subtasks: updatedSubtasks,
   })
-  
+
   newSubtaskTitle.value = ''
 }
 
 async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean) {
   if (!props.taskId) return
-  
+
   const updatedSubtasks = subtasks.value.map((subtask) =>
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
-  
+
   await taskStore.updateTask(props.taskId, {
     subtasks: updatedSubtasks,
   })
@@ -90,7 +110,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
       <div v-if="task" class="content-wrapper">
         <div class="header-section">
           <CuteCheckbox
-            :checked="!!task.completed_at"
+            :checked="task.is_completed"
             size="large"
             @update:checked="handleStatusChange"
           ></CuteCheckbox>
@@ -128,6 +148,14 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             <CuteButton @click="handleAddSubtask">Add Subtask</CuteButton>
           </div>
         </div>
+
+        <div class="separator"></div>
+
+        <!-- 调试信息 -->
+        <details class="debug-info">
+          <summary class="debug-summary">🔍 调试数据（完整 TaskCard 结构）</summary>
+          <pre class="debug-content">{{ JSON.stringify(task, null, 2) }}</pre>
+        </details>
       </div>
     </CuteCard>
   </div>
@@ -236,5 +264,54 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   border: 1px solid var(--color-border-default);
   border-radius: 6px;
   background-color: var(--color-background-primary);
+}
+
+/* 调试信息样式 */
+.debug-info {
+  margin-top: 1rem;
+}
+
+.debug-summary {
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  user-select: none;
+  padding: 0.8rem;
+  background-color: var(--color-background-soft, #f9f9f9);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.debug-summary:hover {
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-hover, #e8e8e8);
+}
+
+.debug-content {
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-soft, #f9f9f9);
+  padding: 1.5rem;
+  border-radius: 6px;
+  margin-top: 1rem;
+  overflow: auto;
+  max-height: 400px;
+  border: 1px solid var(--color-border-default);
+}
+
+.debug-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.debug-content::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 4px;
+}
+
+.debug-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 </style>

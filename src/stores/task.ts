@@ -259,16 +259,14 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/tasks/${id}`)
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const taskDetail: TaskDetail = await response.json()
-      // addOrUpdateTask(taskDetail)  // 会自动合并并覆盖旧的 TaskCard 数据
-      // return taskDetail
-
-      console.log('[TaskStore] fetchTaskDetail - API not implemented yet')
-      return null
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const taskDetail: TaskDetail = result.data
+      addOrUpdateTask(taskDetail) // 会自动合并并覆盖旧的 TaskCard 数据
+      console.log('[TaskStore] Fetched task detail:', taskDetail)
+      return taskDetail
     } catch (e) {
       error.value = `Failed to fetch task detail ${id}: ${e}`
       console.error('[TaskStore] Error fetching task detail:', e)
