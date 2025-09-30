@@ -110,7 +110,8 @@ async function onDragEnd(event: any) {
   if (!movedTask) return
 
   const dateStr = props.date.toISOString().split('T')[0] as string
-  const contextId = new Date(dateStr).getTime().toString()
+  // 使用 ISO8601 字符串作为 context_id，而不是时间戳
+  const contextId = new Date(dateStr + 'T00:00:00Z').toISOString()
 
   try {
     // 如果是跨列表拖动（from !== to），需要先排程到新日期
@@ -163,7 +164,8 @@ async function onDragEnd(event: any) {
 
 function getSortOrderForTask(taskId: string): string | undefined {
   const dateStr = props.date.toISOString().split('T')[0] as string
-  const contextId = new Date(dateStr).getTime().toString()
+  // 使用 ISO8601 字符串作为 context_id，而不是时间戳
+  const contextId = new Date(dateStr + 'T00:00:00Z').toISOString()
   return orderingStore.getOrdering('DAILY_KANBAN', contextId, taskId)?.sort_order
 }
 

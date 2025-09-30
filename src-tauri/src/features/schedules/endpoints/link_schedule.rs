@@ -57,7 +57,7 @@ POST /api/schedules
 #[derive(Deserialize)]
 pub struct LinkScheduleRequest {
     task_id: Uuid,
-    scheduled_day: String,
+    scheduled_day: chrono::NaiveDate, // Serde自动处理YYYY-MM-DD格式
 }
 
 // ==================== 路由层 (Router Layer) ====================
@@ -85,25 +85,8 @@ mod validation {
     pub fn validate_request(
         request: &LinkScheduleRequest,
     ) -> Result<NaiveDate, Vec<ValidationError>> {
-        let mut errors = Vec::new();
-
-        let scheduled_day = match NaiveDate::parse_from_str(&request.scheduled_day, "%Y-%m-%d") {
-            Ok(day) => Some(day),
-            Err(_) => {
-                errors.push(ValidationError::new(
-                    "scheduled_day",
-                    "日期格式无效，应为 YYYY-MM-DD",
-                    "INVALID_DATE_FORMAT",
-                ));
-                None
-            }
-        };
-
-        if errors.is_empty() {
-            Ok(scheduled_day.unwrap())
-        } else {
-            Err(errors)
-        }
+        // Serde已经处理了日期格式验证，直接使用即可
+        Ok(request.scheduled_day)
     }
 }
 
@@ -266,7 +249,8 @@ mod database {
         tx: &mut Transaction<'_, Sqlite>,
         schedule: &TaskSchedule,
     ) -> AppResult<()> {
-        let context_id = schedule.scheduled_day.timestamp().to_string();
+        // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
+        let context_id = schedule.scheduled_day.to_rfc3339();
 
         let max_sort_order: Option<String> = sqlx::query_scalar(
             "SELECT MAX(sort_order) FROM ordering WHERE context_type = ? AND context_id = ?",

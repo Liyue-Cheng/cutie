@@ -27,7 +27,7 @@ pub struct Ordering {
     /// 上下文ID
     ///
     /// **前置条件:** 必须遵循已定义的规范化格式：
-    /// - DAILY_KANBAN: Unix时间戳字符串 (e.g., '1729555200')
+    /// - DAILY_KANBAN: RFC3339 UTC时间字符串 (e.g., '2024-09-30T00:00:00Z')
     /// - PROJECT_LIST: project::{project_id}
     /// - AREA_FILTER: area::{area_id}
     /// - MISC: 纯小写蛇形命名 (e.g., 'floating', 'staging_all')
@@ -109,9 +109,9 @@ impl Ordering {
     pub fn validate_context_id(context_type: &ContextType, context_id: &str) -> Result<(), String> {
         match context_type {
             ContextType::DailyKanban => {
-                // 验证是否为Unix时间戳字符串
-                context_id.parse::<i64>().map_err(|_| {
-                    "DailyKanban context_id must be a valid Unix timestamp string".to_string()
+                // 验证是否为有效的RFC3339 UTC时间字符串
+                DateTime::parse_from_rfc3339(context_id).map_err(|_| {
+                    "DailyKanban context_id must be a valid RFC3339 UTC datetime string".to_string()
                 })?;
             }
             ContextType::ProjectList => {
@@ -172,10 +172,12 @@ impl Ordering {
         }
     }
 
-    /// 获取日期时间戳（如果是每日看板上下文）
-    pub fn get_daily_timestamp(&self) -> Option<i64> {
+    /// 获取日期时间（如果是每日看板上下文）
+    pub fn get_daily_datetime(&self) -> Option<DateTime<Utc>> {
         if self.context_type == ContextType::DailyKanban {
-            self.context_id.parse().ok()
+            DateTime::parse_from_rfc3339(&self.context_id)
+                .ok()
+                .map(|dt| dt.with_timezone(&Utc))
         } else {
             None
         }

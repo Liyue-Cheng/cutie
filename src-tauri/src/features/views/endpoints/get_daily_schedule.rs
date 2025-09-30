@@ -104,8 +104,8 @@ mod database {
     ) -> AppResult<Vec<Task>> {
         let day_start = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
         let day_end = day_start + chrono::Duration::days(1);
-        // 与前端保持一致：使用毫秒级时间戳作为 DAILY_KANBAN 的 context_id
-        let context_id = day_start.timestamp_millis().to_string();
+        // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
+        let context_id = day_start.to_rfc3339();
 
         let rows = sqlx::query_as::<_, TaskRow>(
             r#"

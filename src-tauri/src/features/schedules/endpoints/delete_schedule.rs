@@ -137,7 +137,8 @@ mod database {
         task_id: Uuid,
         day: DateTime<chrono::Utc>,
     ) -> AppResult<()> {
-        let context_id = day.timestamp().to_string();
+        // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
+        let context_id = day.to_rfc3339();
 
         sqlx::query(
             r#"

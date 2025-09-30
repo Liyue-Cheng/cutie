@@ -54,7 +54,7 @@ PATCH /api/schedules/{id}
 
 #[derive(Deserialize)]
 pub struct RescheduleRequest {
-    new_scheduled_day: String,
+    new_scheduled_day: chrono::NaiveDate, // Serde自动处理YYYY-MM-DD格式
 }
 
 // ==================== 路由层 (Router Layer) ====================
@@ -76,17 +76,8 @@ mod validation {
     pub fn validate_request(
         request: &RescheduleRequest,
     ) -> Result<NaiveDate, Vec<ValidationError>> {
-        match NaiveDate::parse_from_str(&request.new_scheduled_day, "%Y-%m-%d") {
-            Ok(day) => Ok(day),
-            Err(_) => {
-                let errors = vec![ValidationError::new(
-                    "new_scheduled_day",
-                    "日期格式无效，应为 YYYY-MM-DD",
-                    "INVALID_DATE_FORMAT",
-                )];
-                Err(errors)
-            }
-        }
+        // Serde已经处理了日期格式验证，直接使用即可
+        Ok(request.new_scheduled_day)
     }
 }
 
@@ -266,7 +257,8 @@ mod database {
         task_id: Uuid,
         day: DateTime<Utc>,
     ) -> AppResult<()> {
-        let context_id = day.timestamp().to_string();
+        // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
+        let context_id = day.to_rfc3339();
 
         sqlx::query(
             r#"
@@ -289,7 +281,8 @@ mod database {
         tx: &mut Transaction<'_, Sqlite>,
         schedule: &TaskSchedule,
     ) -> AppResult<()> {
-        let context_id = schedule.scheduled_day.timestamp().to_string();
+        // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
+        let context_id = schedule.scheduled_day.to_rfc3339();
         let now = Utc::now();
 
         // 获取当前最大排序值

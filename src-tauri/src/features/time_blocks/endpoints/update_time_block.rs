@@ -57,8 +57,8 @@ PATCH /api/time-blocks/{id}
 
 #[derive(Deserialize)]
 pub struct UpdateTimeBlockRequest {
-    start_time: Option<String>,
-    end_time: Option<String>,
+    start_time: Option<DateTime<Utc>>, // Serde自动处理RFC3339格式
+    end_time: Option<DateTime<Utc>>, // Serde自动处理RFC3339格式
     title: Option<Option<String>>,
     glance_note: Option<Option<String>>,
     detail_note: Option<Option<String>>,
@@ -95,38 +95,9 @@ mod validation {
     ) -> Result<ValidatedUpdates, Vec<ValidationError>> {
         let mut errors = Vec::new();
 
-        // 1. 验证时间格式
-        let start_time = if let Some(ref start_str) = request.start_time {
-            match DateTime::parse_from_rfc3339(start_str) {
-                Ok(dt) => Some(dt.with_timezone(&Utc)),
-                Err(_) => {
-                    errors.push(ValidationError::new(
-                        "start_time",
-                        "时间格式无效，应为 RFC3339 格式",
-                        "INVALID_TIME_FORMAT",
-                    ));
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
-        let end_time = if let Some(ref end_str) = request.end_time {
-            match DateTime::parse_from_rfc3339(end_str) {
-                Ok(dt) => Some(dt.with_timezone(&Utc)),
-                Err(_) => {
-                    errors.push(ValidationError::new(
-                        "end_time",
-                        "时间格式无效，应为 RFC3339 格式",
-                        "INVALID_TIME_FORMAT",
-                    ));
-                    None
-                }
-            }
-        } else {
-            None
-        };
+        // Serde已经处理了时间格式验证，直接使用即可
+        let start_time = request.start_time;
+        let end_time = request.end_time;
 
         // 2. 验证 area_id
         let area_id = if let Some(ref maybe_area_id) = request.area_id {

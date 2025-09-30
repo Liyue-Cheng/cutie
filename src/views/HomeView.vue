@@ -74,7 +74,8 @@ async function loadTasksForDate(dateStr: string) {
     }
 
     // 加载该日期的 ordering 数据
-    const contextId = new Date(dateStr).getTime().toString()
+    // 使用 ISO8601 字符串作为 context_id，而不是时间戳
+    const contextId = new Date(dateStr + 'T00:00:00Z').toISOString()
     await orderingStore.fetchOrderingsForContext('DAILY_KANBAN', contextId)
     console.log(`[HomeView] Loaded ordering for ${dateStr}, context_id: ${contextId}`)
     // 调试日志回滚

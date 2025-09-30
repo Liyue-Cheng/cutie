@@ -379,7 +379,8 @@ mod database {
         .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
 
         // 创建排序记录
-        let context_id = scheduled_day.timestamp().to_string();
+        // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
+        let context_id = scheduled_day.to_rfc3339();
         let sort_order =
             crate::shared::core::utils::sort_order_utils::generate_initial_sort_order();
 
