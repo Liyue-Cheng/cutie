@@ -136,31 +136,32 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
   /**
    * Fetches time blocks for a date range.
+   * 通过多次单日查询实现范围查询
    */
   async function fetchTimeBlocksForRange(startDate: string, endDate: string) {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(
-        `${apiBaseUrl}/time-blocks?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
-      )
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      
+      const allBlocks: TimeBlock[] = []
+      const currentDate = new Date(start)
 
-      const apiResponse = await response.json()
-      const blockList: TimeBlock[] = apiResponse.data
-
-      // Update time blocks in the store
-      for (const block of blockList) {
-        timeBlocks.value.set(block.id, block)
+      // 遍历日期范围，逐日查询
+      while (currentDate <= end) {
+        const dateStr = currentDate.toISOString().split('T')[0] // YYYY-MM-DD
+        const blocks = await fetchTimeBlocksForDate(dateStr)
+        allBlocks.push(...blocks)
+        
+        // 移动到下一天
+        currentDate.setDate(currentDate.getDate() + 1)
       }
 
       console.log(
-        `[TimeBlockStore] Fetched ${blockList.length} time blocks for range ${startDate} - ${endDate}`
+        `[TimeBlockStore] Fetched ${allBlocks.length} time blocks for range ${startDate} - ${endDate}`
       )
-      return blockList
+      return allBlocks
     } catch (e) {
       error.value = `Failed to fetch time blocks for range: ${e}`
       console.error('[TimeBlockStore] Error fetching time blocks:', e)
