@@ -18,7 +18,8 @@ use crate::{
     startup::AppState,
 };
 
-use super::super::shared::{dtos::TaskResponse, validation::validate_task_business_rules};
+use super::super::shared::validation::validate_task_business_rules;
+use crate::entities::TaskResponse;
 
 // ==================== 文档层 (Documentation Layer) ====================
 /*

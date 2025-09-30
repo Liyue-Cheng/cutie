@@ -14,7 +14,7 @@ use crate::{
     startup::AppState,
 };
 
-use super::super::shared::dtos::TaskResponse;
+use crate::entities::TaskResponse;
 use sqlx::Row;
 
 // ==================== 文档层 (Documentation Layer) ====================
