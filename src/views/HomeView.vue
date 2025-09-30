@@ -53,7 +53,7 @@ const dayAfterTomorrowTasks = computed(() => {
 // 从视图API加载某天的任务
 async function loadTasksForDate(dateStr: string) {
   try {
-    const apiBaseUrl = await import('@/composables/useApiConfig').then(m =>
+    const apiBaseUrl = await import('@/composables/useApiConfig').then((m) =>
       m.useApiConfig().waitForApiReady()
     )
     const response = await fetch(`${apiBaseUrl}/views/daily-schedule?day=${dateStr}`)
@@ -63,12 +63,12 @@ async function loadTasksForDate(dateStr: string) {
 
     const tasks: Task[] = await response.json()
     dailyTasks.value.set(dateStr, tasks)
-    
+
     // 同时更新taskStore
     for (const task of tasks) {
       taskStore.tasks.set(task.id, task)
     }
-    
+
     return tasks
   } catch (error) {
     console.error(`[HomeView] Failed to load tasks for ${dateStr}:`, error)
@@ -93,7 +93,7 @@ onMounted(async () => {
       loadTasksForDate(tomorrowStr),
       loadTasksForDate(dayAfterTomorrowStr),
     ])
-    
+
     console.log('[HomeView] Loaded tasks for 3 days')
   } catch (error) {
     console.error('[HomeView] Failed to fetch initial tasks:', error)
@@ -110,16 +110,23 @@ onMounted(async () => {
         </template>
         <template #bottom>
           <div class="task-view-pane">
-            <DailyKanbanColumn :date="today" :tasks="todayTasks" @open-editor="handleOpenEditor" />
+            <DailyKanbanColumn 
+              :date="today" 
+              :tasks="todayTasks" 
+              @open-editor="handleOpenEditor"
+              @task-created="loadTasksForDate"
+            />
             <DailyKanbanColumn
               :date="tomorrow"
               :tasks="tomorrowTasks"
               @open-editor="handleOpenEditor"
+              @task-created="loadTasksForDate"
             />
             <DailyKanbanColumn
               :date="dayAfterTomorrow"
               :tasks="dayAfterTomorrowTasks"
               @open-editor="handleOpenEditor"
+              @task-created="loadTasksForDate"
             />
           </div>
         </template>

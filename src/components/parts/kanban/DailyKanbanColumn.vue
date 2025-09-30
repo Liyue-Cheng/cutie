@@ -11,7 +11,7 @@ const props = defineProps<{
   tasks: Task[]
 }>()
 
-const emit = defineEmits(['openEditor'])
+const emit = defineEmits(['openEditor', 'taskCreated'])
 
 const taskStore = useTaskStore()
 const scheduleStore = useScheduleStore()
@@ -82,6 +82,9 @@ async function handleAddTask() {
         scheduled_day: dateStr,
       })
       console.log(`[DailyKanban] Task created and scheduled successfully.`)
+      
+      // 4. 通知父组件刷新任务列表
+      emit('taskCreated', dateStr)
     }
   } catch (error) {
     console.error(`[DailyKanban] Task creation failed:`, error)
