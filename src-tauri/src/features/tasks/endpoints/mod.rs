@@ -3,6 +3,7 @@
 /// 每个文件包含一个完整的API实现，包括路由、业务逻辑和数据访问
 pub mod complete_task;
 pub mod create_task;
+pub mod delete_task;
 pub mod get_task;
 pub mod reopen_task;
 pub mod update_task;
@@ -17,8 +18,7 @@ pub mod update_task;
 // 重新导出处理器函数
 pub use complete_task::handle as complete_task_handler;
 pub use create_task::handle as create_task_handler;
+pub use delete_task::handle as delete_task_handler;
 pub use get_task::handle as get_task_handler;
-
-pub use update_task::handle as update_task_handler;
-
 pub use reopen_task::handle as reopen_task_handler;
+pub use update_task::handle as update_task_handler;

@@ -4,6 +4,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use ts_rs::TS;
 use uuid::Uuid;
 
 use super::{DueDateType, SourceInfo, Subtask};
@@ -17,7 +18,8 @@ use super::{DueDateType, SourceInfo, Subtask};
 /// - 所有时间戳字段必须使用带时区的UTC时间
 /// - id在Task的整个生命周期中永远不变
 /// - completed_at字段的值是判断任务是否完成的唯一依据
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../src/types/generated/")]
 pub struct Task {
     /// 任务ID (主键)
     ///

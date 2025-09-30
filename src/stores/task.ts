@@ -95,13 +95,13 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     try {
       const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/unscheduled`)
+      // 使用 staging 视图查询未安排日程的任务
+      const response = await fetch(`${apiBaseUrl}/views/staging`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
-      const apiResponse = await response.json()
-      const taskList: Task[] = apiResponse.data
+      const taskList: Task[] = await response.json()
 
       const taskMap = new Map<ID, Task>()
       for (const task of taskList) {

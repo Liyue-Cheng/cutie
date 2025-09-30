@@ -14,6 +14,7 @@ pub mod endpoints;
 /// 创建 TimeBlocks 路由
 pub fn create_routes() -> Router<AppState> {
     Router::new()
+        .route("/", axum::routing::get(endpoints::list_time_blocks::handle))
         .route("/", post(endpoints::create_time_block::handle))
         .route("/:id", patch(endpoints::update_time_block::handle))
         .route("/:id", delete(endpoints::delete_time_block::handle))

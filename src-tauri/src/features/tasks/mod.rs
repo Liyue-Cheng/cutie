@@ -30,12 +30,22 @@ pub fn create_routes() -> Router<AppState> {
         .route("/", post(endpoints::create_task_handler))
         .route("/:id", get(endpoints::get_task_handler))
         .route("/:id", axum::routing::patch(endpoints::update_task_handler))
-        // .route("/:id", delete(endpoints::delete_task_handler))
+        .route(
+            "/:id",
+            axum::routing::delete(endpoints::delete_task_handler),
+        )
         // 任务状态操作
         .route("/:id/completion", post(endpoints::complete_task_handler))
         .route(
             "/:id/completion",
             axum::routing::delete(endpoints::reopen_task_handler),
+        )
+        // 取消任务所有日程
+        .route(
+            "/:id/schedules",
+            axum::routing::delete(
+                crate::features::schedules::endpoints::unschedule_task_completely::handle,
+            ),
         )
     // .route("/:id/reopen", post(endpoints::reopen_task_handler))
 

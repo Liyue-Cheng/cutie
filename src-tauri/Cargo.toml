@@ -56,3 +56,8 @@ dirs = "5.0"
 tempfile = "3.0"
 serde_urlencoded = "0.7"
 lexorank = "2.0.0"
+ts-rs = { version = "8.1", features = [
+    "uuid-impl",
+    "chrono-impl",
+    "serde-json-impl",
+] }

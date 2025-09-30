@@ -1,8 +1,10 @@
 /// Task相关的枚举类型
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// 截止日期类型枚举
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../src/types/generated/")]
 #[serde(rename_all = "UPPERCASE")]
 pub enum DueDateType {
     /// 软截止日期 - 提醒性质
@@ -12,7 +14,8 @@ pub enum DueDateType {
 }
 
 /// 任务日程结局枚举
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../src/types/generated/")]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Outcome {
     /// 已计划
@@ -26,7 +29,8 @@ pub enum Outcome {
 }
 
 /// 上下文类型枚举
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../src/types/generated/")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ContextType {
     /// 每日看板

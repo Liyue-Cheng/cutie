@@ -1,10 +1,11 @@
 /// Task相关的值对象
-
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 /// 子任务结构
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../src/types/generated/")]
 pub struct Subtask {
     /// 子任务ID
     pub id: Uuid,
@@ -17,7 +18,8 @@ pub struct Subtask {
 }
 
 /// 来源信息结构
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../src/types/generated/")]
 pub struct SourceInfo {
     /// 来源类型
     pub source_type: String,
@@ -26,4 +28,3 @@ pub struct SourceInfo {
     /// 来源URL
     pub url: Option<String>,
 }
-
