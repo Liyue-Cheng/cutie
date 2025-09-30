@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{ContextType, DueDateType, Subtask};
+use super::{DueDateType, Subtask};
 
 /// 创建任务的请求载荷
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,14 +18,7 @@ pub struct CreateTaskRequest {
     pub area_id: Option<Uuid>,
     pub due_date: Option<DateTime<Utc>>,
     pub due_date_type: Option<DueDateType>,
-    pub context: CreationContext,
-}
-
-/// 创建上下文
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreationContext {
-    pub context_type: ContextType,
-    pub context_id: String,
+    pub project_id: Option<Uuid>,
 }
 
 /// 更新任务的请求载荷

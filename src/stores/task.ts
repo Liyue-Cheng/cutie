@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard, TaskDetail } from '@/types/dtos'
-// import { waitForApiReady } from '@/composables/useApiConfig'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
  * Task Store
@@ -170,14 +170,13 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/views/staging`)
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const stagingTasks: TaskCard[] = await response.json()
-      // addOrUpdateTasks(stagingTasks)
-
-      console.log('[TaskStore] fetchStagingTasks - API not implemented yet')
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/views/staging`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const stagingTasks: TaskCard[] = result.data // 后端返回 { data: [...], timestamp: ... }
+      addOrUpdateTasks(stagingTasks)
+      console.log('[TaskStore] Fetched', stagingTasks.length, 'staging tasks')
     } catch (e) {
       error.value = `Failed to fetch staging tasks: ${e}`
       console.error('[TaskStore] Error fetching staging tasks:', e)
@@ -195,20 +194,22 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     console.log('[TaskStore] Creating task with payload:', payload)
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/tasks`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const newTask: TaskCard = await response.json()
-      // addOrUpdateTask(newTask)
-      // return newTask
-
-      console.log('[TaskStore] createTask - API not implemented yet')
-      return null
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[TaskStore] API error:', errorData)
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
+      }
+      const result = await response.json()
+      const newTask: TaskCard = result.data // 后端返回 { data: {...}, timestamp: ... }
+      addOrUpdateTask(newTask)
+      console.log('[TaskStore] Created task:', newTask)
+      return newTask
     } catch (e) {
       error.value = `Failed to create task: ${e}`
       console.error('[TaskStore] Error creating task:', e)
