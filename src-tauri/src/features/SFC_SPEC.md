@@ -303,6 +303,7 @@ AppError::LexoRankError(...)  // 编译失败
 **在编写任何数据库查询之前，必须先查看数据库 Schema！禁止猜测表名或字段名！**
 
 #### **查看 Schema 的位置**
+
 ```
 src-tauri/migrations/20241001000000_initial_schema.sql
 ```
@@ -332,15 +333,15 @@ SELECT * FROM ordering WHERE ...   // 数据库表名是 'ordering'
 
 #### **关键表名清单**（供快速参考）
 
-| 实体 | 表名（单数/复数） | 常见错误 |
-|------|------------------|----------|
-| 任务 | `tasks` | ✅ 复数 |
-| 区域 | `areas` | ✅ 复数 |
-| 日程 | `task_schedules` | ✅ 复数 |
-| 时间块 | `time_blocks` | ✅ 复数 |
-| 模板 | `templates` | ✅ 复数 |
-| 排序 | `ordering` | ⚠️ **单数** |
-| 项目 | `projects` | ✅ 复数 |
+| 实体   | 表名（单数/复数） | 常见错误    |
+| ------ | ----------------- | ----------- |
+| 任务   | `tasks`           | ✅ 复数     |
+| 区域   | `areas`           | ✅ 复数     |
+| 日程   | `task_schedules`  | ✅ 复数     |
+| 时间块 | `time_blocks`     | ✅ 复数     |
+| 模板   | `templates`       | ✅ 复数     |
+| 排序   | `ordering`        | ⚠️ **单数** |
+| 项目   | `projects`        | ✅ 复数     |
 
 **特别注意：** `ordering` 表是单数，不是 `orderings`！
 
