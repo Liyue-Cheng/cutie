@@ -17,10 +17,10 @@ pub mod shared;
 
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
+    pub mod complete_task; // POST /tasks/:id/completion
     pub mod create_task; // POST /tasks
     pub mod delete_task; // DELETE /tasks/:id
     pub mod get_task; // GET /tasks/:id
-    pub mod legacy; // POST /tasks/:id/completion (complete_task)
     pub mod update_task; // PATCH /tasks/:id
                          // 待实现的其他端点：
                          // pub mod reopen_task;
@@ -40,7 +40,7 @@ pub fn create_routes() -> Router<AppState> {
                 .delete(endpoints::delete_task::handle),
         )
         // 任务状态操作
-        .route("/:id/completion", post(endpoints::legacy::handle))
+        .route("/:id/completion", post(endpoints::complete_task::handle))
     // .route("/:id/completion", delete(endpoints::reopen_task::handle))
 
     // 查询操作（待实现）
