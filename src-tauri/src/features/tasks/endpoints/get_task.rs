@@ -15,7 +15,6 @@ use crate::{
 };
 
 use crate::entities::TaskResponse;
-use sqlx::Row;
 
 // ==================== 文档层 (Documentation Layer) ====================
 /*
@@ -85,7 +84,10 @@ pub mod database {
 
     /// 根据ID查找任务
     pub async fn find_task_by_id(pool: &SqlitePool, task_id: Uuid) -> AppResult<Option<Task>> {
-        let query = r#"
+        use crate::entities::TaskRow;
+
+        let task_row = sqlx::query_as::<_, TaskRow>(
+            r#"
             SELECT id, title, glance_note, detail_note, estimated_duration, 
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
                    created_at, updated_at, is_deleted, source_info,
@@ -93,76 +95,23 @@ pub mod database {
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM tasks 
             WHERE id = ? AND is_deleted = false
-        "#;
+            "#
+        )
+        .bind(task_id.to_string())
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+        })?;
 
-        let row = sqlx::query(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        if let Some(row) = row {
-            let task = Task {
-                id: Uuid::parse_str(&row.get::<String, _>("id")).unwrap(),
-                title: row.get("title"),
-                glance_note: row.get("glance_note"),
-                detail_note: row.get("detail_note"),
-                estimated_duration: row.get("estimated_duration"),
-                subtasks: row
-                    .get::<Option<String>, _>("subtasks")
-                    .and_then(|s| serde_json::from_str(&s).ok()),
-                project_id: row
-                    .get::<Option<String>, _>("project_id")
-                    .and_then(|s| Uuid::parse_str(&s).ok()),
-                area_id: row
-                    .get::<Option<String>, _>("area_id")
-                    .and_then(|s| Uuid::parse_str(&s).ok()),
-                due_date: row
-                    .get::<Option<String>, _>("due_date")
-                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
-                    .map(|dt| dt.with_timezone(&chrono::Utc)),
-                due_date_type: row
-                    .get::<Option<String>, _>("due_date_type")
-                    .and_then(|s| serde_json::from_str(&s).ok()),
-                completed_at: row.get::<Option<String>, _>("completed_at").map(|s| {
-                    chrono::DateTime::parse_from_rfc3339(&s)
-                        .unwrap()
-                        .with_timezone(&chrono::Utc)
-                }),
-                created_at: chrono::DateTime::parse_from_rfc3339(
-                    &row.get::<String, _>("created_at"),
-                )
-                .unwrap()
-                .with_timezone(&chrono::Utc),
-                updated_at: chrono::DateTime::parse_from_rfc3339(
-                    &row.get::<String, _>("updated_at"),
-                )
-                .unwrap()
-                .with_timezone(&chrono::Utc),
-                is_deleted: row.get("is_deleted"),
-                source_info: row
-                    .get::<Option<String>, _>("source_info")
-                    .and_then(|s| serde_json::from_str(&s).ok()),
-                external_source_id: row.get("external_source_id"),
-                external_source_provider: row.get("external_source_provider"),
-                external_source_metadata: row.get("external_source_metadata"),
-                recurrence_rule: row.get("recurrence_rule"),
-                recurrence_parent_id: row
-                    .get::<Option<String>, _>("recurrence_parent_id")
-                    .and_then(|s| Uuid::parse_str(&s).ok()),
-                recurrence_original_date: row
-                    .get::<Option<String>, _>("recurrence_original_date")
-                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
-                    .map(|dt| dt.with_timezone(&chrono::Utc)),
-                recurrence_exclusions: row
-                    .get::<Option<String>, _>("recurrence_exclusions")
-                    .and_then(|s| serde_json::from_str(&s).ok()),
-            };
-            Ok(Some(task))
-        } else {
-            Ok(None)
+        match task_row {
+            Some(row) => {
+                let task = Task::try_from(row).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })?;
+                Ok(Some(task))
+            }
+            None => Ok(None),
         }
     }
 }

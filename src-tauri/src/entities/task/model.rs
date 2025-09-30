@@ -1,9 +1,9 @@
 /// Task核心模型
 ///
 /// 从shared/core/models/task.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 use super::{DueDateType, SourceInfo, Subtask};
@@ -162,5 +162,102 @@ impl Task {
     pub fn reopen(&mut self, updated_at: DateTime<Utc>) {
         self.completed_at = None;
         self.updated_at = updated_at;
+    }
+}
+
+/// TaskRow - 数据库行映射结构
+///
+/// 用于直接从数据库查询结果映射，所有JSON字段都是String类型
+#[derive(Debug, FromRow)]
+pub struct TaskRow {
+    pub id: String,
+    pub title: String,
+    pub glance_note: Option<String>,
+    pub detail_note: Option<String>,
+    pub estimated_duration: Option<i32>,
+    pub subtasks: Option<String>, // JSON
+    pub project_id: Option<String>,
+    pub area_id: Option<String>,
+    pub due_date: Option<String>,
+    pub due_date_type: Option<String>, // JSON
+    pub completed_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub is_deleted: bool,
+    pub source_info: Option<String>, // JSON
+    pub external_source_id: Option<String>,
+    pub external_source_provider: Option<String>,
+    pub external_source_metadata: Option<String>, // JSON
+    pub recurrence_rule: Option<String>,
+    pub recurrence_parent_id: Option<String>,
+    pub recurrence_original_date: Option<String>,
+    pub recurrence_exclusions: Option<String>, // JSON
+}
+
+impl TryFrom<TaskRow> for Task {
+    type Error = String;
+
+    fn try_from(row: TaskRow) -> Result<Self, Self::Error> {
+        Ok(Task {
+            id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
+            title: row.title,
+            glance_note: row.glance_note,
+            detail_note: row.detail_note,
+            estimated_duration: row.estimated_duration,
+            subtasks: row
+                .subtasks
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            project_id: row
+                .project_id
+                .as_ref()
+                .and_then(|s| Uuid::parse_str(s).ok()),
+            area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
+            due_date: row
+                .due_date
+                .as_ref()
+                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| dt.with_timezone(&Utc)),
+            due_date_type: row
+                .due_date_type
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            completed_at: row
+                .completed_at
+                .as_ref()
+                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| dt.with_timezone(&Utc)),
+            created_at: DateTime::parse_from_rfc3339(&row.created_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+            is_deleted: row.is_deleted,
+            source_info: row
+                .source_info
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            external_source_id: row.external_source_id,
+            external_source_provider: row.external_source_provider,
+            external_source_metadata: row
+                .external_source_metadata
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            recurrence_rule: row.recurrence_rule,
+            recurrence_parent_id: row
+                .recurrence_parent_id
+                .as_ref()
+                .and_then(|s| Uuid::parse_str(s).ok()),
+            recurrence_original_date: row
+                .recurrence_original_date
+                .as_ref()
+                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| dt.with_timezone(&Utc)),
+            recurrence_exclusions: row
+                .recurrence_exclusions
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+        })
     }
 }

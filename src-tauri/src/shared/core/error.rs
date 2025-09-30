@@ -20,6 +20,9 @@ pub enum DbError {
 
     #[error("Migration error: {0}")]
     MigrationError(String),
+
+    #[error("Query error: {0}")]
+    QueryError(String),
 }
 
 /// 验证错误详情
