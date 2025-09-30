@@ -1,13 +1,13 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TimeBlockView } from '@/types/dtos'
-// import { waitForApiReady } from '@/composables/useApiConfig'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
  * TimeBlock Store
- * 
+ *
  * 职责：管理日历上的时间块
- * 
+ *
  * 架构原则：
  * - State: 只存储最原始、最规范化的数据（TimeBlockView 映射表）
  * - Actions: 负责执行操作、调用API、修改State
@@ -177,7 +177,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // const blocks: TimeBlockView[] = await response.json()
       // addOrUpdateTimeBlocks(blocks)
       // return blocks
-      
+
       console.log('[TimeBlockStore] fetchTimeBlocksForDate - API not implemented yet', { date })
       return []
     } catch (e) {
@@ -211,7 +211,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // const blocks: TimeBlockView[] = await response.json()
       // addOrUpdateTimeBlocks(blocks)
       // return blocks
-      
+
       console.log('[TimeBlockStore] fetchTimeBlocksForRange - API not implemented yet', {
         startDate,
         endDate,
@@ -236,24 +236,26 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     console.log('[TimeBlockStore] Creating time block:', payload)
 
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/time-blocks`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const newBlock: TimeBlockView = await response.json()
-      // addOrUpdateTimeBlock(newBlock)
-      // return newBlock
-      
-      console.log('[TimeBlockStore] createTimeBlock - API not implemented yet')
-      return null
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[TimeBlockStore] API error:', errorData)
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
+      }
+      const result = await response.json()
+      const newBlock: TimeBlockView = result.data // 提取 ApiResponse 的 data 字段
+      addOrUpdateTimeBlock(newBlock)
+      console.log('[TimeBlockStore] Created time block:', newBlock)
+      return newBlock
     } catch (e) {
       error.value = `Failed to create time block: ${e}`
       console.error('[TimeBlockStore] Error creating time block:', e)
-      return null
+      throw e // 重新抛出错误，让调用者处理
     } finally {
       isLoading.value = false
     }
@@ -283,7 +285,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // const updatedBlock: TimeBlockView = await response.json()
       // addOrUpdateTimeBlock(updatedBlock)
       // return updatedBlock
-      
+
       console.log('[TimeBlockStore] updateTimeBlock - API not implemented yet')
       return null
     } catch (e) {
@@ -312,7 +314,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // if (!response.ok) throw new Error(`HTTP ${response.status}`)
       // removeTimeBlock(id)
       // return true
-      
+
       console.log('[TimeBlockStore] deleteTimeBlock - API not implemented yet', { id })
       return false
     } catch (e) {
@@ -342,7 +344,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       //   body: JSON.stringify({ task_id: taskId })
       // })
       // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      
+
       // // 重新获取该时间块以更新链接的任务列表
       // const block = timeBlocks.value.get(blockId)
       // if (block) {
@@ -350,7 +352,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       //   await fetchTimeBlocksForDate(date)
       // }
       // return true
-      
+
       console.log('[TimeBlockStore] linkTaskToBlock - API not implemented yet')
       return false
     } catch (e) {
@@ -378,7 +380,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       //   method: 'DELETE'
       // })
       // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      
+
       // // 重新获取该时间块以更新链接的任务列表
       // const block = timeBlocks.value.get(blockId)
       // if (block) {
@@ -386,7 +388,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       //   await fetchTimeBlocksForDate(date)
       // }
       // return true
-      
+
       console.log('[TimeBlockStore] unlinkTaskFromBlock - API not implemented yet')
       return false
     } catch (e) {
