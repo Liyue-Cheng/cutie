@@ -79,7 +79,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
         @click.stop
       ></CuteCheckbox>
     </div>
-
   </CuteCard>
 </template>
 
@@ -158,5 +157,4 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   text-decoration: line-through;
   color: var(--color-text-secondary);
 }
-
 </style>

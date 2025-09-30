@@ -160,8 +160,25 @@ mod logic {
 
         // 7. 创建任务链接
         if let Some(task_ids) = &request.linked_task_ids {
+            // 从 start_time 提取日期（UTC 零点）
+            let scheduled_day = request
+                .start_time
+                .date_naive()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
+                .and_utc();
+
             for task_id in task_ids {
+                // 7.1. 创建任务与时间块的链接
                 database::link_task_to_block_in_tx(&mut tx, *task_id, block_id).await?;
+
+                // 7.2. 创建任务的日程记录（如果还没有）
+                // 这样任务就从 staging 移到 scheduled 状态
+                let has_schedule =
+                    database::has_schedule_for_day_in_tx(&mut tx, *task_id, scheduled_day).await?;
+                if !has_schedule {
+                    database::create_task_schedule_in_tx(&mut tx, *task_id, scheduled_day).await?;
+                }
             }
         }
 
@@ -344,6 +361,59 @@ mod database {
             name,
             color,
         }))
+    }
+
+    /// 检查任务在某天是否已有日程记录
+    pub async fn has_schedule_for_day_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        scheduled_day: DateTime<Utc>,
+    ) -> AppResult<bool> {
+        let query = r#"
+            SELECT COUNT(*) as count
+            FROM task_schedules
+            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
+        "#;
+
+        let count: i64 = sqlx::query_scalar(query)
+            .bind(task_id.to_string())
+            .bind(scheduled_day.to_rfc3339())
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        Ok(count > 0)
+    }
+
+    /// 在事务中创建任务日程记录
+    pub async fn create_task_schedule_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        scheduled_day: DateTime<Utc>,
+    ) -> AppResult<()> {
+        let schedule_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let query = r#"
+            INSERT INTO task_schedules (id, task_id, scheduled_day, outcome, created_at, updated_at)
+            VALUES (?, ?, ?, 'PLANNED', ?, ?)
+        "#;
+
+        sqlx::query(query)
+            .bind(schedule_id.to_string())
+            .bind(task_id.to_string())
+            .bind(scheduled_day.to_rfc3339())
+            .bind(now.to_rfc3339())
+            .bind(now.to_rfc3339())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        Ok(())
     }
 
     /// 获取关联任务的摘要信息
