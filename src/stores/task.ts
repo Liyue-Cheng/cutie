@@ -358,7 +358,23 @@ export const useTaskStore = defineStore('task', () => {
         method: 'DELETE',
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const result = await response.json()
+      const data = result.data as { deleted_time_block_ids: string[] }
+
+      // 删除任务
       removeTask(id)
+
+      // ✅ 同步删除被清理的孤儿时间块
+      if (data.deleted_time_block_ids && data.deleted_time_block_ids.length > 0) {
+        const { useTimeBlockStore } = await import('./timeblock')
+        const timeBlockStore = useTimeBlockStore()
+        for (const blockId of data.deleted_time_block_ids) {
+          timeBlockStore.removeTimeBlock(blockId)
+        }
+        console.log('[TaskStore] Also removed orphan time blocks:', data.deleted_time_block_ids)
+      }
+
       console.log('[TaskStore] Deleted task:', id)
       return true
     } catch (e) {

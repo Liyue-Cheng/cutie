@@ -8,14 +8,22 @@ use axum::{
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
+use serde::Serialize;
+
 use crate::{
     entities::TimeBlock,
     shared::{
         core::{AppError, AppResult},
-        http::error_handler::no_content_response,
+        http::error_handler::success_response,
     },
     startup::AppState,
 };
+
+/// 删除任务的响应
+#[derive(Debug, Serialize)]
+pub struct DeleteTaskResponse {
+    pub deleted_time_block_ids: Vec<Uuid>, // 被删除的孤儿时间块ID列表
+}
 
 // ==================== 文档层 ====================
 /*
@@ -55,7 +63,7 @@ DELETE /api/tasks/{id}
 // ==================== HTTP 处理器 ====================
 pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
     match logic::execute(&app_state, task_id).await {
-        Ok(()) => no_content_response().into_response(),
+        Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
 }
@@ -64,7 +72,7 @@ pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>
 mod logic {
     use super::*;
 
-    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<()> {
+    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<DeleteTaskResponse> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
@@ -89,10 +97,12 @@ mod logic {
         database::delete_task_schedules_in_tx(&mut tx, task_id).await?;
 
         // 6. 检查并删除孤儿时间块
+        let mut deleted_time_block_ids = Vec::new();
         for block in linked_blocks {
             let should_delete = should_delete_orphan_block(&block, &task_title, &mut tx).await?;
             if should_delete {
                 database::soft_delete_time_block_in_tx(&mut tx, block.id).await?;
+                deleted_time_block_ids.push(block.id);
                 tracing::info!(
                     "Deleted orphan time block {} after deleting task {}",
                     block.id,
@@ -108,7 +118,9 @@ mod logic {
             })
         })?;
 
-        Ok(())
+        Ok(DeleteTaskResponse {
+            deleted_time_block_ids,
+        })
     }
 
     /// 判断是否应该删除孤儿时间块
