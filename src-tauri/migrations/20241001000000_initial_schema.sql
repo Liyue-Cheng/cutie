@@ -1,5 +1,9 @@
 -- Cutie V1.0 数据库初始化迁移脚本
 -- 基于架构纲领 V1.8 "定稿版" 数据库Schema
+--
+-- 时间存储约定:
+-- 所有 *_at, *_time, *_date 列都存储 UTC 时间，使用 RFC 3339 格式 (例如: "2024-01-15T08:30:00Z")
+-- SQLx 会自动在 DateTime<Utc> 和 TEXT 之间进行转换
 
 -- 启用外键约束
 PRAGMA foreign_keys = ON;
@@ -10,8 +14,8 @@ CREATE TABLE areas (
     name TEXT NOT NULL,
     color TEXT NOT NULL,
     parent_area_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     
     FOREIGN KEY (parent_area_id) REFERENCES areas(id)
@@ -30,9 +34,9 @@ CREATE TABLE projects (
     type TEXT NOT NULL DEFAULT 'PROJECT' CHECK (type IN ('PROJECT', 'EXPERIENCE')),
     resources TEXT, -- JSON
     area_id TEXT,
-    completed_at TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    completed_at TEXT, -- UTC timestamp in RFC 3339 format
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     external_source_id TEXT,
     external_source_provider TEXT,
@@ -57,11 +61,11 @@ CREATE TABLE tasks (
     subtasks TEXT, -- JSON: [{"id": UUID, "title": String, "is_completed": Boolean, "sort_order": String}]
     project_id TEXT,
     area_id TEXT,
-    due_date TEXT,
+    due_date TEXT, -- UTC timestamp in RFC 3339 format
     due_date_type TEXT CHECK (due_date_type IN ('SOFT', 'HARD')),
-    completed_at TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    completed_at TEXT, -- UTC timestamp in RFC 3339 format
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     source_info TEXT, -- JSON
     external_source_id TEXT,
@@ -69,8 +73,8 @@ CREATE TABLE tasks (
     external_source_metadata TEXT, -- JSON
     recurrence_rule TEXT,
     recurrence_parent_id TEXT,
-    recurrence_original_date TEXT,
-    recurrence_exclusions TEXT, -- JSON: Array of Timestamps
+    recurrence_original_date TEXT, -- UTC timestamp in RFC 3339 format
+    recurrence_exclusions TEXT, -- JSON: Array of UTC timestamps in RFC 3339 format
     
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (area_id) REFERENCES areas(id),
@@ -98,11 +102,11 @@ CREATE TABLE time_blocks (
     title TEXT,
     glance_note TEXT,
     detail_note TEXT,
-    start_time TEXT NOT NULL,
-    end_time TEXT NOT NULL,
+    start_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    end_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     area_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     source_info TEXT, -- JSON
     external_source_id TEXT,
@@ -110,8 +114,8 @@ CREATE TABLE time_blocks (
     external_source_metadata TEXT, -- JSON
     recurrence_rule TEXT,
     recurrence_parent_id TEXT,
-    recurrence_original_date TEXT,
-    recurrence_exclusions TEXT, -- JSON
+    recurrence_original_date TEXT, -- UTC timestamp in RFC 3339 format
+    recurrence_exclusions TEXT, -- JSON: Array of UTC timestamps
     
     FOREIGN KEY (area_id) REFERENCES areas(id),
     FOREIGN KEY (recurrence_parent_id) REFERENCES time_blocks(id),
@@ -137,8 +141,8 @@ CREATE TABLE templates (
     estimated_duration_template INTEGER,
     subtasks_template TEXT, -- JSON
     area_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     
     FOREIGN KEY (area_id) REFERENCES areas(id)
@@ -153,10 +157,10 @@ CREATE INDEX idx_templates_area_id ON templates(area_id);
 CREATE TABLE task_schedules (
     id TEXT PRIMARY KEY NOT NULL,
     task_id TEXT NOT NULL,
-    scheduled_day TEXT NOT NULL,
+    scheduled_day TEXT NOT NULL, -- UTC timestamp in RFC 3339 format (represents the start of day in UTC)
     outcome TEXT NOT NULL DEFAULT 'PLANNED' CHECK (outcome IN ('PLANNED', 'PRESENCE_LOGGED', 'COMPLETED_ON_DAY', 'CARRIED_OVER')),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
@@ -173,7 +177,7 @@ CREATE TABLE ordering (
     context_id TEXT NOT NULL,
     task_id TEXT NOT NULL,
     sort_order TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     
@@ -191,7 +195,7 @@ CREATE INDEX idx_ordering_updated_at ON ordering(updated_at);
 CREATE TABLE task_time_block_links (
     task_id TEXT NOT NULL,
     time_block_id TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     
     PRIMARY KEY (task_id, time_block_id),
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
@@ -209,10 +213,10 @@ CREATE TABLE time_points (
     id TEXT PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
-    point_time TEXT NOT NULL,
+    point_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     area_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     
     FOREIGN KEY (area_id) REFERENCES areas(id)
@@ -226,8 +230,8 @@ CREATE TABLE tags (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL UNIQUE,
     color TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -237,7 +241,7 @@ CREATE INDEX idx_tags_name ON tags(name);
 CREATE TABLE task_tag_links (
     task_id TEXT NOT NULL,
     tag_id TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     
     PRIMARY KEY (task_id, tag_id),
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
@@ -248,7 +252,7 @@ CREATE TABLE task_tag_links (
 CREATE TABLE time_block_tag_links (
     time_block_id TEXT NOT NULL,
     tag_id TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     
     PRIMARY KEY (time_block_id, tag_id),
     FOREIGN KEY (time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE,
@@ -260,11 +264,11 @@ CREATE TABLE reminders (
     id TEXT PRIMARY KEY NOT NULL,
     task_id TEXT,
     time_block_id TEXT,
-    reminder_time TEXT NOT NULL,
+    reminder_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     message TEXT,
     is_sent BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY (time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE,

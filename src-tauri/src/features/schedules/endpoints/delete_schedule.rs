@@ -137,7 +137,7 @@ mod database {
         task_id: Uuid,
         day: DateTime<chrono::Utc>,
     ) -> AppResult<()> {
-        let context_id = day.timestamp_millis().to_string();
+        let context_id = day.timestamp().to_string();
 
         sqlx::query(
             r#"

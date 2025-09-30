@@ -169,7 +169,8 @@ impl Task {
 
 /// TaskRow - 数据库行映射结构
 ///
-/// 用于直接从数据库查询结果映射，所有JSON字段都是String类型
+/// 用于直接从数据库查询结果映射
+/// SQLx会自动将数据库的TEXT时间字段转换为DateTime<Utc>
 #[derive(Debug, FromRow)]
 pub struct TaskRow {
     pub id: String,
@@ -180,11 +181,11 @@ pub struct TaskRow {
     pub subtasks: Option<String>, // JSON
     pub project_id: Option<String>,
     pub area_id: Option<String>,
-    pub due_date: Option<String>,
-    pub due_date_type: Option<String>, // JSON
-    pub completed_at: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub due_date: Option<DateTime<Utc>>,     // SQLx自动转换
+    pub due_date_type: Option<String>,       // JSON
+    pub completed_at: Option<DateTime<Utc>>, // SQLx自动转换
+    pub created_at: DateTime<Utc>,           // SQLx自动转换
+    pub updated_at: DateTime<Utc>,           // SQLx自动转换
     pub is_deleted: bool,
     pub source_info: Option<String>, // JSON
     pub external_source_id: Option<String>,
@@ -192,8 +193,8 @@ pub struct TaskRow {
     pub external_source_metadata: Option<String>, // JSON
     pub recurrence_rule: Option<String>,
     pub recurrence_parent_id: Option<String>,
-    pub recurrence_original_date: Option<String>,
-    pub recurrence_exclusions: Option<String>, // JSON
+    pub recurrence_original_date: Option<DateTime<Utc>>, // SQLx自动转换
+    pub recurrence_exclusions: Option<String>,           // JSON
 }
 
 impl TryFrom<TaskRow> for Task {
@@ -215,26 +216,14 @@ impl TryFrom<TaskRow> for Task {
                 .as_ref()
                 .and_then(|s| Uuid::parse_str(s).ok()),
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
-            due_date: row
-                .due_date
-                .as_ref()
-                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-                .map(|dt| dt.with_timezone(&Utc)),
+            due_date: row.due_date, // SQLx已经转换
             due_date_type: row
                 .due_date_type
                 .as_ref()
                 .and_then(|s| serde_json::from_str(s).ok()),
-            completed_at: row
-                .completed_at
-                .as_ref()
-                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-                .map(|dt| dt.with_timezone(&Utc)),
-            created_at: DateTime::parse_from_rfc3339(&row.created_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
+            completed_at: row.completed_at, // SQLx已经转换
+            created_at: row.created_at,     // SQLx已经转换
+            updated_at: row.updated_at,     // SQLx已经转换
             is_deleted: row.is_deleted,
             source_info: row
                 .source_info
@@ -251,11 +240,7 @@ impl TryFrom<TaskRow> for Task {
                 .recurrence_parent_id
                 .as_ref()
                 .and_then(|s| Uuid::parse_str(s).ok()),
-            recurrence_original_date: row
-                .recurrence_original_date
-                .as_ref()
-                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-                .map(|dt| dt.with_timezone(&Utc)),
+            recurrence_original_date: row.recurrence_original_date, // SQLx已经转换
             recurrence_exclusions: row
                 .recurrence_exclusions
                 .as_ref()

@@ -16,7 +16,7 @@ const props = defineProps<{
   task: Task
 }>()
 
-const emit = defineEmits(['close', 'taskDeleted'])
+const emit = defineEmits(['close'])
 
 const taskStore = useTaskStore()
 
@@ -25,8 +25,6 @@ const handleAction = async (action: 'edit' | 'delete') => {
     try {
       await taskStore.deleteTask(props.task.id)
       console.log(`任务 "${props.task.title}" 已删除`)
-      // 触发删除事件，通知父组件刷新
-      emit('taskDeleted', props.task.id)
     } catch (error) {
       console.error('删除任务失败:', error)
     }

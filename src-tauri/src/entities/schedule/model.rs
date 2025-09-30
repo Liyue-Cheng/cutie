@@ -42,14 +42,15 @@ pub struct TaskSchedule {
 /// TaskScheduleRow - 数据库行映射结构
 ///
 /// 用于直接从数据库查询结果映射
+/// SQLx会自动将数据库的TEXT时间字段转换为DateTime<Utc>
 #[derive(Debug, FromRow)]
 pub struct TaskScheduleRow {
     pub id: String,
     pub task_id: String,
-    pub scheduled_day: String,
+    pub scheduled_day: DateTime<Utc>, // SQLx自动转换
     pub outcome: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>, // SQLx自动转换
+    pub updated_at: DateTime<Utc>, // SQLx自动转换
 }
 
 impl TryFrom<TaskScheduleRow> for TaskSchedule {
@@ -67,16 +68,10 @@ impl TryFrom<TaskScheduleRow> for TaskSchedule {
         Ok(TaskSchedule {
             id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
             task_id: Uuid::parse_str(&row.task_id).map_err(|e| e.to_string())?,
-            scheduled_day: DateTime::parse_from_rfc3339(&row.scheduled_day)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
+            scheduled_day: row.scheduled_day, // SQLx已经转换
             outcome,
-            created_at: DateTime::parse_from_rfc3339(&row.created_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
+            created_at: row.created_at, // SQLx已经转换
+            updated_at: row.updated_at, // SQLx已经转换
         })
     }
 }

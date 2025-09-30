@@ -56,6 +56,7 @@ pub struct Template {
 /// TemplateRow - 数据库行映射结构
 ///
 /// 用于直接从数据库查询结果映射
+/// SQLx会自动将数据库的TEXT时间字段转换为DateTime<Utc>
 #[derive(Debug, FromRow)]
 pub struct TemplateRow {
     pub id: String,
@@ -66,8 +67,8 @@ pub struct TemplateRow {
     pub estimated_duration_template: Option<i32>,
     pub subtasks_template: Option<String>, // JSON
     pub area_id: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>, // SQLx自动转换
+    pub updated_at: DateTime<Utc>, // SQLx自动转换
     pub is_deleted: bool,
 }
 
@@ -87,12 +88,8 @@ impl TryFrom<TemplateRow> for Template {
                 .as_ref()
                 .and_then(|s| serde_json::from_str(s).ok()),
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
-            created_at: DateTime::parse_from_rfc3339(&row.created_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
+            created_at: row.created_at, // SQLx已经转换
+            updated_at: row.updated_at, // SQLx已经转换
             is_deleted: row.is_deleted,
         })
     }

@@ -84,17 +84,18 @@ pub struct TimeBlock {
 /// TimeBlockRow - 数据库行映射结构
 ///
 /// 用于直接从数据库查询结果映射
+/// SQLx会自动将数据库的TEXT时间字段转换为DateTime<Utc>
 #[derive(Debug, FromRow)]
 pub struct TimeBlockRow {
     pub id: String,
     pub title: Option<String>,
     pub glance_note: Option<String>,
     pub detail_note: Option<String>,
-    pub start_time: String,
-    pub end_time: String,
+    pub start_time: DateTime<Utc>, // SQLx自动转换
+    pub end_time: DateTime<Utc>, // SQLx自动转换
     pub area_id: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>, // SQLx自动转换
+    pub updated_at: DateTime<Utc>, // SQLx自动转换
     pub is_deleted: bool,
     pub source_info: Option<String>,          // JSON
     pub external_source_id: Option<String>,
@@ -102,7 +103,7 @@ pub struct TimeBlockRow {
     pub external_source_metadata: Option<String>, // JSON
     pub recurrence_rule: Option<String>,
     pub recurrence_parent_id: Option<String>,
-    pub recurrence_original_date: Option<String>,
+    pub recurrence_original_date: Option<DateTime<Utc>>, // SQLx自动转换
     pub recurrence_exclusions: Option<String>, // JSON
 }
 
@@ -115,19 +116,11 @@ impl TryFrom<TimeBlockRow> for TimeBlock {
             title: row.title,
             glance_note: row.glance_note,
             detail_note: row.detail_note,
-            start_time: DateTime::parse_from_rfc3339(&row.start_time)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
-            end_time: DateTime::parse_from_rfc3339(&row.end_time)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
+            start_time: row.start_time, // SQLx已经转换
+            end_time: row.end_time, // SQLx已经转换
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
-            created_at: DateTime::parse_from_rfc3339(&row.created_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
-                .map_err(|e| e.to_string())?
-                .with_timezone(&Utc),
+            created_at: row.created_at, // SQLx已经转换
+            updated_at: row.updated_at, // SQLx已经转换
             is_deleted: row.is_deleted,
             source_info: row
                 .source_info
@@ -144,11 +137,7 @@ impl TryFrom<TimeBlockRow> for TimeBlock {
                 .recurrence_parent_id
                 .as_ref()
                 .and_then(|s| Uuid::parse_str(s).ok()),
-            recurrence_original_date: row
-                .recurrence_original_date
-                .as_ref()
-                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-                .map(|dt| dt.with_timezone(&Utc)),
+            recurrence_original_date: row.recurrence_original_date, // SQLx已经转换
             recurrence_exclusions: row
                 .recurrence_exclusions
                 .as_ref()

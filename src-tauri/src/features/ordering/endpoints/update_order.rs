@@ -10,10 +10,7 @@ use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::{
-        task::ContextType,
-        Ordering,
-    },
+    entities::{task::ContextType, Ordering},
     shared::core::{AppError, AppResult, ValidationError},
     startup::AppState,
 };
@@ -123,8 +120,7 @@ mod validation {
         }
 
         // 4. 验证 sort_order 格式（使用 LexoRank 验证）
-        if !crate::shared::core::utils::sort_order_utils::is_valid_sort_order(&request.sort_order)
-        {
+        if !crate::shared::core::utils::sort_order_utils::is_valid_sort_order(&request.sort_order) {
             errors.push(ValidationError::new(
                 "sort_order",
                 "Sort order 格式无效，必须是有效的 LexoRank 格式",
@@ -149,10 +145,7 @@ mod validation {
 mod logic {
     use super::*;
 
-    pub async fn execute(
-        app_state: &AppState,
-        request: UpdateOrderRequest,
-    ) -> AppResult<()> {
+    pub async fn execute(app_state: &AppState, request: UpdateOrderRequest) -> AppResult<()> {
         // 1. 验证请求
         let validated =
             validation::validate_request(&request).map_err(AppError::ValidationFailed)?;
@@ -247,5 +240,3 @@ mod database {
         Ok(())
     }
 }
-
-

@@ -13,7 +13,7 @@ const props = defineProps<{
   tasks: Task[]
 }>()
 
-const emit = defineEmits(['openEditor', 'taskCreated', 'taskDeleted'])
+const emit = defineEmits(['openEditor', 'taskCreated'])
 
 const taskStore = useTaskStore()
 const scheduleStore = useScheduleStore()
@@ -23,10 +23,7 @@ const isCreatingTask = ref(false)
 
 // 本地任务列表（响应式副本，用于拖拽）
 const localTasks = computed({
-  get: () => {
-    console.log(`[DailyKanban] localTasks get() called, tasks order:`, props.tasks.map(t => t.title))
-    return props.tasks
-  },
+  get: () => props.tasks,
   set: () => {
     // 拖动过程中的临时变更由 vue-draggable-next 自动处理
     // 实际更新在 onDragEnd 中进行
@@ -70,15 +67,11 @@ async function handleAddTask() {
   newTaskTitle.value = ''
 
   try {
-    // 使用毫秒时间戳作为 context_id，与排程时保持一致
-    const dateStr = props.date.toISOString().split('T')[0] as string
-    const contextId = new Date(dateStr).getTime().toString()
-
     await taskStore.createTask({
       title,
       context: {
         context_type: 'DAILY_KANBAN',
-        context_id: contextId,
+        context_id: props.date.toISOString(),
       },
     })
 
@@ -86,6 +79,7 @@ async function handleAddTask() {
     const newTask = tasks.find((t) => t.title === title)
 
     if (newTask) {
+      const dateStr = props.date.toISOString().split('T')[0] as string
       await scheduleStore.scheduleTask({
         task_id: newTask.id,
         scheduled_day: dateStr,
@@ -109,36 +103,11 @@ const completedCount = computed(() => props.tasks.filter((t) => t.completed_at).
 async function onDragEnd(event: any) {
   const { oldIndex, newIndex, from, to } = event
 
-  console.log('[DailyKanban] Drag end:', {
-    oldIndex,
-    newIndex,
-    from,
-    to,
-    tasksLength: props.tasks.length,
-  })
-
   // 如果没有实际移动，直接返回
   if (oldIndex === newIndex && from === to) return
 
-  // 注意：拖动过程中 vuedraggable 已经临时更新了数组
-  // 所以我们需要根据 oldIndex 来找到被移动的任务
-  // 但由于数组已变化，我们需要用 movedTask 的 ID 来追踪
-  let movedTask: Task | undefined
-
-  // 在同一列表内拖动时，从当前位置找到被移动的任务
-  if (from === to) {
-    movedTask = props.tasks[newIndex]
-  } else {
-    // 跨列表拖动时，从新列表的 newIndex 位置找
-    movedTask = props.tasks[newIndex]
-  }
-
-  if (!movedTask) {
-    console.error('[DailyKanban] Cannot find moved task')
-    return
-  }
-
-  console.log('[DailyKanban] Moved task:', movedTask.title, 'to index:', newIndex)
+  const movedTask = props.tasks[oldIndex]
+  if (!movedTask) return
 
   const dateStr = props.date.toISOString().split('T')[0] as string
   const contextId = new Date(dateStr).getTime().toString()
@@ -153,50 +122,15 @@ async function onDragEnd(event: any) {
     }
 
     // 计算新的 sort_order
-    // 获取目标位置前后的任务（排除被移动的任务本身）
-    let prevTask: Task | undefined
-    let nextTask: Task | undefined
+    // newIndex 是目标位置，我们需要找到该位置前后的任务
+    const prevTask = newIndex > 0 ? props.tasks[newIndex - 1] : undefined
+    const nextTask = props.tasks[newIndex]
 
-    // 向前查找 prevTask（不是被移动的任务）
-    for (let i = newIndex - 1; i >= 0; i--) {
-      if (props.tasks[i]?.id !== movedTask.id) {
-        prevTask = props.tasks[i]
-        break
-      }
-    }
+    // 如果 nextTask 就是被移动的任务自己，说明向后移动，需要取下一个
+    const actualNextTask = nextTask?.id === movedTask.id ? props.tasks[newIndex + 1] : nextTask
 
-    // 向后查找 nextTask（不是被移动的任务）
-    for (let i = newIndex + 1; i < props.tasks.length; i++) {
-      if (props.tasks[i]?.id !== movedTask.id) {
-        nextTask = props.tasks[i]
-        break
-      }
-    }
-
-    console.log('[DailyKanban] Prev task:', prevTask?.title, 'Next task:', nextTask?.title)
-
-    // 获取前后任务的 sort_order，如果不存在则等待后端生成
-    let prevSortOrder = prevTask ? getSortOrderForTask(prevTask.id) : undefined
-    let nextSortOrder = nextTask ? getSortOrderForTask(nextTask.id) : undefined
-
-    console.log('[DailyKanban] Prev sort_order:', prevSortOrder, 'Next sort_order:', nextSortOrder)
-
-    // 如果前后任务存在但没有 sort_order，说明数据不一致，需要重新加载
-    if ((prevTask && !prevSortOrder) || (nextTask && !nextSortOrder)) {
-      console.warn('[DailyKanban] Missing sort_order for adjacent tasks, reloading ordering data')
-      await orderingStore.fetchOrderingsForContext('DAILY_KANBAN', contextId)
-
-      // 重新获取 sort_order
-      prevSortOrder = prevTask ? getSortOrderForTask(prevTask.id) : undefined
-      nextSortOrder = nextTask ? getSortOrderForTask(nextTask.id) : undefined
-
-      console.log(
-        '[DailyKanban] After reload - Prev sort_order:',
-        prevSortOrder,
-        'Next sort_order:',
-        nextSortOrder
-      )
-    }
+    const prevSortOrder = prevTask ? getSortOrderForTask(prevTask.id) : undefined
+    const nextSortOrder = actualNextTask ? getSortOrderForTask(actualNextTask.id) : undefined
 
     const newSortOrder = await orderingStore.calculateSortOrder({
       context_type: 'DAILY_KANBAN',
@@ -209,8 +143,6 @@ async function onDragEnd(event: any) {
       console.error('[DailyKanban] Failed to calculate sort order')
       return
     }
-
-    console.log('[DailyKanban] Calculated new sort_order:', newSortOrder)
 
     // 更新排序
     await orderingStore.updateOrder({
@@ -287,7 +219,6 @@ const draggableOptions = {
             :task="task"
             class="kanban-task-card"
             @open-editor="emit('openEditor', task)"
-            @task-deleted="(taskId: string) => emit('taskDeleted', taskId)"
           />
         </div>
       </template>

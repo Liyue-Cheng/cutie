@@ -59,8 +59,8 @@ POST /api/time-blocks
 
 #[derive(Deserialize)]
 pub struct CreateTimeBlockRequest {
-    start_time: String,
-    end_time: String,
+    start_time: DateTime<Utc>, // Serde自动处理RFC3339格式
+    end_time: DateTime<Utc>,   // Serde自动处理RFC3339格式
     title: Option<String>,
     glance_note: Option<String>,
     detail_note: Option<String>,
@@ -98,33 +98,11 @@ mod validation {
     ) -> Result<ValidatedTimeBlockData, Vec<ValidationError>> {
         let mut errors = Vec::new();
 
-        // 1. 验证时间格式和时间范围
-        let start_time = match DateTime::parse_from_rfc3339(&request.start_time) {
-            Ok(dt) => dt.with_timezone(&Utc),
-            Err(_) => {
-                errors.push(ValidationError::new(
-                    "start_time",
-                    "时间格式无效，应为 RFC3339 格式",
-                    "INVALID_TIME_FORMAT",
-                ));
-                // 返回一个默认值以继续验证其他字段
-                Utc::now()
-            }
-        };
+        // Serde已经处理了时间格式验证，直接使用即可
+        let start_time = request.start_time;
+        let end_time = request.end_time;
 
-        let end_time = match DateTime::parse_from_rfc3339(&request.end_time) {
-            Ok(dt) => dt.with_timezone(&Utc),
-            Err(_) => {
-                errors.push(ValidationError::new(
-                    "end_time",
-                    "时间格式无效，应为 RFC3339 格式",
-                    "INVALID_TIME_FORMAT",
-                ));
-                Utc::now()
-            }
-        };
-
-        // 2. 验证时间范围
+        // 1. 验证时间范围
         if start_time > end_time {
             errors.push(ValidationError::new(
                 "time_range",

@@ -63,8 +63,6 @@ async function loadTasksForDate(dateStr: string) {
 
     const tasks: Task[] = await response.json()
 
-    console.log(`[HomeView] Loaded ${tasks.length} tasks for ${dateStr}, order:`, tasks.map(t => t.title))
-
     // 使用新的 Map 实例触发 Vue 响应式更新
     const newDailyTasks = new Map(dailyTasks.value)
     newDailyTasks.set(dateStr, tasks)
@@ -91,23 +89,6 @@ async function loadTasksForDate(dateStr: string) {
 function handleOpenEditor(task: Task) {
   selectedTaskId.value = task.id
   isEditorOpen.value = true
-}
-
-// 处理任务删除
-function handleTaskDeleted(taskId: string) {
-  console.log(`[HomeView] Task deleted: ${taskId}, refreshing all days`)
-  // 从所有日期的任务列表中移除该任务
-  const newDailyTasks = new Map(dailyTasks.value)
-  for (const [dateStr, tasks] of newDailyTasks.entries()) {
-    const filteredTasks = tasks.filter((t) => t.id !== taskId)
-    if (filteredTasks.length !== tasks.length) {
-      newDailyTasks.set(dateStr, filteredTasks)
-    }
-  }
-  dailyTasks.value = newDailyTasks
-
-  // 同时从 taskStore 中移除
-  taskStore.tasks.delete(taskId)
 }
 
 onMounted(async () => {
@@ -144,21 +125,18 @@ onMounted(async () => {
               :tasks="todayTasks"
               @open-editor="handleOpenEditor"
               @task-created="loadTasksForDate"
-              @task-deleted="handleTaskDeleted"
             />
             <DailyKanbanColumn
               :date="tomorrow"
               :tasks="tomorrowTasks"
               @open-editor="handleOpenEditor"
               @task-created="loadTasksForDate"
-              @task-deleted="handleTaskDeleted"
             />
             <DailyKanbanColumn
               :date="dayAfterTomorrow"
               :tasks="dayAfterTomorrowTasks"
               @open-editor="handleOpenEditor"
               @task-created="loadTasksForDate"
-              @task-deleted="handleTaskDeleted"
             />
           </div>
         </template>
