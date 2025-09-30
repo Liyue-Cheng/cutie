@@ -268,6 +268,13 @@ mod database {
     ) -> AppResult<()> {
         let context_id = schedule.scheduled_day.timestamp_millis().to_string();
 
+        tracing::info!(
+            "[link_schedule] Creating ordering for task_id: {}, context_id: {}, scheduled_day: {}",
+            schedule.task_id,
+            context_id,
+            schedule.scheduled_day.format("%Y-%m-%d")
+        );
+
         let max_sort_order: Option<String> = sqlx::query_scalar(
             "SELECT MAX(sort_order) FROM ordering WHERE context_type = ? AND context_id = ?",
         )
@@ -279,9 +286,23 @@ mod database {
         .flatten();
 
         let new_sort_order = match max_sort_order {
-            Some(max_order) => sort_order_utils::get_rank_after(&max_order)?,
-            None => sort_order_utils::generate_initial_sort_order(),
+            Some(max_order) => {
+                tracing::info!(
+                    "[link_schedule] Found max_sort_order: {}, generating next",
+                    max_order
+                );
+                sort_order_utils::get_rank_after(&max_order)?
+            }
+            None => {
+                tracing::info!("[link_schedule] No existing ordering, generating initial");
+                sort_order_utils::generate_initial_sort_order()
+            }
         };
+
+        tracing::info!(
+            "[link_schedule] Generated new sort_order: {}",
+            new_sort_order
+        );
 
         let ordering = Ordering::new(
             Uuid::new_v4(),
@@ -304,6 +325,8 @@ mod database {
         .execute(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        tracing::info!("[link_schedule] Successfully created ordering record");
 
         Ok(())
     }

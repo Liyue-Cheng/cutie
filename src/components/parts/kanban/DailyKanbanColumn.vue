@@ -67,11 +67,15 @@ async function handleAddTask() {
   newTaskTitle.value = ''
 
   try {
+    // 使用毫秒时间戳作为 context_id，与排程时保持一致
+    const dateStr = props.date.toISOString().split('T')[0] as string
+    const contextId = new Date(dateStr).getTime().toString()
+    
     await taskStore.createTask({
       title,
       context: {
         context_type: 'DAILY_KANBAN',
-        context_id: props.date.toISOString(),
+        context_id: contextId,
       },
     })
 
@@ -79,7 +83,6 @@ async function handleAddTask() {
     const newTask = tasks.find((t) => t.title === title)
 
     if (newTask) {
-      const dateStr = props.date.toISOString().split('T')[0] as string
       await scheduleStore.scheduleTask({
         task_id: newTask.id,
         scheduled_day: dateStr,
@@ -179,12 +182,17 @@ async function onDragEnd(event: any) {
     if ((prevTask && !prevSortOrder) || (nextTask && !nextSortOrder)) {
       console.warn('[DailyKanban] Missing sort_order for adjacent tasks, reloading ordering data')
       await orderingStore.fetchOrderingsForContext('DAILY_KANBAN', contextId)
-      
+
       // 重新获取 sort_order
       prevSortOrder = prevTask ? getSortOrderForTask(prevTask.id) : undefined
       nextSortOrder = nextTask ? getSortOrderForTask(nextTask.id) : undefined
-      
-      console.log('[DailyKanban] After reload - Prev sort_order:', prevSortOrder, 'Next sort_order:', nextSortOrder)
+
+      console.log(
+        '[DailyKanban] After reload - Prev sort_order:',
+        prevSortOrder,
+        'Next sort_order:',
+        nextSortOrder
+      )
     }
 
     const newSortOrder = await orderingStore.calculateSortOrder({
