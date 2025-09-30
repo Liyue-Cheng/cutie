@@ -130,7 +130,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas?roots_only=true`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas?roots_only=true`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -161,13 +162,14 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const params = new URLSearchParams()
       params.append('parent_id', parentId)
       if (includeDescendants) {
         params.append('include_descendants', 'true')
       }
 
-      const response = await fetch(`${API_BASE_URL}/areas?${params.toString()}`)
+      const response = await fetch(`${apiBaseUrl}/areas?${params.toString()}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -198,7 +200,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas/${id}`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas/${id}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -327,7 +330,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas/${id}/move`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas/${id}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -364,7 +368,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas/${id}/can-delete`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas/${id}/can-delete`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -390,7 +395,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas/${id}/path`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas/${id}/path`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }

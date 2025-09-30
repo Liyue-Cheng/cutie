@@ -73,10 +73,7 @@ mod validation {
 mod logic {
     use super::*;
 
-    pub async fn execute(
-        app_state: &AppState,
-        query: DailyScheduleQuery,
-    ) -> AppResult<Vec<Task>> {
+    pub async fn execute(app_state: &AppState, query: DailyScheduleQuery) -> AppResult<Vec<Task>> {
         let date = validation::validate_query(&query).map_err(AppError::ValidationFailed)?;
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
@@ -121,7 +118,7 @@ mod database {
             LEFT JOIN ordering o ON t.id = o.task_id AND o.context_type = 'DAILY_KANBAN' AND o.context_id = ?
             WHERE ts.scheduled_day >= ? AND ts.scheduled_day < ?
             AND t.is_deleted = false
-            ORDER BY COALESCE(o.sort_order, 'z')
+            ORDER BY COALESCE(o.sort_order, 'zzz') ASC
             "#,
         )
         .bind(&context_id)
@@ -131,10 +128,18 @@ mod database {
         .await
         .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
 
+        tracing::info!(
+            "Fetched {} tasks for day {}, context_id: {}",
+            rows.len(),
+            day,
+            context_id
+        );
+
         rows.into_iter()
             .map(|r| {
-                Task::try_from(r)
-                    .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+                Task::try_from(r).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })
             })
             .collect()
     }

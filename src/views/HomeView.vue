@@ -8,8 +8,10 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
+import { useOrderingStore } from '@/stores/ordering'
 
 const taskStore = useTaskStore()
+const orderingStore = useOrderingStore()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
@@ -60,12 +62,25 @@ async function loadTasksForDate(dateStr: string) {
     }
 
     const tasks: Task[] = await response.json()
-    dailyTasks.value.set(dateStr, tasks)
+
+    // 使用新的 Map 实例触发 Vue 响应式更新
+    const newDailyTasks = new Map(dailyTasks.value)
+    newDailyTasks.set(dateStr, tasks)
+    dailyTasks.value = newDailyTasks
 
     // 同时更新taskStore
     for (const task of tasks) {
       taskStore.tasks.set(task.id, task)
     }
+
+    // 加载该日期的 ordering 数据
+    const contextId = new Date(dateStr).getTime().toString()
+    await orderingStore.fetchOrderingsForContext('DAILY_KANBAN', contextId)
+    console.log(`[HomeView] Loaded ordering for ${dateStr}, context_id: ${contextId}`)
+    console.log(
+      `[HomeView] Tasks for ${dateStr}:`,
+      tasks.map((t) => ({ title: t.title, id: t.id }))
+    )
 
     return tasks
   } catch (error) {

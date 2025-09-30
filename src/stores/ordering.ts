@@ -90,11 +90,12 @@ export const useOrderingStore = defineStore('ordering', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const params = new URLSearchParams()
       params.append('context_type', contextType)
       params.append('context_id', contextId)
 
-      const response = await fetch(`${API_BASE_URL}/ordering?${params.toString()}`)
+      const response = await fetch(`${apiBaseUrl}/ordering?${params.toString()}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -185,7 +186,8 @@ export const useOrderingStore = defineStore('ordering', () => {
     error.value = null
     console.log(`[OrderingStore] Attempting to batch update ${orderingList.length} orderings`)
     try {
-      const response = await fetch(`${API_BASE_URL}/ordering/batch`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/ordering/batch`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -221,6 +223,7 @@ export const useOrderingStore = defineStore('ordering', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const searchParams = new URLSearchParams()
       searchParams.append('context_type', params.context_type)
       searchParams.append('context_id', params.context_id)
@@ -231,7 +234,7 @@ export const useOrderingStore = defineStore('ordering', () => {
         searchParams.append('next_sort_order', params.next_sort_order)
       }
 
-      const response = await fetch(`${API_BASE_URL}/ordering/calculate?${searchParams.toString()}`)
+      const response = await fetch(`${apiBaseUrl}/ordering/calculate?${searchParams.toString()}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -257,11 +260,12 @@ export const useOrderingStore = defineStore('ordering', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const params = new URLSearchParams()
       params.append('context_type', contextType)
       params.append('context_id', contextId)
 
-      const response = await fetch(`${API_BASE_URL}/ordering?${params.toString()}`, {
+      const response = await fetch(`${apiBaseUrl}/ordering?${params.toString()}`, {
         method: 'DELETE',
       })
 

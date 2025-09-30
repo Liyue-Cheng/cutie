@@ -175,8 +175,9 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const response = await fetch(
-        `${API_BASE_URL}/time-blocks?task_id=${encodeURIComponent(taskId)}`
+        `${apiBaseUrl}/time-blocks?task_id=${encodeURIComponent(taskId)}`
       )
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -208,8 +209,9 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const response = await fetch(
-        `${API_BASE_URL}/time-blocks?area_id=${encodeURIComponent(areaId)}`
+        `${apiBaseUrl}/time-blocks?area_id=${encodeURIComponent(areaId)}`
       )
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -241,7 +243,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/time-blocks/${id}`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -441,6 +444,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const params = new URLSearchParams()
       params.append('start_time', startTime)
       params.append('end_time', endTime)
@@ -448,7 +452,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
         params.append('exclude_id', excludeId)
       }
 
-      const response = await fetch(`${API_BASE_URL}/time-blocks/conflicts?${params.toString()}`)
+      const response = await fetch(`${apiBaseUrl}/time-blocks/conflicts?${params.toString()}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -478,12 +482,13 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const params = new URLSearchParams()
       params.append('start_time', startTime)
       params.append('end_time', endTime)
       params.append('min_duration_minutes', minDurationMinutes.toString())
 
-      const response = await fetch(`${API_BASE_URL}/time-blocks/free-slots?${params.toString()}`)
+      const response = await fetch(`${apiBaseUrl}/time-blocks/free-slots?${params.toString()}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }

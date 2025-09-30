@@ -122,7 +122,8 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/templates?q=${encodeURIComponent(query)}`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates?q=${encodeURIComponent(query)}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -153,8 +154,9 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const response = await fetch(
-        `${API_BASE_URL}/templates?area_id=${encodeURIComponent(areaId)}`
+        `${apiBaseUrl}/templates?area_id=${encodeURIComponent(areaId)}`
       )
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -186,8 +188,9 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
+      const apiBaseUrl = await waitForApiReady()
       const response = await fetch(
-        `${API_BASE_URL}/templates?variable=${encodeURIComponent(variable)}`
+        `${apiBaseUrl}/templates?variable=${encodeURIComponent(variable)}`
       )
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -221,7 +224,8 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${id}`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates/${id}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -350,7 +354,8 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${id}/clone`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates/${id}/clone`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
