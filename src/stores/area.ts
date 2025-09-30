@@ -226,7 +226,8 @@ export const useAreaStore = defineStore('area', () => {
     error.value = null
     console.log(`[AreaStore] Attempting to create area with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/areas`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -262,8 +263,9 @@ export const useAreaStore = defineStore('area', () => {
     error.value = null
     console.log(`[AreaStore] Attempting to update area ${id} with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/areas/${id}`, {
-        method: 'PUT',
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas/${id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -297,7 +299,8 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/areas/${id}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/areas/${id}`, {
         method: 'DELETE',
       })
 

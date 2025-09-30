@@ -1,58 +1,48 @@
 /**
- * This file contains the core TypeScript types that mirror the database schema.
+ * This file contains the core TypeScript types that mirror the backend database schema.
  * These types are the "source of truth" for the application's data structures.
+ *
+ * 所有类型定义都与后端 Rust 实体保持完全一致。
  */
 
-// --- Base Timestamps and Identifiers ---
-
-/**
- * A unique identifier, typically a UUID.
- */
-type ID = string
+// --- Base Types ---
 
 /**
- * Standard timestamps for all entities.
- * Timestamps are stored as numbers (Unix epoch in milliseconds).
+ * A unique identifier, typically a UUID string.
  */
-interface Timestamps {
-  created_at: string
-  updated_at: string
-  deleted_at: string | null
-  remote_updated_at: string | null
-}
+export type ID = string
+
+/**
+ * Context types for task organization and filtering.
+ */
+export type ContextType = 'DAILY_KANBAN' | 'PROJECT_LIST' | 'AREA_FILTER' | 'MISC'
+
+/**
+ * Due date types for tasks.
+ */
+export type DueDateType = 'SOFT' | 'HARD'
+
+/**
+ * Task schedule outcome types.
+ */
+export type Outcome = 'PLANNED' | 'PRESENCE_LOGGED' | 'COMPLETED_ON_DAY' | 'CARRIED_OVER'
 
 // --- Core Entities ---
 
 /**
- * Represents the status of a project.
- * 'active': The project is ongoing.
- * 'on_hold': The project is paused.
- * 'archived': The project is completed and archived.
+ * Represents a Subtask within a task.
+ * 对应后端: entities::task::Subtask
  */
-export type ProjectStatus = 'active' | 'on_hold' | 'archived'
-
-/**
- * Represents a Project: a large goal or an area of exploration.
- */
-export interface Project extends Timestamps {
-  id: ID
+export interface Subtask {
+  id: string
   title: string
-  description: string | null
-  icon: string | null
-  color: string | null
-  status: ProjectStatus
-  metadata: Record<string, any> | null
+  is_completed: boolean
+  sort_order: string
 }
 
 /**
- * Represents the status of a task.
- * Based on completed_at field: null = not completed, string = completed
- */
-export type TaskStatus = 'todo' | 'done'
-
-/**
  * Represents a Task: a concrete, actionable item.
- * Updated to match the new backend API structure.
+ * 对应后端: entities::task::Task
  */
 export interface Task {
   id: string
@@ -64,7 +54,7 @@ export interface Task {
   project_id: string | null
   area_id: string | null
   due_date: string | null
-  due_date_type: 'SOFT' | 'HARD' | null
+  due_date_type: DueDateType | null
   completed_at: string | null
   created_at: string
   updated_at: string
@@ -80,30 +70,131 @@ export interface Task {
 }
 
 /**
- * Represents a subtask within a task.
+ * Represents a TaskSchedule: a link between a task and a specific day.
+ * 对应后端: entities::schedule::TaskSchedule
  */
-export interface Subtask {
+export interface TaskSchedule {
   id: string
-  title: string
-  is_completed: boolean
-  sort_order: string
+  task_id: string
+  scheduled_day: string
+  outcome: Outcome
+  created_at: string
+  updated_at: string
 }
 
 /**
- * Represents a Checkpoint: a small, guiding step within a task.
+ * Represents a TimeBlock: a block of time on the calendar.
+ * 对应后端: entities::time_block::TimeBlock
  */
-export interface Checkpoint extends Timestamps {
+export interface TimeBlock {
+  id: string
+  title: string | null
+  glance_note: string | null
+  detail_note: string | null
+  start_time: string
+  end_time: string
+  area_id: string | null
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  source_info: Record<string, any> | null
+  external_source_id: string | null
+  external_source_provider: string | null
+  external_source_metadata: Record<string, any> | null
+  recurrence_rule: string | null
+  recurrence_parent_id: string | null
+  recurrence_original_date: string | null
+  recurrence_exclusions: string[] | null
+}
+
+/**
+ * Represents an Ordering: defines the sort position of a task in a context.
+ * 对应后端: entities::ordering::Ordering
+ */
+export interface Ordering {
+  id: string
+  context_type: ContextType
+  context_id: string
+  task_id: string
+  sort_order: string
+  updated_at: string
+}
+
+/**
+ * Represents a Template: a preset configuration for creating tasks.
+ * 对应后端: entities::template::Template
+ */
+export interface Template {
+  id: string
+  name: string
+  title_template: string
+  glance_note_template: string | null
+  detail_note_template: string | null
+  estimated_duration_template: number | null
+  subtasks_template: Subtask[] | null
+  area_id: string | null
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+}
+
+/**
+ * Represents an Area: a user-defined categorization label with color.
+ * 对应后端: entities::area::Area
+ */
+export interface Area {
+  id: string
+  name: string
+  color: string
+  parent_area_id: string | null
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+}
+
+// --- Legacy Types (保留用于兼容旧代码，逐步迁移) ---
+
+/**
+ * Represents the status of a project.
+ */
+export type ProjectStatus = 'active' | 'on_hold' | 'archived'
+
+/**
+ * Represents a Project (V1.0 暂不实现 API，仅建表).
+ */
+export interface Project {
+  id: ID
+  title: string
+  description: string | null
+  icon: string | null
+  color: string | null
+  status: ProjectStatus
+  metadata: Record<string, any> | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  remote_updated_at: string | null
+}
+
+/**
+ * Represents a Checkpoint (V1.0 暂不实现).
+ */
+export interface Checkpoint {
   id: ID
   task_id: ID
   title: string
   is_completed: boolean
   sort_key: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  remote_updated_at: string | null
 }
 
 /**
- * Represents an Activity: a pure block of time on the calendar.
+ * Represents an Activity (V1.0 暂不实现).
  */
-export interface Activity extends Timestamps {
+export interface Activity {
   id: ID
   title: string | null
   start_time: string
@@ -114,22 +205,28 @@ export interface Activity extends Timestamps {
   metadata: Record<string, any> | null
   origin_id: string | null
   connector_id: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  remote_updated_at: string | null
 }
 
 /**
- * Represents a Tag: a cross-cutting label for organizing entities.
+ * Represents a Tag (V1.0 暂不实现).
  */
-export interface Tag extends Timestamps {
+export interface Tag {
   id: ID
   title: string
   color: string | null
   sort_key: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  remote_updated_at: string | null
 }
 
-// --- Link/Junction Types ---
-
 /**
- * Represents a link between a Task and an Activity.
+ * Represents a link between a Task and an Activity (V1.0 暂不实现).
  */
 export interface TaskActivityLink {
   id: ID
@@ -138,7 +235,7 @@ export interface TaskActivityLink {
 }
 
 /**
- * Represents the join table for projects and tags.
+ * Represents the join table for projects and tags (V1.0 暂不实现).
  */
 export interface ProjectTag {
   project_id: ID
@@ -146,17 +243,15 @@ export interface ProjectTag {
 }
 
 /**
- * Represents the join table for tasks and tags.
+ * Represents the join table for tasks and tags (V1.0 暂不实现).
  */
 export interface TaskTag {
   task_id: ID
   tag_id: ID
 }
 
-// --- System Types ---
-
 /**
- * Represents a key-value setting in the application.
+ * Represents a key-value setting in the application (V1.0 暂不实现).
  */
 export interface Setting {
   key: string

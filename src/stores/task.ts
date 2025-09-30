@@ -238,7 +238,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const apiBaseUrl = await waitForApiReady()
       const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -348,8 +348,8 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     try {
       const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${id}/reopen`, {
-        method: 'POST',
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
+        method: 'DELETE',
       })
 
       if (!response.ok) {

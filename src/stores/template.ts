@@ -249,7 +249,8 @@ export const useTemplateStore = defineStore('template', () => {
     error.value = null
     console.log(`[TemplateStore] Attempting to create template with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/templates`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -285,8 +286,9 @@ export const useTemplateStore = defineStore('template', () => {
     error.value = null
     console.log(`[TemplateStore] Attempting to update template ${id} with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${id}`, {
-        method: 'PUT',
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates/${id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -320,7 +322,8 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${id}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates/${id}`, {
         method: 'DELETE',
       })
 
@@ -384,7 +387,8 @@ export const useTemplateStore = defineStore('template', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${id}/tasks`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/templates/${id}/instantiate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

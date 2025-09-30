@@ -272,7 +272,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     console.log(`[TimeBlockStore] Attempting to create time block with payload:`, payload)
     console.log(`[TimeBlockStore] Payload JSON:`, JSON.stringify(payload, null, 2))
     try {
-      const response = await fetch(`${API_BASE_URL}/time-blocks`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -308,8 +309,9 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     error.value = null
     console.log(`[TimeBlockStore] Attempting to update time block ${id} with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/time-blocks/${id}`, {
-        method: 'PUT',
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -343,7 +345,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/time-blocks/${id}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
         method: 'DELETE',
       })
 
@@ -370,7 +373,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/time-blocks/${blockId}/tasks`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/links`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -402,8 +406,15 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/time-blocks/${blockId}/tasks/${taskId}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/links`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          task_id: taskId,
+        }),
       })
 
       if (!response.ok) {

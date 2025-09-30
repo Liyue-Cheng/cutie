@@ -14,10 +14,10 @@ export interface Ordering {
 }
 
 export interface UpdateOrderPayload {
+  task_id: string
   context_type: 'DAILY_KANBAN' | 'PROJECT_LIST' | 'AREA_FILTER' | 'MISC'
   context_id: string
-  task_id: string
-  new_sort_order: string
+  sort_order: string
 }
 
 export interface CalculateSortOrderParams {
@@ -129,7 +129,8 @@ export const useOrderingStore = defineStore('ordering', () => {
     error.value = null
     console.log(`[OrderingStore] Attempting to update order with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/ordering`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/ordering`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -149,7 +150,7 @@ export const useOrderingStore = defineStore('ordering', () => {
       if (existingOrdering) {
         const updatedOrdering: Ordering = {
           ...existingOrdering,
-          sort_order: payload.new_sort_order,
+          sort_order: payload.sort_order,
           updated_at: new Date().toISOString(),
         }
         orderings.value.set(key, updatedOrdering)
@@ -160,7 +161,7 @@ export const useOrderingStore = defineStore('ordering', () => {
           context_type: payload.context_type,
           context_id: payload.context_id,
           task_id: payload.task_id,
-          sort_order: payload.new_sort_order,
+          sort_order: payload.sort_order,
           updated_at: new Date().toISOString(),
         }
         orderings.value.set(key, newOrdering)

@@ -15,9 +15,7 @@ export interface TaskSchedule {
 
 export interface ScheduleTaskPayload {
   task_id: string
-  target_day: string
-  mode: 'link' | 'move'
-  source_schedule_id?: string | null
+  scheduled_day: string
 }
 
 // --- API Base URL ---
@@ -143,7 +141,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     error.value = null
     console.log(`[ScheduleStore] Attempting to schedule task with payload:`, payload)
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/schedules`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +177,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/${id}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/schedules/${id}`, {
         method: 'DELETE',
       })
 
@@ -204,7 +204,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/${id}/presence`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/schedules/${id}/presence`, {
         method: 'POST',
       })
 
@@ -235,7 +236,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/tasks/${taskId}`, {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${taskId}/schedules`, {
         method: 'DELETE',
       })
 
