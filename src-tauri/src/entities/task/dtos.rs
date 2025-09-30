@@ -1,13 +1,12 @@
 /// Task相关的数据传输对象
 ///
 /// 从features/tasks/shared/dtos.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{ContextType, DueDateType, Subtask};
 use super::model::Task;
+use super::{ContextType, DueDateType, Subtask};
 
 /// 创建任务的请求载荷
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +41,21 @@ pub struct UpdateTaskRequest {
     pub area_id: Option<Option<Uuid>>,
     pub due_date: Option<Option<DateTime<Utc>>>,
     pub due_date_type: Option<Option<DueDateType>>,
+}
+
+impl UpdateTaskRequest {
+    /// 检查请求是否为空，即所有字段都是None
+    pub fn is_empty(&self) -> bool {
+        self.title.is_none()
+            && self.glance_note.is_none()
+            && self.detail_note.is_none()
+            && self.estimated_duration.is_none()
+            && self.subtasks.is_none()
+            && self.project_id.is_none()
+            && self.area_id.is_none()
+            && self.due_date.is_none()
+            && self.due_date_type.is_none()
+    }
 }
 
 /// 任务响应体

@@ -29,11 +29,14 @@ pub fn create_routes() -> Router<AppState> {
         // 基本CRUD操作
         .route("/", post(endpoints::create_task_handler))
         .route("/:id", get(endpoints::get_task_handler))
-        // TODO: 添加其他端点
-        // .route("/:id", put(endpoints::update_task_handler))
+        .route("/:id", axum::routing::patch(endpoints::update_task_handler))
         // .route("/:id", delete(endpoints::delete_task_handler))
         // 任务状态操作
         .route("/:id/completion", post(endpoints::complete_task_handler))
+        .route(
+            "/:id/completion",
+            axum::routing::delete(endpoints::reopen_task_handler),
+        )
     // .route("/:id/reopen", post(endpoints::reopen_task_handler))
 
     // 查询操作

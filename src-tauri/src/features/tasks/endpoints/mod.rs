@@ -4,6 +4,8 @@
 pub mod complete_task;
 pub mod create_task;
 pub mod get_task;
+pub mod reopen_task;
+pub mod update_task;
 // TODO: 添加其他API端点
 // pub mod update_task;
 // pub mod delete_task;
@@ -16,3 +18,7 @@ pub mod get_task;
 pub use complete_task::handle as complete_task_handler;
 pub use create_task::handle as create_task_handler;
 pub use get_task::handle as get_task_handler;
+
+pub use update_task::handle as update_task_handler;
+
+pub use reopen_task::handle as reopen_task_handler;

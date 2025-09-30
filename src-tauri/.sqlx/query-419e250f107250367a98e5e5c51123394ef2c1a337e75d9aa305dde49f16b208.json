@@ -1,0 +1,146 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE tasks SET\n                title = ?,\n                glance_note = ?,\n                detail_note = ?,\n                estimated_duration = ?,\n                subtasks = ?,\n                project_id = ?,\n                area_id = ?,\n                due_date = ?,\n                due_date_type = ?,\n                updated_at = ?\n            WHERE id = ? AND is_deleted = false\n            RETURNING id, title, glance_note, detail_note, \n                      estimated_duration as \"estimated_duration: i32\", \n                      subtasks, project_id, area_id, due_date, due_date_type, completed_at, \n                      created_at, updated_at, is_deleted as \"is_deleted: bool\", source_info,\n                      external_source_id, external_source_provider, external_source_metadata,\n                      recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "glance_note",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "detail_note",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "estimated_duration: i32",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "subtasks",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "area_id",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "due_date",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "due_date_type",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "completed_at",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_deleted: bool",
+        "ordinal": 13,
+        "type_info": "Bool"
+      },
+      {
+        "name": "source_info",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "external_source_id",
+        "ordinal": 15,
+        "type_info": "Text"
+      },
+      {
+        "name": "external_source_provider",
+        "ordinal": 16,
+        "type_info": "Text"
+      },
+      {
+        "name": "external_source_metadata",
+        "ordinal": 17,
+        "type_info": "Text"
+      },
+      {
+        "name": "recurrence_rule",
+        "ordinal": 18,
+        "type_info": "Text"
+      },
+      {
+        "name": "recurrence_parent_id",
+        "ordinal": 19,
+        "type_info": "Text"
+      },
+      {
+        "name": "recurrence_original_date",
+        "ordinal": 20,
+        "type_info": "Text"
+      },
+      {
+        "name": "recurrence_exclusions",
+        "ordinal": 21,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "419e250f107250367a98e5e5c51123394ef2c1a337e75d9aa305dde49f16b208"
+}
