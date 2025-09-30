@@ -57,12 +57,29 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         // 2. 组装基础 TaskCard
-        let task_card = TaskAssembler::task_to_card_basic(&task);
+        let mut task_card = TaskAssembler::task_to_card_basic(&task);
 
         // 3. 查询 schedules 历史
         let schedules = database::get_task_schedules(pool, task_id).await?;
 
-        // 4. 组装 TaskDetailDto
+        // 4. ✅ 关键：根据实际 schedules 设置正确的 schedule_status
+        let has_schedule = database::has_any_schedule(pool, task_id).await?;
+        task_card.schedule_status = if has_schedule {
+            crate::entities::ScheduleStatus::Scheduled
+        } else {
+            crate::entities::ScheduleStatus::Staging
+        };
+
+        // 5. 获取其他关联信息
+        if let Ok(sort_order) = database::get_task_sort_order(pool, task_id).await {
+            task_card.sort_order = sort_order;
+        }
+
+        if let Some(area_id) = task.area_id {
+            task_card.area = database::get_area_summary(pool, area_id).await?;
+        }
+
+        // 6. 组装 TaskDetailDto
         let task_detail = TaskDetailDto {
             card: task_card,
             detail_note: task.detail_note.clone(),
@@ -112,6 +129,50 @@ mod database {
             }
             None => Ok(None),
         }
+    }
+
+    pub async fn has_any_schedule(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<bool> {
+        let query = "SELECT COUNT(*) FROM task_schedules WHERE task_id = ?";
+        let count: i64 = sqlx::query_scalar(query)
+            .bind(task_id.to_string())
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+        Ok(count > 0)
+    }
+
+    pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
+        let query = "SELECT sort_order FROM orderings WHERE context_type = 'MISC' AND context_id = 'staging' AND task_id = ?";
+        let result = sqlx::query_scalar::<_, String>(query)
+            .bind(task_id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+        Ok(result.unwrap_or_else(|| "zzz".to_string()))
+    }
+
+    pub async fn get_area_summary(
+        pool: &sqlx::SqlitePool,
+        area_id: Uuid,
+    ) -> AppResult<Option<crate::entities::task::response_dtos::AreaSummary>> {
+        let query = "SELECT id, name, color FROM areas WHERE id = ? AND is_deleted = false";
+        let result = sqlx::query_as::<_, (String, String, String)>(query)
+            .bind(area_id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        Ok(result.map(|(id, name, color)| crate::entities::task::response_dtos::AreaSummary {
+            id: Uuid::parse_str(&id).unwrap(),
+            name,
+            color,
+        }))
     }
 
     /// 获取任务的所有日程记录
