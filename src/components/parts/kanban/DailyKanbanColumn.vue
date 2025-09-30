@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { Task } from '@/types/models'
 import { useTaskStore } from '@/stores/task'
 import { useScheduleStore } from '@/stores/schedule'
@@ -76,13 +76,13 @@ async function handleAddTask() {
 
     if (newTask) {
       // 3. 将任务排程到指定日期（格式：YYYY-MM-DD）
-      const dateStr = props.date.toISOString().split('T')[0]
+      const dateStr = props.date.toISOString().split('T')[0] as string
       await scheduleStore.scheduleTask({
         task_id: newTask.id,
         scheduled_day: dateStr,
       })
       console.log(`[DailyKanban] Task created and scheduled successfully.`)
-      
+
       // 4. 通知父组件刷新任务列表
       emit('taskCreated', dateStr)
     }

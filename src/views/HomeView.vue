@@ -8,10 +8,8 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
-import { useScheduleStore } from '@/stores/schedule'
 
 const taskStore = useTaskStore()
-const scheduleStore = useScheduleStore()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
@@ -36,17 +34,17 @@ const dailyTasks = ref<Map<string, Task[]>>(new Map())
 
 // 获取每天的任务
 const todayTasks = computed(() => {
-  const dateStr = today.value.toISOString().split('T')[0]
+  const dateStr = today.value.toISOString().split('T')[0] as string
   return dailyTasks.value.get(dateStr) || []
 })
 
 const tomorrowTasks = computed(() => {
-  const dateStr = tomorrow.value.toISOString().split('T')[0]
+  const dateStr = tomorrow.value.toISOString().split('T')[0] as string
   return dailyTasks.value.get(dateStr) || []
 })
 
 const dayAfterTomorrowTasks = computed(() => {
-  const dateStr = dayAfterTomorrow.value.toISOString().split('T')[0]
+  const dateStr = dayAfterTomorrow.value.toISOString().split('T')[0] as string
   return dailyTasks.value.get(dateStr) || []
 })
 
@@ -84,16 +82,16 @@ function handleOpenEditor(task: Task) {
 onMounted(async () => {
   // 加载今天、明天、后天的任务数据
   try {
-    const todayStr = today.value.toISOString().split('T')[0]
-    const tomorrowStr = tomorrow.value.toISOString().split('T')[0]
-    const dayAfterTomorrowStr = dayAfterTomorrow.value.toISOString().split('T')[0]
+    const todayStr = today.value.toISOString().split('T')[0] as string
+    const tomorrowStr = tomorrow.value.toISOString().split('T')[0] as string
+    const dayAfterTomorrowStr = dayAfterTomorrow.value.toISOString().split('T')[0] as string
 
     await Promise.all([
       loadTasksForDate(todayStr),
       loadTasksForDate(tomorrowStr),
       loadTasksForDate(dayAfterTomorrowStr),
     ])
-
+    
     console.log('[HomeView] Loaded tasks for 3 days')
   } catch (error) {
     console.error('[HomeView] Failed to fetch initial tasks:', error)
@@ -110,9 +108,9 @@ onMounted(async () => {
         </template>
         <template #bottom>
           <div class="task-view-pane">
-            <DailyKanbanColumn 
-              :date="today" 
-              :tasks="todayTasks" 
+            <DailyKanbanColumn
+              :date="today"
+              :tasks="todayTasks"
               @open-editor="handleOpenEditor"
               @task-created="loadTasksForDate"
             />

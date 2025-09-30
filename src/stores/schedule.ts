@@ -72,7 +72,7 @@ export const useScheduleStore = defineStore('schedule', () => {
    * 注意：后端没有直接查询schedules的API，这个函数暂时返回空数组
    * 请使用 views/daily-schedule 端点获取某天的任务
    */
-  async function fetchSchedulesForDate(date: string) {
+  async function fetchSchedulesForDate(_date: string) {
     console.warn('[ScheduleStore] fetchSchedulesForDate is deprecated, use views API instead')
     return []
   }
@@ -93,7 +93,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
       // 遍历日期范围，逐日查询
       while (currentDate <= end) {
-        const dateStr = currentDate.toISOString().split('T')[0] // YYYY-MM-DD
+        const dateStr = currentDate.toISOString().split('T')[0] as string // YYYY-MM-DD
         const schedulesForDay = await fetchSchedulesForDate(dateStr)
         allSchedules.push(...schedulesForDay)
 
