@@ -24,13 +24,13 @@ const dateTitle = computed(() => {
   today.setHours(0, 0, 0, 0)
   const targetDate = new Date(props.date)
   targetDate.setHours(0, 0, 0, 0)
-  
+
   const diffDays = Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays === 0) return '今天'
   if (diffDays === 1) return '明天'
   if (diffDays === 2) return '后天'
-  
+
   // 其他日期显示月日
   return `${targetDate.getMonth() + 1}月${targetDate.getDate()}日`
 })
@@ -43,7 +43,7 @@ const dateSubtitle = computed(() => {
   const day = String(targetDate.getDate()).padStart(2, '0')
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   const weekday = weekdays[targetDate.getDay()]
-  
+
   return `${year}-${month}-${day} ${weekday}`
 })
 
@@ -52,7 +52,9 @@ async function handleAddTask() {
   const title = newTaskTitle.value.trim()
   if (!title || isCreatingTask.value) return
 
-  console.log(`[DailyKanban] User initiated task creation with title: "${title}" for date: ${props.date}`)
+  console.log(
+    `[DailyKanban] User initiated task creation with title: "${title}" for date: ${props.date}`
+  )
 
   isCreatingTask.value = true
   const originalTitle = newTaskTitle.value
@@ -70,13 +72,14 @@ async function handleAddTask() {
 
     // 2. 获取刚创建的任务 (从 store 中找到最新的)
     const tasks = Array.from(taskStore.tasks.values())
-    const newTask = tasks.find(t => t.title === title)
-    
+    const newTask = tasks.find((t) => t.title === title)
+
     if (newTask) {
-      // 3. 将任务排程到指定日期
+      // 3. 将任务排程到指定日期（格式：YYYY-MM-DD）
+      const dateStr = props.date.toISOString().split('T')[0]
       await scheduleStore.scheduleTask({
         task_id: newTask.id,
-        scheduled_day: props.date.toISOString(),
+        scheduled_day: dateStr,
       })
       console.log(`[DailyKanban] Task created and scheduled successfully.`)
     }
@@ -90,7 +93,7 @@ async function handleAddTask() {
 
 // 任务数量统计
 const taskCount = computed(() => props.tasks.length)
-const completedCount = computed(() => props.tasks.filter(t => t.completed_at).length)
+const completedCount = computed(() => props.tasks.filter((t) => t.completed_at).length)
 </script>
 
 <template>
@@ -126,9 +129,7 @@ const completedCount = computed(() => props.tasks.filter(t => t.completed_at).le
         :task="task"
         @open-editor="emit('openEditor', task)"
       />
-      <div v-if="tasks.length === 0" class="empty-state">
-        暂无任务
-      </div>
+      <div v-if="tasks.length === 0" class="empty-state">暂无任务</div>
     </div>
   </CutePane>
 </template>
@@ -203,7 +204,7 @@ const completedCount = computed(() => props.tasks.filter(t => t.completed_at).le
 .add-task-input:focus {
   outline: none;
   border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
 }
 
 .add-task-input::placeholder {
