@@ -5,7 +5,10 @@
 /// - 每个 SFC 文件导出 `pub async fn handle(...)`
 /// - 本文件直接声明 endpoints 子模块并在路由中使用
 /// - DTOs 在 entities 模块中定义
-use axum::{routing::post, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
 use crate::startup::AppState;
 
@@ -15,12 +18,12 @@ pub mod shared;
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
     pub mod create_task; // POST /tasks
-    pub mod legacy; // POST /tasks/:id/completion (complete_task)
-                    // 待实现的其他端点：
-                    // pub mod get_task;
-                    // pub mod update_task;
-                    // pub mod delete_task;
-                    // pub mod reopen_task;
+    pub mod get_task;    // GET /tasks/:id
+    pub mod legacy;      // POST /tasks/:id/completion (complete_task)
+    // 待实现的其他端点：
+    // pub mod update_task;
+    // pub mod delete_task;
+    // pub mod reopen_task;
 }
 
 /// 创建任务功能模块的路由
