@@ -14,7 +14,10 @@ use crate::{
     entities::{CreateTaskRequest, ScheduleStatus, Task, TaskCardDto},
     features::tasks::shared::TaskAssembler,
     shared::{
-        core::{AppError, AppResult},
+        core::{
+            utils::{generate_initial_sort_order, get_rank_after},
+            AppError, AppResult,
+        },
         http::error_handler::created_response,
     },
     startup::AppState,
@@ -282,41 +285,39 @@ mod database {
 
     /// 在事务中计算新任务的 sort_order
     ///
-    /// 获取当前最大的 sort_order，然后加一个字符
+    /// 使用 LexoRank 算法生成新的排序位置
     pub async fn calculate_new_sort_order_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
     ) -> AppResult<String> {
         let query = r#"
-            SELECT MAX(sort_order) 
+            SELECT sort_order 
             FROM orderings 
             WHERE context_type = 'MISC' AND context_id = 'staging'
+            ORDER BY sort_order DESC
+            LIMIT 1
         "#;
 
         let max_sort_order = sqlx::query_scalar::<_, Option<String>>(query)
-            .fetch_one(&mut **tx)
+            .fetch_optional(&mut **tx)
             .await
             .map_err(|e| {
                 AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
             })?;
 
-        // 简单的 sort_order 生成策略：
-        // 如果没有记录，返回 "aaa"
-        // 如果有记录，将最后一个字符 +1
-        Ok(match max_sort_order {
-            None => "aaa".to_string(),
-            Some(max) => {
-                if max.is_empty() {
-                    "aaa".to_string()
-                } else {
-                    // 简单递增最后一个字符
-                    let mut chars: Vec<char> = max.chars().collect();
-                    if let Some(last_char) = chars.last_mut() {
-                        *last_char = ((*last_char as u8) + 1) as char;
-                    }
-                    chars.into_iter().collect()
-                }
+        // 使用 LexoRank 算法生成新的排序位置
+        let sort_order = match max_sort_order.flatten() {
+            None => {
+                // 没有任何记录，生成初始排序字符串
+                generate_initial_sort_order()
             }
-        })
+            Some(max) => {
+                // 在最大值之后生成新的排序字符串
+                // SortOrderError 会自动转换为 AppError (通过 From trait)
+                get_rank_after(&max)?
+            }
+        };
+
+        Ok(sort_order)
     }
 
     /// 在事务中插入 ordering 记录

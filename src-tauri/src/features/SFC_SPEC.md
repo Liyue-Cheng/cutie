@@ -212,10 +212,100 @@ mod database {
 
 ## 4. 最佳实践
 
-- **事务管理**: 业务逻辑层（`logic`）负责开启和提交事务。所有数据库操作（`database`层函数）都必须在事务中执行。
-- **依赖注入**: 严格通过 `AppState` 注入依赖（如数据库连接池 `db_pool`, 时钟 `clock`, ID生成器 `id_generator`）。
-- **错误处理**: 使用 `AppResult<T>` 和 `AppError` 进行统一的错误处理。`database` 层将 `sqlx::Error` 转换为 `AppError::DatabaseError`，`logic` 层可返回各种 `AppError`。
-- **幂等性**: 对于 `POST`（创建）和 `DELETE` 操作，应考虑幂等性。如果资源已存在或已删除，通常应返回成功状态码（`200 OK` 或 `204 No Content`），而不是错误。
-- **只读操作**: 对于纯查询操作，可以省略事务，直接从 `app_state.db_pool()` 获取连接。
+### 4.1 事务管理
+
+- **业务逻辑层（`logic`）** 负责开启和提交事务
+- 所有数据库操作（`database`层函数）都必须在事务中执行
+- 只读操作可以省略事务，直接从 `app_state.db_pool()` 获取连接
+
+### 4.2 依赖注入
+
+严格通过 `AppState` 注入依赖，**必须使用正确的方法名**：
+
+| 依赖     | 正确方法                              | ❌ 错误示例       |
+| -------- | ------------------------------------- | ----------------- |
+| ID生成器 | `app_state.id_generator().new_uuid()` | ~~`.generate()`~~ |
+| 时钟     | `app_state.clock().now_utc()`         | ~~`.now()`~~      |
+| 数据库   | `app_state.db_pool()`                 | ✅                |
+
+**示例：**
+
+```rust
+// ✅ 正确
+let task_id = app_state.id_generator().new_uuid();
+let now = app_state.clock().now_utc();
+
+// ❌ 错误
+let task_id = app_state.id_generator().generate(); // 编译失败
+let now = app_state.clock().now();                // 编译失败
+```
+
+### 4.3 使用现有工具 - ⚠️ 重要
+
+**禁止重新实现已有功能！** 在编写任何工具函数之前，先检查 `shared/` 模块：
+
+#### **排序算法（LexoRank）**
+
+```rust
+// ✅ 正确：使用 shared 中的工具
+use crate::shared::core::utils::{
+    generate_initial_sort_order,  // 生成初始排序字符串
+    get_rank_after,                // 在指定位置之后
+    get_rank_before,               // 在指定位置之前
+    get_mid_lexo_rank,             // 在两个位置之间
+};
+
+let sort_order = get_rank_after(&max)?;
+
+// ❌ 错误：自行实现排序算法
+let mut chars: Vec<char> = max.chars().collect();
+*last_char = ((*last_char as u8) + 1) as char;  // 不符合 LexoRank 规范
+```
+
+#### **时间工具**
+
+```rust
+// ✅ 使用 shared 中的时间工具
+use crate::shared::core::utils::time_utils;
+```
+
+#### **常用 shared 工具**
+
+- `shared/core/utils/sort_order_utils.rs` - LexoRank 排序算法
+- `shared/core/utils/time_utils.rs` - 时间处理工具
+- `shared/ports/clock.rs` - 时钟接口
+- `shared/ports/id_generator.rs` - ID 生成接口
+
+### 4.4 错误处理
+
+- 使用 `AppResult<T>` 和 `AppError` 进行统一的错误处理
+- `database` 层将 `sqlx::Error` 转换为 `AppError::DatabaseError`
+- `SortOrderError` 会自动转换为 `AppError` (通过 `From` trait)
+- 直接使用 `?` 操作符进行错误传播
+
+**示例：**
+
+```rust
+// ✅ 正确：利用自动转换
+let sort_order = get_rank_after(&max)?;  // SortOrderError -> AppError
+
+// ❌ 错误：手动构造不存在的错误变体
+AppError::LexoRankError(...)  // 编译失败
+```
+
+### 4.5 幂等性
+
+- 对于 `POST`（创建）和 `DELETE` 操作，应考虑幂等性
+- 如果资源已存在或已删除，通常应返回成功状态码（`200 OK` 或 `204 No Content`），而不是错误
+
+### 4.6 代码审查清单
+
+在提交代码前检查：
+
+- [ ] 是否使用了正确的 trait 方法（`new_uuid()`, `now_utc()`）？
+- [ ] 是否复用了 `shared/` 中的现有工具？
+- [ ] 排序功能是否使用了 LexoRank 工具函数？
+- [ ] 错误处理是否使用了 `?` 操作符？
+- [ ] 是否在事务中执行了所有写操作？
 
 通过遵循此规范，我们可以构建一个既灵活又有序、易于理解和扩展的后端系统。
