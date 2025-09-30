@@ -4,6 +4,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::entities::task::Outcome;
@@ -36,6 +37,48 @@ pub struct TaskSchedule {
 
     /// 更新时间
     pub updated_at: DateTime<Utc>,
+}
+
+/// TaskScheduleRow - 数据库行映射结构
+///
+/// 用于直接从数据库查询结果映射
+#[derive(Debug, FromRow)]
+pub struct TaskScheduleRow {
+    pub id: String,
+    pub task_id: String,
+    pub scheduled_day: String,
+    pub outcome: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl TryFrom<TaskScheduleRow> for TaskSchedule {
+    type Error = String;
+
+    fn try_from(row: TaskScheduleRow) -> Result<Self, Self::Error> {
+        let outcome = match row.outcome.as_str() {
+            "PLANNED" => Outcome::Planned,
+            "PRESENCE_LOGGED" => Outcome::PresenceLogged,
+            "COMPLETED_ON_DAY" => Outcome::CompletedOnDay,
+            "CARRIED_OVER" => Outcome::CarriedOver,
+            _ => return Err(format!("Invalid outcome: {}", row.outcome)),
+        };
+
+        Ok(TaskSchedule {
+            id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
+            task_id: Uuid::parse_str(&row.task_id).map_err(|e| e.to_string())?,
+            scheduled_day: DateTime::parse_from_rfc3339(&row.scheduled_day)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+            outcome,
+            created_at: DateTime::parse_from_rfc3339(&row.created_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+        })
+    }
 }
 
 impl TaskSchedule {

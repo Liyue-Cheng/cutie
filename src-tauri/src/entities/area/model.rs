@@ -1,9 +1,9 @@
 /// Area核心模型
 ///
 /// 从shared/core/models/area.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 /// Area (领域) 实体定义
@@ -41,6 +41,43 @@ pub struct Area {
 
     /// 逻辑删除标记
     pub is_deleted: bool,
+}
+
+/// AreaRow - 数据库行映射结构
+///
+/// 用于直接从数据库查询结果映射
+#[derive(Debug, FromRow)]
+pub struct AreaRow {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+    pub parent_area_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub is_deleted: bool,
+}
+
+impl TryFrom<AreaRow> for Area {
+    type Error = String;
+
+    fn try_from(row: AreaRow) -> Result<Self, Self::Error> {
+        Ok(Area {
+            id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
+            name: row.name,
+            color: row.color,
+            parent_area_id: row
+                .parent_area_id
+                .as_ref()
+                .and_then(|s| Uuid::parse_str(s).ok()),
+            created_at: DateTime::parse_from_rfc3339(&row.created_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+            is_deleted: row.is_deleted,
+        })
+    }
 }
 
 impl Area {

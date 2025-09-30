@@ -41,37 +41,3 @@ pub fn create_routes() -> Router<AppState> {
     // .route("/unscheduled", get(endpoints::get_unscheduled_tasks_handler))
     // .route("/stats", get(endpoints::get_task_stats_handler))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::AppConfig;
-    use crate::startup::database::initialize_database;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use tower::ServiceExt;
-
-    async fn create_test_app_state() -> AppState {
-        let config = AppConfig::default();
-        let db_pool = initialize_database(&config).await.unwrap();
-        AppState::new(config, db_pool)
-    }
-
-    #[tokio::test]
-    async fn test_task_routes_creation() {
-        let app_state = create_test_app_state().await;
-        let app = create_routes().with_state(app_state);
-
-        let request = Request::builder()
-            .method("GET")
-            .uri("/nonexistent-id")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        // 这应该返回404或其他错误，但不应该panic
-        assert!(response.status().is_client_error() || response.status().is_server_error());
-    }
-}

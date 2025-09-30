@@ -1,9 +1,9 @@
 /// Ordering核心模型
 ///
 /// 从shared/core/models/ordering.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::entities::task::ContextType;
@@ -43,6 +43,44 @@ pub struct Ordering {
 
     /// 更新时间
     pub updated_at: DateTime<Utc>,
+}
+
+/// OrderingRow - 数据库行映射结构
+///
+/// 用于直接从数据库查询结果映射
+#[derive(Debug, FromRow)]
+pub struct OrderingRow {
+    pub id: String,
+    pub context_type: String,
+    pub context_id: String,
+    pub task_id: String,
+    pub sort_order: String,
+    pub updated_at: String,
+}
+
+impl TryFrom<OrderingRow> for Ordering {
+    type Error = String;
+
+    fn try_from(row: OrderingRow) -> Result<Self, Self::Error> {
+        let context_type = match row.context_type.as_str() {
+            "DAILY_KANBAN" => ContextType::DailyKanban,
+            "PROJECT_LIST" => ContextType::ProjectList,
+            "AREA_FILTER" => ContextType::AreaFilter,
+            "MISC" => ContextType::Misc,
+            _ => return Err(format!("Invalid context_type: {}", row.context_type)),
+        };
+
+        Ok(Ordering {
+            id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
+            context_type,
+            context_id: row.context_id,
+            task_id: Uuid::parse_str(&row.task_id).map_err(|e| e.to_string())?,
+            sort_order: row.sort_order,
+            updated_at: DateTime::parse_from_rfc3339(&row.updated_at)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc),
+        })
+    }
 }
 
 impl Ordering {
