@@ -148,15 +148,13 @@ mod logic {
         validation::validate_create_request(&request)?;
 
         // 2. 开始事务
-        let mut tx = app_state
-            .db_pool()
-            .begin()
-            .await
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        let mut tx = app_state.db_pool().begin().await.map_err(|e| {
+            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+        })?;
 
         // 3. 生成 UUID 和时间戳
-        let task_id = app_state.id_generator().generate();
-        let now = app_state.clock().now();
+        let task_id = app_state.id_generator().new_uuid();
+        let now = app_state.clock().now_utc();
 
         // 4. 创建任务实体
         let task = Task {
@@ -192,11 +190,11 @@ mod logic {
         database::insert_ordering_in_tx(&mut tx, task_id, sort_order.clone()).await?;
 
         // 7. 提交事务
-        tx.commit()
-            .await
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+        tx.commit().await.map_err(|e| {
+            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
-            }))?;
+            })
+        })?;
 
         // 8. 组装返回的 TaskCardDto
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
@@ -236,23 +234,43 @@ mod database {
             .bind(&task.glance_note)
             .bind(&task.detail_note)
             .bind(task.estimated_duration)
-            .bind(task.subtasks.as_ref().map(|s| serde_json::to_string(s).unwrap()))
+            .bind(
+                task.subtasks
+                    .as_ref()
+                    .map(|s| serde_json::to_string(s).unwrap()),
+            )
             .bind(task.project_id.map(|id| id.to_string()))
             .bind(task.area_id.map(|id| id.to_string()))
             .bind(task.due_date.map(|d| d.to_rfc3339()))
-            .bind(task.due_date_type.as_ref().map(|t| serde_json::to_string(t).unwrap()))
+            .bind(
+                task.due_date_type
+                    .as_ref()
+                    .map(|t| serde_json::to_string(t).unwrap()),
+            )
             .bind(task.completed_at.map(|d| d.to_rfc3339()))
             .bind(task.created_at.to_rfc3339())
             .bind(task.updated_at.to_rfc3339())
             .bind(task.is_deleted)
-            .bind(task.source_info.as_ref().map(|s| serde_json::to_string(s).unwrap()))
+            .bind(
+                task.source_info
+                    .as_ref()
+                    .map(|s| serde_json::to_string(s).unwrap()),
+            )
             .bind(&task.external_source_id)
             .bind(&task.external_source_provider)
-            .bind(task.external_source_metadata.as_ref().map(|m| serde_json::to_string(m).unwrap()))
+            .bind(
+                task.external_source_metadata
+                    .as_ref()
+                    .map(|m| serde_json::to_string(m).unwrap()),
+            )
             .bind(&task.recurrence_rule)
             .bind(task.recurrence_parent_id.map(|id| id.to_string()))
             .bind(task.recurrence_original_date.map(|d| d.to_rfc3339()))
-            .bind(task.recurrence_exclusions.as_ref().map(|e| serde_json::to_string(e).unwrap()))
+            .bind(
+                task.recurrence_exclusions
+                    .as_ref()
+                    .map(|e| serde_json::to_string(e).unwrap()),
+            )
             .execute(&mut **tx)
             .await
             .map_err(|e| {
@@ -284,7 +302,7 @@ mod database {
         // 简单的 sort_order 生成策略：
         // 如果没有记录，返回 "aaa"
         // 如果有记录，将最后一个字符 +1
-        Ok(match max_sort_order.flatten() {
+        Ok(match max_sort_order {
             None => "aaa".to_string(),
             Some(max) => {
                 if max.is_empty() {
@@ -350,10 +368,12 @@ mod database {
                 AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
             })?;
 
-        Ok(result.map(|(id, name, color)| crate::entities::AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
+        Ok(
+            result.map(|(id, name, color)| crate::entities::AreaSummary {
+                id: Uuid::parse_str(&id).unwrap(),
+                name,
+                color,
+            }),
+        )
     }
 }
