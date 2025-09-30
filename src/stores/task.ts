@@ -297,20 +297,18 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     console.log('[TaskStore] Updating task', id, 'with payload:', payload)
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const updatedTask: TaskCard = await response.json()
-      // addOrUpdateTask(updatedTask)
-      // return updatedTask
-
-      console.log('[TaskStore] updateTask - API not implemented yet')
-      return null
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const updatedTask: TaskCard = result.data
+      addOrUpdateTask(updatedTask)
+      console.log('[TaskStore] Updated task:', updatedTask)
+      return updatedTask
     } catch (e) {
       error.value = `Failed to update task ${id}: ${e}`
       console.error('[TaskStore] Error updating task:', e)

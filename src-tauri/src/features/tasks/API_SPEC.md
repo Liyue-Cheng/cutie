@@ -8,8 +8,9 @@
 
 1. [POST /api/tasks](#post-apitasks) - 创建任务
 2. [GET /api/tasks/:id](#get-apitasksid) - 获取任务详情
-3. [DELETE /api/tasks/:id](#delete-apitasksid) - 删除任务
-4. [POST /api/tasks/:id/completion](#post-apitasksidcompletion) - 完成任务
+3. [PATCH /api/tasks/:id](#patch-apitasksid) - 更新任务
+4. [DELETE /api/tasks/:id](#delete-apitasksid) - 删除任务
+5. [POST /api/tasks/:id/completion](#post-apitasksidcompletion) - 完成任务
 
 ---
 
@@ -203,6 +204,88 @@
 ### 8. 预期副作用
 
 - 无（只读操作）
+
+---
+
+## PATCH /api/tasks/:id
+
+### 1. 端点签名
+`PATCH /api/tasks/:id`
+
+### 2. 预期行为简介
+
+#### 2.1. 用户故事
+> 作为用户，我想要修改任务的信息（标题、笔记、子任务等），以便更新任务内容或调整细节。
+
+#### 2.2. 核心业务逻辑
+部分更新任务字段，只更新请求中提供的字段，其他字段保持不变。
+
+#### 2.3. 预期 UI 响应
+任务卡片立即显示更新后的内容，弹窗中的数据同步更新。
+
+### 3. 输入输出规范
+
+#### 3.1. 请求
+```json
+{
+  "title": "string (optional)",
+  "glance_note": "string | null (optional)",
+  "detail_note": "string | null (optional)",
+  "area_id": "uuid | null (optional)",
+  "subtasks": "array | null (optional)"
+}
+```
+
+#### 3.2. 响应
+
+**200 OK:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "title": "更新后的标题",
+    "schedule_status": "...",
+    ...
+  }
+}
+```
+
+**404 Not Found:** 任务不存在
+**422 Unprocessable Entity:** 验证失败或空更新
+
+### 4. 验证规则
+- 至少提供一个字段
+- 如果提供 title：1-255字符
+- 如果提供 subtasks：数组长度 <= 50
+
+### 5. 业务逻辑详解
+1. 验证请求（至少一个字段）
+2. 开启事务
+3. 检查任务是否存在
+4. 动态构建 UPDATE 语句
+5. 执行更新（只更新提供的字段）
+6. 更新 updated_at 时间戳
+7. 提交事务
+8. 重新查询任务
+9. 组装 TaskCardDto（包含最新的 schedule_status）
+10. 返回更新后的任务
+
+### 6. 边界情况
+- 任务不存在 → 404
+- 所有字段都是 None → 422
+- title 为空字符串 → 422
+
+### 7. 数据访问详情
+- SELECT: 2次（检查存在、重新查询）
+- SELECT: 2-3次（schedule_status、sort_order、area）
+- UPDATE: 1次（更新任务）
+- 事务: 更新操作在事务中
+
+### 8. 预期副作用
+- 更新 tasks 表
+- 更新 updated_at 时间戳
+- 日志: INFO "Task updated"
+- 前端: 任务卡片内容即时更新
 
 ---
 
