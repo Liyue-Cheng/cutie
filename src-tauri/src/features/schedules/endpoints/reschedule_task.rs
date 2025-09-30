@@ -266,7 +266,7 @@ mod database {
         task_id: Uuid,
         day: DateTime<Utc>,
     ) -> AppResult<()> {
-        let context_id = day.timestamp().to_string();
+        let context_id = day.timestamp_millis().to_string();
 
         sqlx::query(
             r#"
@@ -289,7 +289,7 @@ mod database {
         tx: &mut Transaction<'_, Sqlite>,
         schedule: &TaskSchedule,
     ) -> AppResult<()> {
-        let context_id = schedule.scheduled_day.timestamp().to_string();
+        let context_id = schedule.scheduled_day.timestamp_millis().to_string();
         let now = Utc::now();
 
         // 获取当前最大排序值

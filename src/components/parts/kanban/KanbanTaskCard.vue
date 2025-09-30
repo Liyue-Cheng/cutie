@@ -13,7 +13,7 @@ const props = defineProps<{
 }>()
 
 const taskStore = useTaskStore()
-const emit = defineEmits(['openEditor'])
+const emit = defineEmits(['openEditor', 'taskDeleted'])
 
 const contextMenu = useContextMenu()
 
@@ -21,7 +21,16 @@ const contextMenu = useContextMenu()
 const subtasks = computed(() => props.task.subtasks || [])
 
 function showContextMenu(event: MouseEvent) {
-  contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
+  contextMenu.show(
+    KanbanTaskCardMenu,
+    { task: props.task },
+    event,
+    {
+      onTaskDeleted: (taskId: string) => {
+        emit('taskDeleted', taskId)
+      },
+    }
+  )
 }
 
 async function handleStatusChange(isChecked: boolean) {

@@ -266,7 +266,7 @@ mod database {
         tx: &mut Transaction<'_, Sqlite>,
         schedule: &TaskSchedule,
     ) -> AppResult<()> {
-        let context_id = schedule.scheduled_day.timestamp().to_string();
+        let context_id = schedule.scheduled_day.timestamp_millis().to_string();
 
         let max_sort_order: Option<String> = sqlx::query_scalar(
             "SELECT MAX(sort_order) FROM ordering WHERE context_type = ? AND context_id = ?",

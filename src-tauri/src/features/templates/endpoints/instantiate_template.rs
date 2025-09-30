@@ -379,7 +379,7 @@ mod database {
         .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
 
         // 创建排序记录
-        let context_id = scheduled_day.timestamp().to_string();
+        let context_id = scheduled_day.timestamp_millis().to_string();
         let sort_order =
             crate::shared::core::utils::sort_order_utils::generate_initial_sort_order();
 

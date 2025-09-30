@@ -104,7 +104,8 @@ mod database {
     ) -> AppResult<Vec<Task>> {
         let day_start = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
         let day_end = day_start + chrono::Duration::days(1);
-        let context_id = day_start.timestamp().to_string();
+        // 与前端保持一致：使用毫秒级时间戳作为 DAILY_KANBAN 的 context_id
+        let context_id = day_start.timestamp_millis().to_string();
 
         let rows = sqlx::query_as::<_, TaskRow>(
             r#"
@@ -118,7 +119,7 @@ mod database {
             LEFT JOIN ordering o ON t.id = o.task_id AND o.context_type = 'DAILY_KANBAN' AND o.context_id = ?
             WHERE ts.scheduled_day >= ? AND ts.scheduled_day < ?
             AND t.is_deleted = false
-            ORDER BY COALESCE(o.sort_order, 'zzz') ASC
+            ORDER BY COALESCE(o.sort_order, 'z')
             "#,
         )
         .bind(&context_id)
@@ -127,13 +128,6 @@ mod database {
         .fetch_all(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
-
-        tracing::info!(
-            "Fetched {} tasks for day {}, context_id: {}",
-            rows.len(),
-            day,
-            context_id
-        );
 
         rows.into_iter()
             .map(|r| {
