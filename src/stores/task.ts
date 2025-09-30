@@ -1,186 +1,217 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { Task, Subtask } from '@/types/models'
-import { waitForApiReady } from '@/composables/useApiConfig'
+import type { TaskCard, TaskDetail } from '@/types/dtos'
+// import { waitForApiReady } from '@/composables/useApiConfig'
 
-// --- Type Aliases from models.ts ---
-type ID = string
+/**
+ * Task Store
+ *
+ * 架构原则：
+ * - State: 只存储最原始、最规范化的数据
+ * - Actions: 负责执行操作、调用API、修改State
+ * - Getters: 只负责从State中读取和计算数据，不修改State
+ */
 
 // --- Payload Types for API calls ---
 export interface CreateTaskPayload {
   title: string
   glance_note?: string | null
   detail_note?: string | null
-  estimated_duration?: number | null
-  subtasks?: Subtask[] | null
   area_id?: string | null
   due_date?: string | null
-  due_date_type?: 'SOFT' | 'HARD' | null
-  context: {
-    context_type: 'MISC' | 'DAILY_KANBAN' | 'PROJECT_LIST' | 'AREA_FILTER'
-    context_id: string
-  }
+  due_date_type?: 'soft' | 'hard' | null
+  project_id?: string | null
+  subtasks?: Array<{
+    title: string
+    is_completed: boolean
+    sort_order: string
+  }> | null
 }
 
 export interface UpdateTaskPayload {
   title?: string
   glance_note?: string | null
   detail_note?: string | null
-  estimated_duration?: number | null
-  subtasks?: Subtask[] | null
-  project_id?: string | null
   area_id?: string | null
   due_date?: string | null
-  due_date_type?: 'SOFT' | 'HARD' | null
-}
-
-export interface SearchTasksParams {
-  q?: string
-  limit?: number
+  due_date_type?: 'soft' | 'hard' | null
+  project_id?: string | null
+  subtasks?: Array<{
+    id?: string
+    title: string
+    is_completed: boolean
+    sort_order: string
+  }> | null
 }
 
 export const useTaskStore = defineStore('task', () => {
-  // --- State ---
-  const tasks = ref(new Map<ID, Task>())
+  // ============================================================
+  // STATE - 只存储最原始、最规范化的数据
+  // ============================================================
+
+  /**
+   * 任务映射表 (单一数据源)
+   * key: task_id
+   * value: TaskCard | TaskDetail (总是保存当前最完整的信息)
+   *
+   * 说明：TaskDetail extends TaskCard，所以可以安全地存储两种类型
+   * 当获取详情时，会用 TaskDetail 覆盖原有的 TaskCard
+   */
+  const tasks = ref(new Map<string, TaskCard | TaskDetail>())
+
+  /**
+   * 加载状态
+   */
   const isLoading = ref(false)
+
+  /**
+   * 错误信息
+   */
   const error = ref<string | null>(null)
 
-  // --- Getters ---
+  // ============================================================
+  // GETTERS - 只负责从State中读取和计算数据
+  // ============================================================
 
   /**
-   * Returns all tasks as a sorted array.
+   * 获取所有任务（数组形式）
    */
   const allTasks = computed(() => {
-    return Array.from(tasks.value.values()).sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    return Array.from(tasks.value.values())
+  })
+
+  /**
+   * 获取 staging 区的任务（未安排的任务）
+   */
+  const stagingTasks = computed(() => {
+    return Array.from(tasks.value.values()).filter(
+      (task) => task.schedule_status === 'staging' && !task.is_completed
     )
   })
 
   /**
-   * Returns all unscheduled tasks (staging area).
+   * 获取已完成的任务
    */
-  const unscheduledTasks = computed(() => {
-    const allTasks = Array.from(tasks.value.values())
-    const filtered = allTasks.filter((task) => !task.is_deleted && !task.completed_at)
-    console.log(
-      `[TaskStore] unscheduledTasks computed - Total tasks: ${allTasks.length}, Unscheduled: ${filtered.length}`
-    )
-    console.log(
-      `[TaskStore] All tasks:`,
-      allTasks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        completed_at: t.completed_at,
-        is_deleted: t.is_deleted,
-      }))
-    )
-    return filtered
+  const completedTasks = computed(() => {
+    return Array.from(tasks.value.values()).filter((task) => task.is_completed)
   })
 
   /**
-   * Returns a function to get a task by its ID.
-   * @param id The ID of the task to retrieve.
+   * 获取已安排的任务
    */
-  function getTaskById(id: ID): Task | undefined {
+  const scheduledTasks = computed(() => {
+    return Array.from(tasks.value.values()).filter((task) => task.schedule_status === 'scheduled')
+  })
+
+  /**
+   * 根据 ID 获取任务（返回当前最完整的信息）
+   */
+  function getTaskById(id: string): TaskCard | TaskDetail | undefined {
     return tasks.value.get(id)
   }
 
-  // --- Actions ---
+  /**
+   * 根据项目 ID 获取任务列表
+   */
+  const getTasksByProject = computed(() => {
+    return (projectId: string) => {
+      return Array.from(tasks.value.values()).filter((task) => task.project_id === projectId)
+    }
+  })
 
   /**
-   * Fetches all unscheduled tasks from the backend and updates the state.
+   * 根据区域 ID 获取任务列表
    */
-  async function fetchUnscheduledTasks() {
+  const getTasksByArea = computed(() => {
+    return (areaId: string) => {
+      return Array.from(tasks.value.values()).filter((task) => task.area?.id === areaId)
+    }
+  })
+
+  // ============================================================
+  // ACTIONS - 负责执行操作、调用API、修改State
+  // ============================================================
+
+  /**
+   * 批量添加或更新任务（单一数据源）
+   * 使用扩展运算符合并，保证新数据覆盖旧数据，但不会丢失已有字段
+   */
+  function addOrUpdateTasks(newTasks: (TaskCard | TaskDetail)[]) {
+    const newMap = new Map(tasks.value)
+    for (const task of newTasks) {
+      // 合并现有数据和新数据，新数据优先
+      const existingTask = newMap.get(task.id) || {}
+      newMap.set(task.id, { ...existingTask, ...task })
+    }
+    tasks.value = newMap
+  }
+
+  /**
+   * 添加或更新单个任务
+   */
+  function addOrUpdateTask(task: TaskCard | TaskDetail) {
+    addOrUpdateTasks([task])
+  }
+
+  /**
+   * 从 state 中移除任务
+   */
+  function removeTask(id: string) {
+    const newMap = new Map(tasks.value)
+    newMap.delete(id)
+    tasks.value = newMap
+  }
+
+  /**
+   * 获取 Staging 区的任务
+   * API: GET /views/staging
+   */
+  async function fetchStagingTasks() {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      // 使用 staging 视图查询未安排日程的任务
-      const response = await fetch(`${apiBaseUrl}/views/staging`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/views/staging`)
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const stagingTasks: TaskCard[] = await response.json()
+      // addOrUpdateTasks(stagingTasks)
 
-      const taskList: Task[] = await response.json()
-
-      const taskMap = new Map<ID, Task>()
-      for (const task of taskList) {
-        taskMap.set(task.id, task)
-      }
-      tasks.value = taskMap
-
-      console.log(`[TaskStore] Fetched ${taskList.length} unscheduled tasks`)
+      console.log('[TaskStore] fetchStagingTasks - API not implemented yet')
     } catch (e) {
-      error.value = `Failed to fetch unscheduled tasks: ${e}`
-      console.error('[TaskStore] Error fetching unscheduled tasks:', e)
+      error.value = `Failed to fetch staging tasks: ${e}`
+      console.error('[TaskStore] Error fetching staging tasks:', e)
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Searches tasks based on keywords or returns unscheduled tasks if no query.
+   * 创建新任务
+   * API: POST /tasks
    */
-  async function searchTasks(params: SearchTasksParams = {}) {
+  async function createTask(payload: CreateTaskPayload): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
+    console.log('[TaskStore] Creating task with payload:', payload)
     try {
-      const searchParams = new URLSearchParams()
-      if (params.q) searchParams.append('q', params.q)
-      if (params.limit) searchParams.append('limit', params.limit.toString())
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/tasks`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload)
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const newTask: TaskCard = await response.json()
+      // addOrUpdateTask(newTask)
+      // return newTask
 
-      const apiBaseUrl = await waitForApiReady()
-      const url = `${apiBaseUrl}/tasks${searchParams.toString() ? '?' + searchParams.toString() : ''}`
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const taskList: Task[] = apiResponse.data
-
-      // Update tasks in the store
-      for (const task of taskList) {
-        tasks.value.set(task.id, task)
-      }
-
-      console.log(`[TaskStore] Found ${taskList.length} tasks matching search`)
-      return taskList
+      console.log('[TaskStore] createTask - API not implemented yet')
+      return null
     } catch (e) {
-      error.value = `Failed to search tasks: ${e}`
-      console.error('[TaskStore] Error searching tasks:', e)
-      return []
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Fetches a single task by ID.
-   */
-  async function fetchTask(id: ID) {
-    isLoading.value = true
-    error.value = null
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${id}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const task: Task = apiResponse.data
-
-      // 确保响应性更新
-      const newTasks = new Map(tasks.value)
-      newTasks.set(task.id, task)
-      tasks.value = newTasks
-      console.log(`[TaskStore] Fetched task ${id}`)
-      return task
-    } catch (e) {
-      error.value = `Failed to fetch task ${id}: ${e}`
-      console.error(`[TaskStore] Error fetching task ${id}:`, e)
+      error.value = `Failed to create task: ${e}`
+      console.error('[TaskStore] Error creating task:', e)
       return null
     } finally {
       isLoading.value = false
@@ -188,186 +219,174 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   /**
-   * Creates a new task.
-   * @param payload The data for the new task.
+   * 更新任务
+   * API: PATCH /tasks/:id
    */
-  async function createTask(payload: CreateTaskPayload) {
+  async function updateTask(id: string, payload: UpdateTaskPayload): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
-    console.log(`[TaskStore] Attempting to create task with payload:`, payload)
+    console.log('[TaskStore] Updating task', id, 'with payload:', payload)
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
+      //   method: 'PATCH',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload)
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const updatedTask: TaskCard = await response.json()
+      // addOrUpdateTask(updatedTask)
+      // return updatedTask
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const newTask: Task = apiResponse.data
-
-      // 确保响应性更新
-      const newTasks = new Map(tasks.value)
-      newTasks.set(newTask.id, newTask)
-      tasks.value = newTasks
-      console.log(`[TaskStore] Successfully created task:`, newTask)
-    } catch (e) {
-      error.value = `Failed to create task: ${e}`
-      console.error(`[TaskStore] Error creating task:`, e)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Updates an existing task.
-   * @param id The ID of the task to update.
-   * @param payload The new data for the task.
-   */
-  async function updateTask(id: ID, payload: UpdateTaskPayload) {
-    isLoading.value = true
-    error.value = null
-    console.log(`[TaskStore] Attempting to update task ${id} with payload:`, payload)
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const updatedTask: Task = apiResponse.data
-
-      // 确保响应性更新
-      const newTasks = new Map(tasks.value)
-      newTasks.set(id, updatedTask)
-      tasks.value = newTasks
-      console.log(`[TaskStore] Successfully updated task ${id}:`, updatedTask)
+      console.log('[TaskStore] updateTask - API not implemented yet')
+      return null
     } catch (e) {
       error.value = `Failed to update task ${id}: ${e}`
-      console.error(`[TaskStore] Error updating task ${id}:`, e)
+      console.error('[TaskStore] Error updating task:', e)
+      return null
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Deletes a task.
-   * @param id The ID of the task to delete.
+   * 获取任务详情
+   * API: GET /tasks/:id
    */
-  async function deleteTask(id: ID) {
+  async function fetchTaskDetail(id: string): Promise<TaskDetail | null> {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
-        method: 'DELETE',
-      })
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/tasks/${id}`)
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const taskDetail: TaskDetail = await response.json()
+      // addOrUpdateTask(taskDetail)  // 会自动合并并覆盖旧的 TaskCard 数据
+      // return taskDetail
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
+      console.log('[TaskStore] fetchTaskDetail - API not implemented yet')
+      return null
+    } catch (e) {
+      error.value = `Failed to fetch task detail ${id}: ${e}`
+      console.error('[TaskStore] Error fetching task detail:', e)
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
 
-      // 确保响应性更新
-      const newTasks = new Map(tasks.value)
-      newTasks.delete(id)
-      tasks.value = newTasks
-      console.log(`[TaskStore] Successfully deleted task ${id}`)
+  /**
+   * 删除任务
+   * API: DELETE /tasks/:id
+   */
+  async function deleteTask(id: string): Promise<boolean> {
+    isLoading.value = true
+    error.value = null
+    try {
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
+      //   method: 'DELETE'
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // removeTask(id)
+      // return true
+
+      console.log('[TaskStore] deleteTask - API not implemented yet')
+      return false
     } catch (e) {
       error.value = `Failed to delete task ${id}: ${e}`
       console.error('[TaskStore] Error deleting task:', e)
+      return false
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Completes a task by calling the completion endpoint.
-   * @param id The ID of the task to complete.
+   * 完成任务
+   * API: POST /tasks/:id/complete
    */
-  async function completeTask(id: ID) {
+  async function completeTask(id: string): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
-        method: 'POST',
-      })
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/tasks/${id}/complete`, {
+      //   method: 'POST'
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const completedTask: TaskCard = await response.json()
+      // addOrUpdateTask(completedTask)
+      // return completedTask
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const completedTask: Task = apiResponse.data
-
-      console.log(`[TaskStore] API Response for complete task:`, apiResponse)
-      console.log(`[TaskStore] Completed task data:`, completedTask)
-      console.log(`[TaskStore] Task completed_at:`, completedTask.completed_at)
-
-      // 确保响应性更新
-      const newTasks = new Map(tasks.value)
-      newTasks.set(id, completedTask)
-      tasks.value = newTasks
-      console.log(`[TaskStore] Successfully completed task ${id}`)
-      console.log(
-        `[TaskStore] Updated tasks map:`,
-        Array.from(newTasks.values()).find((t) => t.id === id)
-      )
+      console.log('[TaskStore] completeTask - API not implemented yet')
+      return null
     } catch (e) {
       error.value = `Failed to complete task ${id}: ${e}`
       console.error('[TaskStore] Error completing task:', e)
+      return null
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Reopens a completed task.
-   * @param id The ID of the task to reopen.
+   * 重新打开任务
+   * API: POST /tasks/:id/reopen
    */
-  async function reopenTask(id: ID) {
+  async function reopenTask(id: string): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
-        method: 'DELETE',
-      })
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/tasks/${id}/reopen`, {
+      //   method: 'POST'
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const reopenedTask: TaskCard = await response.json()
+      // addOrUpdateTask(reopenedTask)
+      // return reopenedTask
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const reopenedTask: Task = apiResponse.data
-
-      // 确保响应性更新
-      const newTasks = new Map(tasks.value)
-      newTasks.set(id, reopenedTask)
-      tasks.value = newTasks
-      console.log(`[TaskStore] Successfully reopened task ${id}`)
+      console.log('[TaskStore] reopenTask - API not implemented yet')
+      return null
     } catch (e) {
       error.value = `Failed to reopen task ${id}: ${e}`
       console.error('[TaskStore] Error reopening task:', e)
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 搜索任务
+   * API: GET /tasks/search?q=...
+   */
+  async function searchTasks(query: string, limit?: number): Promise<TaskCard[]> {
+    isLoading.value = true
+    error.value = null
+    try {
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const params = new URLSearchParams({ q: query })
+      // if (limit) params.append('limit', limit.toString())
+      // const response = await fetch(`${apiBaseUrl}/tasks/search?${params}`)
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const results: TaskCard[] = await response.json()
+      // addOrUpdateTasks(results)
+      // return results
+
+      console.log('[TaskStore] searchTasks - API not implemented yet', { query, limit })
+      return []
+    } catch (e) {
+      error.value = `Failed to search tasks: ${e}`
+      console.error('[TaskStore] Error searching tasks:', e)
+      return []
     } finally {
       isLoading.value = false
     }
@@ -378,18 +397,27 @@ export const useTaskStore = defineStore('task', () => {
     tasks,
     isLoading,
     error,
+
     // Getters
     allTasks,
-    unscheduledTasks,
+    stagingTasks,
+    completedTasks,
+    scheduledTasks,
     getTaskById,
+    getTasksByProject,
+    getTasksByArea,
+
     // Actions
-    fetchUnscheduledTasks,
-    searchTasks,
-    fetchTask,
+    addOrUpdateTasks,
+    addOrUpdateTask,
+    removeTask,
+    fetchStagingTasks,
     createTask,
     updateTask,
+    fetchTaskDetail,
     deleteTask,
     completeTask,
     reopenTask,
+    searchTasks,
   }
 })

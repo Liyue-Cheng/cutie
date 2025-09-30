@@ -45,7 +45,7 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
     let config = app_state.config().clone();
 
     // 创建API路由 - 使用新的功能切片架构
-    let api_routes = crate::features::api_router::create_new_api_router();
+    let api_routes = crate::features::create_api_router();
 
     // 创建完整的应用路由
     let app = Router::new()

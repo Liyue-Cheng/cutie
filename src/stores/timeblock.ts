@@ -1,30 +1,28 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import type { TimeBlockView } from '@/types/dtos'
+// import { waitForApiReady } from '@/composables/useApiConfig'
 
-// --- Type Definitions ---
-type ID = string
+/**
+ * TimeBlock Store
+ * 
+ * 职责：管理日历上的时间块
+ * 
+ * 架构原则：
+ * - State: 只存储最原始、最规范化的数据（TimeBlockView 映射表）
+ * - Actions: 负责执行操作、调用API、修改State
+ * - Getters: 只负责从State中读取和计算数据，不修改State
+ */
 
-export interface TimeBlock {
-  id: string
-  title: string | null
-  glance_note: string | null
-  detail_note: string | null
-  start_time: string
-  end_time: string
-  area_id: string | null
-  created_at: string
-  updated_at: string
-  is_deleted: boolean
-}
-
+// --- Payload Types for API calls ---
 export interface CreateTimeBlockPayload {
   title?: string | null
   glance_note?: string | null
   detail_note?: string | null
-  start_time: string
-  end_time: string
+  start_time: string // ISO 8601 UTC
+  end_time: string // ISO 8601 UTC
   area_id?: string | null
-  task_ids: string[]
+  linked_task_ids?: string[]
 }
 
 export interface UpdateTimeBlockPayload {
@@ -36,132 +34,192 @@ export interface UpdateTimeBlockPayload {
   area_id?: string | null
 }
 
-export interface FreeTimeSlot {
-  start_time: string
-  end_time: string
-  duration_minutes: number
-}
-
-export interface ConflictCheckResult {
-  has_conflict: boolean
-  start_time: string
-  end_time: string
-}
-
-// --- API Base URL ---
-import { waitForApiReady } from '@/composables/useApiConfig'
-
 export const useTimeBlockStore = defineStore('timeblock', () => {
-  // --- State ---
-  const timeBlocks = ref(new Map<ID, TimeBlock>())
+  // ============================================================
+  // STATE - 只存储最原始、最规范化的数据
+  // ============================================================
+
+  /**
+   * 时间块映射表
+   * key: timeblock_id
+   */
+  const timeBlocks = ref(new Map<string, TimeBlockView>())
+
+  /**
+   * 加载状态
+   */
   const isLoading = ref(false)
+
+  /**
+   * 错误信息
+   */
   const error = ref<string | null>(null)
 
-  // --- Getters ---
+  // ============================================================
+  // GETTERS - 只负责从State中读取和计算数据
+  // ============================================================
 
   /**
-   * Returns all time blocks as a sorted array.
+   * 获取所有时间块（按开始时间排序）
    */
   const allTimeBlocks = computed(() => {
-    return Array.from(timeBlocks.value.values())
-      .filter((block) => !block.is_deleted)
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    return Array.from(timeBlocks.value.values()).sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    )
   })
 
   /**
-   * Returns time blocks for a specific date.
+   * 根据 ID 获取时间块
    */
-  const getTimeBlocksForDate = computed(() => {
-    return (date: string) => {
-      const targetDate = new Date(date).toDateString()
-      return Array.from(timeBlocks.value.values())
-        .filter(
-          (block) => !block.is_deleted && new Date(block.start_time).toDateString() === targetDate
-        )
-        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-    }
-  })
-
-  /**
-   * Returns time blocks for a specific area.
-   */
-  const getTimeBlocksForArea = computed(() => {
-    return (areaId: string) => {
-      return Array.from(timeBlocks.value.values())
-        .filter((block) => !block.is_deleted && block.area_id === areaId)
-        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-    }
-  })
-
-  /**
-   * Returns a function to get a time block by its ID.
-   */
-  function getTimeBlockById(id: ID): TimeBlock | undefined {
+  function getTimeBlockById(id: string): TimeBlockView | undefined {
     return timeBlocks.value.get(id)
   }
 
-  // --- Actions ---
+  /**
+   * 获取指定日期的时间块列表
+   */
+  const getTimeBlocksForDate = computed(() => {
+    return (date: string): TimeBlockView[] => {
+      const targetDate = new Date(date).toDateString()
+      return Array.from(timeBlocks.value.values())
+        .filter((block) => new Date(block.start_time).toDateString() === targetDate)
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    }
+  })
 
   /**
-   * Fetches time blocks for a specific date.
+   * 获取指定时间范围的时间块列表
    */
-  async function fetchTimeBlocksForDate(date: string) {
-    // 不设置 loading 状态，因为可能被 fetchTimeBlocksForRange 批量调用
+  const getTimeBlocksInRange = computed(() => {
+    return (startTime: string, endTime: string): TimeBlockView[] => {
+      const start = new Date(startTime).getTime()
+      const end = new Date(endTime).getTime()
+
+      return Array.from(timeBlocks.value.values())
+        .filter((block) => {
+          const blockStart = new Date(block.start_time).getTime()
+          const blockEnd = new Date(block.end_time).getTime()
+          // 检查是否有时间重叠
+          return blockStart < end && blockEnd > start
+        })
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    }
+  })
+
+  /**
+   * 根据区域 ID 获取时间块列表
+   */
+  const getTimeBlocksByArea = computed(() => {
+    return (areaId: string): TimeBlockView[] => {
+      return Array.from(timeBlocks.value.values())
+        .filter((block) => block.area?.id === areaId)
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    }
+  })
+
+  /**
+   * 获取包含指定任务的时间块列表
+   */
+  const getTimeBlocksWithTask = computed(() => {
+    return (taskId: string): TimeBlockView[] => {
+      return Array.from(timeBlocks.value.values())
+        .filter((block) => block.linked_tasks.some((task) => task.id === taskId))
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    }
+  })
+
+  // ============================================================
+  // ACTIONS - 负责执行操作、调用API、修改State
+  // ============================================================
+
+  /**
+   * 批量添加或更新时间块
+   */
+  function addOrUpdateTimeBlocks(blocks: TimeBlockView[]) {
+    const newMap = new Map(timeBlocks.value)
+    for (const block of blocks) {
+      newMap.set(block.id, block)
+    }
+    timeBlocks.value = newMap
+  }
+
+  /**
+   * 添加或更新单个时间块
+   */
+  function addOrUpdateTimeBlock(block: TimeBlockView) {
+    const newMap = new Map(timeBlocks.value)
+    newMap.set(block.id, block)
+    timeBlocks.value = newMap
+  }
+
+  /**
+   * 从 state 中移除时间块
+   */
+  function removeTimeBlock(id: string) {
+    const newMap = new Map(timeBlocks.value)
+    newMap.delete(id)
+    timeBlocks.value = newMap
+  }
+
+  /**
+   * 获取指定日期的时间块
+   * API: GET /time-blocks?date=YYYY-MM-DD
+   */
+  async function fetchTimeBlocksForDate(date: string): Promise<TimeBlockView[]> {
+    isLoading.value = true
+    error.value = null
+
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks?date=${encodeURIComponent(date)}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      // 后端直接返回数组，不是 {data: []} 格式
-      const blockList: TimeBlock[] = await response.json()
-
-      // Update time blocks in the store
-      for (const block of blockList) {
-        timeBlocks.value.set(block.id, block)
-      }
-
-      console.log(`[TimeBlockStore] Fetched ${blockList.length} time blocks for ${date}`)
-      return blockList
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/time-blocks?date=${date}`)
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const blocks: TimeBlockView[] = await response.json()
+      // addOrUpdateTimeBlocks(blocks)
+      // return blocks
+      
+      console.log('[TimeBlockStore] fetchTimeBlocksForDate - API not implemented yet', { date })
+      return []
     } catch (e) {
       error.value = `Failed to fetch time blocks for ${date}: ${e}`
-      console.error(`[TimeBlockStore] Error fetching time blocks for date ${date}:`, e)
+      console.error('[TimeBlockStore] Error fetching time blocks:', e)
       return []
+    } finally {
+      isLoading.value = false
     }
   }
 
   /**
-   * Fetches time blocks for a date range.
-   * 通过多次单日查询实现范围查询
+   * 获取日期范围内的时间块
+   * API: GET /time-blocks?start_date=...&end_date=...
    */
-  async function fetchTimeBlocksForRange(startDate: string, endDate: string) {
+  async function fetchTimeBlocksForRange(
+    startDate: string,
+    endDate: string
+  ): Promise<TimeBlockView[]> {
     isLoading.value = true
     error.value = null
+
     try {
-      const start = new Date(startDate)
-      const end = new Date(endDate)
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const params = new URLSearchParams()
+      // params.append('start_date', startDate)
+      // params.append('end_date', endDate)
+      // const response = await fetch(`${apiBaseUrl}/time-blocks?${params}`)
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const blocks: TimeBlockView[] = await response.json()
+      // addOrUpdateTimeBlocks(blocks)
+      // return blocks
       
-      const allBlocks: TimeBlock[] = []
-      const currentDate = new Date(start)
-
-      // 遍历日期范围，逐日查询
-      while (currentDate <= end) {
-        const dateStr = currentDate.toISOString().split('T')[0] // YYYY-MM-DD
-        const blocks = await fetchTimeBlocksForDate(dateStr)
-        allBlocks.push(...blocks)
-        
-        // 移动到下一天
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
-
-      console.log(
-        `[TimeBlockStore] Fetched ${allBlocks.length} time blocks for range ${startDate} - ${endDate}`
-      )
-      return allBlocks
+      console.log('[TimeBlockStore] fetchTimeBlocksForRange - API not implemented yet', {
+        startDate,
+        endDate,
+      })
+      return []
     } catch (e) {
       error.value = `Failed to fetch time blocks for range: ${e}`
-      console.error('[TimeBlockStore] Error fetching time blocks:', e)
+      console.error('[TimeBlockStore] Error fetching time blocks for range:', e)
       return []
     } finally {
       isLoading.value = false
@@ -169,95 +227,32 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   }
 
   /**
-   * Fetches time blocks for a specific task.
+   * 创建时间块
+   * API: POST /time-blocks
    */
-  async function fetchTimeBlocksForTask(taskId: string) {
+  async function createTimeBlock(payload: CreateTimeBlockPayload): Promise<TimeBlockView | null> {
     isLoading.value = true
     error.value = null
+    console.log('[TimeBlockStore] Creating time block:', payload)
+
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(
-        `${apiBaseUrl}/time-blocks?task_id=${encodeURIComponent(taskId)}`
-      )
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const blockList: TimeBlock[] = apiResponse.data
-
-      // Update time blocks in the store
-      for (const block of blockList) {
-        timeBlocks.value.set(block.id, block)
-      }
-
-      console.log(`[TimeBlockStore] Fetched ${blockList.length} time blocks for task ${taskId}`)
-      return blockList
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/time-blocks`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload)
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const newBlock: TimeBlockView = await response.json()
+      // addOrUpdateTimeBlock(newBlock)
+      // return newBlock
+      
+      console.log('[TimeBlockStore] createTimeBlock - API not implemented yet')
+      return null
     } catch (e) {
-      error.value = `Failed to fetch time blocks for task ${taskId}: ${e}`
-      console.error('[TimeBlockStore] Error fetching time blocks:', e)
-      return []
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Fetches time blocks for a specific area.
-   */
-  async function fetchTimeBlocksForArea(areaId: string) {
-    isLoading.value = true
-    error.value = null
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(
-        `${apiBaseUrl}/time-blocks?area_id=${encodeURIComponent(areaId)}`
-      )
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const blockList: TimeBlock[] = apiResponse.data
-
-      // Update time blocks in the store
-      for (const block of blockList) {
-        timeBlocks.value.set(block.id, block)
-      }
-
-      console.log(`[TimeBlockStore] Fetched ${blockList.length} time blocks for area ${areaId}`)
-      return blockList
-    } catch (e) {
-      error.value = `Failed to fetch time blocks for area ${areaId}: ${e}`
-      console.error('[TimeBlockStore] Error fetching time blocks:', e)
-      return []
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Fetches a single time block by ID.
-   */
-  async function fetchTimeBlock(id: ID) {
-    isLoading.value = true
-    error.value = null
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const timeBlock: TimeBlock = apiResponse.data
-
-      timeBlocks.value.set(timeBlock.id, timeBlock)
-      console.log(`[TimeBlockStore] Fetched time block ${id}`)
-      return timeBlock
-    } catch (e) {
-      error.value = `Failed to fetch time block ${id}: ${e}`
-      console.error(`[TimeBlockStore] Error fetching time block ${id}:`, e)
+      error.value = `Failed to create time block: ${e}`
+      console.error('[TimeBlockStore] Error creating time block:', e)
       return null
     } finally {
       isLoading.value = false
@@ -265,243 +260,139 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   }
 
   /**
-   * Creates a new time block.
+   * 更新时间块
+   * API: PATCH /time-blocks/:id
    */
-  async function createTimeBlock(payload: CreateTimeBlockPayload) {
+  async function updateTimeBlock(
+    id: string,
+    payload: UpdateTimeBlockPayload
+  ): Promise<TimeBlockView | null> {
     isLoading.value = true
     error.value = null
-    console.log(`[TimeBlockStore] Attempting to create time block with payload:`, payload)
-    console.log(`[TimeBlockStore] Payload JSON:`, JSON.stringify(payload, null, 2))
+    console.log('[TimeBlockStore] Updating time block', id, ':', payload)
+
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const newTimeBlock: TimeBlock = apiResponse.data
-
-      timeBlocks.value.set(newTimeBlock.id, newTimeBlock)
-      console.log(`[TimeBlockStore] Successfully created time block:`, newTimeBlock)
-      return newTimeBlock
-    } catch (e) {
-      error.value = `Failed to create time block: ${e}`
-      console.error(`[TimeBlockStore] Error creating time block:`, e)
-      throw e
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Updates an existing time block.
-   */
-  async function updateTimeBlock(id: ID, payload: UpdateTimeBlockPayload) {
-    isLoading.value = true
-    error.value = null
-    console.log(`[TimeBlockStore] Attempting to update time block ${id} with payload:`, payload)
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const updatedTimeBlock: TimeBlock = apiResponse.data
-
-      timeBlocks.value.set(id, updatedTimeBlock)
-      console.log(`[TimeBlockStore] Successfully updated time block ${id}:`, updatedTimeBlock)
-      return updatedTimeBlock
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
+      //   method: 'PATCH',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload)
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // const updatedBlock: TimeBlockView = await response.json()
+      // addOrUpdateTimeBlock(updatedBlock)
+      // return updatedBlock
+      
+      console.log('[TimeBlockStore] updateTimeBlock - API not implemented yet')
+      return null
     } catch (e) {
       error.value = `Failed to update time block ${id}: ${e}`
-      console.error(`[TimeBlockStore] Error updating time block ${id}:`, e)
-      throw e
+      console.error('[TimeBlockStore] Error updating time block:', e)
+      return null
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Deletes a time block.
+   * 删除时间块
+   * API: DELETE /time-blocks/:id
    */
-  async function deleteTimeBlock(id: ID) {
+  async function deleteTimeBlock(id: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
+
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      timeBlocks.value.delete(id)
-      console.log(`[TimeBlockStore] Successfully deleted time block ${id}`)
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
+      //   method: 'DELETE'
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // removeTimeBlock(id)
+      // return true
+      
+      console.log('[TimeBlockStore] deleteTimeBlock - API not implemented yet', { id })
+      return false
     } catch (e) {
       error.value = `Failed to delete time block ${id}: ${e}`
       console.error('[TimeBlockStore] Error deleting time block:', e)
-      throw e
+      return false
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Links a task to a time block.
+   * 将任务链接到时间块
+   * API: POST /time-blocks/:id/tasks
    */
-  async function linkTaskToBlock(blockId: ID, taskId: ID) {
+  async function linkTaskToBlock(blockId: string, taskId: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
+    console.log('[TimeBlockStore] Linking task', taskId, 'to block', blockId)
+
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/links`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          task_id: taskId,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      console.log(`[TimeBlockStore] Successfully linked task ${taskId} to block ${blockId}`)
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/tasks`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ task_id: taskId })
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      
+      // // 重新获取该时间块以更新链接的任务列表
+      // const block = timeBlocks.value.get(blockId)
+      // if (block) {
+      //   const date = new Date(block.start_time).toISOString().split('T')[0]
+      //   await fetchTimeBlocksForDate(date)
+      // }
+      // return true
+      
+      console.log('[TimeBlockStore] linkTaskToBlock - API not implemented yet')
+      return false
     } catch (e) {
       error.value = `Failed to link task to block: ${e}`
       console.error('[TimeBlockStore] Error linking task to block:', e)
-      throw e
+      return false
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Unlinks a task from a time block.
+   * 从时间块取消链接任务
+   * API: DELETE /time-blocks/:id/tasks/:task_id
    */
-  async function unlinkTaskFromBlock(blockId: ID, taskId: ID) {
+  async function unlinkTaskFromBlock(blockId: string, taskId: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
+    console.log('[TimeBlockStore] Unlinking task', taskId, 'from block', blockId)
+
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/links`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          task_id: taskId,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      console.log(`[TimeBlockStore] Successfully unlinked task ${taskId} from block ${blockId}`)
+      // TODO: 实现 API 调用
+      // const apiBaseUrl = await waitForApiReady()
+      // const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/tasks/${taskId}`, {
+      //   method: 'DELETE'
+      // })
+      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      
+      // // 重新获取该时间块以更新链接的任务列表
+      // const block = timeBlocks.value.get(blockId)
+      // if (block) {
+      //   const date = new Date(block.start_time).toISOString().split('T')[0]
+      //   await fetchTimeBlocksForDate(date)
+      // }
+      // return true
+      
+      console.log('[TimeBlockStore] unlinkTaskFromBlock - API not implemented yet')
+      return false
     } catch (e) {
       error.value = `Failed to unlink task from block: ${e}`
       console.error('[TimeBlockStore] Error unlinking task from block:', e)
-      throw e
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Checks for time conflicts.
-   */
-  async function checkTimeConflict(
-    startTime: string,
-    endTime: string,
-    excludeId?: string
-  ): Promise<ConflictCheckResult | null> {
-    isLoading.value = true
-    error.value = null
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const params = new URLSearchParams()
-      params.append('start_time', startTime)
-      params.append('end_time', endTime)
-      if (excludeId) {
-        params.append('exclude_id', excludeId)
-      }
-
-      const response = await fetch(`${apiBaseUrl}/time-blocks/conflicts?${params.toString()}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const result: ConflictCheckResult = apiResponse.data
-
-      console.log(`[TimeBlockStore] Conflict check result:`, result)
-      return result
-    } catch (e) {
-      error.value = `Failed to check time conflict: ${e}`
-      console.error('[TimeBlockStore] Error checking time conflict:', e)
-      return null
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  /**
-   * Finds free time slots in a given time range.
-   */
-  async function findFreeSlots(
-    startTime: string,
-    endTime: string,
-    minDurationMinutes: number
-  ): Promise<FreeTimeSlot[]> {
-    isLoading.value = true
-    error.value = null
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const params = new URLSearchParams()
-      params.append('start_time', startTime)
-      params.append('end_time', endTime)
-      params.append('min_duration_minutes', minDurationMinutes.toString())
-
-      const response = await fetch(`${apiBaseUrl}/time-blocks/free-slots?${params.toString()}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const slots: FreeTimeSlot[] = apiResponse.data
-
-      console.log(`[TimeBlockStore] Found ${slots.length} free slots`)
-      return slots
-    } catch (e) {
-      error.value = `Failed to find free slots: ${e}`
-      console.error('[TimeBlockStore] Error finding free slots:', e)
-      return []
+      return false
     } finally {
       isLoading.value = false
     }
@@ -512,23 +403,25 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     timeBlocks,
     isLoading,
     error,
+
     // Getters
     allTimeBlocks,
-    getTimeBlocksForDate,
-    getTimeBlocksForArea,
     getTimeBlockById,
+    getTimeBlocksForDate,
+    getTimeBlocksInRange,
+    getTimeBlocksByArea,
+    getTimeBlocksWithTask,
+
     // Actions
+    addOrUpdateTimeBlocks,
+    addOrUpdateTimeBlock,
+    removeTimeBlock,
     fetchTimeBlocksForDate,
     fetchTimeBlocksForRange,
-    fetchTimeBlocksForTask,
-    fetchTimeBlocksForArea,
-    fetchTimeBlock,
     createTimeBlock,
     updateTimeBlock,
     deleteTimeBlock,
     linkTaskToBlock,
     unlinkTaskFromBlock,
-    checkTimeConflict,
-    findFreeSlots,
   }
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Task } from '@/types/models'
+import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 import { useContextMenu } from '@/composables/useContextMenu'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
@@ -9,7 +9,7 @@ import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
-  task: Task
+  task: TaskCard
 }>()
 
 const taskStore = useTaskStore()
@@ -45,43 +45,10 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtasks: updatedSubtasks,
   })
 }
-
-function handleDragStart(event: DragEvent) {
-  if (!event.dataTransfer) return
-
-  // 设置拖拽数据
-  event.dataTransfer.setData(
-    'application/json',
-    JSON.stringify({
-      type: 'task',
-      task: props.task,
-    })
-  )
-
-  // 设置拖拽效果
-  event.dataTransfer.effectAllowed = 'copy'
-
-  // 添加拖拽样式
-  const element = event.target as HTMLElement
-  element.classList.add('dragging')
-}
-
-function handleDragEnd(event: DragEvent) {
-  // 移除拖拽样式
-  const element = event.target as HTMLElement
-  element.classList.remove('dragging')
-}
 </script>
 
 <template>
-  <CuteCard
-    class="task-card draggable-task"
-    :draggable="true"
-    @click="emit('openEditor')"
-    @contextmenu="showContextMenu"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
-  >
+  <CuteCard class="task-card" @click="emit('openEditor')" @contextmenu="showContextMenu">
     <div class="main-content">
       <span class="title">{{ task.title }}</span>
 
@@ -106,7 +73,7 @@ function handleDragEnd(event: DragEvent) {
 
       <CuteCheckbox
         class="main-checkbox"
-        :checked="!!task.completed_at"
+        :checked="task.is_completed"
         size="large"
         @update:checked="handleStatusChange"
         @click.stop
@@ -189,22 +156,5 @@ function handleDragEnd(event: DragEvent) {
 .subtask-item:has(.n-checkbox--checked) .subtask-title {
   text-decoration: line-through;
   color: var(--color-text-secondary);
-}
-
-/* 拖拽样式 */
-.draggable-task {
-  cursor: grab;
-}
-
-.draggable-task:active {
-  cursor: grabbing;
-}
-
-.draggable-task.dragging {
-  opacity: 0.5;
-  transform: scale(0.95);
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
 }
 </style>

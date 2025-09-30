@@ -1,34 +1,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import draggable from 'vuedraggable'
-import type { Task } from '@/types/models'
+import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
-import { useScheduleStore } from '@/stores/schedule'
-import { useOrderingStore } from '@/stores/ordering'
+// import { useScheduleStore } from '@/stores/schedule' // TODO: Schedule store 需要重建
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 
 const props = defineProps<{
   date: Date
-  tasks: Task[]
+  tasks: TaskCard[]
 }>()
 
 const emit = defineEmits(['openEditor', 'taskCreated'])
 
 const taskStore = useTaskStore()
-const scheduleStore = useScheduleStore()
-const orderingStore = useOrderingStore()
+// const scheduleStore = useScheduleStore() // TODO: Schedule store 需要重建
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
-
-// 本地任务列表（响应式副本，用于拖拽）
-const localTasks = computed({
-  get: () => props.tasks,
-  set: () => {
-    // 拖动过程中的临时变更由 vue-draggable-next 自动处理
-    // 实际更新在 onDragEnd 中进行
-  },
-})
 
 // 格式化日期显示
 const dateTitle = computed(() => {
@@ -67,23 +55,22 @@ async function handleAddTask() {
   newTaskTitle.value = ''
 
   try {
-    await taskStore.createTask({
+    const newTask = await taskStore.createTask({
       title,
-      context: {
-        context_type: 'DAILY_KANBAN',
-        context_id: props.date.toISOString(),
-      },
+      // TODO: 新的 payload 结构不需要 context 字段
+      // context: {
+      //   context_type: 'DAILY_KANBAN',
+      //   context_id: props.date.toISOString(),
+      // },
     })
-
-    const tasks = Array.from(taskStore.tasks.values())
-    const newTask = tasks.find((t) => t.title === title)
 
     if (newTask) {
       const dateStr = props.date.toISOString().split('T')[0] as string
-      await scheduleStore.scheduleTask({
-        task_id: newTask.id,
-        scheduled_day: dateStr,
-      })
+      // TODO: Schedule store 需要重建
+      // await scheduleStore.scheduleTask({
+      //   task_id: newTask.id,
+      //   scheduled_day: dateStr,
+      // })
 
       emit('taskCreated', dateStr)
     }
@@ -97,88 +84,21 @@ async function handleAddTask() {
 
 // 任务数量统计
 const taskCount = computed(() => props.tasks.length)
-const completedCount = computed(() => props.tasks.filter((t) => t.completed_at).length)
+const completedCount = computed(() => props.tasks.filter((t) => t.is_completed).length)
 
-// 拖拽结束时的处理
-async function onDragEnd(event: any) {
-  const { oldIndex, newIndex, from, to } = event
+// 处理原生拖拽开始事件
+function handleDragStart(event: DragEvent, task: TaskCard) {
+  if (!event.dataTransfer) return
 
-  // 如果没有实际移动，直接返回
-  if (oldIndex === newIndex && from === to) return
-
-  const movedTask = props.tasks[oldIndex]
-  if (!movedTask) return
-
-  const dateStr = props.date.toISOString().split('T')[0] as string
-  // 使用 ISO8601 字符串作为 context_id，而不是时间戳
-  const contextId = new Date(dateStr + 'T00:00:00Z').toISOString()
-
-  try {
-    // 如果是跨列表拖动（from !== to），需要先排程到新日期
-    if (from !== to) {
-      await scheduleStore.scheduleTask({
-        task_id: movedTask.id,
-        scheduled_day: dateStr,
-      })
-    }
-
-    // 计算新的 sort_order
-    // newIndex 是目标位置，我们需要找到该位置前后的任务
-    const prevTask = newIndex > 0 ? props.tasks[newIndex - 1] : undefined
-    const nextTask = props.tasks[newIndex]
-
-    // 如果 nextTask 就是被移动的任务自己，说明向后移动，需要取下一个
-    const actualNextTask = nextTask?.id === movedTask.id ? props.tasks[newIndex + 1] : nextTask
-
-    const prevSortOrder = prevTask ? getSortOrderForTask(prevTask.id) : undefined
-    const nextSortOrder = actualNextTask ? getSortOrderForTask(actualNextTask.id) : undefined
-
-    const newSortOrder = await orderingStore.calculateSortOrder({
-      context_type: 'DAILY_KANBAN',
-      context_id: contextId,
-      prev_sort_order: prevSortOrder,
-      next_sort_order: nextSortOrder,
+  // 设置任务数据，日历可以读取
+  event.dataTransfer.setData(
+    'application/json',
+    JSON.stringify({
+      type: 'task',
+      task: task,
     })
-
-    if (!newSortOrder) {
-      console.error('[DailyKanban] Failed to calculate sort order')
-      return
-    }
-
-    // 更新排序
-    await orderingStore.updateOrder({
-      task_id: movedTask.id,
-      context_type: 'DAILY_KANBAN',
-      context_id: contextId,
-      sort_order: newSortOrder,
-    })
-
-    // 刷新任务列表
-    emit('taskCreated', dateStr)
-  } catch (error) {
-    console.error('[DailyKanban] Failed to handle drag end:', error)
-    // 刷新以恢复正确状态
-    emit('taskCreated', dateStr)
-  }
-}
-
-function getSortOrderForTask(taskId: string): string | undefined {
-  const dateStr = props.date.toISOString().split('T')[0] as string
-  // 使用 ISO8601 字符串作为 context_id，而不是时间戳
-  const contextId = new Date(dateStr + 'T00:00:00Z').toISOString()
-  return orderingStore.getOrdering('DAILY_KANBAN', contextId, taskId)?.sort_order
-}
-
-// Draggable 配置
-const draggableOptions = {
-  animation: 200,
-  group: 'tasks',
-  ghostClass: 'ghost-dragging',
-  chosenClass: 'chosen-dragging',
-  dragClass: 'dragging',
-  forceFallback: false,
-  fallbackClass: 'fallback-dragging',
-  handle: '.kanban-task-card',
+  )
+  event.dataTransfer.effectAllowed = 'copyMove'
 }
 </script>
 
@@ -208,25 +128,24 @@ const draggableOptions = {
       <div v-if="isCreatingTask" class="creating-indicator">创建中...</div>
     </div>
 
-    <draggable
-      v-model="localTasks"
-      class="task-list-scroll-area"
-      v-bind="draggableOptions"
-      @end="onDragEnd"
-      item-key="id"
-    >
-      <template #item="{ element: task }">
-        <div class="task-card-wrapper">
-          <KanbanTaskCard
-            :task="task"
-            class="kanban-task-card"
-            @open-editor="emit('openEditor', task)"
-          />
-        </div>
-      </template>
-    </draggable>
+    <div class="task-list-scroll-area">
+      <div
+        v-for="task in tasks"
+        :key="task.id"
+        class="task-card-wrapper"
+        :data-task-id="task.id"
+        draggable="true"
+        @dragstart="handleDragStart($event, task)"
+      >
+        <KanbanTaskCard
+          :task="task"
+          class="kanban-task-card"
+          @open-editor="emit('openEditor', task)"
+        />
+      </div>
 
-    <div v-if="tasks.length === 0" class="empty-state">暂无任务</div>
+      <div v-if="tasks.length === 0" class="empty-state">暂无任务</div>
+    </div>
   </CutePane>
 </template>
 
@@ -356,31 +275,18 @@ const draggableOptions = {
 /* 拖拽相关样式 */
 .task-card-wrapper {
   position: relative;
-  cursor: move;
+  cursor: grab;
+}
+
+.task-card-wrapper:active {
+  cursor: grabbing;
 }
 
 .kanban-task-card {
-  cursor: move;
+  cursor: grab;
 }
 
-/* 幽灵元素样式 - 跟随鼠标的半透明副本 */
-:deep(.ghost-dragging) {
-  opacity: 0.5;
-  background: var(--color-card-available);
-}
-
-/* 被选中开始拖动的元素 - 保持原位置可见 */
-:deep(.chosen-dragging) {
-  opacity: 1;
-}
-
-/* 正在拖动时的样式 */
-:deep(.dragging) {
-  opacity: 0;
-}
-
-/* Fallback 模式的拖动样式 */
-:deep(.fallback-dragging) {
-  opacity: 0.5;
+.kanban-task-card:active {
+  cursor: grabbing;
 }
 </style>

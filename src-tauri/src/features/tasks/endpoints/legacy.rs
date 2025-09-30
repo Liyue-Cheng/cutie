@@ -18,7 +18,7 @@ use crate::{
     startup::AppState,
 };
 
-use crate::entities::TaskResponse;
+use crate::features::tasks::shared::TaskAssembler;
 
 // ==================== 文档层 (Documentation Layer) ====================
 /*
@@ -58,7 +58,11 @@ POST /api/tasks/{id}/completion
 /// 完成任务的HTTP处理器
 pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
     match logic::execute(&app_state, task_id).await {
-        Ok(task) => success_response(TaskResponse::from(task)).into_response(),
+        Ok(task) => {
+            // 使用装配器将 Task 实体转换为 TaskCardDto
+            let task_card = TaskAssembler::task_to_card_basic(&task);
+            success_response(task_card).into_response()
+        }
         Err(err) => err.into_response(),
     }
 }

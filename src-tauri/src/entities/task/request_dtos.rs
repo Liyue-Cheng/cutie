@@ -1,11 +1,10 @@
-/// Task相关的数据传输对象
+/// Task 请求 DTOs
 ///
-/// 从features/tasks/shared/dtos.rs迁移而来
+/// 只包含 API 请求相关的数据传输对象
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::model::Task;
 use super::{ContextType, DueDateType, Subtask};
 
 /// 创建任务的请求载荷
@@ -58,66 +57,14 @@ impl UpdateTaskRequest {
     }
 }
 
-/// 任务响应体
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskResponse {
-    pub id: Uuid,
-    pub title: String,
-    pub glance_note: Option<String>,
-    pub detail_note: Option<String>,
-    pub estimated_duration: Option<i32>,
-    pub subtasks: Option<Vec<Subtask>>,
-    pub project_id: Option<Uuid>,
-    pub area_id: Option<Uuid>,
-    pub due_date: Option<DateTime<Utc>>,
-    pub due_date_type: Option<DueDateType>,
-    pub completed_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub is_deleted: bool,
-}
-
-impl From<Task> for TaskResponse {
-    fn from(task: Task) -> Self {
-        Self {
-            id: task.id,
-            title: task.title,
-            glance_note: task.glance_note,
-            detail_note: task.detail_note,
-            estimated_duration: task.estimated_duration,
-            subtasks: task.subtasks,
-            project_id: task.project_id,
-            area_id: task.area_id,
-            due_date: task.due_date,
-            due_date_type: task.due_date_type,
-            completed_at: task.completed_at,
-            created_at: task.created_at,
-            updated_at: task.updated_at,
-            is_deleted: task.is_deleted,
-        }
-    }
-}
-
-/// 任务统计响应
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskStatsResponse {
-    pub total_count: i64,
-    pub completed_count: i64,
-    pub pending_count: i64,
-    pub overdue_count: i64,
-    pub today_count: i64,
-    pub this_week_count: i64,
-    pub this_month_count: i64,
-}
-
 /// 搜索查询参数
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SearchQuery {
+pub struct SearchTasksQuery {
     pub q: Option<String>,
     pub limit: Option<usize>,
 }
 
-impl Default for SearchQuery {
+impl Default for SearchTasksQuery {
     fn default() -> Self {
         Self {
             q: None,

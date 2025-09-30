@@ -7,11 +7,9 @@ import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import { useTaskStore } from '@/stores/task'
-import { useOrderingStore } from '@/stores/ordering'
+import { useScheduleStore } from '@/stores/schedule'
 
-const taskStore = useTaskStore()
-const orderingStore = useOrderingStore()
+const scheduleStore = useScheduleStore()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
@@ -31,61 +29,21 @@ const dayAfterTomorrow = computed(() => {
   return date
 })
 
-// 存储每天的任务
-const dailyTasks = ref<Map<string, Task[]>>(new Map())
-
-// 获取每天的任务
+// 从 scheduleStore 获取每天的任务
 const todayTasks = computed(() => {
   const dateStr = today.value.toISOString().split('T')[0] as string
-  return dailyTasks.value.get(dateStr) || []
+  return scheduleStore.dailyTasks.get(dateStr) || []
 })
 
 const tomorrowTasks = computed(() => {
   const dateStr = tomorrow.value.toISOString().split('T')[0] as string
-  return dailyTasks.value.get(dateStr) || []
+  return scheduleStore.dailyTasks.get(dateStr) || []
 })
 
 const dayAfterTomorrowTasks = computed(() => {
   const dateStr = dayAfterTomorrow.value.toISOString().split('T')[0] as string
-  return dailyTasks.value.get(dateStr) || []
+  return scheduleStore.dailyTasks.get(dateStr) || []
 })
-
-// 从视图API加载某天的任务
-async function loadTasksForDate(dateStr: string) {
-  try {
-    const apiBaseUrl = await import('@/composables/useApiConfig').then((m) =>
-      m.useApiConfig().waitForApiReady()
-    )
-    const response = await fetch(`${apiBaseUrl}/views/daily-schedule?day=${dateStr}`)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const tasks: Task[] = await response.json()
-
-    // 使用新的 Map 实例触发 Vue 响应式更新
-    const newDailyTasks = new Map(dailyTasks.value)
-    newDailyTasks.set(dateStr, tasks)
-    dailyTasks.value = newDailyTasks
-
-    // 同时更新taskStore
-    for (const task of tasks) {
-      taskStore.tasks.set(task.id, task)
-    }
-
-    // 加载该日期的 ordering 数据
-    // 使用 ISO8601 字符串作为 context_id，而不是时间戳
-    const contextId = new Date(dateStr + 'T00:00:00Z').toISOString()
-    await orderingStore.fetchOrderingsForContext('DAILY_KANBAN', contextId)
-    console.log(`[HomeView] Loaded ordering for ${dateStr}, context_id: ${contextId}`)
-    // 调试日志回滚
-
-    return tasks
-  } catch (error) {
-    console.error(`[HomeView] Failed to load tasks for ${dateStr}:`, error)
-    return []
-  }
-}
 
 function handleOpenEditor(task: Task) {
   selectedTaskId.value = task.id
@@ -100,9 +58,9 @@ onMounted(async () => {
     const dayAfterTomorrowStr = dayAfterTomorrow.value.toISOString().split('T')[0] as string
 
     await Promise.all([
-      loadTasksForDate(todayStr),
-      loadTasksForDate(tomorrowStr),
-      loadTasksForDate(dayAfterTomorrowStr),
+      scheduleStore.fetchDailyTasks(todayStr),
+      scheduleStore.fetchDailyTasks(tomorrowStr),
+      scheduleStore.fetchDailyTasks(dayAfterTomorrowStr),
     ])
 
     console.log('[HomeView] Loaded tasks for 3 days')
@@ -125,19 +83,19 @@ onMounted(async () => {
               :date="today"
               :tasks="todayTasks"
               @open-editor="handleOpenEditor"
-              @task-created="loadTasksForDate"
+              @task-created="scheduleStore.fetchDailyTasks"
             />
             <DailyKanbanColumn
               :date="tomorrow"
               :tasks="tomorrowTasks"
               @open-editor="handleOpenEditor"
-              @task-created="loadTasksForDate"
+              @task-created="scheduleStore.fetchDailyTasks"
             />
             <DailyKanbanColumn
               :date="dayAfterTomorrow"
               :tasks="dayAfterTomorrowTasks"
               @open-editor="handleOpenEditor"
-              @task-created="loadTasksForDate"
+              @task-created="scheduleStore.fetchDailyTasks"
             />
           </div>
         </template>
