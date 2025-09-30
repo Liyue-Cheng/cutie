@@ -207,27 +207,34 @@ pub mod database {
     ) -> AppResult<()> {
         // 获取当前上下文中的最大排序位置
         let max_position_query = r#"
-            SELECT COALESCE(MAX(position), 0) as max_position
-            FROM orderings
-            WHERE context_type = ? AND context_id = ? AND is_deleted = false
+            SELECT COALESCE(MAX(sort_order), '0') as max_position
+            FROM ordering
+            WHERE context_type = ? AND context_id = ?
         "#;
 
-        let max_position: i64 = sqlx::query(max_position_query)
+        // 获取当前最大的排序值并生成新的排序值
+        let max_sort_order = match sqlx::query(max_position_query)
             .bind(context_type)
             .bind(context_id)
-            .fetch_one(&mut **tx)
+            .fetch_optional(&mut **tx)
             .await
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?
-            .get("max_position");
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })? {
+            Some(row) => {
+                let max_str: String = row.get("max_position");
+                max_str.parse::<i64>().unwrap_or(0)
+            }
+            None => 0,
+        };
 
-        let new_position = max_position + 1;
+        let new_sort_order = (max_sort_order + 1).to_string();
 
         // 创建排序记录
         let insert_query = r#"
-            INSERT INTO orderings (
-                id, context_type, context_id, task_id, position,
-                created_at, updated_at, is_deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ordering (
+                id, context_type, context_id, task_id, sort_order, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
         "#;
 
         let ordering_id = Uuid::new_v4();
@@ -236,10 +243,8 @@ pub mod database {
             .bind(context_type)
             .bind(context_id)
             .bind(task_id.to_string())
-            .bind(new_position)
+            .bind(&new_sort_order)
             .bind(created_at.to_rfc3339())
-            .bind(created_at.to_rfc3339())
-            .bind(false)
             .execute(&mut **tx)
             .await
             .map_err(|e| {

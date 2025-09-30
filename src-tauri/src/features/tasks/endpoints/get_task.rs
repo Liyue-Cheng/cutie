@@ -110,7 +110,8 @@ pub mod database {
                 glance_note: row.get("glance_note"),
                 detail_note: row.get("detail_note"),
                 estimated_duration: row.get("estimated_duration"),
-                subtasks: row.get::<Option<String>, _>("subtasks")
+                subtasks: row
+                    .get::<Option<String>, _>("subtasks")
                     .and_then(|s| serde_json::from_str(&s).ok()),
                 project_id: row
                     .get::<Option<String>, _>("project_id")
@@ -118,10 +119,12 @@ pub mod database {
                 area_id: row
                     .get::<Option<String>, _>("area_id")
                     .and_then(|s| Uuid::parse_str(&s).ok()),
-                due_date: row.get::<Option<String>, _>("due_date")
+                due_date: row
+                    .get::<Option<String>, _>("due_date")
                     .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
                     .map(|dt| dt.with_timezone(&chrono::Utc)),
-                due_date_type: row.get::<Option<String>, _>("due_date_type")
+                due_date_type: row
+                    .get::<Option<String>, _>("due_date_type")
                     .and_then(|s| serde_json::from_str(&s).ok()),
                 completed_at: row.get::<Option<String>, _>("completed_at").map(|s| {
                     chrono::DateTime::parse_from_rfc3339(&s)
@@ -139,7 +142,8 @@ pub mod database {
                 .unwrap()
                 .with_timezone(&chrono::Utc),
                 is_deleted: row.get("is_deleted"),
-                source_info: row.get::<Option<String>, _>("source_info")
+                source_info: row
+                    .get::<Option<String>, _>("source_info")
                     .and_then(|s| serde_json::from_str(&s).ok()),
                 external_source_id: row.get("external_source_id"),
                 external_source_provider: row.get("external_source_provider"),
@@ -152,7 +156,8 @@ pub mod database {
                     .get::<Option<String>, _>("recurrence_original_date")
                     .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
                     .map(|dt| dt.with_timezone(&chrono::Utc)),
-                recurrence_exclusions: row.get::<Option<String>, _>("recurrence_exclusions")
+                recurrence_exclusions: row
+                    .get::<Option<String>, _>("recurrence_exclusions")
                     .and_then(|s| serde_json::from_str(&s).ok()),
             };
             Ok(Some(task))

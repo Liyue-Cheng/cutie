@@ -236,20 +236,24 @@ pub mod database {
         task_id: Uuid,
         completed_at: chrono::DateTime<Utc>,
     ) -> AppResult<()> {
-        // 查找任务相关的进行中时间块（end_time > completed_at）
+        // 通过关联表查找任务相关的进行中时间块（end_time > completed_at）
         let query = r#"
             UPDATE time_blocks 
             SET end_time = ?, updated_at = ?
-            WHERE task_id = ? 
+            WHERE id IN (
+                SELECT ttbl.time_block_id 
+                FROM task_time_block_links ttbl
+                WHERE ttbl.task_id = ?
+            )
             AND end_time > ? 
             AND is_deleted = false
         "#;
 
         let rows_affected = sqlx::query(query)
-            .bind(completed_at)
-            .bind(completed_at)
-            .bind(task_id)
-            .bind(completed_at)
+            .bind(completed_at.to_rfc3339())
+            .bind(completed_at.to_rfc3339())
+            .bind(task_id.to_string())
+            .bind(completed_at.to_rfc3339())
             .execute(&mut **tx)
             .await
             .map_err(|e| {
@@ -286,8 +290,8 @@ pub mod database {
         "#;
 
         let rows_affected = sqlx::query(query)
-            .bind(task_id)
-            .bind(completed_date)
+            .bind(task_id.to_string())
+            .bind(completed_date.to_string())
             .execute(&mut **tx)
             .await
             .map_err(|e| {
