@@ -353,17 +353,14 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
-      //   method: 'DELETE'
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // removeTask(id)
-      // return true
-
-      console.log('[TaskStore] deleteTask - API not implemented yet')
-      return false
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      removeTask(id)
+      console.log('[TaskStore] Deleted task:', id)
+      return true
     } catch (e) {
       error.value = `Failed to delete task ${id}: ${e}`
       console.error('[TaskStore] Error deleting task:', e)
