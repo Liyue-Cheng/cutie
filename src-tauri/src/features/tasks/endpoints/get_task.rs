@@ -8,7 +8,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
-    entities::{Task, TaskCardDto},
+    entities::{DailyOutcome, ScheduleRecord, Task, TaskDetailDto},
     features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
@@ -39,7 +39,7 @@ GET /api/tasks/{id}
 // ==================== HTTP 处理器 ====================
 pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
     match logic::execute(&app_state, task_id).await {
-        Ok(task_card) => success_response(task_card).into_response(),
+        Ok(task_detail) => success_response(task_detail).into_response(),
         Err(err) => err.into_response(),
     }
 }
@@ -48,7 +48,7 @@ pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>
 mod logic {
     use super::*;
 
-    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<TaskCardDto> {
+    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<TaskDetailDto> {
         let pool = app_state.db_pool();
 
         // 1. 查询任务
@@ -56,12 +56,23 @@ mod logic {
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        // 2. 组装 TaskCardDto
+        // 2. 组装基础 TaskCard
         let task_card = TaskAssembler::task_to_card_basic(&task);
 
-        // TODO: 可以进一步组装完整信息（area, schedule_info 等）
+        // 3. 查询 schedules 历史
+        let schedules = database::get_task_schedules(pool, task_id).await?;
 
-        Ok(task_card)
+        // 4. 组装 TaskDetailDto
+        let task_detail = TaskDetailDto {
+            card: task_card,
+            detail_note: task.detail_note.clone(),
+            schedules,
+            project: None, // TODO: 查询项目信息
+            created_at: task.created_at,
+            updated_at: task.updated_at,
+        };
+
+        Ok(task_detail)
     }
 }
 
@@ -101,5 +112,47 @@ mod database {
             }
             None => Ok(None),
         }
+    }
+
+    /// 获取任务的所有日程记录
+    pub async fn get_task_schedules(
+        pool: &sqlx::SqlitePool,
+        task_id: Uuid,
+    ) -> AppResult<Vec<ScheduleRecord>> {
+        let query = r#"
+            SELECT scheduled_day, outcome
+            FROM task_schedules
+            WHERE task_id = ?
+            ORDER BY scheduled_day ASC
+        "#;
+
+        let rows = sqlx::query_as::<_, (String, String)>(query)
+            .bind(task_id.to_string())
+            .fetch_all(pool)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        let schedules = rows
+            .into_iter()
+            .filter_map(|(day_str, outcome_str)| {
+                let day = chrono::DateTime::parse_from_rfc3339(&day_str)
+                    .ok()?
+                    .with_timezone(&chrono::Utc);
+
+                let outcome = match outcome_str.as_str() {
+                    "PLANNED" => DailyOutcome::Planned,
+                    "PRESENCE_LOGGED" => DailyOutcome::PresenceLogged,
+                    "COMPLETED_ON_DAY" => DailyOutcome::Completed,
+                    "CARRIED_OVER" => DailyOutcome::CarriedOver,
+                    _ => return None,
+                };
+
+                Some(ScheduleRecord { day, outcome })
+            })
+            .collect();
+
+        Ok(schedules)
     }
 }
