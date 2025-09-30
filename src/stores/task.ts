@@ -163,6 +163,52 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   /**
+   * 获取所有未完成任务
+   * API: GET /views/all-incomplete
+   */
+  async function fetchAllIncompleteTasks() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/views/all-incomplete`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const tasks: TaskCard[] = result.data
+      addOrUpdateTasks(tasks)
+      console.log('[TaskStore] Fetched', tasks.length, 'incomplete tasks')
+    } catch (e) {
+      error.value = `Failed to fetch incomplete tasks: ${e}`
+      console.error('[TaskStore] Error fetching incomplete tasks:', e)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 获取已排期任务
+   * API: GET /views/planned
+   */
+  async function fetchPlannedTasks() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/views/planned`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const tasks: TaskCard[] = result.data
+      addOrUpdateTasks(tasks)
+      console.log('[TaskStore] Fetched', tasks.length, 'planned tasks')
+    } catch (e) {
+      error.value = `Failed to fetch planned tasks: ${e}`
+      console.error('[TaskStore] Error fetching planned tasks:', e)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
    * 获取 Staging 区的任务
    * API: GET /views/staging
    */
@@ -410,6 +456,8 @@ export const useTaskStore = defineStore('task', () => {
     addOrUpdateTasks,
     addOrUpdateTask,
     removeTask,
+    fetchAllIncompleteTasks,
+    fetchPlannedTasks,
     fetchStagingTasks,
     createTask,
     updateTask,

@@ -37,12 +37,16 @@ async function handleAddTask(title: string) {
 }
 
 onMounted(async () => {
-  // 加载 staging 区任务
+  // 加载所有视图的任务数据
   try {
-    await taskStore.fetchStagingTasks()
-    console.log('[HomeView] Loaded staging tasks')
+    await Promise.all([
+      taskStore.fetchAllIncompleteTasks(), // All 列
+      taskStore.fetchPlannedTasks(),       // Planned 列
+      taskStore.fetchStagingTasks(),       // Staging 列
+    ])
+    console.log('[HomeView] Loaded all task views')
   } catch (error) {
-    console.error('[HomeView] Failed to fetch staging tasks:', error)
+    console.error('[HomeView] Failed to fetch tasks:', error)
   }
 })
 </script>
