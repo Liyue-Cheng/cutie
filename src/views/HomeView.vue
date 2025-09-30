@@ -31,35 +31,49 @@ const dayAfterTomorrow = computed(() => {
   return date
 })
 
+// 存储每天的任务
+const dailyTasks = ref<Map<string, Task[]>>(new Map())
+
 // 获取每天的任务
 const todayTasks = computed(() => {
   const dateStr = today.value.toISOString().split('T')[0]
-  return getTasksForDate(dateStr)
+  return dailyTasks.value.get(dateStr) || []
 })
 
 const tomorrowTasks = computed(() => {
   const dateStr = tomorrow.value.toISOString().split('T')[0]
-  return getTasksForDate(dateStr)
+  return dailyTasks.value.get(dateStr) || []
 })
 
 const dayAfterTomorrowTasks = computed(() => {
   const dateStr = dayAfterTomorrow.value.toISOString().split('T')[0]
-  return getTasksForDate(dateStr)
+  return dailyTasks.value.get(dateStr) || []
 })
 
-// 根据日期从 schedules 和 tasks 中获取任务
-function getTasksForDate(dateStr: string): Task[] {
-  const schedulesForDate = Array.from(scheduleStore.schedules.values()).filter((schedule) => {
-    const scheduleDate = new Date(schedule.scheduled_day).toISOString().split('T')[0]
-    return scheduleDate === dateStr
-  })
+// 从视图API加载某天的任务
+async function loadTasksForDate(dateStr: string) {
+  try {
+    const apiBaseUrl = await import('@/composables/useApiConfig').then(m =>
+      m.useApiConfig().waitForApiReady()
+    )
+    const response = await fetch(`${apiBaseUrl}/views/daily-schedule?day=${dateStr}`)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
 
-  const taskIds = schedulesForDate.map((s) => s.task_id)
-  const tasks = Array.from(taskStore.tasks.values()).filter(
-    (task) => taskIds.includes(task.id) && !task.is_deleted
-  )
-
-  return tasks
+    const tasks: Task[] = await response.json()
+    dailyTasks.value.set(dateStr, tasks)
+    
+    // 同时更新taskStore
+    for (const task of tasks) {
+      taskStore.tasks.set(task.id, task)
+    }
+    
+    return tasks
+  } catch (error) {
+    console.error(`[HomeView] Failed to load tasks for ${dateStr}:`, error)
+    return []
+  }
 }
 
 function handleOpenEditor(task: Task) {
@@ -70,14 +84,19 @@ function handleOpenEditor(task: Task) {
 onMounted(async () => {
   // 加载今天、明天、后天的任务数据
   try {
-    const startDate = today.value.toISOString()
-    const endDate = new Date(today.value)
-    endDate.setDate(endDate.getDate() + 2)
+    const todayStr = today.value.toISOString().split('T')[0]
+    const tomorrowStr = tomorrow.value.toISOString().split('T')[0]
+    const dayAfterTomorrowStr = dayAfterTomorrow.value.toISOString().split('T')[0]
 
-    await scheduleStore.fetchSchedulesForRange(startDate, endDate.toISOString())
-    console.log('[HomeView] Loaded schedules for 3 days')
+    await Promise.all([
+      loadTasksForDate(todayStr),
+      loadTasksForDate(tomorrowStr),
+      loadTasksForDate(dayAfterTomorrowStr),
+    ])
+    
+    console.log('[HomeView] Loaded tasks for 3 days')
   } catch (error) {
-    console.error('[HomeView] Failed to fetch initial schedules:', error)
+    console.error('[HomeView] Failed to fetch initial tasks:', error)
   }
 })
 </script>

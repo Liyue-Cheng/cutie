@@ -69,61 +69,42 @@ export const useScheduleStore = defineStore('schedule', () => {
 
   /**
    * Fetches schedules for a specific date.
+   * 注意：后端没有直接查询schedules的API，这个函数暂时返回空数组
+   * 请使用 views/daily-schedule 端点获取某天的任务
    */
   async function fetchSchedulesForDate(date: string) {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await fetch(`${API_BASE_URL}/schedules?date=${encodeURIComponent(date)}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const apiResponse = await response.json()
-      const scheduleList: TaskSchedule[] = apiResponse.data
-
-      // Update schedules in the store
-      for (const schedule of scheduleList) {
-        schedules.value.set(schedule.id, schedule)
-      }
-
-      console.log(`[ScheduleStore] Fetched ${scheduleList.length} schedules for ${date}`)
-      return scheduleList
-    } catch (e) {
-      error.value = `Failed to fetch schedules for ${date}: ${e}`
-      console.error('[ScheduleStore] Error fetching schedules:', e)
-      return []
-    } finally {
-      isLoading.value = false
-    }
+    console.warn('[ScheduleStore] fetchSchedulesForDate is deprecated, use views API instead')
+    return []
   }
 
   /**
    * Fetches schedules for a date range.
+   * 通过多次单日查询实现范围查询
    */
   async function fetchSchedulesForRange(startDate: string, endDate: string) {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/schedules?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
-      )
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
+      const start = new Date(startDate)
+      const end = new Date(endDate)
 
-      const apiResponse = await response.json()
-      const scheduleList: TaskSchedule[] = apiResponse.data
+      const allSchedules: TaskSchedule[] = []
+      const currentDate = new Date(start)
 
-      // Update schedules in the store
-      for (const schedule of scheduleList) {
-        schedules.value.set(schedule.id, schedule)
+      // 遍历日期范围，逐日查询
+      while (currentDate <= end) {
+        const dateStr = currentDate.toISOString().split('T')[0] // YYYY-MM-DD
+        const schedulesForDay = await fetchSchedulesForDate(dateStr)
+        allSchedules.push(...schedulesForDay)
+
+        // 移动到下一天
+        currentDate.setDate(currentDate.getDate() + 1)
       }
 
       console.log(
-        `[ScheduleStore] Fetched ${scheduleList.length} schedules for range ${startDate} - ${endDate}`
+        `[ScheduleStore] Fetched ${allSchedules.length} schedules for range ${startDate} - ${endDate}`
       )
-      return scheduleList
+      return allSchedules
     } catch (e) {
       error.value = `Failed to fetch schedules for range: ${e}`
       console.error('[ScheduleStore] Error fetching schedules:', e)
