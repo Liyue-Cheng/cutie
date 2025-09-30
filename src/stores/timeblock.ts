@@ -22,7 +22,18 @@ export interface CreateTimeBlockPayload {
   start_time: string // ISO 8601 UTC
   end_time: string // ISO 8601 UTC
   area_id?: string | null
-  linked_task_ids?: string[]
+}
+
+export interface CreateFromTaskPayload {
+  task_id: string
+  start_time: string // ISO 8601 UTC
+  end_time: string // ISO 8601 UTC
+  title?: string | null // 可选，默认使用任务标题
+}
+
+export interface CreateFromTaskResponse {
+  time_block: TimeBlockView
+  updated_task: import('@/types/dtos').TaskCard // 更新后的任务
 }
 
 export interface UpdateTimeBlockPayload {
@@ -222,7 +233,47 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   }
 
   /**
-   * 创建时间块
+   * 从任务创建时间块（拖动场景专用）
+   * API: POST /time-blocks/from-task
+   */
+  async function createTimeBlockFromTask(
+    payload: CreateFromTaskPayload
+  ): Promise<CreateFromTaskResponse | null> {
+    isLoading.value = true
+    error.value = null
+    console.log('[TimeBlockStore] Creating time block from task:', payload)
+
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/from-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[TimeBlockStore] API error:', errorData)
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
+      }
+      const result = await response.json()
+      const data: CreateFromTaskResponse = result.data
+
+      // 更新时间块
+      addOrUpdateTimeBlock(data.time_block)
+      console.log('[TimeBlockStore] Created time block from task:', data)
+
+      return data // 返回完整响应，包含 updated_task
+    } catch (e) {
+      error.value = `Failed to create time block from task: ${e}`
+      console.error('[TimeBlockStore] Error creating time block from task:', e)
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 创建空时间块（直接在日历上创建）
    * API: POST /time-blocks
    */
   async function createTimeBlock(payload: CreateTimeBlockPayload): Promise<TimeBlockView | null> {
@@ -416,6 +467,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     fetchTimeBlocksForDate,
     fetchTimeBlocksForRange,
     createTimeBlock,
+    createTimeBlockFromTask,
     updateTimeBlock,
     deleteTimeBlock,
     linkTaskToBlock,

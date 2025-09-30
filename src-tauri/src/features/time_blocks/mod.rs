@@ -13,7 +13,8 @@ use crate::startup::AppState;
 
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
-    pub mod create_time_block; // POST /time-blocks
+    pub mod create_from_task;  // POST /time-blocks/from-task (拖动任务到日历)
+    pub mod create_time_block; // POST /time-blocks (直接创建空时间块)
     pub mod list_time_blocks;  // GET /time-blocks
     // 待实现的其他端点：
     // pub mod update_time_block;
@@ -25,7 +26,11 @@ mod endpoints {
 /// 创建时间块功能模块的路由
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/", get(endpoints::list_time_blocks::handle).post(endpoints::create_time_block::handle))
+        .route(
+            "/",
+            get(endpoints::list_time_blocks::handle).post(endpoints::create_time_block::handle),
+        )
+        .route("/from-task", post(endpoints::create_from_task::handle))
     // .route("/:id", patch(endpoints::update_time_block::handle))
     // .route("/:id", delete(endpoints::delete_time_block::handle))
     // .route("/:id/tasks", post(endpoints::link_task::handle))

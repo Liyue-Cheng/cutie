@@ -368,21 +368,21 @@ async function handleDrop(event: DragEvent) {
       const dropTime = getTimeFromDropPosition(event)
 
       if (dropTime) {
-        // 创建一个默认1小时的活动
+        // 创建一个默认1小时的时间块
         const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
 
-        await timeBlockStore.createTimeBlock({
-          title: dragData.task.title,
+        // 调用专门的"从任务创建"端点
+        const result = await timeBlockStore.createTimeBlockFromTask({
+          task_id: dragData.task.id,
           start_time: dropTime.toISOString(),
           end_time: endTime.toISOString(),
-          linked_task_ids: [dragData.task.id], // 关联拖拽的任务
         })
 
-        console.log(`创建时间块: ${dragData.task.title} at ${dropTime.toISOString()}`)
-
-        // ✅ 关键：刷新 Staging 列表，因为任务现在应该从 Staging 移除
-        console.log('[Calendar] Refreshing staging tasks after creating time block')
-        await taskStore.fetchStagingTasks()
+        if (result) {
+          console.log('[Calendar] Created time block from task:', result)
+          // ✅ 后端返回了更新后的任务，直接更新到 store
+          taskStore.addOrUpdateTask(result.updated_task)
+        }
       }
     }
   } catch (error) {

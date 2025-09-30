@@ -82,16 +82,11 @@ export const useTaskStore = defineStore('task', () => {
 
   /**
    * 获取 staging 区的任务（未安排的任务）
-   *
-   * 注意：这个 getter 依赖 task.schedule_status 字段
-   * 必须确保从后端获取最新数据后，schedule_status 是正确的
    */
   const stagingTasks = computed(() => {
-    const result = Array.from(tasks.value.values()).filter(
+    return Array.from(tasks.value.values()).filter(
       (task) => task.schedule_status === 'staging' && !task.is_completed
     )
-    console.log('[TaskStore] stagingTasks computed, count:', result.length)
-    return result
   })
 
   /**
@@ -149,24 +144,13 @@ export const useTaskStore = defineStore('task', () => {
       newMap.set(task.id, { ...existingTask, ...task })
     }
     tasks.value = newMap
-    console.log(
-      '[TaskStore] addOrUpdateTasks: updated',
-      newTasks.length,
-      'tasks, total:',
-      newMap.size
-    )
   }
 
   /**
-   * 添加或更新单个任务（强制触发响应式）
+   * 添加或更新单个任务
    */
   function addOrUpdateTask(task: TaskCard | TaskDetail) {
-    // ✅ 直接创建新 Map，确保触发响应式
-    const newMap = new Map(tasks.value)
-    const existingTask = newMap.get(task.id) || {}
-    newMap.set(task.id, { ...existingTask, ...task })
-    tasks.value = newMap
-    console.log('[TaskStore] addOrUpdateTask: updated task', task.id)
+    addOrUpdateTasks([task])
   }
 
   /**
@@ -190,33 +174,9 @@ export const useTaskStore = defineStore('task', () => {
       const response = await fetch(`${apiBaseUrl}/views/staging`)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const result = await response.json()
-      const stagingTasksList: TaskCard[] = result.data // 后端返回 { data: [...], timestamp: ... }
-
-      console.log('[TaskStore] Fetched staging tasks from API:', stagingTasksList.length)
-      console.log(
-        '[TaskStore] Staging task IDs:',
-        stagingTasksList.map((t) => t.id)
-      )
-
-      // ✅ 更新任务数据
-      addOrUpdateTasks(stagingTasksList)
-
-      // ✅ 关键：标记所有不在 staging 列表中的任务为 scheduled
-      // 这样可以确保拖动后的任务被正确标记
-      const stagingIds = new Set(stagingTasksList.map((t) => t.id))
-      const allTasksArray = Array.from(tasks.value.values())
-
-      for (const task of allTasksArray) {
-        if (!stagingIds.has(task.id) && task.schedule_status === 'staging') {
-          // 这个任务之前是 staging，但现在不在 staging 列表中了
-          // 说明它已经被安排了
-          console.log('[TaskStore] Marking task as scheduled:', task.id, task.title)
-          const updatedTask = { ...task, schedule_status: 'scheduled' as const }
-          addOrUpdateTask(updatedTask)
-        }
-      }
-
-      console.log('[TaskStore] Fetch staging tasks complete')
+      const stagingTasks: TaskCard[] = result.data // 后端返回 { data: [...], timestamp: ... }
+      addOrUpdateTasks(stagingTasks)
+      console.log('[TaskStore] Fetched', stagingTasks.length, 'staging tasks')
     } catch (e) {
       error.value = `Failed to fetch staging tasks: ${e}`
       console.error('[TaskStore] Error fetching staging tasks:', e)
