@@ -163,6 +163,29 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   /**
+   * 获取所有任务（包括已完成）
+   * API: GET /views/all
+   */
+  async function fetchAllTasks() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/views/all`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const tasks: TaskCard[] = result.data
+      addOrUpdateTasks(tasks)
+      console.log('[TaskStore] Fetched', tasks.length, 'all tasks')
+    } catch (e) {
+      error.value = `Failed to fetch all tasks: ${e}`
+      console.error('[TaskStore] Error fetching all tasks:', e)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
    * 获取所有未完成任务
    * API: GET /views/all-incomplete
    */
@@ -456,6 +479,7 @@ export const useTaskStore = defineStore('task', () => {
     addOrUpdateTasks,
     addOrUpdateTask,
     removeTask,
+    fetchAllTasks,
     fetchAllIncompleteTasks,
     fetchPlannedTasks,
     fetchStagingTasks,

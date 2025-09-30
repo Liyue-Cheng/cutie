@@ -11,6 +11,7 @@ use crate::startup::AppState;
 
 // 视图端点
 mod endpoints {
+    pub mod get_all; // GET /views/all
     pub mod get_all_incomplete; // GET /views/all-incomplete
     pub mod get_planned; // GET /views/planned
     pub mod get_staging_view; // GET /views/staging
@@ -22,6 +23,7 @@ mod endpoints {
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // 任务列表视图
+        .route("/all", get(endpoints::get_all::handle))
         .route(
             "/all-incomplete",
             get(endpoints::get_all_incomplete::handle),

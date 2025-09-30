@@ -15,6 +15,10 @@ const selectedTaskId = ref<string | null>(null)
 
 // 获取不同状态的任务
 const allTasks = computed(() => {
+  return taskStore.allTasks // 所有任务（包括已完成）
+})
+
+const incompleteTasks = computed(() => {
   return taskStore.allTasks.filter((task) => !task.is_completed)
 })
 
@@ -40,7 +44,7 @@ onMounted(async () => {
   // 加载所有视图的任务数据
   try {
     await Promise.all([
-      taskStore.fetchAllIncompleteTasks(), // All 列
+      taskStore.fetchAllTasks(),           // All 列（包括已完成）
       taskStore.fetchPlannedTasks(),       // Planned 列
       taskStore.fetchStagingTasks(),       // Staging 列
     ])
@@ -62,8 +66,14 @@ onMounted(async () => {
           <div class="task-view-pane">
             <SimpleKanbanColumn
               title="All"
-              subtitle="所有未完成任务"
+              subtitle="所有任务"
               :tasks="allTasks"
+              @open-editor="handleOpenEditor"
+            />
+            <SimpleKanbanColumn
+              title="Incomplete"
+              subtitle="未完成"
+              :tasks="incompleteTasks"
               @open-editor="handleOpenEditor"
             />
             <SimpleKanbanColumn
