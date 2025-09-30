@@ -18,7 +18,6 @@ use crate::{
     startup::AppState,
 };
 
-use super::super::shared::validation::validate_task_business_rules;
 use crate::entities::TaskResponse;
 
 // ==================== 文档层 (Documentation Layer) ====================
@@ -64,6 +63,69 @@ pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>
     }
 }
 
+// ==================== 验证层 (Validation Layer) ====================
+/// 完成任务功能专用的验证逻辑
+pub mod validation {
+    use super::*;
+
+    /// 验证任务业务规则
+    pub fn validate_task_business_rules(task: &Task) -> AppResult<()> {
+        use crate::shared::core::AppError;
+
+        // 验证标题长度
+        if task.title.len() > 255 {
+            return Err(AppError::validation_error(
+                "title",
+                "任务标题不能超过255个字符",
+                "TITLE_TOO_LONG",
+            ));
+        }
+
+        // 验证预估时长
+        if let Some(duration) = task.estimated_duration {
+            if duration < 0 {
+                return Err(AppError::validation_error(
+                    "estimated_duration",
+                    "预估时长不能为负数",
+                    "DURATION_NEGATIVE",
+                ));
+            }
+            if duration > 24 * 60 * 7 {
+                // 一周的分钟数
+                return Err(AppError::validation_error(
+                    "estimated_duration",
+                    "预估时长不能超过一周",
+                    "DURATION_TOO_LONG",
+                ));
+            }
+        }
+
+        // 验证截止日期
+        if let Some(due_date) = task.due_date {
+            if due_date < task.created_at {
+                return Err(AppError::validation_error(
+                    "due_date",
+                    "截止日期不能早于创建时间",
+                    "DUE_DATE_TOO_EARLY",
+                ));
+            }
+        }
+
+        // 验证子任务数量
+        if let Some(subtasks) = &task.subtasks {
+            if subtasks.len() > 50 {
+                return Err(AppError::validation_error(
+                    "subtasks",
+                    "子任务数量不能超过50个",
+                    "TOO_MANY_SUBTASKS",
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
+
 // ==================== 业务层 (Service/Logic Layer) ====================
 /// 完成任务的核心业务逻辑
 pub mod logic {
@@ -89,7 +151,7 @@ pub mod logic {
         }
 
         // 3. 验证业务规则
-        validate_task_business_rules(&task)?;
+        validation::validate_task_business_rules(&task)?;
 
         // 4. 更新任务状态
         let updated_task = database::set_task_completed_in_tx(&mut tx, task_id, now).await?;

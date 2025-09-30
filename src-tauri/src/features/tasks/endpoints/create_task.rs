@@ -18,8 +18,8 @@ use crate::{
     startup::AppState,
 };
 
-use super::super::shared::validation::validate_create_task_request;
 use crate::entities::{CreateTaskRequest, TaskResponse};
+use crate::shared::core::ValidationError;
 
 // ==================== 文档层 (Documentation Layer) ====================
 /*
@@ -63,14 +63,127 @@ pub async fn handle(
     Json(request): Json<CreateTaskRequest>,
 ) -> Response {
     // 验证请求
-    if let Err(errors) = validate_create_task_request(&request) {
-        let validation_error = AppError::ValidationFailed(errors);
+    if let Err(errors) = validation::validate_create_task_request(&request) {
+        let validation_error = crate::shared::core::AppError::ValidationFailed(errors);
         return validation_error.into_response();
     }
 
     match logic::execute(&app_state, request).await {
         Ok(task) => created_response(TaskResponse::from(task)).into_response(),
         Err(err) => err.into_response(),
+    }
+}
+
+// ==================== 验证层 (Validation Layer) ====================
+/// 创建任务功能专用的验证逻辑
+pub mod validation {
+    use super::*;
+
+    /// 验证创建任务请求
+    pub fn validate_create_task_request(
+        request: &CreateTaskRequest,
+    ) -> Result<(), Vec<ValidationError>> {
+        let mut errors = Vec::new();
+
+        // 验证标题
+        if request.title.trim().is_empty() {
+            errors.push(ValidationError::new(
+                "title",
+                "任务标题不能为空",
+                "TITLE_EMPTY",
+            ));
+        }
+
+        if request.title.len() > 255 {
+            errors.push(ValidationError::new(
+                "title",
+                "任务标题不能超过255个字符",
+                "TITLE_TOO_LONG",
+            ));
+        }
+
+        // 验证预估时长
+        if let Some(duration) = request.estimated_duration {
+            if duration < 0 {
+                errors.push(ValidationError::new(
+                    "estimated_duration",
+                    "预估时长不能为负数",
+                    "DURATION_NEGATIVE",
+                ));
+            }
+        }
+
+        // 验证截止日期
+        if request.due_date.is_some() && request.due_date_type.is_none() {
+            errors.push(ValidationError::new(
+                "due_date_type",
+                "设置截止日期时必须指定日期类型",
+                "DUE_DATE_TYPE_REQUIRED",
+            ));
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// 验证任务业务规则
+    pub fn validate_task_business_rules(task: &Task) -> AppResult<()> {
+        use crate::shared::core::AppError;
+
+        // 验证标题长度
+        if task.title.len() > 255 {
+            return Err(AppError::validation_error(
+                "title",
+                "任务标题不能超过255个字符",
+                "TITLE_TOO_LONG",
+            ));
+        }
+
+        // 验证预估时长
+        if let Some(duration) = task.estimated_duration {
+            if duration < 0 {
+                return Err(AppError::validation_error(
+                    "estimated_duration",
+                    "预估时长不能为负数",
+                    "DURATION_NEGATIVE",
+                ));
+            }
+            if duration > 24 * 60 * 7 {
+                // 一周的分钟数
+                return Err(AppError::validation_error(
+                    "estimated_duration",
+                    "预估时长不能超过一周",
+                    "DURATION_TOO_LONG",
+                ));
+            }
+        }
+
+        // 验证截止日期
+        if let Some(due_date) = task.due_date {
+            if due_date < task.created_at {
+                return Err(AppError::validation_error(
+                    "due_date",
+                    "截止日期不能早于创建时间",
+                    "DUE_DATE_TOO_EARLY",
+                ));
+            }
+        }
+
+        // 验证子任务数量
+        if let Some(subtasks) = &task.subtasks {
+            if subtasks.len() > 50 {
+                return Err(AppError::validation_error(
+                    "subtasks",
+                    "子任务数量不能超过50个",
+                    "TOO_MANY_SUBTASKS",
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -102,7 +215,7 @@ pub mod logic {
         task.due_date_type = request.due_date_type;
 
         // 2. 验证业务规则
-        crate::features::tasks::shared::validation::validate_task_business_rules(&task)?;
+        validation::validate_task_business_rules(&task)?;
 
         // 3. 在数据库中创建任务
         let created_task = database::create_task_in_tx(&mut tx, &task).await?;

@@ -1,10 +1,13 @@
-/// 任务功能模块 - 重构为单文件组件模式
+/// 任务功能模块 - 单文件组件架构
 ///
-/// 新的组织方式：
-/// - shared/: 共享的基础设施（repository, dtos, validation）
-/// - endpoints/: 每个API的单文件组件实现
+/// 采用单文件组件模式：
+/// - endpoints/: 每个API endpoint包含完整的验证、业务逻辑和数据访问代码
+/// - 每个endpoint是独立的、自包含的实现
 ///
-/// 这种设计遵循Vue单文件组件的思想，每个API都是独立的、完整的实现
+/// 注意：
+/// - DTOs在entities模块中定义
+/// - 不再使用共享的repository和validation
+/// - 每个endpoint直接操作数据库
 use axum::{
     routing::{get, post},
     Router,
@@ -13,10 +16,7 @@ use axum::{
 use crate::startup::AppState;
 
 pub mod endpoints;
-pub mod shared;
-
-// 重新导出共享组件
-pub use shared::*;
+pub mod shared; // 预留给未来可能的共享组件
 
 // 重新导出端点处理器
 pub use endpoints::*;
