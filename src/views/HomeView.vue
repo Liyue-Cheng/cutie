@@ -1,33 +1,83 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
 import type { Task } from '@/types/models'
-import KanbanTaskList from '@/components/parts/kanban/KanbanTaskList.vue'
+import DailyKanbanColumn from '@/components/parts/kanban/DailyKanbanColumn.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
+import { useScheduleStore } from '@/stores/schedule'
 
 const taskStore = useTaskStore()
+const scheduleStore = useScheduleStore()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
+
+// 创建今天、明天、后天的日期对象
+const today = ref(new Date())
+today.value.setHours(0, 0, 0, 0)
+
+const tomorrow = computed(() => {
+  const date = new Date(today.value)
+  date.setDate(date.getDate() + 1)
+  return date
+})
+
+const dayAfterTomorrow = computed(() => {
+  const date = new Date(today.value)
+  date.setDate(date.getDate() + 2)
+  return date
+})
+
+// 获取每天的任务
+const todayTasks = computed(() => {
+  const dateStr = today.value.toISOString().split('T')[0]
+  return getTasksForDate(dateStr)
+})
+
+const tomorrowTasks = computed(() => {
+  const dateStr = tomorrow.value.toISOString().split('T')[0]
+  return getTasksForDate(dateStr)
+})
+
+const dayAfterTomorrowTasks = computed(() => {
+  const dateStr = dayAfterTomorrow.value.toISOString().split('T')[0]
+  return getTasksForDate(dateStr)
+})
+
+// 根据日期从 schedules 和 tasks 中获取任务
+function getTasksForDate(dateStr: string): Task[] {
+  const schedulesForDate = Array.from(scheduleStore.schedules.values()).filter((schedule) => {
+    const scheduleDate = new Date(schedule.scheduled_day).toISOString().split('T')[0]
+    return scheduleDate === dateStr
+  })
+
+  const taskIds = schedulesForDate.map((s) => s.task_id)
+  const tasks = Array.from(taskStore.tasks.values()).filter(
+    (task) => taskIds.includes(task.id) && !task.is_deleted
+  )
+
+  return tasks
+}
 
 function handleOpenEditor(task: Task) {
   selectedTaskId.value = task.id
   isEditorOpen.value = true
 }
 
-// Use unscheduled tasks for the staging area
-const inboxTasks = computed(() => taskStore.unscheduledTasks)
-const todayTasks = computed(() => taskStore.unscheduledTasks)
-
 onMounted(async () => {
-  // 预先加载任务数据，避免UI跳动
+  // 加载今天、明天、后天的任务数据
   try {
-    await taskStore.fetchUnscheduledTasks()
+    const startDate = today.value.toISOString()
+    const endDate = new Date(today.value)
+    endDate.setDate(endDate.getDate() + 2)
+
+    await scheduleStore.fetchSchedulesForRange(startDate, endDate.toISOString())
+    console.log('[HomeView] Loaded schedules for 3 days')
   } catch (error) {
-    console.error('[HomeView] Failed to fetch initial tasks:', error)
+    console.error('[HomeView] Failed to fetch initial schedules:', error)
   }
 })
 </script>
@@ -41,10 +91,15 @@ onMounted(async () => {
         </template>
         <template #bottom>
           <div class="task-view-pane">
-            <KanbanTaskList title="Todo" :tasks="todayTasks" @open-editor="handleOpenEditor" />
-            <KanbanTaskList
-              title="In Progress"
-              :tasks="inboxTasks"
+            <DailyKanbanColumn :date="today" :tasks="todayTasks" @open-editor="handleOpenEditor" />
+            <DailyKanbanColumn
+              :date="tomorrow"
+              :tasks="tomorrowTasks"
+              @open-editor="handleOpenEditor"
+            />
+            <DailyKanbanColumn
+              :date="dayAfterTomorrow"
+              :tasks="dayAfterTomorrowTasks"
               @open-editor="handleOpenEditor"
             />
           </div>
