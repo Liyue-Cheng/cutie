@@ -9,10 +9,12 @@
 ### 问题背景
 
 Cutie 采用 Tauri + Sidecar 架构：
+
 - **Tauri 主进程**：负责 GUI 窗口和前端渲染
 - **Sidecar 进程**：独立的 HTTP 服务器，提供后端 API
 
 **核心问题**：当用户关闭 Tauri 应用时，Sidecar 进程可能成为"孤儿进程"继续运行，导致：
+
 - 端口被占用（下次启动失败）
 - 资源浪费（CPU、内存持续占用）
 - 数据库文件被锁定
@@ -31,6 +33,7 @@ Cutie 采用 Tauri + Sidecar 架构：
 ## 🛡️ 第一层：Sidecar 内部保障
 
 ### 实现位置
+
 📁 `src-tauri/src/startup/sidecar.rs`
 
 ### 核心机制
@@ -41,21 +44,22 @@ Cutie 采用 Tauri + Sidecar 架构：
 /// 启动 Sidecar 服务器（带优雅关闭）
 pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
     // ... 创建路由和监听器 ...
-    
+
     // 设置优雅关闭信号
     let shutdown_signal = setup_shutdown_signal();
-    
+
     // 带优雅关闭的服务器
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal)  // 关键：优雅关闭
         .await?;
-    
+
     tracing::info!("Sidecar server shut down gracefully");
     Ok(())
 }
 ```
 
 **工作原理**：
+
 - `with_graceful_shutdown()` 接收一个 Future
 - 当 Future 完成时，服务器开始优雅关闭
 - 等待所有进行中的请求完成
@@ -69,7 +73,7 @@ pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
 /// 设置关闭信号监听
 async fn setup_shutdown_signal() {
     use tokio::signal;
-    
+
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -106,6 +110,7 @@ async fn setup_shutdown_signal() {
 ```
 
 **监听的信号**：
+
 - `SIGINT`（Ctrl+C）：用户手动中断
 - `SIGTERM`：系统发送的终止信号
 - 父进程死亡：Tauri 进程异常退出
@@ -131,12 +136,12 @@ async fn monitor_parent_process() {
             return;
         }
     };
-    
+
     tracing::info!("Monitoring parent process (PID: {})", parent_pid);
-    
+
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        
+
         // 检查父进程是否还存在
         if !is_process_alive(parent_pid) {
             tracing::warn!("Parent process (PID: {}) is no longer alive", parent_pid);
@@ -147,6 +152,7 @@ async fn monitor_parent_process() {
 ```
 
 **工作原理**：
+
 - 每 2 秒检查一次父进程
 - 使用系统命令判断进程是否存在
 - 一旦父进程消失，立即触发关闭
@@ -160,12 +166,12 @@ async fn monitor_parent_process() {
 #[cfg(target_os = "windows")]
 fn is_process_alive(pid: u32) -> bool {
     use std::process::Command;
-    
+
     // 使用 tasklist 命令检查进程
     let output = Command::new("tasklist")
         .args(&["/FI", &format!("PID eq {}", pid), "/NH"])
         .output();
-    
+
     match output {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -179,7 +185,7 @@ fn is_process_alive(pid: u32) -> bool {
 #[cfg(not(target_os = "windows"))]
 fn is_process_alive(pid: u32) -> bool {
     use std::process::Command;
-    
+
     // Unix/Linux: 使用 kill -0 检查进程
     Command::new("kill")
         .args(&["-0", &pid.to_string()])
@@ -190,6 +196,7 @@ fn is_process_alive(pid: u32) -> bool {
 ```
 
 **平台差异**：
+
 - **Windows**：使用 `tasklist /FI "PID eq xxx"` 命令
 - **Unix/Linux**：使用 `kill -0 <pid>` 命令（仅检查不杀死）
 
@@ -198,6 +205,7 @@ fn is_process_alive(pid: u32) -> bool {
 ## 🔄 第二层：父进程 PID 传递
 
 ### 实现位置
+
 📁 `src-tauri/src/main.rs`
 
 ### 核心实现
@@ -212,14 +220,14 @@ fn run_tauri_with_sidecar() {
     // 存储端口和 PID
     let discovered_port = Arc::new(Mutex::new(None::<u16>));
     let port_clone = Arc::clone(&discovered_port);
-    
+
     let sidecar_pid = Arc::new(Mutex::new(None::<u32>));
     let pid_clone = Arc::clone(&sidecar_pid);
 
     // 启动 sidecar 子进程
     std::thread::spawn(move || {
         let current_pid = std::process::id();  // 获取当前进程 PID
-        
+
         let mut child = Command::new(std::env::current_exe().unwrap())
             .arg("--sidecar")
             .env("CUTIE_PARENT_PID", current_pid.to_string())  // 传递父进程 PID
@@ -235,7 +243,7 @@ fn run_tauri_with_sidecar() {
         if let Ok(mut pid_guard) = pid_clone.lock() {
             *pid_guard = Some(child_pid);
         }
-        
+
         // ... 读取输出和等待进程 ...
     });
 
@@ -245,6 +253,7 @@ fn run_tauri_with_sidecar() {
 ```
 
 **关键点**：
+
 - 获取当前进程 PID：`std::process::id()`
 - 通过环境变量传递：`env("CUTIE_PARENT_PID", pid)`
 - 存储子进程 PID：用于第三层主动清理
@@ -254,6 +263,7 @@ fn run_tauri_with_sidecar() {
 ## 🎯 第三层：Tauri 主动清理
 
 ### 实现位置
+
 📁 `src-tauri/src/lib.rs`
 
 ### 核心机制
@@ -267,10 +277,10 @@ pub fn run_with_port_discovery_and_cleanup(
     sidecar_pid: Arc<Mutex<Option<u32>>>,
 ) {
     let _ = SIDECAR_PORT.set(discovered_port);
-    
+
     // 克隆 PID 用于退出处理器
     let pid_for_cleanup = sidecar_pid.clone();
-    
+
     build_tauri_app()
         .setup(move |app| {
             // ... 端口发现逻辑 ...
@@ -293,6 +303,7 @@ pub fn run_with_port_discovery_and_cleanup(
 ```
 
 **工作原理**：
+
 - 监听 `ExitRequested` 事件
 - 捕获所有退出场景（窗口关闭、菜单退出、快捷键退出）
 - 执行清理后允许退出
@@ -307,7 +318,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
     if let Ok(pid_guard) = pid.lock() {
         if let Some(process_pid) = *pid_guard {
             tracing::info!("Attempting to kill sidecar process (PID: {})", process_pid);
-            
+
             #[cfg(target_os = "windows")]
             {
                 use std::process::Command;
@@ -330,7 +341,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
                     }
                 }
             }
-            
+
             #[cfg(not(target_os = "windows"))]
             {
                 use std::process::Command;
@@ -361,6 +372,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ```
 
 **平台实现**：
+
 - **Windows**：`taskkill /F /PID <pid>`（强制杀死）
 - **Unix/Linux**：`kill -9 <pid>`（强制杀死）
 
@@ -444,6 +456,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ## 🧪 测试场景
 
 ### 场景 1：正常关闭窗口
+
 ```
 操作：点击窗口关闭按钮
 触发：第三层 (ExitRequested)
@@ -455,6 +468,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ```
 
 ### 场景 2：Ctrl+C 中断
+
 ```
 操作：在终端按 Ctrl+C
 触发：第一层 (SIGINT) + 第三层
@@ -465,6 +479,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ```
 
 ### 场景 3：任务管理器强杀
+
 ```
 操作：在任务管理器强制结束 Tauri 进程
 触发：第二层 (父进程监控)
@@ -475,6 +490,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ```
 
 ### 场景 4：系统休眠
+
 ```
 操作：系统进入休眠状态
 触发：第一层 (SIGTERM) + 第二层
@@ -482,6 +498,7 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ```
 
 ### 场景 5：网络断开
+
 ```
 操作：断开网络连接
 触发：无影响（本地通信）
@@ -494,12 +511,12 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 
 ### 父进程监控开销
 
-| 指标 | 数值 |
-|------|------|
-| 检查频率 | 每 2 秒 |
+| 指标     | 数值                    |
+| -------- | ----------------------- |
+| 检查频率 | 每 2 秒                 |
 | 单次耗时 | ~5ms (Windows tasklist) |
-| CPU 占用 | <0.1% |
-| 内存占用 | 忽略不计 |
+| CPU 占用 | <0.1%                   |
+| 内存占用 | 忽略不计                |
 
 **结论**：性能影响可忽略不计。
 
@@ -508,17 +525,20 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 ## 🔧 配置参数
 
 ### 心跳间隔
+
 ```rust
 // 位置：src-tauri/src/startup/sidecar.rs
 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 ```
 
 **建议值**：
+
 - 开发环境：2 秒（快速响应）
 - 生产环境：2-5 秒（平衡性能）
 - 低功耗设备：5-10 秒（节省资源）
 
 ### 优雅关闭超时
+
 ```rust
 // Axum 默认：无限等待
 // 建议：生产环境设置 30 秒超时
@@ -531,16 +551,19 @@ tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 ### 问题 1：Sidecar 进程残留
 
 **症状**：
+
 - 应用关闭后，端口仍被占用
 - `tasklist` 中能看到 sidecar 进程
 
 **排查步骤**：
+
 1. 检查日志：是否有 "killing sidecar process" 日志
 2. 检查 PID：存储的 PID 是否正确
 3. 检查权限：是否有权限执行 taskkill/kill
 4. 检查环境变量：CUTIE_PARENT_PID 是否传递
 
 **解决方法**：
+
 ```powershell
 # 手动清理（Windows）
 tasklist | findstr cutie
@@ -556,15 +579,18 @@ kill -9 <pid>
 ### 问题 2：Sidecar 提前退出
 
 **症状**：
+
 - 应用启动后 Sidecar 立即退出
 - 日志显示 "Parent process died"
 
 **可能原因**：
+
 1. 父进程 PID 传递错误
 2. 进程检测命令失败
 3. 权限问题
 
 **排查步骤**：
+
 ```rust
 // 添加调试日志
 tracing::debug!("Parent PID: {}", parent_pid);
@@ -576,15 +602,18 @@ tracing::debug!("Process check result: {}", is_process_alive(parent_pid));
 ### 问题 3：无法杀死 Sidecar
 
 **症状**：
+
 - taskkill 命令执行失败
 - 进程仍然存在
 
 **可能原因**：
+
 1. 权限不足（需要管理员权限）
 2. 进程已变成僵尸进程
 3. 系统资源锁定
 
 **解决方法**：
+
 ```powershell
 # Windows 管理员权限
 taskkill /F /T /PID <pid>
@@ -598,16 +627,19 @@ sudo kill -9 <pid>
 ## 📋 维护检查清单
 
 ### 日常监控
+
 - [ ] 检查是否有孤儿进程
 - [ ] 查看退出日志是否正常
 - [ ] 监控端口占用情况
 
 ### 版本更新
+
 - [ ] 测试所有退出场景
 - [ ] 验证跨平台兼容性
 - [ ] 检查日志输出完整性
 
 ### 性能优化
+
 - [ ] 监控心跳检测开销
 - [ ] 优化进程检测命令
 - [ ] 调整检查频率
@@ -617,6 +649,7 @@ sudo kill -9 <pid>
 ## 🎓 最佳实践
 
 ### 1. 日志记录
+
 ```rust
 // ✅ 好的日志
 tracing::info!("Attempting to kill sidecar process (PID: {})", pid);
@@ -627,6 +660,7 @@ println!("killing process");  // 无上下文
 ```
 
 ### 2. 错误处理
+
 ```rust
 // ✅ 好的错误处理
 match Command::new("taskkill").output() {
@@ -645,6 +679,7 @@ Command::new("taskkill").output().ok();  // 忽略错误
 ```
 
 ### 3. 跨平台支持
+
 ```rust
 // ✅ 使用条件编译
 #[cfg(target_os = "windows")]
@@ -667,10 +702,10 @@ fn kill_process(pid: u32) { /* Unix 实现 */ }
 
 ## 🔄 版本历史
 
-| 版本 | 日期 | 说明 |
-|------|------|------|
+| 版本 | 日期       | 说明             |
+| ---- | ---------- | ---------------- |
 | v1.0 | 2025-10-01 | 实现三重保障机制 |
-| v0.9 | 2025-09-30 | 添加父进程监控 |
+| v0.9 | 2025-09-30 | 添加父进程监控   |
 | v0.8 | 2025-09-29 | 初步实现信号处理 |
 
 ---
@@ -686,6 +721,7 @@ Cutie 的 Sidecar 进程生命周期管理采用**纵深防御**策略：
 这种多层防护确保了在任何情况下（正常退出、崩溃、强杀、系统重启）都不会产生孤儿进程，从而保证了应用的稳定性和用户体验。
 
 **核心优势**：
+
 - ✅ 100% 可靠性（三重保障）
 - ✅ 跨平台支持（Windows/Linux/macOS）
 - ✅ 性能友好（<0.1% CPU）
@@ -697,4 +733,3 @@ Cutie 的 Sidecar 进程生命周期管理采用**纵深防御**策略：
 **文档维护者**：Cutie 开发团队  
 **最后更新**：2025-10-01  
 **文档版本**：1.0
-

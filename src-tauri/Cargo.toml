@@ -61,3 +61,13 @@ ts-rs = { version = "8.1", features = [
     "chrono-impl",
     "serde-json-impl",
 ] }
+
+[dev-dependencies]
+# 测试框架
+tokio-test = "0.4"
+reqwest = { version = "0.12", features = ["json"] }
+
+# 断言和工具
+assert-json-diff = "2.0"
+rstest = "0.18"
+fake = { version = "2.9", features = ["derive", "chrono", "uuid"] }
