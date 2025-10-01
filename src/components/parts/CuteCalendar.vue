@@ -32,6 +32,7 @@ const message = useMessage()
 const previewEvent = ref<EventInput | null>(null)
 const isDragging = ref(false)
 const currentDraggedTask = ref<TaskCard | null>(null)
+const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
 
 onMounted(async () => {
   // 监听全局拖拽开始事件
@@ -68,7 +69,10 @@ function handleGlobalDragStart(event: DragEvent) {
 
 function handleGlobalDragEnd() {
   currentDraggedTask.value = null
-  clearPreviewEvent()
+  // 如果正在处理 drop，不要清除预览（让 handleDrop 控制清理）
+  if (!isProcessingDrop.value) {
+    clearPreviewEvent()
+  }
   stopAutoScroll()
 }
 
@@ -93,14 +97,27 @@ onUnmounted(() => {
  */
 const calendarEvents = computed((): EventInput[] => {
   // ✅ 直接从 store 的 computed getter 读取，确保响应式更新
-  const events = timeBlockStore.allTimeBlocks.map((timeBlock) => ({
-    id: timeBlock.id,
-    title: timeBlock.title ?? 'Time Block',
-    start: timeBlock.start_time,
-    end: timeBlock.end_time,
-    allDay: false,
-    color: timeBlock.area?.color ?? '#4a90e2', // 使用区域颜色
-  }))
+  const events = timeBlockStore.allTimeBlocks.map((timeBlock) => {
+    // 颜色优先级：
+    // 1. 如果有 area，使用 area 的颜色
+    // 2. 如果没有 area 但有关联任务（从任务创建），使用灰色
+    // 3. 如果没有 area 也没有关联任务（手动创建），使用青色
+    let color = '#bceaee' // 默认青色（手动创建）
+    if (timeBlock.area) {
+      color = timeBlock.area.color
+    } else if (timeBlock.linked_tasks && timeBlock.linked_tasks.length > 0) {
+      color = '#9ca3af' // 灰色（从无 area 任务创建）
+    }
+
+    return {
+      id: timeBlock.id,
+      title: timeBlock.title ?? 'Time Block',
+      start: timeBlock.start_time,
+      end: timeBlock.end_time,
+      allDay: false,
+      color: color,
+    }
+  })
 
   // 添加预览事件
   if (previewEvent.value) {
@@ -110,7 +127,7 @@ const calendarEvents = computed((): EventInput[] => {
       start: typeof previewEvent.value.start === 'string' ? previewEvent.value.start : '',
       end: typeof previewEvent.value.end === 'string' ? previewEvent.value.end : '',
       allDay: previewEvent.value.allDay || false,
-      color: previewEvent.value.color || '#4a90e2',
+      color: previewEvent.value.color || '#BCEAEE',
     })
   }
 
@@ -130,7 +147,7 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
       start: selectInfo.start.toISOString(),
       end: selectInfo.end.toISOString(),
       allDay: false,
-      color: '#4a90e2',
+      color: '#BCEAEE',
       classNames: ['creating-event'],
     }
 
@@ -142,7 +159,6 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
         title,
         start_time: selectInfo.start.toISOString(),
         end_time: selectInfo.end.toISOString(),
-        linked_task_ids: [], // 空的任务ID列表
       })
 
       // 清除临时预览，真实事件会通过store更新显示
@@ -328,6 +344,8 @@ function updatePreviewEvent(event: DragEvent) {
 
     // 使用全局状态中的任务信息
     const previewTitle = currentDraggedTask.value?.title || '任务'
+    // 获取任务的区域颜色，如果没有区域则使用灰色
+    const previewColor = currentDraggedTask.value?.area?.color || '#9ca3af'
 
     previewEvent.value = {
       id: 'preview-event',
@@ -335,7 +353,7 @@ function updatePreviewEvent(event: DragEvent) {
       start: dropTime.toISOString(),
       end: endTime.toISOString(),
       allDay: false,
-      color: '#4a90e2',
+      color: previewColor,
       classNames: ['preview-event'],
       display: 'block',
     }
@@ -355,10 +373,14 @@ function clearPreviewEvent() {
 async function handleDrop(event: DragEvent) {
   event.preventDefault()
 
-  // 清除预览事件
-  clearPreviewEvent()
+  // 标记开始处理 drop，防止 dragend 事件清除预览
+  isProcessingDrop.value = true
 
-  if (!event.dataTransfer) return
+  if (!event.dataTransfer) {
+    clearPreviewEvent()
+    isProcessingDrop.value = false
+    return
+  }
 
   try {
     const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
@@ -383,10 +405,20 @@ async function handleDrop(event: DragEvent) {
           // ✅ 后端返回了更新后的任务，直接更新到 store
           taskStore.addOrUpdateTask(result.updated_task)
         }
+
+        // 创建成功后再清除预览
+        clearPreviewEvent()
+      } else {
+        clearPreviewEvent()
       }
+    } else {
+      clearPreviewEvent()
     }
   } catch (error) {
     console.error('处理拖拽失败:', error)
+
+    // 清除预览
+    clearPreviewEvent()
 
     // 显示错误信息给用户
     let errorMessage = '创建时间块失败'
@@ -401,6 +433,9 @@ async function handleDrop(event: DragEvent) {
       duration: 5000, // 显示5秒
       closable: true,
     })
+  } finally {
+    // 无论成功还是失败，都要重置标志
+    isProcessingDrop.value = false
   }
 }
 
@@ -487,14 +522,14 @@ const calendarOptions = reactive({
 
 /* 预览事件样式 */
 .fc-event.preview-event {
-  background-color: #4a90e2 !important;
+  background-color: #bceaee !important;
   color: #fff !important;
   border-color: #357abd !important;
 }
 
 /* 创建中事件样式 */
 .fc-event.creating-event {
-  background-color: #4a90e2 !important;
+  background-color: #bceaee !important;
   color: #fff !important;
   border-color: #357abd !important;
   opacity: 0.8;
