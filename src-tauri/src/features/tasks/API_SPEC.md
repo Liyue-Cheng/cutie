@@ -339,10 +339,24 @@
 ```json
 {
   "data": {
-    "deleted_time_block_ids": ["uuid1", "uuid2"]
+    "success": true
   }
 }
 ```
+
+**注意**: 副作用通过 SSE 事件异步推送（一个业务事务 = 一个事件）：
+
+- **事件类型**: `task.deleted`
+- **事件载荷**:
+  ```json
+  {
+    "task_id": "uuid",
+    "deleted_at": "2025-10-01T12:00:00Z",
+    "side_effects": {
+      "deleted_time_blocks": ["uuid1", "uuid2"]  // 被删除的孤儿时间块
+    }
+  }
+  ```
 
 **404 Not Found:**
 任务不存在
@@ -428,12 +442,29 @@
 ```json
 {
   "data": {
-    "id": "uuid",
-    "is_completed": true,
-    ...
+    "task": {
+      "id": "uuid",
+      "is_completed": true,
+      "completed_at": "2025-10-01T12:00:00Z",
+      ...
+    }
   }
 }
 ```
+
+**注意**: 副作用通过 SSE 事件异步推送（一个业务事务 = 一个事件）：
+
+- **事件类型**: `task.completed`
+- **事件载荷**:
+  ```json
+  {
+    "task": { /* 完整的 TaskCard */ },
+    "side_effects": {
+      "deleted_time_blocks": ["uuid1", "uuid2"],  // 被删除的未来时间块
+      "truncated_time_blocks": ["uuid3"]          // 被截断的正在进行时间块
+    }
+  }
+  ```
 
 **404 Not Found:** 任务不存在
 **409 Conflict:** 任务已完成

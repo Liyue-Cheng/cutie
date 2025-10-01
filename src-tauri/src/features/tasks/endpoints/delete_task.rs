@@ -113,6 +113,7 @@ mod logic {
         }
 
         // 7. 在事务中写入领域事件到 outbox
+        // ✅ 一个业务事务 = 一个领域事件（包含所有副作用）
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -120,25 +121,15 @@ mod logic {
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
         let now = app_state.clock().now_utc();
 
-        // 7.1 发布任务删除事件
         {
             let payload = serde_json::json!({
                 "task_id": task_id.to_string(),
                 "deleted_at": now.to_rfc3339(),
+                "side_effects": {
+                    "deleted_time_blocks": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                }
             });
             let event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
-                .with_aggregate_version(now.timestamp_millis());
-            outbox_repo.append_in_tx(&mut tx, &event).await?;
-        }
-
-        // 7.2 发布时间块删除事件（如果有孤儿时间块被删除）
-        if !deleted_time_block_ids.is_empty() {
-            let payload = serde_json::json!({
-                "time_block_ids": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
-                "deleted_at": now.to_rfc3339(),
-                "reason": "orphan_after_task_deletion",
-            });
-            let event = DomainEvent::new("time_blocks.deleted", "time_block", "batch", payload)
                 .with_aggregate_version(now.timestamp_millis());
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }

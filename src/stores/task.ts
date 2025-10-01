@@ -549,33 +549,44 @@ export const useTaskStore = defineStore('task', () => {
 
   /**
    * 幂等事件处理器：任务完成
+   * ✅ 一次性处理整个业务事务（任务 + 所有副作用）
    */
   async function handleTaskCompletedEvent(event: any) {
-    const taskId = event.payload.task_id
-    console.log('[TaskStore] Handling task.completed event:', taskId)
+    const task = event.payload.task
+    const sideEffects = event.payload.side_effects
+    console.log('[TaskStore] Handling task.completed event:', task.id, sideEffects)
 
-    // 重新获取任务详情（确保最新状态）
-    try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/tasks/${taskId}`)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
-      addOrUpdateTask(result.data.card)
-      console.log('[TaskStore] Task updated from event:', taskId)
-    } catch (e) {
-      console.error('[TaskStore] Failed to refresh task from event:', e)
+    // 直接使用事件中的完整数据，无需额外 HTTP 请求 ✅
+    addOrUpdateTask(task)
+
+    // 处理副作用：通知 TimeBlockStore
+    if (sideEffects?.deleted_time_blocks?.length || sideEffects?.truncated_time_blocks?.length) {
+      const { useTimeBlockStore } = await import('./timeblock')
+      const timeBlockStore = useTimeBlockStore()
+      timeBlockStore.handleTimeBlockSideEffects(sideEffects)
     }
   }
 
   /**
    * 幂等事件处理器：任务删除
+   * ✅ 一次性处理整个业务事务（任务删除 + 孤儿时间块删除）
    */
   async function handleTaskDeletedEvent(event: any) {
     const taskId = event.payload.task_id
-    console.log('[TaskStore] Handling task.deleted event:', taskId)
+    const sideEffects = event.payload.side_effects
+    console.log('[TaskStore] Handling task.deleted event:', taskId, sideEffects)
 
     // 从本地状态移除任务
     removeTask(taskId)
+
+    // 处理副作用：通知 TimeBlockStore 删除孤儿时间块
+    if (sideEffects?.deleted_time_blocks?.length) {
+      const { useTimeBlockStore } = await import('./timeblock')
+      const timeBlockStore = useTimeBlockStore()
+      timeBlockStore.handleTimeBlockSideEffects({
+        deleted_time_blocks: sideEffects.deleted_time_blocks,
+      })
+    }
   }
 
   return {

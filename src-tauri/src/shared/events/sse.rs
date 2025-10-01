@@ -8,7 +8,7 @@ use axum::{
 };
 use std::convert::Infallible;
 use tokio::sync::broadcast;
-use tokio_stream::{wrappers::BroadcastStream, StreamExt as _, Stream};
+use tokio_stream::{wrappers::BroadcastStream, Stream, StreamExt as _};
 
 use super::models::DomainEvent;
 use crate::startup::AppState;

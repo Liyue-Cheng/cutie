@@ -62,18 +62,18 @@ export namespace TaskAPI {
 
   /**
    * 完成任务的响应数据
+   * 注意：副作用（deleted/truncated time blocks）通过 SSE 事件推送
    */
   export interface CompleteResponse {
     task: TaskCard
-    deleted_time_block_ids: string[]
-    truncated_time_block_ids: string[]
   }
 
   /**
    * 删除任务的响应数据
+   * 注意：副作用（deleted orphan time blocks）通过 SSE 事件推送
    */
   export interface DeleteResponse {
-    deleted_time_block_ids: string[]
+    success: boolean
   }
 
   /**

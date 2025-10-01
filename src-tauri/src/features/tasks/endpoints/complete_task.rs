@@ -107,62 +107,45 @@ mod logic {
             }
         }
 
-        // 7. 在事务中写入领域事件到 outbox
+        // 7. 重新查询任务并组装完整 TaskCard（用于事件载荷）
+        let updated_task_in_tx = database::find_task_in_tx(&mut tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+        let task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
+
+        // 8. 在事务中写入领域事件到 outbox
+        // ✅ 一个业务事务 = 一个领域事件（包含所有副作用）
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
-        // 7.1 发布任务完成事件
         {
             let payload = serde_json::json!({
-                "task_id": task_id.to_string(),
-                "completed_at": now.to_rfc3339(),
+                "task": task_card_for_event,
+                "side_effects": {
+                    "deleted_time_blocks": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                    "truncated_time_blocks": truncated_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                }
             });
             let event = DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 7.2 发布时间块删除事件（如果有）
-        if !deleted_time_block_ids.is_empty() {
-            let payload = serde_json::json!({
-                "time_block_ids": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
-                "deleted_at": now.to_rfc3339(),
-            });
-            let event = DomainEvent::new("time_blocks.deleted", "time_block", "batch", payload)
-                .with_aggregate_version(now.timestamp_millis());
-            outbox_repo.append_in_tx(&mut tx, &event).await?;
-        }
-
-        // 7.3 发布时间块截断事件（如果有）
-        if !truncated_time_block_ids.is_empty() {
-            let payload = serde_json::json!({
-                "time_block_ids": truncated_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
-                "truncated_at": now.to_rfc3339(),
-            });
-            let event = DomainEvent::new("time_blocks.truncated", "time_block", "batch", payload)
-                .with_aggregate_version(now.timestamp_millis());
-            outbox_repo.append_in_tx(&mut tx, &event).await?;
-        }
-
-        // 8. 提交事务
+        // 9. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 9. 重新查询并组装返回数据
-        let updated_task = database::find_task(app_state.db_pool(), task_id)
-            .await?
-            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
-
-        let task_card = TaskAssembler::task_to_card_basic(&updated_task);
-
-        // HTTP 响应只返回主要数据，副作用通过 SSE 推送
-        Ok(CompleteTaskResponse { task: task_card })
+        // 10. 返回结果（复用事件中的 task_card）
+        // HTTP 响应与 SSE 事件载荷保持一致
+        Ok(CompleteTaskResponse {
+            task: task_card_for_event,
+        })
     }
 
     /// 时间块处理动作
@@ -246,39 +229,6 @@ mod database {
         let row = sqlx::query_as::<_, TaskRow>(query)
             .bind(task_id.to_string())
             .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        match row {
-            Some(r) => {
-                let task = crate::entities::Task::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })?;
-                Ok(Some(task))
-            }
-            None => Ok(None),
-        }
-    }
-
-    pub async fn find_task(
-        pool: &sqlx::SqlitePool,
-        task_id: Uuid,
-    ) -> AppResult<Option<crate::entities::Task>> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TaskRow>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
             .await
             .map_err(|e| {
                 AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))

@@ -450,67 +450,57 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   // ============================================================
 
   /**
-   * 初始化事件订阅（由 main.ts 调用）
+   * 占位函数：保持与 TaskStore 的接口兼容
+   * 注意：TimeBlockStore 不再独立订阅事件，而是由 TaskStore 调用
    */
   function initEventSubscriptions() {
-    import('@/services/events').then(({ getEventSubscriber }) => {
-      const subscriber = getEventSubscriber()
-      if (!subscriber) {
-        console.warn('[TimeBlockStore] Event subscriber not initialized yet')
-        return
-      }
-
-      // 订阅时间块删除事件
-      subscriber.on('time_blocks.deleted', handleTimeBlocksDeletedEvent)
-
-      // 订阅时间块截断事件
-      subscriber.on('time_blocks.truncated', handleTimeBlocksTruncatedEvent)
-    })
+    // 不再需要单独订阅 time_blocks.deleted 和 time_blocks.truncated
+    // 这些副作用现在包含在 task.completed 和 task.deleted 事件中
+    console.log('[TimeBlockStore] Event subscriptions managed by TaskStore')
   }
 
   /**
-   * 幂等事件处理器：时间块删除
+   * 统一的副作用处理器
+   * ✅ 被 TaskStore 调用，处理业务事务中的时间块副作用
    */
-  async function handleTimeBlocksDeletedEvent(event: any) {
-    const timeBlockIds: string[] = event.payload.time_block_ids || []
-    console.log('[TimeBlockStore] Handling time_blocks.deleted event:', timeBlockIds)
+  async function handleTimeBlockSideEffects(sideEffects: {
+    deleted_time_blocks?: string[]
+    truncated_time_blocks?: string[]
+  }) {
+    console.log('[TimeBlockStore] Handling side effects:', sideEffects)
 
-    // 从本地状态移除这些时间块
-    for (const blockId of timeBlockIds) {
-      removeTimeBlock(blockId)
+    // 处理删除的时间块
+    if (sideEffects.deleted_time_blocks?.length) {
+      for (const blockId of sideEffects.deleted_time_blocks) {
+        removeTimeBlock(blockId)
+      }
     }
-  }
 
-  /**
-   * 幂等事件处理器：时间块截断
-   */
-  async function handleTimeBlocksTruncatedEvent(event: any) {
-    const timeBlockIds: string[] = event.payload.time_block_ids || []
-    console.log('[TimeBlockStore] Handling time_blocks.truncated event:', timeBlockIds)
-
-    // 重新获取被截断的时间块（需要知道日期范围）
-    try {
-      const dates = new Set<string>()
-      for (const blockId of timeBlockIds) {
-        const block = getTimeBlockById(blockId)
-        if (block) {
-          const date = new Date(block.start_time).toISOString().split('T')[0]
-          if (date) dates.add(date)
+    // 处理截断的时间块：重新获取最新数据
+    if (sideEffects.truncated_time_blocks?.length) {
+      try {
+        const dates = new Set<string>()
+        for (const blockId of sideEffects.truncated_time_blocks) {
+          const block = getTimeBlockById(blockId)
+          if (block) {
+            const date = new Date(block.start_time).toISOString().split('T')[0]
+            if (date) dates.add(date)
+          }
         }
-      }
 
-      // 重新加载这些日期的时间块
-      if (dates.size > 0) {
-        const dateArray = Array.from(dates).sort()
-        if (dateArray.length > 0) {
-          const startDate = dateArray[0] as string
-          const endDate = dateArray[dateArray.length - 1] as string
-          console.log('[TimeBlockStore] Reloading time blocks for dates:', dateArray)
-          await fetchTimeBlocksForRange(startDate, endDate)
+        // 重新加载这些日期的时间块
+        if (dates.size > 0) {
+          const dateArray = Array.from(dates).sort()
+          if (dateArray.length > 0) {
+            const startDate = dateArray[0] as string
+            const endDate = dateArray[dateArray.length - 1] as string
+            console.log('[TimeBlockStore] Reloading time blocks for dates:', dateArray)
+            await fetchTimeBlocksForRange(startDate, endDate)
+          }
         }
+      } catch (e) {
+        console.error('[TimeBlockStore] Failed to refresh truncated time blocks:', e)
       }
-    } catch (e) {
-      console.error('[TimeBlockStore] Failed to refresh time blocks from event:', e)
     }
   }
 
@@ -543,5 +533,6 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // Event handlers
     initEventSubscriptions,
+    handleTimeBlockSideEffects,
   }
 })

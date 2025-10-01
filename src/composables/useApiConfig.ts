@@ -36,7 +36,7 @@ export async function initializeApiConfig() {
       sidecarPort.value = port
       isPortDiscovered.value = true
       console.log(`🔍 [API Config] Port discovered via event: ${port}`)
-      
+
       // ✅ 初始化事件订阅
       initializeEventSubscriptions(port).catch(console.error)
     })
