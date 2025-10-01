@@ -26,18 +26,15 @@ GET /api/views/staging
 
 ## 预期行为简介
 返回所有未排期（staging）的任务列表。
-任务按照 orderings 表中的 sort_order 排序。
 
 ## 输入输出规范
 - **前置条件**: 无
 - **后置条件**:
   - 返回所有未删除、未完成、且未被安排到任何日期的任务
   - 每个任务包含完整的 TaskCard 信息
-  - 任务按 sort_order 排序
 
 ## 边界情况
 - 如果没有 staging 任务，返回空数组
-- 如果某个任务没有 ordering 记录，排在最后
 
 ## 预期副作用
 - 无（只读操作）
@@ -81,9 +78,6 @@ mod logic {
             task_cards.push(task_card);
         }
 
-        // 3. 按 sort_order 排序
-        task_cards.sort_by(|a, b| a.sort_order.cmp(&b.sort_order));
-
         Ok(task_cards)
     }
 
@@ -91,11 +85,6 @@ mod logic {
     async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         // 1. 创建基础 TaskCard
         let mut card = TaskAssembler::task_to_card_basic(task);
-
-        // 2. 获取并设置 sort_order
-        let sort_order = database::get_task_sort_order(pool, task.id).await?;
-        card.sort_order = sort_order;
-
         // 3. 设置 schedule_status 为 staging
         card.schedule_status = ScheduleStatus::Staging;
 
@@ -151,30 +140,6 @@ mod database {
         let tasks: Result<Vec<Task>, _> = rows.into_iter().map(Task::try_from).collect();
 
         tasks.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
-    }
-
-    /// 获取任务的 sort_order
-    ///
-    /// 从 orderings 表查询，context_type = 'MISC', context_id = 'staging'
-    pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
-        let query = r#"
-            SELECT sort_order 
-            FROM orderings 
-            WHERE context_type = 'MISC' 
-              AND context_id = 'staging' 
-              AND task_id = ?
-        "#;
-
-        let result = sqlx::query_scalar::<_, String>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        // 如果没有 ordering 记录，返回默认值（会排在最后）
-        Ok(result.unwrap_or_else(|| "zzz".to_string()))
     }
 
     /// 获取区域摘要信息

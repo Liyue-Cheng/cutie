@@ -71,9 +71,6 @@ mod logic {
         };
 
         // 5. 获取其他关联信息
-        if let Ok(sort_order) = database::get_task_sort_order(pool, task_id).await {
-            task_card.sort_order = sort_order;
-        }
 
         if let Some(area_id) = task.area_id {
             task_card.area = database::get_area_summary(pool, area_id).await?;
@@ -129,18 +126,6 @@ mod database {
             }
             None => Ok(None),
         }
-    }
-
-    pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
-        let query = "SELECT sort_order FROM orderings WHERE context_type = 'MISC' AND context_id = 'staging' AND task_id = ?";
-        let result = sqlx::query_scalar::<_, String>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(result.unwrap_or_else(|| "zzz".to_string()))
     }
 
     pub async fn get_area_summary(

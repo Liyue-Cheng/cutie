@@ -21,7 +21,6 @@ impl TaskAssembler {
     ///
     /// 只填充可以直接从 Task 实体获取的字段
     /// 需要额外数据的字段保持默认值，调用者需要手动设置：
-    /// - sort_order（需要从 Orderings 表获取）
     /// - schedule_status（需要从 Schedule 表判断）
     /// - area（需要从 Area 表获取）
     /// - schedule_info（需要从 Schedule 表计算）
@@ -30,7 +29,6 @@ impl TaskAssembler {
             id: task.id,
             title: task.title.clone(),
             glance_note: task.glance_note.clone(),
-            sort_order: String::new(), // 默认空，需要后续填充
             is_completed: task.is_completed(),
             schedule_status: ScheduleStatus::Staging, // 默认 Staging，需要后续判断
             subtasks: task.subtasks.as_ref().map(|subtasks| {
@@ -57,13 +55,11 @@ impl TaskAssembler {
     #[allow(dead_code)]
     pub fn task_to_card_full(
         task: &Task,
-        sort_order: String,
         schedule_status: ScheduleStatus,
         area: Option<AreaSummary>,
         schedule_info: Option<ScheduleInfo>,
     ) -> TaskCardDto {
         let mut card = Self::task_to_card_basic(task);
-        card.sort_order = sort_order;
         card.schedule_status = schedule_status;
         card.area = area;
         card.schedule_info = schedule_info;

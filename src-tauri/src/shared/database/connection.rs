@@ -67,7 +67,7 @@ impl From<&crate::config::SynchronousMode> for SynchronousMode {
 impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            max_connections: 5,  // ← 降低到 5（SQLite 推荐值，减少写锁竞争）
+            max_connections: 5, // ← 降低到 5（SQLite 推荐值，减少写锁竞争）
             min_connections: 1,
             connect_timeout_seconds: 30,
             idle_timeout_seconds: 600,
@@ -118,10 +118,15 @@ pub async fn initialize_database(
         })?;
     }
 
-    // 构建连接字符串
+    // 构建连接选项
+    // ⚠️ 关键：在连接选项中设置 busy_timeout，确保每个新连接都会应用此配置
     let connection_options = SqliteConnectOptions::new()
         .filename(db_path)
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .busy_timeout(Duration::from_millis(5000)) // ← 每个连接都会等待 5 秒而非立即失败
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal) // WAL 模式
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal) // 同步模式
+        .foreign_keys(config.foreign_keys); // 外键约束
 
     tracing::debug!("Database connection options: {:?}", connection_options);
 
@@ -136,9 +141,9 @@ pub async fn initialize_database(
         .await
         .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 
-    tracing::info!("Database connection pool created successfully");
+    tracing::info!("Database connection pool created successfully with busy_timeout=5000ms");
 
-    // 配置SQLite特定设置
+    // 配置SQLite特定设置（缓存、内存等）
     configure_sqlite(&pool, config).await?;
 
     // 运行迁移（如果启用）
@@ -156,18 +161,9 @@ pub async fn initialize_database(
 /// 配置SQLite特定设置
 ///
 /// **预期行为简介:** 执行SQLite特定的PRAGMA语句来优化数据库性能和行为
+/// 注意：WAL、busy_timeout、synchronous、foreign_keys 已在连接选项中设置
 async fn configure_sqlite(pool: &SqlitePool, config: &DatabaseConfig) -> Result<(), AppError> {
-    tracing::debug!("Configuring SQLite settings...");
-
-    // 设置同步模式
-    let sync_pragma = format!(
-        "PRAGMA synchronous = {}",
-        config.synchronous.as_pragma_value()
-    );
-    sqlx::query(&sync_pragma)
-        .execute(pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+    tracing::debug!("Configuring additional SQLite settings...");
 
     // 设置缓存大小
     let cache_pragma = format!("PRAGMA cache_size = {}", config.cache_size_kb / 4); // 转换为页数
@@ -175,32 +171,6 @@ async fn configure_sqlite(pool: &SqlitePool, config: &DatabaseConfig) -> Result<
         .execute(pool)
         .await
         .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-
-    // 启用外键约束（如果配置启用）
-    if config.foreign_keys {
-        sqlx::query("PRAGMA foreign_keys = ON")
-            .execute(pool)
-            .await
-            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-    }
-
-    // 设置WAL模式（如果配置启用）
-    if config.wal_mode {
-        sqlx::query("PRAGMA journal_mode = WAL")
-            .execute(pool)
-            .await
-            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-    }
-
-    // ⚠️ 关键：设置 busy_timeout 防止 "database is locked" 错误
-    // SQLite 在遇到锁时会等待最多 5 秒，而不是立即失败
-    // 这对于处理并发写入至关重要
-    sqlx::query("PRAGMA busy_timeout = 5000")
-        .execute(pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-
-    tracing::info!("SQLite busy_timeout set to 5000ms for concurrency handling");
 
     // 设置其他性能优化参数
     sqlx::query("PRAGMA temp_store = MEMORY")

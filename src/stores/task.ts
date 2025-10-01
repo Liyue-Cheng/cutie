@@ -24,7 +24,6 @@ export interface CreateTaskPayload {
   subtasks?: Array<{
     title: string
     is_completed: boolean
-    sort_order: string
   }> | null
 }
 
@@ -40,8 +39,30 @@ export interface UpdateTaskPayload {
     id?: string
     title: string
     is_completed: boolean
-    sort_order: string
   }> | null
+}
+
+/**
+ * 完成任务的响应数据
+ */
+export interface CompleteTaskResponse {
+  task: TaskCard
+  deleted_time_block_ids: string[]
+  truncated_time_block_ids: string[]
+}
+
+/**
+ * 删除任务的响应数据
+ */
+export interface DeleteTaskResponse {
+  deleted_time_block_ids: string[]
+}
+
+/**
+ * 重新打开任务的响应数据
+ */
+export interface ReopenTaskResponse {
+  task: TaskCard
 }
 
 export const useTaskStore = defineStore('task', () => {
@@ -70,37 +91,69 @@ export const useTaskStore = defineStore('task', () => {
   const error = ref<string | null>(null)
 
   // ============================================================
-  // GETTERS - 只负责从State中读取和计算数据
+  // GETTERS - 动态过滤（所有视图的数据源）
   // ============================================================
+
+  /**
+   * 基础数组缓存层（性能优化）
+   * ✅ 只转换一次 Map → Array，所有其他 getter 复用此数组
+   */
+  const allTasksArray = computed(() => {
+    return Array.from(tasks.value.values())
+  })
 
   /**
    * 获取所有任务（数组形式）
    */
   const allTasks = computed(() => {
-    return Array.from(tasks.value.values())
+    return allTasksArray.value
   })
 
   /**
-   * 获取 staging 区的任务（未安排的任务）
+   * Staging 任务（未安排且未完成）
+   * ✅ 动态过滤：任务完成后自动消失
+   * ✅ 性能优化：复用 allTasksArray
    */
   const stagingTasks = computed(() => {
-    return Array.from(tasks.value.values()).filter(
+    return allTasksArray.value.filter(
       (task) => task.schedule_status === 'staging' && !task.is_completed
     )
   })
 
   /**
-   * 获取已完成的任务
+   * Planned 任务（已安排且未完成）
+   * ✅ 动态过滤：任务完成后自动消失
+   * ✅ 性能优化：复用 allTasksArray
    */
-  const completedTasks = computed(() => {
-    return Array.from(tasks.value.values()).filter((task) => task.is_completed)
+  const plannedTasks = computed(() => {
+    return allTasksArray.value.filter(
+      (task) => task.schedule_status === 'scheduled' && !task.is_completed
+    )
   })
 
   /**
-   * 获取已安排的任务
+   * 未完成的任务（所有状态）
+   * ✅ 动态过滤：任务完成后自动消失
+   * ✅ 性能优化：复用 allTasksArray
+   */
+  const incompleteTasks = computed(() => {
+    return allTasksArray.value.filter((task) => !task.is_completed)
+  })
+
+  /**
+   * 已完成的任务
+   * ✅ 性能优化：复用 allTasksArray
+   */
+  const completedTasks = computed(() => {
+    return allTasksArray.value.filter((task) => task.is_completed)
+  })
+
+  /**
+   * 已安排的任务（包括已完成和未完成）
+   * @deprecated 使用 plannedTasks（只含未完成）
    */
   const scheduledTasks = computed(() => {
-    return Array.from(tasks.value.values()).filter((task) => task.schedule_status === 'scheduled')
+    return allTasksArray.value.filter((task) => task.schedule_status === 'scheduled')
   })
 
   /**
@@ -112,19 +165,21 @@ export const useTaskStore = defineStore('task', () => {
 
   /**
    * 根据项目 ID 获取任务列表
+   * ✅ 性能优化：复用 allTasksArray
    */
   const getTasksByProject = computed(() => {
     return (projectId: string) => {
-      return Array.from(tasks.value.values()).filter((task) => task.project_id === projectId)
+      return allTasksArray.value.filter((task) => task.project_id === projectId)
     }
   })
 
   /**
    * 根据区域 ID 获取任务列表
+   * ✅ 性能优化：复用 allTasksArray
    */
   const getTasksByArea = computed(() => {
     return (areaId: string) => {
-      return Array.from(tasks.value.values()).filter((task) => task.area?.id === areaId)
+      return allTasksArray.value.filter((task) => task.area?.id === areaId)
     }
   })
 
@@ -358,7 +413,7 @@ export const useTaskStore = defineStore('task', () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
       const result = await response.json()
-      const data = result.data as { deleted_time_block_ids: string[] }
+      const data = result.data as DeleteTaskResponse
 
       // 删除任务
       removeTask(id)
@@ -398,11 +453,7 @@ export const useTaskStore = defineStore('task', () => {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const result = await response.json()
-      const data = result.data as {
-        task: TaskCard
-        deleted_time_block_ids: string[]
-        truncated_time_block_ids: string[]
-      }
+      const data = result.data as CompleteTaskResponse
 
       // 更新任务
       addOrUpdateTask(data.task)
@@ -417,13 +468,36 @@ export const useTaskStore = defineStore('task', () => {
         console.log('[TaskStore] Removed deleted time blocks:', data.deleted_time_block_ids)
       }
 
-      // ✅ 重新加载被截断的时间块（获取最新的 end_time）
+      // ✅ 处理被截断的时间块（重新获取最新数据）
       if (data.truncated_time_block_ids && data.truncated_time_block_ids.length > 0) {
+        console.log('[TaskStore] Time blocks truncated:', data.truncated_time_block_ids)
+
+        // ✅ 重新获取这些时间块的最新数据
         const { useTimeBlockStore } = await import('./timeblock')
         const timeBlockStore = useTimeBlockStore()
-        // 重新获取当前视图的时间块以更新截断后的状态
-        console.log('[TaskStore] Time blocks truncated:', data.truncated_time_block_ids)
-        // TODO: 可以选择重新加载这些时间块，或等待下次刷新
+
+        // 获取所有被截断时间块的日期范围
+        const dates = new Set<string>()
+        for (const blockId of data.truncated_time_block_ids) {
+          const block = timeBlockStore.getTimeBlockById(blockId)
+          if (block) {
+            const date = new Date(block.start_time).toISOString().split('T')[0]
+            if (date) dates.add(date)
+          }
+        }
+
+        // 重新加载这些日期的时间块
+        if (dates.size > 0) {
+          const dateArray = Array.from(dates).sort()
+
+          if (dateArray.length > 0) {
+            const startDate = dateArray[0] as string
+            const endDate = dateArray[dateArray.length - 1] as string
+
+            console.log('[TaskStore] Reloading time blocks for dates:', dateArray)
+            await timeBlockStore.fetchTimeBlocksForRange(startDate, endDate)
+          }
+        }
       }
 
       console.log('[TaskStore] Completed task:', data.task)
@@ -457,7 +531,8 @@ export const useTaskStore = defineStore('task', () => {
         throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
       }
       const result = await response.json()
-      const reopenedTask: TaskCard = result.data.task // 提取 data.task
+      const data = result.data as ReopenTaskResponse
+      const reopenedTask: TaskCard = data.task
       addOrUpdateTask(reopenedTask)
       console.log('[TaskStore] Reopened task:', reopenedTask)
       return reopenedTask
@@ -505,11 +580,13 @@ export const useTaskStore = defineStore('task', () => {
     isLoading,
     error,
 
-    // Getters
+    // Getters - 所有视图的数据源
     allTasks,
-    stagingTasks,
+    stagingTasks, // ✅ 动态过滤
+    plannedTasks, // ✅ 动态过滤
+    incompleteTasks, // ✅ 动态过滤
     completedTasks,
-    scheduledTasks,
+    scheduledTasks, // @deprecated
     getTaskById,
     getTasksByProject,
     getTasksByArea,

@@ -1,53 +1,32 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
-import { useTaskStore } from './task'
-// import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
- * View Store
+ * View Store V4.0 - 纯排序系统
  *
- * 职责：管理视图和上下文
- * - 管理"哪天有哪些任务"
- * - 管理"这些任务的顺序"
- * - 协调 TaskStore 和视图层
+ * 职责：只管理视图的排序信息
+ * - 不存储任务数据（由 TaskStore 负责）
+ * - 不存储任务ID列表（过滤由 TaskStore getter 负责）
+ * - 只存储排序权重（持久化到后端）
  *
  * 架构原则：
- * - State: 存储视图相关的索引数据（日期 -> 任务ID列表）
- * - Actions: 负责调用视图相关的API、修改State
- * - Getters: 从索引数据和 TaskStore 中组合出完整的任务列表
- *
- * 注意：View Store 不存储任务的原始数据，只存储任务ID和顺序
+ * - 过滤逻辑 → TaskStore 动态计算
+ * - 排序信息 → ViewStore 持久化
+ * - 完全分离关注点
  */
-
-// --- Payload Types for API calls ---
-export interface ScheduleTaskPayload {
-  task_id: string
-  scheduled_day: string // YYYY-MM-DD ISO 8601 UTC
-}
-
-export interface RescheduleTaskPayload {
-  task_id: string
-  from_day: string
-  to_day: string
-}
-
-export interface ReorderTasksPayload {
-  date: string
-  task_ids: string[]
-}
 
 export const useViewStore = defineStore('view', () => {
   // ============================================================
-  // STATE - 只存储视图索引数据
+  // STATE - 只存储排序权重
   // ============================================================
 
   /**
-   * 每日看板的任务ID列表（已排序）
-   * key: YYYY-MM-DD (日期字符串)
-   * value: 该日期的任务 ID 列表（按 sort_order 排序）
+   * 视图排序权重
+   * key: 视图标识 (如 'staging', 'planned', 'daily::2024-10-01')
+   * value: Map<taskId, weight>
    */
-  const dailyTaskIds = ref(new Map<string, string[]>())
+  const sortWeights = ref(new Map<string, Map<string, number>>())
 
   /**
    * 加载状态
@@ -60,374 +39,150 @@ export const useViewStore = defineStore('view', () => {
   const error = ref<string | null>(null)
 
   // ============================================================
-  // GETTERS - 从索引数据和 TaskStore 组合出完整数据
+  // ACTIONS - 排序管理
   // ============================================================
 
   /**
-   * 获取指定日期的任务卡片列表（已排序）
-   * 这个 getter 会从 TaskStore 获取实际的任务数据
-   */
-  const getDailyTasks = computed(() => {
-    return (date: string): TaskCard[] => {
-      const taskStore = useTaskStore()
-      const taskIds = dailyTaskIds.value.get(date) || []
-
-      return taskIds
-        .map((id) => taskStore.getTaskById(id))
-        .filter((task): task is TaskCard => task !== undefined)
-    }
-  })
-
-  /**
-   * 获取指定日期的任务 ID 列表
-   */
-  const getDailyTaskIds = computed(() => {
-    return (date: string): string[] => {
-      return dailyTaskIds.value.get(date) || []
-    }
-  })
-
-  /**
-   * 检查指定日期是否有任务
-   */
-  const hasTasks = computed(() => {
-    return (date: string): boolean => {
-      const ids = dailyTaskIds.value.get(date)
-      return ids !== undefined && ids.length > 0
-    }
-  })
-
-  /**
-   * 获取已加载的所有日期
-   */
-  const loadedDates = computed(() => {
-    return Array.from(dailyTaskIds.value.keys()).sort()
-  })
-
-  /**
-   * 获取指定日期的任务统计
-   */
-  const getDailyStats = computed(() => {
-    return (date: string) => {
-      const tasks = getDailyTasks.value(date)
-      return {
-        total: tasks.length,
-        completed: tasks.filter((t) => t.is_completed).length,
-        remaining: tasks.filter((t) => !t.is_completed).length,
-      }
-    }
-  })
-
-  // ============================================================
-  // ACTIONS - 负责执行操作、调用API、修改State
-  // ============================================================
-
-  /**
-   * 设置指定日期的任务 ID 列表（内部使用）
-   */
-  function setDailyTaskIds(date: string, taskIds: string[]) {
-    const newMap = new Map(dailyTaskIds.value)
-    newMap.set(date, taskIds)
-    dailyTaskIds.value = newMap
-  }
-
-  /**
-   * 在指定日期添加任务 ID
-   */
-  function addTaskIdToDate(date: string, taskId: string, position?: number) {
-    const currentIds = dailyTaskIds.value.get(date) || []
-    const newIds = [...currentIds]
-
-    if (position !== undefined && position >= 0 && position <= newIds.length) {
-      newIds.splice(position, 0, taskId)
-    } else {
-      newIds.push(taskId)
-    }
-
-    setDailyTaskIds(date, newIds)
-  }
-
-  /**
-   * 从指定日期移除任务 ID
-   */
-  function removeTaskIdFromDate(date: string, taskId: string) {
-    const currentIds = dailyTaskIds.value.get(date) || []
-    const newIds = currentIds.filter((id) => id !== taskId)
-    setDailyTaskIds(date, newIds)
-  }
-
-  /**
-   * 清空指定日期的任务
-   */
-  function clearDate(date: string) {
-    const newMap = new Map(dailyTaskIds.value)
-    newMap.delete(date)
-    dailyTaskIds.value = newMap
-  }
-
-  /**
-   * 清空所有日期的任务
-   */
-  function clearAll() {
-    dailyTaskIds.value = new Map()
-  }
-
-  /**
-   * 获取指定日期的每日看板任务
-   * API: GET /views/daily-schedule?day=YYYY-MM-DD
+   * 应用排序到任务列表
+   * @param tasks 原始任务列表（已经过滤好的）
+   * @param viewKey 视图标识
+   * @returns 排序后的任务列表
    *
-   * 这个方法会：
-   * 1. 调用后端 API 获取任务列表
-   * 2. 更新 TaskStore 中的任务数据
-   * 3. 更新本地的任务ID索引
+   * 性能优化：
+   * - 使用 Map 替代 indexOf，避免 O(n²) 复杂度
+   * - 预先构建索引，排序时 O(1) 查找
    */
-  async function fetchDailyTasks(date: string): Promise<TaskCard[]> {
-    isLoading.value = true
-    error.value = null
+  function applySorting(tasks: TaskCard[], viewKey: string): TaskCard[] {
+    const weights = sortWeights.value.get(viewKey)
 
-    try {
-      // TODO: 实现 API 调用
-      // const taskStore = useTaskStore()
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/views/daily-schedule?day=${date}`)
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const tasks: TaskCard[] = await response.json()
-
-      // // 1. 更新 TaskStore 中的任务数据
-      // taskStore.addOrUpdateTasks(tasks)
-
-      // // 2. 更新本地的任务ID索引（保持后端返回的顺序）
-      // const taskIds = tasks.map((t) => t.id)
-      // setDailyTaskIds(date, taskIds)
-
-      // return tasks
-
-      console.log('[ViewStore] fetchDailyTasks - API not implemented yet', { date })
-      return []
-    } catch (e) {
-      error.value = `Failed to fetch daily tasks for ${date}: ${e}`
-      console.error('[ViewStore] Error fetching daily tasks:', e)
-      return []
-    } finally {
-      isLoading.value = false
+    if (!weights || weights.size === 0) {
+      // 如果没有排序信息，保持原顺序
+      return tasks
     }
-  }
 
-  /**
-   * 获取日期范围内的任务
-   * API: GET /views/daily-schedule?start_date=...&end_date=...
-   */
-  async function fetchTasksForRange(startDate: string, endDate: string): Promise<void> {
-    isLoading.value = true
-    error.value = null
+    // ✅ 性能优化：预先构建原顺序索引 Map（O(n)）
+    const originalIndexMap = new Map<string, number>()
+    tasks.forEach((task, index) => {
+      originalIndexMap.set(task.id, index)
+    })
 
-    try {
-      // TODO: 可以实现为批量 API 调用，或者逐日查询
-      // 临时方案：逐日查询
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      const current = new Date(start)
+    // ✅ 排序时使用 Map 查找（O(1)），而不是 indexOf（O(n)）
+    return [...tasks].sort((a, b) => {
+      const weightA = weights.get(a.id) ?? Infinity
+      const weightB = weights.get(b.id) ?? Infinity
 
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0] as string
-        await fetchDailyTasks(dateStr)
-        current.setDate(current.getDate() + 1)
+      if (weightA === weightB) {
+        // O(1) 查找，而不是 O(n)
+        const indexA = originalIndexMap.get(a.id) ?? 0
+        const indexB = originalIndexMap.get(b.id) ?? 0
+        return indexA - indexB
       }
 
-      console.log('[ViewStore] fetchTasksForRange - completed')
-    } catch (e) {
-      error.value = `Failed to fetch tasks for range: ${e}`
-      console.error('[ViewStore] Error fetching tasks for range:', e)
-    } finally {
-      isLoading.value = false
+      return weightA - weightB
+    })
+  }
+
+  /**
+   * 更新排序（拖拽时调用）
+   * @param viewKey 视图标识
+   * @param orderedTaskIds 新的任务ID顺序
+   */
+  async function updateSorting(viewKey: string, orderedTaskIds: string[]): Promise<boolean> {
+    try {
+      // 构建权重映射
+      const weights = new Map<string, number>()
+      orderedTaskIds.forEach((id, index) => {
+        weights.set(id, index)
+      })
+
+      // 更新本地状态
+      const newMap = new Map(sortWeights.value)
+      newMap.set(viewKey, weights)
+      sortWeights.value = newMap
+
+      // ✅ 持久化到后端
+      console.log('[ViewStore] 🔄 Would save to backend:', {
+        context_key: viewKey,
+        sorted_task_ids: JSON.stringify(orderedTaskIds),
+        task_count: orderedTaskIds.length,
+        updated_at: new Date().toISOString(),
+      })
+
+      // TODO: 当后端 API 完成后，取消注释
+      // await saveViewPreference({
+      //   context_key: viewKey,
+      //   sorted_task_ids: JSON.stringify(orderedTaskIds),
+      //   updated_at: new Date().toISOString()
+      // })
+
+      return true
+    } catch (err) {
+      console.error('[ViewStore] Failed to update sorting:', err)
+      error.value = `Failed to update sorting: ${err}`
+      return false
     }
   }
 
   /**
-   * 将任务安排到指定日期
-   * API: POST /schedules
+   * 加载排序配置（从后端加载时调用）
+   * @param viewKey 视图标识
+   * @param orderedTaskIds 保存的任务ID顺序
    */
-  async function scheduleTask(payload: ScheduleTaskPayload): Promise<boolean> {
-    isLoading.value = true
-    error.value = null
-    console.log('[ViewStore] Scheduling task:', payload)
+  function loadSorting(viewKey: string, orderedTaskIds: string[]) {
+    const weights = new Map<string, number>()
+    orderedTaskIds.forEach((id, index) => {
+      weights.set(id, index)
+    })
 
-    try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/schedules`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const newMap = new Map(sortWeights.value)
+    newMap.set(viewKey, weights)
+    sortWeights.value = newMap
 
-      // // 重新获取该日期的任务列表
-      // await fetchDailyTasks(payload.scheduled_day)
-      // return true
-
-      console.log('[ViewStore] scheduleTask - API not implemented yet')
-
-      // 乐观更新：临时添加任务ID到日期
-      addTaskIdToDate(payload.scheduled_day, payload.task_id)
-      return true
-    } catch (e) {
-      error.value = `Failed to schedule task: ${e}`
-      console.error('[ViewStore] Error scheduling task:', e)
-      return false
-    } finally {
-      isLoading.value = false
-    }
+    console.log(`[ViewStore] Loaded sorting for ${viewKey}:`, orderedTaskIds.length, 'tasks')
   }
 
   /**
-   * 重新安排任务（从一个日期移动到另一个日期）
-   * API: POST /schedules/reschedule
+   * 获取当前视图的排序ID列表（用于持久化）
+   * @param viewKey 视图标识
+   * @param tasks 当前任务列表
+   * @returns 排序后的任务ID数组
    */
-  async function rescheduleTask(payload: RescheduleTaskPayload): Promise<boolean> {
-    isLoading.value = true
-    error.value = null
-    console.log('[ViewStore] Rescheduling task:', payload)
-
-    try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/schedules/reschedule`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
-      // // 重新获取两个日期的任务列表
-      // await fetchDailyTasks(payload.from_day)
-      // await fetchDailyTasks(payload.to_day)
-      // return true
-
-      console.log('[ViewStore] rescheduleTask - API not implemented yet')
-
-      // 乐观更新
-      removeTaskIdFromDate(payload.from_day, payload.task_id)
-      addTaskIdToDate(payload.to_day, payload.task_id)
-      return true
-    } catch (e) {
-      error.value = `Failed to reschedule task: ${e}`
-      console.error('[ViewStore] Error rescheduling task:', e)
-      return false
-    } finally {
-      isLoading.value = false
-    }
+  function getSortedTaskIds(viewKey: string, tasks: TaskCard[]): string[] {
+    const sorted = applySorting(tasks, viewKey)
+    return sorted.map((t) => t.id)
   }
 
   /**
-   * 取消任务的日程安排（将任务移回 staging 区）
-   * API: DELETE /schedules/:task_id
+   * 清除指定视图的排序
+   * @param viewKey 视图标识
    */
-  async function unscheduleTask(taskId: string, date?: string): Promise<boolean> {
-    isLoading.value = true
-    error.value = null
-    console.log('[ViewStore] Unscheduling task:', taskId)
-
-    try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/schedules/${taskId}`, {
-      //   method: 'DELETE'
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
-      // // 从所有日期中移除该任务（或只从指定日期移除）
-      // if (date) {
-      //   removeTaskIdFromDate(date, taskId)
-      // } else {
-      //   for (const d of dailyTaskIds.value.keys()) {
-      //     removeTaskIdFromDate(d, taskId)
-      //   }
-      // }
-      // return true
-
-      console.log('[ViewStore] unscheduleTask - API not implemented yet')
-
-      // 乐观更新
-      if (date) {
-        removeTaskIdFromDate(date, taskId)
-      } else {
-        // 从所有日期中移除
-        for (const d of dailyTaskIds.value.keys()) {
-          removeTaskIdFromDate(d, taskId)
-        }
-      }
-      return true
-    } catch (e) {
-      error.value = `Failed to unschedule task: ${e}`
-      console.error('[ViewStore] Error unscheduling task:', e)
-      return false
-    } finally {
-      isLoading.value = false
-    }
+  function clearSorting(viewKey: string) {
+    const newMap = new Map(sortWeights.value)
+    newMap.delete(viewKey)
+    sortWeights.value = newMap
+    console.log(`[ViewStore] Cleared sorting for ${viewKey}`)
   }
 
   /**
-   * 更新指定日期任务的排序
-   * API: PUT /schedules/reorder
+   * 清除所有排序
    */
-  async function reorderTasks(payload: ReorderTasksPayload): Promise<boolean> {
-    isLoading.value = true
-    error.value = null
-    console.log('[ViewStore] Reordering tasks:', payload)
-
-    try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/schedules/reorder`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
-      // // 更新本地 state
-      // setDailyTaskIds(payload.date, payload.task_ids)
-      // return true
-
-      console.log('[ViewStore] reorderTasks - API not implemented yet')
-
-      // 乐观更新
-      setDailyTaskIds(payload.date, payload.task_ids)
-      return true
-    } catch (e) {
-      error.value = `Failed to reorder tasks: ${e}`
-      console.error('[ViewStore] Error reordering tasks:', e)
-      return false
-    } finally {
-      isLoading.value = false
-    }
+  function clearAllSorting() {
+    sortWeights.value = new Map()
+    console.log('[ViewStore] Cleared all sorting')
   }
 
   return {
     // State
-    dailyTaskIds,
+    sortWeights,
     isLoading,
     error,
 
-    // Getters
-    getDailyTasks,
-    getDailyTaskIds,
-    hasTasks,
-    loadedDates,
-    getDailyStats,
-
     // Actions
-    setDailyTaskIds,
-    addTaskIdToDate,
-    removeTaskIdFromDate,
-    clearDate,
-    clearAll,
-    fetchDailyTasks,
-    fetchTasksForRange,
-    scheduleTask,
-    rescheduleTask,
-    unscheduleTask,
-    reorderTasks,
+    applySorting,
+    updateSorting,
+    loadSorting,
+    getSortedTaskIds,
+    clearSorting,
+    clearAllSorting,
   }
 })

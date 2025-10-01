@@ -51,7 +51,7 @@
 | 任务     | `tasks`                 | 复数    | -                     |
 | 时间块   | `time_blocks`           | 复数    | start_time < end_time |
 | 日程     | `task_schedules`        | 复数    | 任务在某天的安排      |
-| 排序     | `orderings`             | 复数    | lexorank              |
+| 排序     | `orderings`             | 复数    | 用于排序              |
 | 区域     | `areas`                 | 复数    | 决定染色              |
 | 项目     | `projects`              | 复数    | -                     |
 | 模板     | `templates`             | 复数    | 快速创建仪式/流程     |

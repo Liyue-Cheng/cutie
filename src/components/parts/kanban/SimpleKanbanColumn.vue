@@ -14,6 +14,8 @@ defineProps<{
 const emit = defineEmits<{
   openEditor: [task: TaskCard]
   addTask: [title: string]
+  moveTaskUp: [taskId: string]
+  moveTaskDown: [taskId: string]
 }>()
 
 const newTaskTitle = ref('')
@@ -50,6 +52,8 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
   )
   event.dataTransfer.effectAllowed = 'copyMove'
 }
+
+// 注意：向上/向下移动事件已经通过 emit 直接传递给父组件
 </script>
 
 <template>
@@ -78,7 +82,7 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
 
     <div class="task-list-scroll-area">
       <div
-        v-for="task in tasks"
+        v-for="(task, index) in tasks"
         :key="task.id"
         class="task-card-wrapper"
         :data-task-id="task.id"
@@ -87,8 +91,12 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
       >
         <KanbanTaskCard
           :task="task"
+          :can-move-up="index > 0"
+          :can-move-down="index < tasks.length - 1"
           class="kanban-task-card"
           @open-editor="emit('openEditor', task)"
+          @move-up="emit('moveTaskUp', task.id)"
+          @move-down="emit('moveTaskDown', task.id)"
         />
       </div>
 

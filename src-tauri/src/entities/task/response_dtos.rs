@@ -17,7 +17,6 @@ pub struct TaskCardDto {
     pub id: Uuid,
     pub title: String,
     pub glance_note: Option<String>,
-    pub sort_order: String,
 
     // --- 核心状态 (已解耦) ---
     pub is_completed: bool,

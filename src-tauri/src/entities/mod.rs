@@ -6,19 +6,16 @@
 /// - 不使用shared等通用命名
 // 按业务概念组织的实体
 pub mod area;
-pub mod ordering;
 pub mod schedule;
 pub mod task;
 pub mod template;
 pub mod time_block;
+pub mod view_preference;
 
 // 显式导出所有公共类型，避免 ambiguous glob re-exports 警告
 
 // Area 相关类型
 pub use area::{Area, AreaDto, AreaRow, AreaTreeDto, CreateAreaRequest, UpdateAreaRequest};
-
-// Ordering 相关类型
-pub use ordering::{Ordering, OrderingRow};
 
 // Schedule 相关类型
 pub use schedule::{TaskSchedule, TaskScheduleRow};

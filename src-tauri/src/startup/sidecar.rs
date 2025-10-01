@@ -235,7 +235,6 @@ async fn server_info_handler() -> Json<ServerInfoResponse> {
             "time_blocking".to_string(),
             "template_system".to_string(),
             "area_hierarchy".to_string(),
-            "lexorank_sorting".to_string(),
         ],
     })
 }

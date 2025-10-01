@@ -39,7 +39,6 @@ export interface TaskCard {
   id: string
   title: string
   glance_note: string | null
-  sort_order: string
 
   // --- 核心状态 (已解耦) ---
   is_completed: boolean

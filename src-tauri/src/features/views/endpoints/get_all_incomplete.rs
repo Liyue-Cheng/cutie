@@ -1,5 +1,8 @@
 /// 获取所有未完成任务 API - 单文件组件
-use axum::{extract::State, response::{IntoResponse, Response}};
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+};
 use uuid::Uuid;
 
 use crate::{
@@ -64,10 +67,6 @@ mod logic {
     /// 组装单个任务的 TaskCard
     async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
-
-        // 获取 sort_order
-        let sort_order = database::get_task_sort_order(pool, task.id).await?;
-        card.sort_order = sort_order;
 
         // 判断 schedule_status
         let has_schedule = database::has_any_schedule(pool, task.id).await?;
@@ -134,24 +133,6 @@ mod database {
         Ok(count > 0)
     }
 
-    pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
-        let query = r#"
-            SELECT sort_order 
-            FROM orderings 
-            WHERE context_type = 'MISC' AND context_id = 'staging' AND task_id = ?
-        "#;
-
-        let result = sqlx::query_scalar::<_, String>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.unwrap_or_else(|| "zzz".to_string()))
-    }
-
     pub async fn get_area_summary(
         pool: &sqlx::SqlitePool,
         area_id: Uuid,
@@ -177,4 +158,3 @@ mod database {
         }))
     }
 }
-

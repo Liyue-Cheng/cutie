@@ -1,4 +1,4 @@
-import { ref, readonly, shallowRef } from 'vue'
+import { readonly, shallowRef, markRaw } from 'vue'
 import type { Component } from 'vue'
 
 // ... interface ContextMenuState ...
@@ -36,7 +36,7 @@ const manager = {
       show: true,
       x: event?.clientX ?? 0,
       y: event?.clientY ?? 0,
-      component,
+      component: markRaw(component),
       props,
     }
 

@@ -8,26 +8,34 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
+import { useViewStore } from '@/stores/view'
+import { useViewOperations } from '@/composables/useViewOperations'
+import { useTaskOperations } from '@/composables/useTaskOperations'
 
 const taskStore = useTaskStore()
+const viewStore = useViewStore()
+const viewOps = useViewOperations()
+const taskOps = useTaskOperations()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
-// 获取不同状态的任务
+// ✅ 新架构：过滤（TaskStore）+ 排序（ViewStore）
+// ✅ 完全自动的实时更新：任务状态改变立即反映
+
 const allTasks = computed(() => {
-  return taskStore.allTasks // 所有任务（包括已完成）
+  return viewStore.applySorting(taskStore.allTasks, 'all')
 })
 
 const incompleteTasks = computed(() => {
-  return taskStore.allTasks.filter((task) => !task.is_completed)
+  return viewStore.applySorting(taskStore.incompleteTasks, 'incomplete')
 })
 
 const stagingTasks = computed(() => {
-  return taskStore.stagingTasks
+  return viewStore.applySorting(taskStore.stagingTasks, 'staging')
 })
 
 const plannedTasks = computed(() => {
-  return taskStore.scheduledTasks.filter((task) => !task.is_completed)
+  return viewStore.applySorting(taskStore.plannedTasks, 'planned')
 })
 
 function handleOpenEditor(task: TaskCard) {
@@ -36,18 +44,91 @@ function handleOpenEditor(task: TaskCard) {
 }
 
 async function handleAddTask(title: string) {
-  await taskStore.createTask({ title })
-  console.log('[HomeView] Task created:', title)
+  // ✅ 使用 TaskOperations 创建任务
+  const taskId = await taskOps.createTask({ title })
+  if (taskId) {
+    console.log('[HomeView] Task created:', taskId)
+    // ✅ 新架构：无需手动添加，任务会自动出现在 stagingTasks 中
+  }
+}
+
+// 处理任务向上移动
+async function handleMoveTaskUp(viewKey: string, taskId: string) {
+  const currentTasks = getTasksForView(viewKey)
+  const index = currentTasks.findIndex((t) => t.id === taskId)
+
+  if (index <= 0) return // 已经在最上面
+
+  // 交换位置
+  const newOrder = [...currentTasks]
+  const temp = newOrder[index - 1]
+  if (temp) {
+    newOrder[index - 1] = newOrder[index]!
+    newOrder[index] = temp
+  }
+
+  // 保存新顺序
+  await viewStore.updateSorting(
+    viewKey,
+    newOrder.map((t) => t.id)
+  )
+}
+
+// 处理任务向下移动
+async function handleMoveTaskDown(viewKey: string, taskId: string) {
+  const currentTasks = getTasksForView(viewKey)
+  const index = currentTasks.findIndex((t) => t.id === taskId)
+
+  if (index < 0 || index >= currentTasks.length - 1) return // 已经在最下面
+
+  // 交换位置
+  const newOrder = [...currentTasks]
+  const temp = newOrder[index + 1]
+  if (temp) {
+    newOrder[index + 1] = newOrder[index]!
+    newOrder[index] = temp
+  }
+
+  // 保存新顺序
+  await viewStore.updateSorting(
+    viewKey,
+    newOrder.map((t) => t.id)
+  )
+}
+
+// 辅助函数：根据 viewKey 获取对应的任务列表
+function getTasksForView(viewKey: string): TaskCard[] {
+  switch (viewKey) {
+    case 'all':
+      return allTasks.value
+    case 'incomplete':
+      return incompleteTasks.value
+    case 'staging':
+      return stagingTasks.value
+    case 'planned':
+      return plannedTasks.value
+    default:
+      return []
+  }
 }
 
 onMounted(async () => {
-  // 加载所有视图的任务数据
+  // ✅ 加载任务数据和排序配置
   try {
+    // 1. 加载任务数据
     await Promise.all([
-      taskStore.fetchAllTasks(), // All 列（包括已完成）
-      taskStore.fetchPlannedTasks(), // Planned 列
-      taskStore.fetchStagingTasks(), // Staging 列
+      viewOps.loadAllTasks(),
+      viewOps.loadPlannedTasks(),
+      viewOps.loadStagingTasks(),
     ])
+
+    // 2. TODO: 加载排序配置（等后端 API 完成）
+    // const sortPrefs = await fetchAllViewPreferences()
+    // sortPrefs.forEach(pref => {
+    //   const taskIds = JSON.parse(pref.sorted_task_ids)
+    //   viewStore.loadSorting(pref.context_key, taskIds)
+    // })
+
     console.log('[HomeView] Loaded all task views')
   } catch (error) {
     console.error('[HomeView] Failed to fetch tasks:', error)
@@ -69,12 +150,16 @@ onMounted(async () => {
               subtitle="所有任务"
               :tasks="allTasks"
               @open-editor="handleOpenEditor"
+              @move-task-up="(id: string) => handleMoveTaskUp('all', id)"
+              @move-task-down="(id: string) => handleMoveTaskDown('all', id)"
             />
             <SimpleKanbanColumn
               title="Incomplete"
               subtitle="未完成"
               :tasks="incompleteTasks"
               @open-editor="handleOpenEditor"
+              @move-task-up="(id: string) => handleMoveTaskUp('incomplete', id)"
+              @move-task-down="(id: string) => handleMoveTaskDown('incomplete', id)"
             />
             <SimpleKanbanColumn
               title="Staging"
@@ -83,12 +168,16 @@ onMounted(async () => {
               :show-add-input="true"
               @open-editor="handleOpenEditor"
               @add-task="handleAddTask"
+              @move-task-up="(id: string) => handleMoveTaskUp('staging', id)"
+              @move-task-down="(id: string) => handleMoveTaskDown('staging', id)"
             />
             <SimpleKanbanColumn
               title="Planned"
               subtitle="已排期"
               :tasks="plannedTasks"
               @open-editor="handleOpenEditor"
+              @move-task-up="(id: string) => handleMoveTaskUp('planned', id)"
+              @move-task-down="(id: string) => handleMoveTaskDown('planned', id)"
             />
           </div>
         </template>

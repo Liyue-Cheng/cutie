@@ -14,10 +14,7 @@ use crate::{
     entities::{CreateTaskRequest, ScheduleStatus, Task, TaskCardDto},
     features::tasks::shared::TaskAssembler,
     shared::{
-        core::{
-            utils::{generate_initial_sort_order, get_rank_after},
-            AppError, AppResult,
-        },
+        core::{AppError, AppResult},
         http::error_handler::created_response,
     },
     startup::AppState,
@@ -31,7 +28,7 @@ CABC for `create_task`
 POST /api/tasks
 
 ## 预期行为简介
-创建一个新任务，并自动创建其在 staging 上下文中的 ordering 记录。
+创建一个新任务。
 
 ## 输入输出规范
 - **前置条件**:
@@ -39,7 +36,6 @@ POST /api/tasks
   - area_id（如果提供）必须存在
 - **后置条件**:
   - 在 tasks 表中创建新任务
-  - 在 orderings 表中创建 staging 上下文的排序记录
   - 返回完整的 TaskCardDto
 
 ## 边界情况
@@ -49,7 +45,6 @@ POST /api/tasks
 
 ## 预期副作用
 - 插入一条 tasks 记录
-- 插入一条 orderings 记录
 
 ## 事务保证
 - 所有数据库操作在单个事务中执行
@@ -188,20 +183,15 @@ mod logic {
         // 5. 插入任务到数据库
         database::insert_task_in_tx(&mut tx, &task).await?;
 
-        // 6. 创建 staging 上下文的 ordering 记录
-        let sort_order = database::calculate_new_sort_order_in_tx(&mut tx).await?;
-        database::insert_ordering_in_tx(&mut tx, task_id, sort_order.clone()).await?;
-
-        // 7. 提交事务
+        // 6. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 8. 组装返回的 TaskCardDto
+        // 7. 组装返回的 TaskCardDto
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
-        task_card.sort_order = sort_order;
         task_card.schedule_status = ScheduleStatus::Staging;
 
         // 获取 area 信息（如果有）
@@ -274,73 +264,6 @@ mod database {
                     .as_ref()
                     .map(|e| serde_json::to_string(e).unwrap()),
             )
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(())
-    }
-
-    /// 在事务中计算新任务的 sort_order
-    ///
-    /// 使用 LexoRank 算法生成新的排序位置
-    pub async fn calculate_new_sort_order_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-    ) -> AppResult<String> {
-        let query = r#"
-            SELECT sort_order 
-            FROM orderings 
-            WHERE context_type = 'MISC' AND context_id = 'staging'
-            ORDER BY sort_order DESC
-            LIMIT 1
-        "#;
-
-        let max_sort_order = sqlx::query_scalar::<_, Option<String>>(query)
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        // 使用 LexoRank 算法生成新的排序位置
-        let sort_order = match max_sort_order.flatten() {
-            None => {
-                // 没有任何记录，生成初始排序字符串
-                generate_initial_sort_order()
-            }
-            Some(max) => {
-                // 在最大值之后生成新的排序字符串
-                // SortOrderError 会自动转换为 AppError (通过 From trait)
-                get_rank_after(&max)?
-            }
-        };
-
-        Ok(sort_order)
-    }
-
-    /// 在事务中插入 ordering 记录
-    pub async fn insert_ordering_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        sort_order: String,
-    ) -> AppResult<()> {
-        let ordering_id = Uuid::new_v4();
-        let now = Utc::now();
-
-        let query = r#"
-            INSERT INTO orderings (id, context_type, context_id, task_id, sort_order, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        "#;
-
-        sqlx::query(query)
-            .bind(ordering_id.to_string())
-            .bind("MISC")
-            .bind("staging")
-            .bind(task_id.to_string())
-            .bind(sort_order)
-            .bind(now.to_rfc3339())
             .execute(&mut **tx)
             .await
             .map_err(|e| {

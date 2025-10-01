@@ -96,10 +96,6 @@ impl TestApp {
             .execute(&self.db_pool)
             .await
             .unwrap();
-        sqlx::query("DELETE FROM orderings")
-            .execute(&self.db_pool)
-            .await
-            .unwrap();
         sqlx::query("DELETE FROM time_blocks")
             .execute(&self.db_pool)
             .await

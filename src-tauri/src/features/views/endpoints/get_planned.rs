@@ -58,9 +58,6 @@ mod logic {
             task_cards.push(task_card);
         }
 
-        // 3. 按最近的 scheduled_day 排序
-        task_cards.sort_by(|a, b| a.sort_order.cmp(&b.sort_order));
-
         Ok(task_cards)
     }
 
@@ -70,10 +67,6 @@ mod logic {
 
         // 明确设置为 scheduled
         card.schedule_status = ScheduleStatus::Scheduled;
-
-        // 获取 sort_order
-        let sort_order = database::get_task_sort_order(pool, task.id).await?;
-        card.sort_order = sort_order;
 
         // 获取 area
         if let Some(area_id) = task.area_id {
@@ -113,24 +106,6 @@ mod database {
         let tasks: Result<Vec<Task>, _> = rows.into_iter().map(Task::try_from).collect();
 
         tasks.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
-    }
-
-    pub async fn get_task_sort_order(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<String> {
-        let query = r#"
-            SELECT sort_order 
-            FROM orderings 
-            WHERE context_type = 'MISC' AND context_id = 'staging' AND task_id = ?
-        "#;
-
-        let result = sqlx::query_scalar::<_, String>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.unwrap_or_else(|| "zzz".to_string()))
     }
 
     pub async fn get_area_summary(

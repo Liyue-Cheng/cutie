@@ -1,123 +1,65 @@
 <template>
-  <div class="staging-view">
-    <div class="header">
-      <h1>Staging Area</h1>
-      <p>未安排的任务将在这里显示</p>
+  <div class="staging-view-dummy">
+    <div class="dummy-content">
+      <h1>🚧 Staging View</h1>
+      <p class="subtitle">此视图已废弃</p>
+      <p class="description">请使用 HomeView 查看 Staging 任务</p>
+      <router-link to="/" class="go-home-btn">前往 HomeView</router-link>
     </div>
-
-    <div class="content">
-      <div v-if="taskStore.isLoading" class="loading">
-        <p>加载中...</p>
-      </div>
-
-      <div v-else-if="taskStore.error" class="error">
-        <p>错误: {{ taskStore.error }}</p>
-        <button @click="taskStore.fetchStagingTasks()">重试</button>
-      </div>
-
-      <div v-else class="task-container">
-        <KanbanTaskList
-          title="未安排任务"
-          :tasks="taskStore.stagingTasks"
-          @open-editor="handleOpenEditor"
-        />
-      </div>
-    </div>
-
-    <KanbanTaskEditorModal
-      v-if="isEditorOpen"
-      :task-id="selectedTaskId"
-      @close="isEditorOpen = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import type { TaskCard } from '@/types/dtos'
-import { useTaskStore } from '@/stores/task'
-import KanbanTaskList from '@/components/parts/kanban/KanbanTaskList.vue'
-import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
-
-const taskStore = useTaskStore()
-const isEditorOpen = ref(false)
-const selectedTaskId = ref<string | null>(null)
-
-function handleOpenEditor(task: TaskCard) {
-  selectedTaskId.value = task.id
-  isEditorOpen.value = true
-}
-
-onMounted(async () => {
-  // 加载未安排的任务（Staging）
-  await taskStore.fetchStagingTasks()
-})
+// Dummy component - StagingView has been deprecated
+// Use HomeView instead for viewing staging tasks
 </script>
 
 <style scoped>
-.staging-view {
-  padding: 2rem;
-  height: 100%;
-  background-color: var(--color-background-content);
+.staging-view-dummy {
   display: flex;
-  flex-direction: column;
-}
-
-.header {
-  margin-bottom: 2rem;
-}
-
-.header h1 {
-  color: var(--color-text-primary);
-  margin-bottom: 0.5rem;
-  font-size: 2.4rem;
-  font-weight: 600;
-}
-
-.header p {
-  color: var(--color-text-secondary);
-  font-size: 1.4rem;
-}
-
-.content {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.loading,
-.error {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-grow: 1;
-  gap: 1rem;
+  height: 100%;
+  background-color: var(--color-background-content);
 }
 
-.loading p,
-.error p {
+.dummy-content {
+  text-align: center;
+  padding: 4rem;
+  max-width: 50rem;
+}
+
+.dummy-content h1 {
+  font-size: 4rem;
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  font-size: 1.8rem;
   color: var(--color-text-secondary);
-  font-size: 1.6rem;
+  margin-bottom: 1rem;
 }
 
-.error button {
-  padding: 0.8rem 1.6rem;
-  background-color: var(--color-button-primary);
-  color: white;
-  border: none;
-  border-radius: 0.6rem;
-  cursor: pointer;
+.description {
   font-size: 1.4rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 3rem;
 }
 
-.error button:hover {
-  background-color: var(--color-button-primary-hover);
+.go-home-btn {
+  display: inline-block;
+  padding: 1.2rem 2.4rem;
+  background-color: var(--color-button-primary, #4a90e2);
+  color: white;
+  text-decoration: none;
+  border-radius: 0.8rem;
+  font-size: 1.6rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
 }
 
-.task-container {
-  flex-grow: 1;
-  display: flex;
-  justify-content: center;
+.go-home-btn:hover {
+  background-color: var(--color-button-primary-hover, #357abd);
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { useTaskStore } from '@/stores/task'
+import { useTaskOperations } from '@/composables/useTaskOperations'
 import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
@@ -21,6 +22,7 @@ const props = defineProps<{
 defineEmits(['close'])
 
 const taskStore = useTaskStore()
+const taskOps = useTaskOperations()
 
 const glanceNote = ref('')
 const detailNote = ref('')
@@ -66,9 +68,11 @@ async function handleStatusChange(isChecked: boolean) {
   if (!props.taskId) return
 
   if (isChecked) {
-    await taskStore.completeTask(props.taskId)
+    // ✅ 使用 TaskOperations 完成任务
+    await taskOps.completeTask(props.taskId)
   } else {
-    await taskStore.reopenTask(props.taskId)
+    // ✅ 使用 TaskOperations 重新打开任务
+    await taskOps.reopenTask(props.taskId)
   }
 }
 

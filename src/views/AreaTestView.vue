@@ -2,21 +2,32 @@
 import { onMounted, computed } from 'vue'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
+import { useViewStore } from '@/stores/view'
+import { useViewOperations } from '@/composables/useViewOperations'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 
 const areaStore = useAreaStore()
 const taskStore = useTaskStore()
+const viewStore = useViewStore()
+const viewOps = useViewOperations()
 
 onMounted(async () => {
-  await Promise.all([areaStore.fetchAreas(), taskStore.fetchAllTasks()])
+  // ✅ 加载区域和任务数据
+  await Promise.all([areaStore.fetchAreas(), viewOps.loadAllTasks()])
 })
 
 // 为每个 Area 创建看板列
 const areaColumns = computed(() => {
-  return areaStore.allAreas.map((area) => ({
-    area,
-    tasks: taskStore.getTasksByArea(area.id),
-  }))
+  // ✅ 新架构：过滤（TaskStore）+ 排序（ViewStore）
+  return areaStore.allAreas.map((area) => {
+    const filteredTasks = taskStore.allTasks.filter((task) => task.area?.id === area.id)
+    const sortedTasks = viewStore.applySorting(filteredTasks, `area::${area.id}`)
+
+    return {
+      area,
+      tasks: sortedTasks,
+    }
+  })
 })
 </script>
 

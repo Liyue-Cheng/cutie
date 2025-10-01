@@ -283,3 +283,30 @@ CREATE TABLE reminders (
 CREATE INDEX idx_reminders_reminder_time ON reminders(reminder_time);
 CREATE INDEX idx_reminders_task_id ON reminders(task_id);
 CREATE INDEX idx_reminders_time_block_id ON reminders(time_block_id);
+
+-- ============================================================
+-- 视图排序偏好表 (View Preferences)
+-- ============================================================
+-- 用于存储用户在各种视图中的任务排序配置
+--
+-- Context Key 格式规范：
+-- - 杂项视图: misc::{id}           例如: misc::staging, misc::planned
+-- - 日期看板: daily::{YYYY-MM-DD}   例如: daily::2025-10-01
+-- - 区域看板: area::{area_uuid}     例如: area::a1b2c3d4-1234...
+-- - 项目看板: project::{proj_uuid}  例如: project::proj-uuid-1234
+
+CREATE TABLE view_preferences (
+    -- 视图上下文唯一标识（复合主键）
+    context_key TEXT PRIMARY KEY NOT NULL,
+    
+    -- 排序后的任务ID数组（JSON字符串格式）
+    -- 示例: '["uuid-1", "uuid-2", "uuid-3"]'
+    -- 数组顺序即为任务在该视图中的显示顺序
+    sorted_task_ids TEXT NOT NULL,
+    
+    -- 最后更新时间（UTC timestamp in RFC 3339 format）
+    updated_at TEXT NOT NULL
+);
+
+-- 为常用查询创建索引
+CREATE INDEX idx_view_prefs_updated_at ON view_preferences(updated_at);

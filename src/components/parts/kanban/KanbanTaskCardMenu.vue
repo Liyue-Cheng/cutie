@@ -10,7 +10,7 @@
 import { defineProps, defineEmits } from 'vue'
 import { NCard, NButton, NDivider } from 'naive-ui'
 import type { TaskCard } from '@/types/dtos'
-import { useTaskStore } from '@/stores/task'
+import { useTaskOperations } from '@/composables/useTaskOperations'
 
 const props = defineProps<{
   task: TaskCard
@@ -18,13 +18,16 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 
-const taskStore = useTaskStore()
+const taskOps = useTaskOperations()
 
 const handleAction = async (action: 'edit' | 'delete') => {
   if (action === 'delete') {
     try {
-      await taskStore.deleteTask(props.task.id)
-      console.log(`任务 "${props.task.title}" 已删除`)
+      // ✅ 使用 TaskOperations 删除任务
+      const success = await taskOps.deleteTask(props.task.id)
+      if (success) {
+        console.log(`任务 "${props.task.title}" 已删除`)
+      }
     } catch (error) {
       console.error('删除任务失败:', error)
     }
