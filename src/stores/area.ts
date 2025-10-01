@@ -4,9 +4,9 @@ import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
  * Area Store
- * 
+ *
  * 职责：管理区域（标签分类）数据
- * 
+ *
  * 架构原则：
  * - State: 只存储最原始、最规范化的数据
  * - Actions: 负责执行操作、调用API、修改State
@@ -201,4 +201,3 @@ export const useAreaStore = defineStore('area', () => {
     deleteArea,
   }
 })
-

@@ -76,14 +76,19 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
         </div>
       </div>
 
-      <div class="main-checkbox-wrapper">
-        <CuteCheckbox
-          class="main-checkbox"
-          :checked="task.is_completed"
-          size="large"
-          @update:checked="handleStatusChange"
-          @click.stop
-        ></CuteCheckbox>
+      <div class="card-footer">
+        <div v-if="task.area" class="area-tag" :style="{ color: task.area.color }">
+          #{{ task.area.name }}
+        </div>
+        <div class="main-checkbox-wrapper">
+          <CuteCheckbox
+            class="main-checkbox"
+            :checked="task.is_completed"
+            size="large"
+            @update:checked="handleStatusChange"
+            @click.stop
+          ></CuteCheckbox>
+        </div>
       </div>
     </div>
   </CuteCard>
@@ -152,8 +157,20 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   color: var(--color-text-primary);
 }
 
-.main-checkbox-wrapper {
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   margin-top: 0.5rem;
+}
+
+.area-tag {
+  font-size: 1.2rem;
+  font-weight: 500;
+  align-self: flex-end;
+}
+
+.main-checkbox-wrapper {
   align-self: flex-start;
 }
 

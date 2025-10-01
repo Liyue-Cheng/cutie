@@ -4,6 +4,7 @@ import { useTaskStore } from '@/stores/task'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
+import AreaSelector from '@/components/parts/AreaSelector.vue'
 
 interface Subtask {
   id: string
@@ -22,6 +23,7 @@ const taskStore = useTaskStore()
 
 const glanceNote = ref('')
 const detailNote = ref('')
+const selectedAreaId = ref<string | null>(null)
 const newSubtaskTitle = ref('')
 
 const task = computed(() => {
@@ -40,6 +42,7 @@ onMounted(async () => {
       // TaskDetail 包含完整的 note 信息
       glanceNote.value = detail.card.glance_note || ''
       detailNote.value = detail.detail_note || ''
+      selectedAreaId.value = detail.card.area?.id || null
     }
   }
 })
@@ -52,6 +55,7 @@ watch(
       if (detail) {
         glanceNote.value = detail.card.glance_note || ''
         detailNote.value = detail.detail_note || ''
+        selectedAreaId.value = detail.card.area?.id || null
       }
     }
   }
@@ -78,6 +82,13 @@ async function updateDetailNote() {
   if (!props.taskId || !task.value) return
   await taskStore.updateTask(props.taskId, {
     detail_note: detailNote.value || null,
+  })
+}
+
+async function updateArea() {
+  if (!props.taskId || !task.value) return
+  await taskStore.updateTask(props.taskId, {
+    area_id: selectedAreaId.value,
   })
 }
 
@@ -149,6 +160,13 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             placeholder="详细笔记（仅在编辑器中）..."
             @blur="updateDetailNote"
           ></textarea>
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="area-section">
+          <label class="notes-label">区域 (Area)</label>
+          <AreaSelector v-model="selectedAreaId" @blur="updateArea" />
         </div>
 
         <div class="separator"></div>
