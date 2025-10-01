@@ -392,18 +392,16 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/tasks/${id}/complete`, {
-      //   method: 'POST'
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const completedTask: TaskCard = await response.json()
-      // addOrUpdateTask(completedTask)
-      // return completedTask
-
-      console.log('[TaskStore] completeTask - API not implemented yet')
-      return null
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
+        method: 'POST',
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      const completedTask: TaskCard = result.data
+      addOrUpdateTask(completedTask)
+      console.log('[TaskStore] Completed task:', completedTask)
+      return completedTask
     } catch (e) {
       error.value = `Failed to complete task ${id}: ${e}`
       console.error('[TaskStore] Error completing task:', e)

@@ -77,9 +77,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
       </div>
 
       <div class="card-footer">
-        <div v-if="task.area" class="area-tag" :style="{ color: task.area.color }">
-          #{{ task.area.name }}
-        </div>
         <div class="main-checkbox-wrapper">
           <CuteCheckbox
             class="main-checkbox"
@@ -88,6 +85,9 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             @update:checked="handleStatusChange"
             @click.stop
           ></CuteCheckbox>
+        </div>
+        <div v-if="task.area" class="area-tag" :style="{ color: task.area.color }">
+          #{{ task.area.name }}
         </div>
       </div>
     </div>
@@ -160,18 +160,19 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 .card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   margin-top: 0.5rem;
+}
+
+.main-checkbox-wrapper {
+  align-self: flex-start;
 }
 
 .area-tag {
   font-size: 1.2rem;
   font-weight: 500;
-  align-self: flex-end;
-}
-
-.main-checkbox-wrapper {
   align-self: flex-start;
+  margin-top: 0.5rem;
 }
 
 /* 只有主复选框被选中时，主标题才划线 */
