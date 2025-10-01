@@ -11,11 +11,11 @@ use axum::Router;
 
 use crate::startup::AppState;
 
+pub mod areas;
 pub mod tasks;
 pub mod time_blocks;
 pub mod views;
 // 其他功能模块（待迁移）
-// pub mod areas;
 // pub mod schedules;
 // pub mod templates;
 
@@ -24,11 +24,11 @@ pub mod views;
 /// 这是应用的主路由入口，聚合所有功能模块的路由
 pub fn create_api_router() -> Router<AppState> {
     Router::new()
+        .nest("/areas", areas::create_routes())
         .nest("/tasks", tasks::create_routes())
         .nest("/time-blocks", time_blocks::create_routes())
         .nest("/views", views::create_routes())
         // 其他路由（待迁移）
         // .nest("/schedules", schedules::create_routes())
         // .nest("/templates", templates::create_routes())
-        // .nest("/areas", areas::create_routes())
 }
