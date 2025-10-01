@@ -9,20 +9,23 @@ use crate::startup::AppState;
 // 直接声明 endpoints 子模块
 mod endpoints {
     pub mod create_area; // POST /areas
-    pub mod list_areas; // GET /areas
-                        // 待实现的其他端点：
-                        // pub mod get_area;
-                        // pub mod update_area;
-                        // pub mod delete_area;
+    pub mod delete_area; // DELETE /areas/:id
+    pub mod get_area;    // GET /areas/:id
+    pub mod list_areas;  // GET /areas
+    pub mod update_area; // PATCH /areas/:id
 }
 
 /// 创建 areas 功能模块的路由
 pub fn create_routes() -> Router<AppState> {
-    Router::new().route(
-        "/",
-        get(endpoints::list_areas::handle).post(endpoints::create_area::handle),
-    )
-    // .route("/:id", get(endpoints::get_area::handle))
-    // .route("/:id", patch(endpoints::update_area::handle))
-    // .route("/:id", delete(endpoints::delete_area::handle))
+    Router::new()
+        .route(
+            "/",
+            get(endpoints::list_areas::handle).post(endpoints::create_area::handle),
+        )
+        .route(
+            "/:id",
+            get(endpoints::get_area::handle)
+                .patch(endpoints::update_area::handle)
+                .delete(endpoints::delete_area::handle),
+        )
 }
