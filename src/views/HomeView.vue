@@ -58,66 +58,6 @@ async function handleReorder(viewKey: string, newOrder: string[]) {
   await viewStore.updateSorting(viewKey, newOrder)
 }
 
-// 以下方法已废弃，保留用于向后兼容
-async function handleMoveTaskUp(viewKey: string, taskId: string) {
-  const currentTasks = getTasksForView(viewKey)
-  const index = currentTasks.findIndex((t) => t.id === taskId)
-
-  if (index <= 0) return // 已经在最上面
-
-  // 交换位置
-  const newOrder = [...currentTasks]
-  const temp = newOrder[index - 1]
-  if (temp) {
-    newOrder[index - 1] = newOrder[index]!
-    newOrder[index] = temp
-  }
-
-  // 保存新顺序
-  await viewStore.updateSorting(
-    viewKey,
-    newOrder.map((t) => t.id)
-  )
-}
-
-// 处理任务向下移动
-async function handleMoveTaskDown(viewKey: string, taskId: string) {
-  const currentTasks = getTasksForView(viewKey)
-  const index = currentTasks.findIndex((t) => t.id === taskId)
-
-  if (index < 0 || index >= currentTasks.length - 1) return // 已经在最下面
-
-  // 交换位置
-  const newOrder = [...currentTasks]
-  const temp = newOrder[index + 1]
-  if (temp) {
-    newOrder[index + 1] = newOrder[index]!
-    newOrder[index] = temp
-  }
-
-  // 保存新顺序
-  await viewStore.updateSorting(
-    viewKey,
-    newOrder.map((t) => t.id)
-  )
-}
-
-// 辅助函数：根据 viewKey 获取对应的任务列表
-function getTasksForView(viewKey: string): TaskCard[] {
-  switch (viewKey) {
-    case 'all':
-      return allTasks.value
-    case 'incomplete':
-      return incompleteTasks.value
-    case 'staging':
-      return stagingTasks.value
-    case 'planned':
-      return plannedTasks.value
-    default:
-      return []
-  }
-}
-
 onMounted(async () => {
   // ✅ 加载任务数据和排序配置
   try {
@@ -128,12 +68,13 @@ onMounted(async () => {
       viewOps.loadStagingTasks(),
     ])
 
-    // 2. TODO: 加载排序配置（等后端 API 完成）
-    // const sortPrefs = await fetchAllViewPreferences()
-    // sortPrefs.forEach(pref => {
-    //   const taskIds = JSON.parse(pref.sorted_task_ids)
-    //   viewStore.loadSorting(pref.context_key, taskIds)
-    // })
+    // 2. ✅ 加载排序配置
+    await Promise.all([
+      viewStore.fetchViewPreference('all'),
+      viewStore.fetchViewPreference('incomplete'),
+      viewStore.fetchViewPreference('staging'),
+      viewStore.fetchViewPreference('planned'),
+    ])
 
     console.log('[HomeView] Loaded all task views')
   } catch (error) {

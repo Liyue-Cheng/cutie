@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
@@ -24,6 +24,26 @@ const isCreatingTask = ref(false)
 // 拖拽状态
 const draggedTaskId = ref<string | null>(null)
 const draggedOverIndex = ref<number | null>(null)
+
+// ✅ 视觉预览：动态计算显示的任务顺序
+const displayTasks = computed(() => {
+  if (!draggedTaskId.value || draggedOverIndex.value === null) {
+    return props.tasks
+  }
+
+  const draggedIndex = props.tasks.findIndex((t) => t.id === draggedTaskId.value)
+  if (draggedIndex === -1 || draggedIndex === draggedOverIndex.value) {
+    return props.tasks
+  }
+
+  // 实时重排（仅视觉）
+  const newOrder = [...props.tasks]
+  const [draggedTask] = newOrder.splice(draggedIndex, 1)
+  if (draggedTask) {
+    newOrder.splice(draggedOverIndex.value, 0, draggedTask)
+  }
+  return newOrder
+})
 
 async function handleAddTask() {
   const title = newTaskTitle.value.trim()
@@ -66,7 +86,7 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
       task: task,
     })
   )
-  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.effectAllowed = 'copyMove'
 
   // 设置拖拽效果
   if (event.target instanceof HTMLElement) {
@@ -115,19 +135,8 @@ function handleDragOver(event: DragEvent, targetIndex: number) {
 
   draggedOverIndex.value = targetIndex
 
-  // ✅ 实时DOM重排（预览效果）
-  const newOrder = [...props.tasks]
-  const [draggedTask] = newOrder.splice(draggedIndex, 1)
-  if (draggedTask) {
-    newOrder.splice(targetIndex, 0, draggedTask)
-  }
-
-  // 触发实时预览（通过修改 tasks 数组）
-  // 注意：这里只是视觉预览，不持久化
-  emit(
-    'reorderTasks',
-    newOrder.map((t) => t.id)
-  )
+  // ⚠️ 注意：这里不调用后端！
+  // dragover 只是视觉预览，真正的持久化在 drop 时进行
 }
 
 /**
@@ -138,11 +147,8 @@ function handleDrop(event: DragEvent) {
 
   if (!draggedTaskId.value) return
 
-  const draggedIndex = props.tasks.findIndex((t) => t.id === draggedTaskId.value)
-  if (draggedIndex === -1) return
-
-  // 获取最终顺序
-  const finalOrder = props.tasks.map((t) => t.id)
+  // ✅ 使用 displayTasks（包含最新的拖拽结果）
+  const finalOrder = displayTasks.value.map((t) => t.id)
 
   console.log('[SimpleKanbanColumn] Drop完成，最终顺序:', finalOrder)
 
@@ -181,7 +187,7 @@ function handleDrop(event: DragEvent) {
 
     <div class="task-list-scroll-area" @drop="handleDrop" @dragover.prevent>
       <div
-        v-for="(task, index) in tasks"
+        v-for="(task, index) in displayTasks"
         :key="task.id"
         class="task-card-wrapper"
         :data-task-id="task.id"
@@ -198,7 +204,7 @@ function handleDrop(event: DragEvent) {
         />
       </div>
 
-      <div v-if="tasks.length === 0" class="empty-state">暂无任务</div>
+      <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
     </div>
   </CutePane>
 </template>

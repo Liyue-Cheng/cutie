@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
+import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
  * View Store V4.0 - 纯排序系统
@@ -101,20 +102,27 @@ export const useViewStore = defineStore('view', () => {
       sortWeights.value = newMap
 
       // ✅ 持久化到后端
-      console.log('[ViewStore] 🔄 Would save to backend:', {
-        context_key: viewKey,
-        sorted_task_ids: JSON.stringify(orderedTaskIds),
+      const contextKey = `misc::${viewKey}` // 使用规范格式
+      console.log('[ViewStore] 💾 Saving to backend:', {
+        context_key: contextKey,
         task_count: orderedTaskIds.length,
-        updated_at: new Date().toISOString(),
       })
 
-      // TODO: 当后端 API 完成后，取消注释
-      // await saveViewPreference({
-      //   context_key: viewKey,
-      //   sorted_task_ids: JSON.stringify(orderedTaskIds),
-      //   updated_at: new Date().toISOString()
-      // })
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/view-preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context_key: contextKey,
+          sorted_task_ids: orderedTaskIds,
+        }),
+      })
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      console.log('[ViewStore] ✅ Saved successfully')
       return true
     } catch (err) {
       console.error('[ViewStore] Failed to update sorting:', err)
@@ -139,6 +147,53 @@ export const useViewStore = defineStore('view', () => {
     sortWeights.value = newMap
 
     console.log(`[ViewStore] Loaded sorting for ${viewKey}:`, orderedTaskIds.length, 'tasks')
+  }
+
+  /**
+   * 从后端加载视图的排序配置
+   * @param viewKey 视图标识（如 'all', 'staging', 'planned'）
+   */
+  async function fetchViewPreference(viewKey: string): Promise<boolean> {
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const contextKey = `misc::${viewKey}` // 使用规范格式
+
+      console.log(`[ViewStore] 📥 Fetching preference for: ${contextKey}`)
+
+      const response = await fetch(
+        `${apiBaseUrl}/view-preferences/${encodeURIComponent(contextKey)}`
+      )
+
+      if (response.status === 404) {
+        // 没有保存的配置，使用默认顺序
+        console.log(`[ViewStore] No saved preference for ${contextKey}`)
+        return true
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const result = await response.json()
+      const data = result.data as {
+        context_key: string
+        sorted_task_ids: string[]
+        updated_at: string
+      }
+
+      // 加载排序配置
+      loadSorting(viewKey, data.sorted_task_ids)
+
+      console.log(
+        `[ViewStore] ✅ Loaded preference for ${contextKey}:`,
+        data.sorted_task_ids.length,
+        'tasks'
+      )
+      return true
+    } catch (err) {
+      console.error(`[ViewStore] Failed to fetch preference for ${viewKey}:`, err)
+      return false
+    }
   }
 
   /**
@@ -181,6 +236,7 @@ export const useViewStore = defineStore('view', () => {
     applySorting,
     updateSorting,
     loadSorting,
+    fetchViewPreference,
     getSortedTaskIds,
     clearSorting,
     clearAllSorting,
