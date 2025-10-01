@@ -7,6 +7,22 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# ==================== 性能优化配置 ====================
+# 开发模式性能优化：加快 dev 模式运行速度
+[profile.dev]
+opt-level = 1 # 轻量优化，保持快速编译（0=无优化，1=基础，2=更多，3=全部）
+
+# 依赖包使用完全优化（不影响我们自己代码的编译速度）
+[profile.dev.package."*"]
+opt-level = 3 # 所有依赖包全速运行
+
+# Release 模式配置（已有默认值，这里明确说明）
+[profile.release]
+opt-level = 3
+lto = true        # 链接时优化
+codegen-units = 1 # 更好的优化但编译慢
+strip = true      # 移除符号表，减小体积
+
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
