@@ -9,6 +9,8 @@ use chrono::Utc;
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
+use serde::Serialize;
+
 use crate::{
     entities::{TaskCardDto, TimeBlock},
     features::tasks::shared::TaskAssembler,
@@ -18,6 +20,14 @@ use crate::{
     },
     startup::AppState,
 };
+
+/// 完成任务的响应
+#[derive(Debug, Serialize)]
+pub struct CompleteTaskResponse {
+    pub task: TaskCardDto,
+    pub deleted_time_block_ids: Vec<Uuid>,   // 被删除的时间块
+    pub truncated_time_block_ids: Vec<Uuid>, // 被截断的时间块
+}
 
 // ==================== 文档层 ====================
 /*
@@ -48,7 +58,7 @@ POST /api/tasks/{id}/completion
 // ==================== HTTP 处理器 ====================
 pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
     match logic::execute(&app_state, task_id).await {
-        Ok(task_card) => success_response(task_card).into_response(),
+        Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
 }
@@ -57,7 +67,7 @@ pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>
 mod logic {
     use super::*;
 
-    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<TaskCardDto> {
+    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<CompleteTaskResponse> {
         let now = app_state.clock().now_utc();
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
@@ -84,9 +94,18 @@ mod logic {
         // 5. 查询所有链接的时间块
         let linked_blocks = database::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
 
-        // 6. 智能处理时间块
+        // 6. 智能处理时间块，记录受影响的时间块
+        let mut deleted_time_block_ids = Vec::new();
+        let mut truncated_time_block_ids = Vec::new();
+
         for block in linked_blocks {
-            process_time_block(&mut tx, &block, &task.title, task_id, now).await?;
+            let action = process_time_block(&mut tx, &block, &task.title, task_id, now).await?;
+
+            match action {
+                TimeBlockAction::Deleted => deleted_time_block_ids.push(block.id),
+                TimeBlockAction::Truncated => truncated_time_block_ids.push(block.id),
+                TimeBlockAction::None => {}
+            }
         }
 
         // 7. 提交事务
@@ -102,22 +121,34 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         let task_card = TaskAssembler::task_to_card_basic(&updated_task);
-        Ok(task_card)
+
+        Ok(CompleteTaskResponse {
+            task: task_card,
+            deleted_time_block_ids,
+            truncated_time_block_ids,
+        })
     }
 
-    /// 智能处理单个时间块
+    /// 时间块处理动作
+    enum TimeBlockAction {
+        None,      // 保留
+        Truncated, // 截断
+        Deleted,   // 删除
+    }
+
+    /// 智能处理单个时间块，返回执行的动作
     async fn process_time_block(
         tx: &mut Transaction<'_, Sqlite>,
         block: &TimeBlock,
         task_title: &str,
         task_id: Uuid,
         now: chrono::DateTime<Utc>,
-    ) -> AppResult<()> {
+    ) -> AppResult<TimeBlockAction> {
         // 1. 检查是否仅链接此任务
         let is_exclusive = database::is_exclusive_link_in_tx(tx, block.id, task_id).await?;
         if !is_exclusive {
             // 多任务共享，不处理
-            return Ok(());
+            return Ok(TimeBlockAction::None);
         }
 
         // 2. 检查标题是否一致（自动创建的标志）
@@ -131,13 +162,13 @@ mod logic {
         if block.end_time < now {
             // 在过去：保留（无论是否自动创建）
             tracing::info!("Block {} in the past, keeping it", block.id);
-            return Ok(());
+            return Ok(TimeBlockAction::None);
         }
 
         if !is_auto_created {
             // 手动创建的：保留
             tracing::info!("Block {} is manually created, keeping it", block.id);
-            return Ok(());
+            return Ok(TimeBlockAction::None);
         }
 
         // 4. 自动创建的时间块：根据时间处理
@@ -145,13 +176,15 @@ mod logic {
             // 正在发生：截断到 now
             database::truncate_time_block_to_now_in_tx(tx, block.id, now).await?;
             tracing::info!("Truncated ongoing block {} to {}", block.id, now);
+            return Ok(TimeBlockAction::Truncated);
         } else if block.start_time > now {
             // 在未来：删除
             database::delete_time_block_in_tx(tx, block.id).await?;
             tracing::info!("Deleted future block {}", block.id);
+            return Ok(TimeBlockAction::Deleted);
         }
 
-        Ok(())
+        Ok(TimeBlockAction::None)
     }
 }
 

@@ -398,10 +398,36 @@ export const useTaskStore = defineStore('task', () => {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const result = await response.json()
-      const completedTask: TaskCard = result.data
-      addOrUpdateTask(completedTask)
-      console.log('[TaskStore] Completed task:', completedTask)
-      return completedTask
+      const data = result.data as {
+        task: TaskCard
+        deleted_time_block_ids: string[]
+        truncated_time_block_ids: string[]
+      }
+
+      // 更新任务
+      addOrUpdateTask(data.task)
+
+      // ✅ 同步删除被删除的时间块
+      if (data.deleted_time_block_ids && data.deleted_time_block_ids.length > 0) {
+        const { useTimeBlockStore } = await import('./timeblock')
+        const timeBlockStore = useTimeBlockStore()
+        for (const blockId of data.deleted_time_block_ids) {
+          timeBlockStore.removeTimeBlock(blockId)
+        }
+        console.log('[TaskStore] Removed deleted time blocks:', data.deleted_time_block_ids)
+      }
+
+      // ✅ 重新加载被截断的时间块（获取最新的 end_time）
+      if (data.truncated_time_block_ids && data.truncated_time_block_ids.length > 0) {
+        const { useTimeBlockStore } = await import('./timeblock')
+        const timeBlockStore = useTimeBlockStore()
+        // 重新获取当前视图的时间块以更新截断后的状态
+        console.log('[TaskStore] Time blocks truncated:', data.truncated_time_block_ids)
+        // TODO: 可以选择重新加载这些时间块，或等待下次刷新
+      }
+
+      console.log('[TaskStore] Completed task:', data.task)
+      return data.task
     } catch (e) {
       error.value = `Failed to complete task ${id}: ${e}`
       console.error('[TaskStore] Error completing task:', e)
