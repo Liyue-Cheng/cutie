@@ -1,5 +1,6 @@
 <template>
   <SettingsView v-if="isSettingsOpen" @close="isSettingsOpen = false" />
+  <AreaManager v-if="isAreaManagerOpen" @close="isAreaManagerOpen = false" />
   <CutePane class="main-frame">
     <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
       <div class="title-bar-bg">
@@ -36,6 +37,9 @@
             <li @click="$router.push('/daily-shutdown')">
               <CuteIcon name="PowerOff" :size="16" /><span>Daily Shutdown</span>
             </li>
+            <li @click="$router.push('/area-test')">
+              <CuteIcon name="Tag" :size="16" /><span>Area Test</span>
+            </li>
           </ul>
 
           <div class="collapsible-section">
@@ -68,6 +72,10 @@
         </div>
         <div class="sidebar-footer">
           <ul class="nav-group">
+            <li @click="isAreaManagerOpen = !isAreaManagerOpen">
+              <CuteIcon name="Tag" :size="16" />
+              <span>Areas</span>
+            </li>
             <li @click="isSettingsOpen = !isSettingsOpen">
               <CuteIcon name="Settings" :size="16" />
               <span>{{ $t('sidebar.settings') }}</span>
@@ -89,12 +97,14 @@ import CuteButton from '../components/parts/CuteButton.vue'
 import CuteIcon from '../components/parts/CuteIcon.vue'
 import CutePane from '../components/alias/CutePane.vue'
 import SettingsView from '../components/temp/TempSetting.vue'
+import AreaManager from '../components/parts/AreaManager.vue'
 
 const appWindow = getCurrentWindow()
 
 const isProjectsOpen = ref(false)
 const isExperienceOpen = ref(false)
 const isSettingsOpen = ref(false)
+const isAreaManagerOpen = ref(false)
 
 const themeClassName = 'theme-temp-susamacopy'
 
