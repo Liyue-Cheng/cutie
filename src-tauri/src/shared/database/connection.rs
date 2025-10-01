@@ -67,7 +67,7 @@ impl From<&crate::config::SynchronousMode> for SynchronousMode {
 impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            max_connections: 10,
+            max_connections: 5,  // ← 降低到 5（SQLite 推荐值，减少写锁竞争）
             min_connections: 1,
             connect_timeout_seconds: 30,
             idle_timeout_seconds: 600,
@@ -191,6 +191,16 @@ async fn configure_sqlite(pool: &SqlitePool, config: &DatabaseConfig) -> Result<
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
     }
+
+    // ⚠️ 关键：设置 busy_timeout 防止 "database is locked" 错误
+    // SQLite 在遇到锁时会等待最多 5 秒，而不是立即失败
+    // 这对于处理并发写入至关重要
+    sqlx::query("PRAGMA busy_timeout = 5000")
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+    tracing::info!("SQLite busy_timeout set to 5000ms for concurrency handling");
 
     // 设置其他性能优化参数
     sqlx::query("PRAGMA temp_store = MEMORY")

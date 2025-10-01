@@ -12,13 +12,13 @@
 
       <div v-else-if="taskStore.error" class="error">
         <p>错误: {{ taskStore.error }}</p>
-        <button @click="taskStore.fetchUnscheduledTasks()">重试</button>
+        <button @click="taskStore.fetchStagingTasks()">重试</button>
       </div>
 
       <div v-else class="task-container">
         <KanbanTaskList
           title="未安排任务"
-          :tasks="taskStore.unscheduledTasks"
+          :tasks="taskStore.stagingTasks"
           @open-editor="handleOpenEditor"
         />
       </div>
@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import type { Task } from '@/types/models'
+import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 import KanbanTaskList from '@/components/parts/kanban/KanbanTaskList.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
@@ -43,14 +43,14 @@ const taskStore = useTaskStore()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
-function handleOpenEditor(task: Task) {
+function handleOpenEditor(task: TaskCard) {
   selectedTaskId.value = task.id
   isEditorOpen.value = true
 }
 
-onMounted(() => {
-  // 加载未安排的任务
-  taskStore.fetchUnscheduledTasks()
+onMounted(async () => {
+  // 加载未安排的任务（Staging）
+  await taskStore.fetchStagingTasks()
 })
 </script>
 
