@@ -3,7 +3,6 @@ import { onMounted, computed } from 'vue'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
-import type { TaskCard } from '@/types/dtos'
 
 const areaStore = useAreaStore()
 const taskStore = useTaskStore()
@@ -57,4 +56,3 @@ const areaColumns = computed(() => {
   padding-bottom: 2rem;
 }
 </style>
-

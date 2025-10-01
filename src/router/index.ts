@@ -27,6 +27,11 @@ const routes: Array<RouteRecordRaw> = [
         name: 'daily-shutdown',
         component: () => import('../views/DailyShutdownView.vue'),
       },
+      {
+        path: 'area-test',
+        name: 'area-test',
+        component: () => import('../views/AreaTestView.vue'),
+      },
     ],
   },
 

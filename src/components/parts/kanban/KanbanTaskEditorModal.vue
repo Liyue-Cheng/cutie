@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { useTaskStore } from '@/stores/task'
+import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
@@ -37,12 +38,12 @@ const subtasks = computed(() => {
 // 当弹窗打开时，获取任务详情
 onMounted(async () => {
   if (props.taskId) {
-    const detail = await taskStore.fetchTaskDetail(props.taskId)
+    const detail = (await taskStore.fetchTaskDetail(props.taskId)) as TaskDetail | null
     if (detail) {
       // TaskDetail 包含完整的 note 信息
-      glanceNote.value = detail.card.glance_note || ''
+      glanceNote.value = detail.glance_note || ''
       detailNote.value = detail.detail_note || ''
-      selectedAreaId.value = detail.card.area?.id || null
+      selectedAreaId.value = detail.area?.id || null
     }
   }
 })
@@ -51,11 +52,11 @@ watch(
   () => props.taskId,
   async (newTaskId) => {
     if (newTaskId) {
-      const detail = await taskStore.fetchTaskDetail(newTaskId)
+      const detail = (await taskStore.fetchTaskDetail(newTaskId)) as TaskDetail | null
       if (detail) {
-        glanceNote.value = detail.card.glance_note || ''
+        glanceNote.value = detail.glance_note || ''
         detailNote.value = detail.detail_note || ''
-        selectedAreaId.value = detail.card.area?.id || null
+        selectedAreaId.value = detail.area?.id || null
       }
     }
   }
