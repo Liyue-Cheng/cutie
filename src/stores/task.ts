@@ -439,28 +439,32 @@ export const useTaskStore = defineStore('task', () => {
 
   /**
    * 重新打开任务
-   * API: POST /tasks/:id/reopen
+   * API: DELETE /tasks/:id/completion
    */
   async function reopenTask(id: string): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
-    try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/tasks/${id}/reopen`, {
-      //   method: 'POST'
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const reopenedTask: TaskCard = await response.json()
-      // addOrUpdateTask(reopenedTask)
-      // return reopenedTask
+    console.log('[TaskStore] Reopening task:', id)
 
-      console.log('[TaskStore] reopenTask - API not implemented yet')
-      return null
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[TaskStore] API error:', errorData)
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
+      }
+      const result = await response.json()
+      const reopenedTask: TaskCard = result.data.task // 提取 data.task
+      addOrUpdateTask(reopenedTask)
+      console.log('[TaskStore] Reopened task:', reopenedTask)
+      return reopenedTask
     } catch (e) {
       error.value = `Failed to reopen task ${id}: ${e}`
       console.error('[TaskStore] Error reopening task:', e)
-      return null
+      throw e // 重新抛出错误，让调用者处理
     } finally {
       isLoading.value = false
     }
