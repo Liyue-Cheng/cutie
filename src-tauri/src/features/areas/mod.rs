@@ -10,8 +10,8 @@ use crate::startup::AppState;
 mod endpoints {
     pub mod create_area; // POST /areas
     pub mod delete_area; // DELETE /areas/:id
-    pub mod get_area;    // GET /areas/:id
-    pub mod list_areas;  // GET /areas
+    pub mod get_area; // GET /areas/:id
+    pub mod list_areas; // GET /areas
     pub mod update_area; // PATCH /areas/:id
 }
 
