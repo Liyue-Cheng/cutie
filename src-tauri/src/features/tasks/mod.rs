@@ -6,7 +6,7 @@
 /// - 本文件直接声明 endpoints 子模块并在路由中使用
 /// - DTOs 在 entities 模块中定义
 use axum::{
-    routing::{delete, get, patch, post},
+    routing::{get, post},
     Router,
 };
 
@@ -21,9 +21,8 @@ mod endpoints {
     pub mod create_task; // POST /tasks
     pub mod delete_task; // DELETE /tasks/:id
     pub mod get_task; // GET /tasks/:id
+    pub mod reopen_task; // DELETE /tasks/:id/completion
     pub mod update_task; // PATCH /tasks/:id
-                         // 待实现的其他端点：
-                         // pub mod reopen_task;
 }
 
 /// 创建任务功能模块的路由
@@ -40,9 +39,10 @@ pub fn create_routes() -> Router<AppState> {
                 .delete(endpoints::delete_task::handle),
         )
         // 任务状态操作
-        .route("/:id/completion", post(endpoints::complete_task::handle))
-    // .route("/:id/completion", delete(endpoints::reopen_task::handle))
-
+        .route(
+            "/:id/completion",
+            post(endpoints::complete_task::handle).delete(endpoints::reopen_task::handle),
+        )
     // 查询操作（待实现）
     // .route("/search", get(endpoints::search_tasks::handle))
 }
