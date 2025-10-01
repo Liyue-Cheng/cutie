@@ -47,15 +47,14 @@ export interface UpdateTaskPayload {
  */
 export interface CompleteTaskResponse {
   task: TaskCard
-  deleted_time_block_ids: string[]
-  truncated_time_block_ids: string[]
+  // 注意：副作用（deleted/truncated time blocks）已通过 SSE 推送
 }
 
 /**
- * 删除任务的响应数据
+ * 删除任务的响应数据（副作用通过SSE）
  */
 export interface DeleteTaskResponse {
-  deleted_time_block_ids: string[]
+  success: boolean
 }
 
 /**
@@ -412,21 +411,11 @@ export const useTaskStore = defineStore('task', () => {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-      const result = await response.json()
-      const data = result.data as DeleteTaskResponse
-
-      // 删除任务
+      // 删除任务（主要响应数据）
       removeTask(id)
 
-      // ✅ 同步删除被清理的孤儿时间块
-      if (data.deleted_time_block_ids && data.deleted_time_block_ids.length > 0) {
-        const { useTimeBlockStore } = await import('./timeblock')
-        const timeBlockStore = useTimeBlockStore()
-        for (const blockId of data.deleted_time_block_ids) {
-          timeBlockStore.removeTimeBlock(blockId)
-        }
-        console.log('[TaskStore] Also removed orphan time blocks:', data.deleted_time_block_ids)
-      }
+      // ✅ 注意：副作用（deleted orphan time blocks）已通过 SSE 推送
+      // HTTP响应体现在只返回 success 标志，真实的副作用由事件处理器处理
 
       console.log('[TaskStore] Deleted task:', id)
       return true
@@ -455,50 +444,11 @@ export const useTaskStore = defineStore('task', () => {
       const result = await response.json()
       const data = result.data as CompleteTaskResponse
 
-      // 更新任务
+      // 更新任务（主要响应数据）
       addOrUpdateTask(data.task)
 
-      // ✅ 同步删除被删除的时间块
-      if (data.deleted_time_block_ids && data.deleted_time_block_ids.length > 0) {
-        const { useTimeBlockStore } = await import('./timeblock')
-        const timeBlockStore = useTimeBlockStore()
-        for (const blockId of data.deleted_time_block_ids) {
-          timeBlockStore.removeTimeBlock(blockId)
-        }
-        console.log('[TaskStore] Removed deleted time blocks:', data.deleted_time_block_ids)
-      }
-
-      // ✅ 处理被截断的时间块（重新获取最新数据）
-      if (data.truncated_time_block_ids && data.truncated_time_block_ids.length > 0) {
-        console.log('[TaskStore] Time blocks truncated:', data.truncated_time_block_ids)
-
-        // ✅ 重新获取这些时间块的最新数据
-        const { useTimeBlockStore } = await import('./timeblock')
-        const timeBlockStore = useTimeBlockStore()
-
-        // 获取所有被截断时间块的日期范围
-        const dates = new Set<string>()
-        for (const blockId of data.truncated_time_block_ids) {
-          const block = timeBlockStore.getTimeBlockById(blockId)
-          if (block) {
-            const date = new Date(block.start_time).toISOString().split('T')[0]
-            if (date) dates.add(date)
-          }
-        }
-
-        // 重新加载这些日期的时间块
-        if (dates.size > 0) {
-          const dateArray = Array.from(dates).sort()
-
-          if (dateArray.length > 0) {
-            const startDate = dateArray[0] as string
-            const endDate = dateArray[dateArray.length - 1] as string
-
-            console.log('[TaskStore] Reloading time blocks for dates:', dateArray)
-            await timeBlockStore.fetchTimeBlocksForRange(startDate, endDate)
-          }
-        }
-      }
+      // ✅ 注意：副作用（deleted/truncated time blocks）已通过 SSE 推送
+      // HTTP响应体现在返回空的ID列表，真实的副作用由事件处理器处理
 
       console.log('[TaskStore] Completed task:', data.task)
       return data.task
@@ -574,6 +524,60 @@ export const useTaskStore = defineStore('task', () => {
     }
   }
 
+  // ============================================================
+  // 事件订阅器 - 处理 SSE 推送的领域事件
+  // ============================================================
+
+  /**
+   * 初始化事件订阅（由 main.ts 调用）
+   */
+  function initEventSubscriptions() {
+    import('@/services/events').then(({ getEventSubscriber }) => {
+      const subscriber = getEventSubscriber()
+      if (!subscriber) {
+        console.warn('[TaskStore] Event subscriber not initialized yet')
+        return
+      }
+
+      // 订阅任务完成事件
+      subscriber.on('task.completed', handleTaskCompletedEvent)
+
+      // 订阅任务删除事件
+      subscriber.on('task.deleted', handleTaskDeletedEvent)
+    })
+  }
+
+  /**
+   * 幂等事件处理器：任务完成
+   */
+  async function handleTaskCompletedEvent(event: any) {
+    const taskId = event.payload.task_id
+    console.log('[TaskStore] Handling task.completed event:', taskId)
+
+    // 重新获取任务详情（确保最新状态）
+    try {
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/tasks/${taskId}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = await response.json()
+      addOrUpdateTask(result.data.card)
+      console.log('[TaskStore] Task updated from event:', taskId)
+    } catch (e) {
+      console.error('[TaskStore] Failed to refresh task from event:', e)
+    }
+  }
+
+  /**
+   * 幂等事件处理器：任务删除
+   */
+  async function handleTaskDeletedEvent(event: any) {
+    const taskId = event.payload.task_id
+    console.log('[TaskStore] Handling task.deleted event:', taskId)
+
+    // 从本地状态移除任务
+    removeTask(taskId)
+  }
+
   return {
     // State
     tasks,
@@ -606,5 +610,8 @@ export const useTaskStore = defineStore('task', () => {
     completeTask,
     reopenTask,
     searchTasks,
+
+    // Event handlers
+    initEventSubscriptions,
   }
 })

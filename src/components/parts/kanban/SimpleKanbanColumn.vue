@@ -295,6 +295,8 @@ function handleDrop(event: DragEvent) {
   overflow-y: auto;
   padding: 0.5rem 1rem 1rem;
   min-height: 100px;
+
+  /* scrollbar-gutter: stable; */
 }
 
 .empty-state {

@@ -3,7 +3,7 @@
 /* --- 1. 尺寸规范基准 --- */
 html {
   /* 设定 1rem = 10px 的基准，便于计算 */
-  font-size: 62.5%;
+  font-size: 62.5% !important;
 }
 
 

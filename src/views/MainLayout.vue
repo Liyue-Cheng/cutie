@@ -232,6 +232,7 @@ onBeforeUnmount(() => {
   border-radius: 0.6rem;
   cursor: pointer;
   transition: background-color 0.2s;
+  line-height: 1.4; /* stabilize line height to avoid spacing jump */
 }
 
 .sub-list {

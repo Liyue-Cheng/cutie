@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::config::AppConfig;
 use crate::shared::core::AppError;
+use crate::shared::events::SseState;
 
 // 导入抽象层接口
 pub use crate::shared::ports::{Clock, IdGenerator, SystemClock, UuidV4Generator};
@@ -24,6 +25,9 @@ pub struct AppState {
 
     /// ID生成器抽象（用于可测试的UUID生成）
     id_generator: Arc<dyn IdGenerator>,
+
+    /// SSE 状态（事件广播）
+    sse_state: Arc<SseState>,
 }
 
 impl AppState {
@@ -33,12 +37,14 @@ impl AppState {
         db_pool: SqlitePool,
         clock: Arc<dyn Clock>,
         id_generator: Arc<dyn IdGenerator>,
+        sse_state: Arc<SseState>,
     ) -> Self {
         Self {
             config: Arc::new(config),
             db_pool: Arc::new(db_pool),
             clock,
             id_generator,
+            sse_state,
         }
     }
 
@@ -49,6 +55,7 @@ impl AppState {
             db_pool,
             Arc::new(SystemClock::new()),
             Arc::new(UuidV4Generator::new()),
+            Arc::new(SseState::new()),
         )
     }
 
@@ -70,6 +77,11 @@ impl AppState {
     /// 获取ID生成器抽象
     pub fn id_generator(&self) -> &Arc<dyn IdGenerator> {
         &self.id_generator
+    }
+
+    /// 获取 SSE 状态
+    pub fn sse_state(&self) -> &Arc<SseState> {
+        &self.sse_state
     }
 
     /// 健康检查

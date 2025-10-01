@@ -445,6 +445,75 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     }
   }
 
+  // ============================================================
+  // 事件订阅器 - 处理 SSE 推送的领域事件
+  // ============================================================
+
+  /**
+   * 初始化事件订阅（由 main.ts 调用）
+   */
+  function initEventSubscriptions() {
+    import('@/services/events').then(({ getEventSubscriber }) => {
+      const subscriber = getEventSubscriber()
+      if (!subscriber) {
+        console.warn('[TimeBlockStore] Event subscriber not initialized yet')
+        return
+      }
+
+      // 订阅时间块删除事件
+      subscriber.on('time_blocks.deleted', handleTimeBlocksDeletedEvent)
+
+      // 订阅时间块截断事件
+      subscriber.on('time_blocks.truncated', handleTimeBlocksTruncatedEvent)
+    })
+  }
+
+  /**
+   * 幂等事件处理器：时间块删除
+   */
+  async function handleTimeBlocksDeletedEvent(event: any) {
+    const timeBlockIds: string[] = event.payload.time_block_ids || []
+    console.log('[TimeBlockStore] Handling time_blocks.deleted event:', timeBlockIds)
+
+    // 从本地状态移除这些时间块
+    for (const blockId of timeBlockIds) {
+      removeTimeBlock(blockId)
+    }
+  }
+
+  /**
+   * 幂等事件处理器：时间块截断
+   */
+  async function handleTimeBlocksTruncatedEvent(event: any) {
+    const timeBlockIds: string[] = event.payload.time_block_ids || []
+    console.log('[TimeBlockStore] Handling time_blocks.truncated event:', timeBlockIds)
+
+    // 重新获取被截断的时间块（需要知道日期范围）
+    try {
+      const dates = new Set<string>()
+      for (const blockId of timeBlockIds) {
+        const block = getTimeBlockById(blockId)
+        if (block) {
+          const date = new Date(block.start_time).toISOString().split('T')[0]
+          if (date) dates.add(date)
+        }
+      }
+
+      // 重新加载这些日期的时间块
+      if (dates.size > 0) {
+        const dateArray = Array.from(dates).sort()
+        if (dateArray.length > 0) {
+          const startDate = dateArray[0] as string
+          const endDate = dateArray[dateArray.length - 1] as string
+          console.log('[TimeBlockStore] Reloading time blocks for dates:', dateArray)
+          await fetchTimeBlocksForRange(startDate, endDate)
+        }
+      }
+    } catch (e) {
+      console.error('[TimeBlockStore] Failed to refresh time blocks from event:', e)
+    }
+  }
+
   return {
     // State
     timeBlocks,
@@ -471,5 +540,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     deleteTimeBlock,
     linkTaskToBlock,
     unlinkTaskFromBlock,
+
+    // Event handlers
+    initEventSubscriptions,
   }
 })

@@ -261,8 +261,24 @@ pub async fn run_sidecar() -> Result<(), AppError> {
     tracing::info!("Database initialized successfully");
 
     // 创建应用状态
-    let app_state = AppState::new_production(config, db_pool);
+    let app_state = AppState::new_production(config, db_pool.clone());
     tracing::info!("Application state created");
+
+    // 启动事件分发器（后台任务）
+    {
+        use crate::shared::events::{dispatcher::EventDispatcher, outbox::SqlxEventOutboxRepository};
+        use std::sync::Arc;
+
+        let outbox_repo = Arc::new(SqlxEventOutboxRepository::new(db_pool.clone()));
+        let sse_state = app_state.sse_state().clone();
+        let dispatcher = Arc::new(EventDispatcher::new(outbox_repo, sse_state, 100));
+
+        tokio::spawn(async move {
+            dispatcher.start().await;
+        });
+
+        tracing::info!("Event dispatcher started");
+    }
 
     // 启动服务器
     start_sidecar_server(app_state).await?;

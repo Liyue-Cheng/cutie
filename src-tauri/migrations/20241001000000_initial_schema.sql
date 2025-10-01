@@ -310,3 +310,70 @@ CREATE TABLE view_preferences (
 
 -- 为常用查询创建索引
 CREATE INDEX idx_view_prefs_updated_at ON view_preferences(updated_at);
+
+-- ============================================================
+-- 事件发件箱表 (Event Outbox)
+-- ============================================================
+-- 用于实现可靠的事件投递（Transactional Outbox Pattern）
+-- 业务事务内写入 event_outbox，提交后由后台分发器扫描并推送到 SSE 流
+--
+-- 事件信封规范：
+-- - id: 全局唯一递增ID（用于 Last-Event-ID 续传）
+-- - event_id: UUID，用于去重
+-- - type: 事件类型（如 task.completed、time_blocks.truncated）
+-- - version: 事件契约版本
+-- - aggregate_type: 聚合类型（task、time_block 等）
+-- - aggregate_id: 聚合根ID
+-- - aggregate_version: 聚合版本或 updated_at 单调戳（用于幂等）
+-- - correlation_id: 关联的命令ID（HTTP 请求）
+-- - occurred_at: 事件发生时间（UTC RFC 3339）
+-- - payload: 事件载荷（JSON）
+-- - dispatched_at: 已分发时间（NULL 表示未分发）
+--
+CREATE TABLE event_outbox (
+    -- 全局递增ID（主键，用于排序与续传）
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    
+    -- 事件唯一标识（UUID）
+    event_id TEXT NOT NULL UNIQUE,
+    
+    -- 事件类型（dot-separated，如 task.completed）
+    event_type TEXT NOT NULL,
+    
+    -- 事件契约版本
+    version INTEGER NOT NULL DEFAULT 1,
+    
+    -- 聚合类型与ID
+    aggregate_type TEXT NOT NULL,
+    aggregate_id TEXT NOT NULL,
+    
+    -- 聚合版本（用于幂等，可为 NULL）
+    aggregate_version INTEGER,
+    
+    -- 关联的命令ID（用于去重，可为 NULL）
+    correlation_id TEXT,
+    
+    -- 事件发生时间（UTC timestamp in RFC 3339 format）
+    occurred_at TEXT NOT NULL,
+    
+    -- 事件载荷（JSON）
+    payload TEXT NOT NULL,
+    
+    -- 已分发时间（NULL 表示未分发，UTC timestamp in RFC 3339 format）
+    dispatched_at TEXT,
+    
+    -- 创建时间（UTC timestamp in RFC 3339 format）
+    created_at TEXT NOT NULL
+);
+
+-- 未分发事件索引（dispatcher 查询用）
+CREATE INDEX idx_outbox_undispatched ON event_outbox(dispatched_at) WHERE dispatched_at IS NULL;
+
+-- 事件ID索引（去重查询）
+CREATE INDEX idx_outbox_event_id ON event_outbox(event_id);
+
+-- 聚合索引（按聚合查询事件）
+CREATE INDEX idx_outbox_aggregate ON event_outbox(aggregate_type, aggregate_id);
+
+-- 时间索引（清理旧事件）
+CREATE INDEX idx_outbox_created_at ON event_outbox(created_at);

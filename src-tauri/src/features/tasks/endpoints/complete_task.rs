@@ -25,8 +25,7 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub struct CompleteTaskResponse {
     pub task: TaskCardDto,
-    pub deleted_time_block_ids: Vec<Uuid>,   // 被删除的时间块
-    pub truncated_time_block_ids: Vec<Uuid>, // 被截断的时间块
+    // 注意：副作用（deleted/truncated time blocks）已通过 SSE 推送
 }
 
 // ==================== 文档层 ====================
@@ -108,25 +107,62 @@ mod logic {
             }
         }
 
-        // 7. 提交事务
+        // 7. 在事务中写入领域事件到 outbox
+        use crate::shared::events::{
+            models::DomainEvent,
+            outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+        };
+        let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+
+        // 7.1 发布任务完成事件
+        {
+            let payload = serde_json::json!({
+                "task_id": task_id.to_string(),
+                "completed_at": now.to_rfc3339(),
+            });
+            let event = DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
+                .with_aggregate_version(now.timestamp_millis());
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 7.2 发布时间块删除事件（如果有）
+        if !deleted_time_block_ids.is_empty() {
+            let payload = serde_json::json!({
+                "time_block_ids": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                "deleted_at": now.to_rfc3339(),
+            });
+            let event = DomainEvent::new("time_blocks.deleted", "time_block", "batch", payload)
+                .with_aggregate_version(now.timestamp_millis());
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 7.3 发布时间块截断事件（如果有）
+        if !truncated_time_block_ids.is_empty() {
+            let payload = serde_json::json!({
+                "time_block_ids": truncated_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                "truncated_at": now.to_rfc3339(),
+            });
+            let event = DomainEvent::new("time_blocks.truncated", "time_block", "batch", payload)
+                .with_aggregate_version(now.timestamp_millis());
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 8. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 8. 重新查询并组装返回数据
+        // 9. 重新查询并组装返回数据
         let updated_task = database::find_task(app_state.db_pool(), task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         let task_card = TaskAssembler::task_to_card_basic(&updated_task);
 
-        Ok(CompleteTaskResponse {
-            task: task_card,
-            deleted_time_block_ids,
-            truncated_time_block_ids,
-        })
+        // HTTP 响应只返回主要数据，副作用通过 SSE 推送
+        Ok(CompleteTaskResponse { task: task_card })
     }
 
     /// 时间块处理动作

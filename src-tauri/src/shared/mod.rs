@@ -5,8 +5,10 @@
 /// - database: 数据库连接和通用仓库trait
 /// - http: HTTP中间件、错误处理、通用响应
 /// - ports: 外部依赖抽象层（时钟、ID生成器等）
+/// - events: 领域事件与 SSE 基础设施
 pub mod core;
 pub mod database;
+pub mod events;
 pub mod http;
 pub mod ports;
 

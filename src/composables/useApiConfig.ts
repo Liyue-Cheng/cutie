@@ -24,15 +24,21 @@ export async function initializeApiConfig() {
       sidecarPort.value = discoveredPort
       isPortDiscovered.value = true
       console.log(`🔍 [API Config] Using discovered port: ${discoveredPort}`)
+
+      // ✅ 初始化事件订阅
+      await initializeEventSubscriptions(discoveredPort)
       return
     }
 
     // 监听端口发现事件
-    const unlisten = await listen<number>('sidecar-port-discovered', (event) => {
+    await listen<number>('sidecar-port-discovered', (event) => {
       const port = event.payload
       sidecarPort.value = port
       isPortDiscovered.value = true
       console.log(`🔍 [API Config] Port discovered via event: ${port}`)
+      
+      // ✅ 初始化事件订阅
+      initializeEventSubscriptions(port).catch(console.error)
     })
 
     // 等待端口发现（最多10秒）
@@ -48,6 +54,9 @@ export async function initializeApiConfig() {
         sidecarPort.value = currentPort
         isPortDiscovered.value = true
         console.log(`🔍 [API Config] Port discovered via polling: ${currentPort}`)
+
+        // ✅ 初始化事件订阅
+        await initializeEventSubscriptions(currentPort)
         break
       }
 
@@ -57,10 +66,38 @@ export async function initializeApiConfig() {
     if (!isPortDiscovered.value) {
       console.warn(`⚠️ [API Config] Port discovery timeout, using default port: ${DEFAULT_PORT}`)
       sidecarPort.value = DEFAULT_PORT
+
+      // ✅ 初始化事件订阅（使用默认端口）
+      await initializeEventSubscriptions(DEFAULT_PORT)
     }
   } catch (error) {
     console.error('❌ [API Config] Failed to initialize API config:', error)
     sidecarPort.value = DEFAULT_PORT
+  }
+}
+
+// ✅ 初始化事件订阅系统
+async function initializeEventSubscriptions(port: number) {
+  try {
+    const apiUrl = `http://127.0.0.1:${port}/api`
+
+    // 动态导入事件服务
+    const { initEventSubscriber } = await import('@/services/events')
+    initEventSubscriber(apiUrl)
+    console.log('🔔 [API Config] Event subscriber initialized')
+
+    // 初始化各个 Store 的事件订阅
+    const { useTaskStore } = await import('@/stores/task')
+    const { useTimeBlockStore } = await import('@/stores/timeblock')
+
+    const taskStore = useTaskStore()
+    const timeBlockStore = useTimeBlockStore()
+
+    taskStore.initEventSubscriptions()
+    timeBlockStore.initEventSubscriptions()
+    console.log('🔔 [API Config] Store event subscriptions initialized')
+  } catch (error) {
+    console.error('❌ [API Config] Failed to initialize event subscriptions:', error)
   }
 }
 

@@ -22,7 +22,8 @@ use crate::{
 /// 删除任务的响应
 #[derive(Debug, Serialize)]
 pub struct DeleteTaskResponse {
-    pub deleted_time_block_ids: Vec<Uuid>, // 被删除的孤儿时间块ID列表
+    pub success: bool,
+    // 注意：deleted_time_block_ids 已通过 SSE 推送
 }
 
 // ==================== 文档层 ====================
@@ -111,16 +112,46 @@ mod logic {
             }
         }
 
-        // 7. 提交事务
+        // 7. 在事务中写入领域事件到 outbox
+        use crate::shared::events::{
+            models::DomainEvent,
+            outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+        };
+        let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+        let now = app_state.clock().now_utc();
+
+        // 7.1 发布任务删除事件
+        {
+            let payload = serde_json::json!({
+                "task_id": task_id.to_string(),
+                "deleted_at": now.to_rfc3339(),
+            });
+            let event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
+                .with_aggregate_version(now.timestamp_millis());
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 7.2 发布时间块删除事件（如果有孤儿时间块被删除）
+        if !deleted_time_block_ids.is_empty() {
+            let payload = serde_json::json!({
+                "time_block_ids": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                "deleted_at": now.to_rfc3339(),
+                "reason": "orphan_after_task_deletion",
+            });
+            let event = DomainEvent::new("time_blocks.deleted", "time_block", "batch", payload)
+                .with_aggregate_version(now.timestamp_millis());
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 8. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        Ok(DeleteTaskResponse {
-            deleted_time_block_ids,
-        })
+        // HTTP 响应不再包含副作用列表，副作用通过 SSE 推送
+        Ok(DeleteTaskResponse { success: true })
     }
 
     /// 判断是否应该删除孤儿时间块

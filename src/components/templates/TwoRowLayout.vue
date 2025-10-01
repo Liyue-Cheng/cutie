@@ -25,5 +25,7 @@
   flex-grow: 1;
   padding: 1rem;
   overflow-y: auto;
+
+  /* scrollbar-gutter: stable; */
 }
 </style>

@@ -76,6 +76,7 @@ ts-rs = { version = "8.1", features = [
     "chrono-impl",
     "serde-json-impl",
 ] }
+tokio-stream = { version = "0.1.17", features = ["sync"] }
 
 [dev-dependencies]
 # 测试框架
