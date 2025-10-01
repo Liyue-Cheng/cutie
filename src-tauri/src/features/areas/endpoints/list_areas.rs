@@ -1,6 +1,8 @@
 /// 列出所有 Areas API - 单文件组件
-use axum::{extract::State, response::{IntoResponse, Response}};
-use uuid::Uuid;
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+};
 
 use crate::{
     entities::{Area, AreaDto},
@@ -68,4 +70,3 @@ mod database {
         areas.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
     }
 }
-

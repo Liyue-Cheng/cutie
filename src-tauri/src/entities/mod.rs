@@ -1,6 +1,3 @@
-pub mod area;
-pub mod ordering;
-pub mod schedule;
 /// 实体层 (Entities Layer)
 ///
 /// 本层统一管理所有数据结构，按纯业务概念组织：
@@ -8,14 +5,58 @@ pub mod schedule;
 /// - 不包含HTTP响应结构（应在shared/http中）
 /// - 不使用shared等通用命名
 // 按业务概念组织的实体
+pub mod area;
+pub mod ordering;
+pub mod schedule;
 pub mod task;
 pub mod template;
 pub mod time_block;
 
-// 重新导出所有公共类型
-pub use area::*;
-pub use ordering::*;
-pub use schedule::*;
-pub use task::*;
-pub use template::*;
-pub use time_block::*;
+// 显式导出所有公共类型，避免 ambiguous glob re-exports 警告
+
+// Area 相关类型
+pub use area::{Area, AreaDto, AreaRow, AreaTreeDto, CreateAreaRequest, UpdateAreaRequest};
+
+// Ordering 相关类型
+pub use ordering::{Ordering, OrderingRow};
+
+// Schedule 相关类型
+pub use schedule::{TaskSchedule, TaskScheduleRow};
+
+// Task 相关类型
+pub use task::{
+    // 响应 DTOs
+    AreaSummary,
+    // 枚举
+    ContextType,
+    // 请求 DTOs
+    CreateTaskRequest,
+    DailyOutcome,
+    DueDateInfo,
+    DueDateType,
+    Outcome,
+    ProjectSummary,
+    ScheduleInfo,
+    ScheduleRecord,
+    ScheduleStatus,
+    SearchTasksQuery,
+    // 值对象
+    SourceInfo,
+    Subtask,
+    SubtaskDto,
+    // 核心模型
+    Task,
+    TaskCardDto,
+    TaskDetailDto,
+    TaskRow,
+    UpdateTaskRequest,
+};
+
+// Template 相关类型
+pub use template::{Template, TemplateRow};
+
+// TimeBlock 相关类型
+pub use time_block::{
+    CreateTimeBlockRequest, LinkedTaskSummary, TimeBlock, TimeBlockRow, TimeBlockViewDto,
+    UpdateTimeBlockRequest,
+};

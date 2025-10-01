@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::shared::{
-    core::{AppError, ValidationError},
+    core::ValidationError,
     database::PaginationParams,
     http::{middleware::RequestId, responses::ErrorResponse},
 };
@@ -432,4 +432,3 @@ mod tests {
         assert!(uuid::Uuid::parse_str(invalid_uuid).is_err());
     }
 }
-

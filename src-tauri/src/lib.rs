@@ -7,13 +7,22 @@ pub mod entities;
 pub mod features;
 pub mod shared;
 
-// 重新导出新架构的类型
-pub use features::*;
-pub use shared::*;
+// 显式导出最常用的核心类型，避免 ambiguous glob re-exports 警告
 
-// 保留必要的旧模块导出
-pub use config::*;
-pub use startup::*;
+// Features - 导出路由创建函数
+pub use features::create_api_router;
+
+// Startup - 导出核心应用状态
+pub use startup::AppState;
+
+// 注意：以下类型在多个模块中都有定义，不在顶层导出以避免歧义：
+// - DatabaseConfig: 在 config::database_config 和 shared::database::connection 中都有
+// - SynchronousMode: 在 config::database_config 和 shared::database::connection 中都有
+// - HealthCheckResponse, PingResponse, ServerInfoResponse: 在 startup::sidecar 和 shared::http::responses 中都有
+//
+// 使用时请指定完整路径，例如：
+// - use crate::config::DatabaseConfig;
+// - use crate::shared::database::DatabaseConfig;
 
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;

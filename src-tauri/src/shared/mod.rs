@@ -10,8 +10,28 @@ pub mod database;
 pub mod http;
 pub mod ports;
 
-// 重新导出常用类型
-pub use core::*;
-pub use database::*;
-pub use http::*;
-pub use ports::*;
+// 显式导出最常用的核心类型，避免 ambiguous glob re-exports 警告
+
+// Core - 错误类型和结果类型（最常用）
+pub use core::{AppError, AppResult, DbError, DbResult, SortOrderError, SortResult};
+
+// Core - 构建信息
+pub use core::BuildInfo;
+
+// HTTP - 响应构建函数（最常用）
+pub use http::{created_response, success_response};
+
+// HTTP - 响应结构
+pub use http::{ApiResponse, EmptyResponse, ErrorResponse, HealthCheckResponse, MessageResponse};
+
+// Ports - 依赖抽象接口（最常用）
+pub use ports::{Clock, IdGenerator, SystemClock, UuidV4Generator};
+
+// Database - 连接配置
+pub use database::{DatabaseConfig, SynchronousMode};
+
+// 注意：
+// - PaginationQuery 和 SortOrder 在 http::extractors 和 database::pagination 中都有定义
+// - 为避免歧义，不在顶层导出，使用时需要指定完整路径：
+//   - use crate::shared::http::extractors::{PaginationQuery, SortOrder};
+//   - use crate::shared::database::pagination::{PaginationQuery, SortOrder};

@@ -1,8 +1,5 @@
 /// Areas 功能模块 - 单文件组件架构
-use axum::{
-    routing::{delete, get, patch, post},
-    Router,
-};
+use axum::{routing::get, Router};
 
 use crate::startup::AppState;
 

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Duration, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Datelike, Duration, TimeZone, Utc};
 
 /// 时间工具模块
 ///
@@ -198,4 +198,3 @@ mod tests {
         assert_eq!(expected_weekday, 0); // 周一
     }
 }
-

@@ -5,7 +5,6 @@ use axum::{
     Json,
 };
 use sqlx::{Sqlite, Transaction};
-use uuid::Uuid;
 
 use crate::{
     entities::{Area, AreaDto, CreateAreaRequest},
