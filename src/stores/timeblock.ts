@@ -320,24 +320,26 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     console.log('[TimeBlockStore] Updating time block', id, ':', payload)
 
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      // const updatedBlock: TimeBlockView = await response.json()
-      // addOrUpdateTimeBlock(updatedBlock)
-      // return updatedBlock
-
-      console.log('[TimeBlockStore] updateTimeBlock - API not implemented yet')
-      return null
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[TimeBlockStore] API error:', errorData)
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
+      }
+      const result = await response.json()
+      const updatedBlock: TimeBlockView = result.data // 提取 ApiResponse 的 data 字段
+      addOrUpdateTimeBlock(updatedBlock)
+      console.log('[TimeBlockStore] Updated time block:', updatedBlock)
+      return updatedBlock
     } catch (e) {
       error.value = `Failed to update time block ${id}: ${e}`
       console.error('[TimeBlockStore] Error updating time block:', e)
-      return null
+      throw e // 重新抛出错误，让调用者处理
     } finally {
       isLoading.value = false
     }

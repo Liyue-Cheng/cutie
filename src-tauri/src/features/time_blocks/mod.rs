@@ -13,14 +13,14 @@ use crate::startup::AppState;
 
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
-    pub mod create_from_task;  // POST /time-blocks/from-task (拖动任务到日历)
+    pub mod create_from_task; // POST /time-blocks/from-task (拖动任务到日历)
     pub mod create_time_block; // POST /time-blocks (直接创建空时间块)
     pub mod delete_time_block; // DELETE /time-blocks/:id
-    pub mod list_time_blocks;  // GET /time-blocks
-    // 待实现的其他端点：
-    // pub mod update_time_block;
-    // pub mod link_task;
-    // pub mod unlink_task;
+    pub mod list_time_blocks; // GET /time-blocks
+    pub mod update_time_block; // PATCH /time-blocks/:id (更新时间块)
+                               // 待实现的其他端点：
+                               // pub mod link_task;
+                               // pub mod unlink_task;
 }
 
 /// 创建时间块功能模块的路由
@@ -31,9 +31,11 @@ pub fn create_routes() -> Router<AppState> {
             get(endpoints::list_time_blocks::handle).post(endpoints::create_time_block::handle),
         )
         .route("/from-task", post(endpoints::create_from_task::handle))
-        .route("/:id", delete(endpoints::delete_time_block::handle))
-    // .route("/:id", patch(endpoints::update_time_block::handle))
+        .route(
+            "/:id",
+            delete(endpoints::delete_time_block::handle)
+                .patch(endpoints::update_time_block::handle),
+        )
     // .route("/:id/tasks", post(endpoints::link_task::handle))
     // .route("/:id/tasks/:task_id", delete(endpoints::unlink_task::handle))
 }
-
