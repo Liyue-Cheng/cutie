@@ -29,7 +29,7 @@ async function handleCreate() {
   newAreaColor.value = '#4A90E2'
 }
 
-function startEdit(area: typeof areaStore.allAreas[0]) {
+function startEdit(area: (typeof areaStore.allAreas)[0]) {
   editingArea.value = {
     id: area.id,
     name: area.name,
@@ -78,12 +78,7 @@ async function handleDelete(id: string) {
             class="name-input"
             @keyup.enter="handleCreate"
           />
-          <input
-            v-model="newAreaColor"
-            type="color"
-            class="color-input"
-            title="选择颜色"
-          />
+          <input v-model="newAreaColor" type="color" class="color-input" title="选择颜色" />
           <CuteButton @click="handleCreate">添加</CuteButton>
         </div>
       </div>
@@ -96,16 +91,8 @@ async function handleDelete(id: string) {
         <div class="areas-grid">
           <div v-for="area in areaStore.allAreas" :key="area.id" class="area-item">
             <div v-if="editingArea?.id === area.id" class="edit-mode">
-              <input
-                v-model="editingArea.name"
-                type="text"
-                class="edit-name-input"
-              />
-              <input
-                v-model="editingArea.color"
-                type="color"
-                class="edit-color-input"
-              />
+              <input v-model="editingArea.name" type="text" class="edit-name-input" />
+              <input v-model="editingArea.color" type="color" class="edit-color-input" />
               <CuteButton size="small" @click="saveEdit">保存</CuteButton>
               <CuteButton size="small" @click="editingArea = null">取消</CuteButton>
             </div>
@@ -116,7 +103,7 @@ async function handleDelete(id: string) {
               </div>
               <div class="area-actions">
                 <button class="icon-btn" @click="startEdit(area)">
-                  <CuteIcon name="Edit" :size="16" />
+                  <CuteIcon name="Pencil" :size="16" />
                 </button>
                 <button class="icon-btn delete" @click="handleDelete(area.id)">
                   <CuteIcon name="Trash2" :size="16" />
@@ -285,4 +272,3 @@ async function handleDelete(id: string) {
   cursor: pointer;
 }
 </style>
-
