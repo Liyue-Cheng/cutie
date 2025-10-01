@@ -108,13 +108,8 @@ function handleDragOver(event: DragEvent, targetIndex: number) {
   const draggedIndex = props.tasks.findIndex((t) => t.id === draggedTaskId.value)
   if (draggedIndex === -1) return // 被拖动的任务不在本列表
 
-  // ✅ 死区：避免在交界处来回切换
-  // 如果拖到自己或紧邻位置（上一个/下一个），不触发重排
-  if (
-    draggedIndex === targetIndex ||
-    draggedIndex === targetIndex - 1 ||
-    draggedIndex === targetIndex + 1
-  ) {
+  // 避免不必要的重排：只阻止拖到自己
+  if (draggedIndex === targetIndex) {
     return
   }
 
