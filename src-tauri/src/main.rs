@@ -51,14 +51,29 @@ fn run_tauri_with_sidecar() {
     let discovered_port = Arc::new(Mutex::new(None::<u16>));
     let port_clone = Arc::clone(&discovered_port);
 
+    // 使用Arc<Mutex<Option<u32>>>来存储子进程PID
+    let sidecar_pid = Arc::new(Mutex::new(None::<u32>));
+    let pid_clone = Arc::clone(&sidecar_pid);
+
     // 启动sidecar子进程
     std::thread::spawn(move || {
+        let current_pid = std::process::id();
+
         let mut child = Command::new(std::env::current_exe().unwrap())
             .arg(SIDECAR_ARG)
+            .env("CUTIE_PARENT_PID", current_pid.to_string()) // 传递父进程 PID
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .expect("Failed to start sidecar process");
+
+        let child_pid = child.id();
+        println!("🚀 Sidecar process started with PID: {}", child_pid);
+
+        // 存储子进程PID
+        if let Ok(mut pid_guard) = pid_clone.lock() {
+            *pid_guard = Some(child_pid);
+        }
 
         if let Some(stdout) = child.stdout.take() {
             let reader = BufReader::new(stdout);
@@ -87,11 +102,12 @@ fn run_tauri_with_sidecar() {
         }
 
         // 等待子进程结束
-        let _ = child.wait();
+        let status = child.wait();
+        println!("🛑 Sidecar process exited with status: {:?}", status);
     });
 
-    // 启动Tauri应用，并传递端口发现回调
-    explore_lib::run_with_port_discovery(discovered_port);
+    // 启动Tauri应用，并传递端口发现回调和子进程PID
+    explore_lib::run_with_port_discovery_and_cleanup(discovered_port, sidecar_pid);
 }
 
 /// 打印使用说明

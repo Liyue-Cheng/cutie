@@ -8,7 +8,7 @@ use crate::config::AppConfig;
 use crate::shared::core::{build_info, AppError};
 use crate::startup::{AppState, HealthStatus};
 
-/// 启动Sidecar服务器
+/// 启动Sidecar服务器（带优雅关闭）
 pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
     tracing::info!("Starting Cutie Sidecar Server with new feature-sliced architecture...");
 
@@ -32,12 +32,122 @@ pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
 
     tracing::info!("Sidecar server listening on {}", actual_addr);
 
-    // 启动服务器
+    // 设置优雅关闭信号
+    let shutdown_signal = setup_shutdown_signal();
+
+    // 启动服务器（带优雅关闭）
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
         .await
         .map_err(|e| AppError::configuration_error(format!("Server failed: {}", e)))?;
 
+    tracing::info!("Sidecar server shut down gracefully");
     Ok(())
+}
+
+/// 设置关闭信号监听
+///
+/// 监听 SIGTERM、SIGINT 信号，以及父进程死亡
+async fn setup_shutdown_signal() {
+    use tokio::signal;
+
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    // 父进程监控
+    let parent_monitor = monitor_parent_process();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!("Received Ctrl+C signal, shutting down...");
+        }
+        _ = terminate => {
+            tracing::info!("Received SIGTERM signal, shutting down...");
+        }
+        _ = parent_monitor => {
+            tracing::warn!("Parent process died, shutting down...");
+        }
+    }
+}
+
+/// 监控父进程存活状态
+///
+/// 定期检查父进程是否存活，如果父进程退出则触发关闭
+async fn monitor_parent_process() {
+    // 从环境变量读取父进程 PID（由 main.rs 设置）
+    let parent_pid = match std::env::var("CUTIE_PARENT_PID") {
+        Ok(pid_str) => match pid_str.parse::<u32>() {
+            Ok(pid) => pid,
+            Err(_) => {
+                tracing::warn!("Invalid CUTIE_PARENT_PID, skipping parent monitoring");
+                return;
+            }
+        },
+        Err(_) => {
+            tracing::warn!("CUTIE_PARENT_PID not set, skipping parent monitoring");
+            return;
+        }
+    };
+
+    tracing::info!("Monitoring parent process (PID: {})", parent_pid);
+
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        // 检查父进程是否还存在
+        if !is_process_alive(parent_pid) {
+            tracing::warn!("Parent process (PID: {}) is no longer alive", parent_pid);
+            break;
+        }
+    }
+}
+
+/// 检查进程是否存活（跨平台）
+#[cfg(target_os = "windows")]
+fn is_process_alive(pid: u32) -> bool {
+    use std::process::Command;
+
+    // 使用 tasklist 命令检查进程
+    let output = Command::new("tasklist")
+        .args(&["/FI", &format!("PID eq {}", pid), "/NH"])
+        .output();
+
+    match output {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.contains(&pid.to_string())
+        }
+        Err(_) => {
+            // 如果命令失败，假设进程不存在
+            false
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_process_alive(pid: u32) -> bool {
+    use std::process::Command;
+
+    // Unix/Linux: 使用 kill -0 检查进程
+    Command::new("kill")
+        .args(&["-0", &pid.to_string()])
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }
 
 /// 创建HTTP路由器

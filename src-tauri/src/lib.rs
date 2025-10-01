@@ -87,12 +87,22 @@ pub fn run() {
 
 /// 带端口发现功能的启动函数
 pub fn run_with_port_discovery(discovered_port: Arc<Mutex<Option<u16>>>) {
+    run_with_port_discovery_and_cleanup(discovered_port, Arc::new(Mutex::new(None)));
+}
+
+/// 带端口发现和清理功能的启动函数
+pub fn run_with_port_discovery_and_cleanup(
+    discovered_port: Arc<Mutex<Option<u16>>>,
+    sidecar_pid: Arc<Mutex<Option<u32>>>,
+) {
     // 初始化端口存储
     let _ = SIDECAR_PORT.set(discovered_port);
 
-    // 构建应用并添加端口发现功能（日志初始化在 build_tauri_app 中完成）
+    // 构建应用并添加端口发现和清理功能
+    let pid_for_cleanup = sidecar_pid.clone();
+
     build_tauri_app()
-        .setup(|app| {
+        .setup(move |app| {
             // 记录端口发现模式启动
             tracing::info!("Starting Cutie application with port discovery mode");
 
@@ -113,8 +123,78 @@ pub fn run_with_port_discovery(discovered_port: Arc<Mutex<Option<u16>>>) {
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
             });
+
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(move |_app_handle, event| {
+            // 全局事件处理器 - 捕获应用退出
+            match event {
+                tauri::RunEvent::ExitRequested { .. } => {
+                    tracing::info!("Application exit requested, killing sidecar process...");
+                    cleanup_sidecar_process_by_pid(&pid_for_cleanup);
+                    // 清理完成，允许退出
+                    tracing::info!("Cleanup completed, allowing exit");
+                }
+                _ => {}
+            }
+        });
+}
+
+/// 通过 PID 清理 sidecar 子进程
+fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
+    if let Ok(pid_guard) = pid.lock() {
+        if let Some(process_pid) = *pid_guard {
+            tracing::info!("Attempting to kill sidecar process (PID: {})", process_pid);
+
+            #[cfg(target_os = "windows")]
+            {
+                use std::process::Command;
+                match Command::new("taskkill")
+                    .args(&["/F", "/PID", &process_pid.to_string()])
+                    .output()
+                {
+                    Ok(output) => {
+                        if output.status.success() {
+                            tracing::info!("Sidecar process killed successfully");
+                        } else {
+                            tracing::error!(
+                                "Failed to kill sidecar process: {}",
+                                String::from_utf8_lossy(&output.stderr)
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to execute taskkill: {}", e);
+                    }
+                }
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                use std::process::Command;
+                match Command::new("kill")
+                    .args(&["-9", &process_pid.to_string()])
+                    .output()
+                {
+                    Ok(output) => {
+                        if output.status.success() {
+                            tracing::info!("Sidecar process killed successfully");
+                        } else {
+                            tracing::error!(
+                                "Failed to kill sidecar process: {}",
+                                String::from_utf8_lossy(&output.stderr)
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to execute kill: {}", e);
+                    }
+                }
+            }
+        } else {
+            tracing::warn!("Sidecar process PID not available");
+        }
+    }
 }
