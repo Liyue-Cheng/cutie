@@ -11,16 +11,12 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
   task: TaskCard
-  canMoveUp?: boolean
-  canMoveDown?: boolean
 }>()
 
 const taskStore = useTaskStore()
 const taskOps = useTaskOperations()
 const emit = defineEmits<{
   openEditor: []
-  moveUp: []
-  moveDown: []
 }>()
 
 const contextMenu = useContextMenu()
@@ -62,16 +58,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     @click="emit('openEditor')"
     @contextmenu="showContextMenu"
   >
-    <div class="card-header">
-      <div class="sort-controls">
-        <button v-if="canMoveUp" class="sort-btn" @click.stop="emit('moveUp')" title="向上移动">
-          ↑
-        </button>
-        <button v-if="canMoveDown" class="sort-btn" @click.stop="emit('moveDown')" title="向下移动">
-          ↓
-        </button>
-      </div>
-    </div>
     <div class="main-content">
       <span class="title">{{ task.title }}</span>
 
@@ -130,41 +116,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 .task-card:hover {
   border-color: var(--color-border-hover);
   box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
-}
-
-.card-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.4rem;
-}
-
-.sort-controls {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.sort-btn {
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid var(--color-border-default);
-  background-color: var(--color-background-content);
-  color: var(--color-text-secondary);
-  border-radius: 0.3rem;
-  cursor: pointer;
-  font-size: 1.2rem;
-  font-weight: 600;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.sort-btn:hover {
-  background-color: var(--color-button-primary, #4a90e2);
-  color: white;
-  border-color: var(--color-button-primary, #4a90e2);
-  transform: scale(1.1);
 }
 
 .main-content {

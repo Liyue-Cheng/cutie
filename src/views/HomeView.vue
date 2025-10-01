@@ -52,7 +52,13 @@ async function handleAddTask(title: string) {
   }
 }
 
-// 处理任务向上移动
+// 处理拖拽排序
+async function handleReorder(viewKey: string, newOrder: string[]) {
+  console.log(`[HomeView] 重新排序 ${viewKey}:`, newOrder)
+  await viewStore.updateSorting(viewKey, newOrder)
+}
+
+// 以下方法已废弃，保留用于向后兼容
 async function handleMoveTaskUp(viewKey: string, taskId: string) {
   const currentTasks = getTasksForView(viewKey)
   const index = currentTasks.findIndex((t) => t.id === taskId)
@@ -148,36 +154,36 @@ onMounted(async () => {
             <SimpleKanbanColumn
               title="All"
               subtitle="所有任务"
+              view-key="all"
               :tasks="allTasks"
               @open-editor="handleOpenEditor"
-              @move-task-up="(id: string) => handleMoveTaskUp('all', id)"
-              @move-task-down="(id: string) => handleMoveTaskDown('all', id)"
+              @reorder-tasks="(order) => handleReorder('all', order)"
             />
             <SimpleKanbanColumn
               title="Incomplete"
               subtitle="未完成"
+              view-key="incomplete"
               :tasks="incompleteTasks"
               @open-editor="handleOpenEditor"
-              @move-task-up="(id: string) => handleMoveTaskUp('incomplete', id)"
-              @move-task-down="(id: string) => handleMoveTaskDown('incomplete', id)"
+              @reorder-tasks="(order) => handleReorder('incomplete', order)"
             />
             <SimpleKanbanColumn
               title="Staging"
               subtitle="未排期"
+              view-key="staging"
               :tasks="stagingTasks"
               :show-add-input="true"
               @open-editor="handleOpenEditor"
               @add-task="handleAddTask"
-              @move-task-up="(id: string) => handleMoveTaskUp('staging', id)"
-              @move-task-down="(id: string) => handleMoveTaskDown('staging', id)"
+              @reorder-tasks="(order) => handleReorder('staging', order)"
             />
             <SimpleKanbanColumn
               title="Planned"
               subtitle="已排期"
+              view-key="planned"
               :tasks="plannedTasks"
               @open-editor="handleOpenEditor"
-              @move-task-up="(id: string) => handleMoveTaskUp('planned', id)"
-              @move-task-down="(id: string) => handleMoveTaskDown('planned', id)"
+              @reorder-tasks="(order) => handleReorder('planned', order)"
             />
           </div>
         </template>

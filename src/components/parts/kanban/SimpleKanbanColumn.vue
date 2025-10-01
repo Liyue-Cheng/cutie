@@ -4,22 +4,26 @@ import type { TaskCard } from '@/types/dtos'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 
-defineProps<{
+const props = defineProps<{
   title: string
   subtitle?: string
   tasks: TaskCard[]
   showAddInput?: boolean
+  viewKey?: string // 视图标识，用于保存排序
 }>()
 
 const emit = defineEmits<{
   openEditor: [task: TaskCard]
   addTask: [title: string]
-  moveTaskUp: [taskId: string]
-  moveTaskDown: [taskId: string]
+  reorderTasks: [newOrder: string[]] // 新顺序的任务ID数组
 }>()
 
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
+
+// 拖拽状态
+const draggedTaskId = ref<string | null>(null)
+const draggedOverIndex = ref<number | null>(null)
 
 async function handleAddTask() {
   const title = newTaskTitle.value.trim()
@@ -39,10 +43,22 @@ async function handleAddTask() {
   }
 }
 
-// 处理原生拖拽开始事件
+// ==================== 拖拽排序逻辑 ====================
+
+// 节流控制：防止过度频繁的DOM更新
+let lastDragOverTime = 0
+const DRAG_THROTTLE_MS = 50 // 50ms节流
+
+/**
+ * 拖动开始
+ */
 function handleDragStart(event: DragEvent, task: TaskCard) {
   if (!event.dataTransfer) return
 
+  // 记录被拖动的任务
+  draggedTaskId.value = task.id
+
+  // 设置拖拽数据（供日历等其他组件使用）
   event.dataTransfer.setData(
     'application/json',
     JSON.stringify({
@@ -50,10 +66,98 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
       task: task,
     })
   )
-  event.dataTransfer.effectAllowed = 'copyMove'
+  event.dataTransfer.effectAllowed = 'move'
+
+  // 设置拖拽效果
+  if (event.target instanceof HTMLElement) {
+    event.target.style.opacity = '0.5'
+  }
 }
 
-// 注意：向上/向下移动事件已经通过 emit 直接传递给父组件
+/**
+ * 拖动结束
+ */
+function handleDragEnd(event: DragEvent) {
+  // 恢复样式
+  if (event.target instanceof HTMLElement) {
+    event.target.style.opacity = '1'
+  }
+
+  // 清理状态
+  draggedTaskId.value = null
+  draggedOverIndex.value = null
+  lastDragOverTime = 0 // 重置节流时间戳
+}
+
+/**
+ * 拖动经过其他卡片时（实时重排 + 优化）
+ */
+function handleDragOver(event: DragEvent, targetIndex: number) {
+  event.preventDefault() // 必须调用，否则无法 drop
+
+  // 只处理本列表内的拖拽
+  if (!draggedTaskId.value) return
+
+  // ✅ 节流：限制执行频率，减少闪烁
+  const now = Date.now()
+  if (now - lastDragOverTime < DRAG_THROTTLE_MS) {
+    return
+  }
+  lastDragOverTime = now
+
+  const draggedIndex = props.tasks.findIndex((t) => t.id === draggedTaskId.value)
+  if (draggedIndex === -1) return // 被拖动的任务不在本列表
+
+  // ✅ 死区：避免在交界处来回切换
+  // 如果拖到自己或紧邻位置（上一个/下一个），不触发重排
+  if (
+    draggedIndex === targetIndex ||
+    draggedIndex === targetIndex - 1 ||
+    draggedIndex === targetIndex + 1
+  ) {
+    return
+  }
+
+  draggedOverIndex.value = targetIndex
+
+  // ✅ 实时DOM重排（预览效果）
+  const newOrder = [...props.tasks]
+  const [draggedTask] = newOrder.splice(draggedIndex, 1)
+  if (draggedTask) {
+    newOrder.splice(targetIndex, 0, draggedTask)
+  }
+
+  // 触发实时预览（通过修改 tasks 数组）
+  // 注意：这里只是视觉预览，不持久化
+  emit(
+    'reorderTasks',
+    newOrder.map((t) => t.id)
+  )
+}
+
+/**
+ * 放置（持久化排序）
+ */
+function handleDrop(event: DragEvent) {
+  event.preventDefault()
+
+  if (!draggedTaskId.value) return
+
+  const draggedIndex = props.tasks.findIndex((t) => t.id === draggedTaskId.value)
+  if (draggedIndex === -1) return
+
+  // 获取最终顺序
+  const finalOrder = props.tasks.map((t) => t.id)
+
+  console.log('[SimpleKanbanColumn] Drop完成，最终顺序:', finalOrder)
+
+  // ✅ 持久化到后端（通过父组件）
+  emit('reorderTasks', finalOrder)
+
+  // 清理状态
+  draggedTaskId.value = null
+  draggedOverIndex.value = null
+}
 </script>
 
 <template>
@@ -80,23 +184,22 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
       <div v-if="isCreatingTask" class="creating-indicator">创建中...</div>
     </div>
 
-    <div class="task-list-scroll-area">
+    <div class="task-list-scroll-area" @drop="handleDrop" @dragover.prevent>
       <div
         v-for="(task, index) in tasks"
         :key="task.id"
         class="task-card-wrapper"
         :data-task-id="task.id"
+        :data-dragging="draggedTaskId === task.id"
         draggable="true"
         @dragstart="handleDragStart($event, task)"
+        @dragend="handleDragEnd"
+        @dragover="handleDragOver($event, index)"
       >
         <KanbanTaskCard
           :task="task"
-          :can-move-up="index > 0"
-          :can-move-down="index < tasks.length - 1"
           class="kanban-task-card"
           @open-editor="emit('openEditor', task)"
-          @move-up="emit('moveTaskUp', task.id)"
-          @move-down="emit('moveTaskDown', task.id)"
         />
       </div>
 
@@ -224,14 +327,20 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
 .task-card-wrapper {
   position: relative;
   cursor: grab;
+  transition: transform 0.2s ease;
 }
 
 .task-card-wrapper:active {
   cursor: grabbing;
 }
 
+.task-card-wrapper[data-dragging='true'] {
+  opacity: 0.5;
+}
+
 .kanban-task-card {
   cursor: grab;
+  pointer-events: auto;
 }
 
 .kanban-task-card:active {
