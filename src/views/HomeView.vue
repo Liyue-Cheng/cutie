@@ -180,7 +180,7 @@ onMounted(async () => {
 }
 
 .calendar-pane {
-  flex: 1;
+  width: 30rem;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
 }
