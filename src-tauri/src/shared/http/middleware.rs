@@ -1,12 +1,7 @@
 /// HTTP中间件模块
 ///
 /// 包含各种HTTP中间件实现
-use axum::{
-    extract::Request,
-    http::HeaderValue,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, http::HeaderValue, middleware::Next, response::Response};
 use chrono::Utc;
 use uuid::Uuid;
 

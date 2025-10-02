@@ -3,6 +3,7 @@
 /// 软删除任务，并根据业务规则清理孤儿时间块
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     response::{IntoResponse, Response},
 };
 use sqlx::{Sqlite, Transaction};
@@ -15,7 +16,7 @@ use crate::{
     features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
-        http::error_handler::success_response,
+        http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
 };
@@ -63,8 +64,13 @@ DELETE /api/tasks/{id}
 */
 
 // ==================== HTTP 处理器 ====================
-pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
-    match logic::execute(&app_state, task_id).await {
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Path(task_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Response {
+    let correlation_id = extract_correlation_id(&headers);
+    match logic::execute(&app_state, task_id, correlation_id).await {
         Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
@@ -74,7 +80,11 @@ pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>
 mod logic {
     use super::*;
 
-    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<DeleteTaskResponse> {
+    pub async fn execute(
+        app_state: &AppState,
+        task_id: Uuid,
+        correlation_id: Option<String>,
+    ) -> AppResult<DeleteTaskResponse> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
@@ -142,8 +152,14 @@ mod logic {
                     "deleted_time_blocks": deleted_blocks,  // ✅ 完整对象
                 }
             });
-            let event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
+            let mut event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
+            
+            // 关联 correlation_id（用于前端去重和请求追踪）
+            if let Some(cid) = correlation_id {
+                event = event.with_correlation_id(cid);
+            }
+            
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 

@@ -3,6 +3,7 @@
 /// 将已完成的任务重新打开，使其回到未完成状态
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
@@ -16,7 +17,7 @@ use crate::{
     features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
-        http::error_handler::success_response,
+        http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
 };
@@ -171,50 +172,127 @@ DELETE /api/tasks/00000000-0000-0000-0000-000000000000/completion
 */
 
 // ==================== HTTP 处理器 ====================
-pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
-    match logic::execute(&app_state, task_id).await {
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Path(task_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Response {
+    let handler_start = std::time::Instant::now();
+    tracing::info!("[PERF] reopen_task HANDLER_START for task_id={}", task_id);
+
+    let correlation_id = extract_correlation_id(&headers);
+
+    let logic_start = std::time::Instant::now();
+    let result = logic::execute(&app_state, task_id, correlation_id).await;
+    tracing::info!(
+        "[PERF] reopen_task LOGIC took {:.3}ms",
+        logic_start.elapsed().as_secs_f64() * 1000.0
+    );
+
+    let response_start = std::time::Instant::now();
+    let response = match result {
         Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
-    }
+    };
+    tracing::info!(
+        "[PERF] reopen_task RESPONSE_BUILD took {:.3}ms",
+        response_start.elapsed().as_secs_f64() * 1000.0
+    );
+
+    tracing::info!(
+        "[PERF] reopen_task HANDLER_TOTAL took {:.3}ms",
+        handler_start.elapsed().as_secs_f64() * 1000.0
+    );
+
+    response
 }
 
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
 
-    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<ReopenTaskResponse> {
+    pub async fn execute(
+        app_state: &AppState,
+        task_id: Uuid,
+        _correlation_id: Option<String>,
+    ) -> AppResult<ReopenTaskResponse> {
+        let start_time = std::time::Instant::now();
+        tracing::info!("[PERF] reopen_task START for task_id={}", task_id);
+
         let now = app_state.clock().now_utc();
 
+        // ⏱️ 1. 取连接
+        let acquire_start = std::time::Instant::now();
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
+        tracing::info!(
+            "[PERF] reopen_task ACQUIRE_CONNECTION took {:.3}ms",
+            acquire_start.elapsed().as_secs_f64() * 1000.0
+        );
 
-        // 1. 查找任务
+        // ⏱️ 2. 查找任务
+        let find_task_start = std::time::Instant::now();
         let task = database::find_task_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+        tracing::info!(
+            "[PERF] reopen_task FIND_TASK took {:.3}ms",
+            find_task_start.elapsed().as_secs_f64() * 1000.0
+        );
 
-        // 2. 检查是否未完成
+        // ⏱️ 3. 检查是否未完成
+        let check_start = std::time::Instant::now();
         if !task.is_completed() {
             return Err(AppError::conflict("任务尚未完成"));
         }
+        tracing::info!(
+            "[PERF] reopen_task CHECK_STATUS took {:.3}ms",
+            check_start.elapsed().as_secs_f64() * 1000.0
+        );
 
-        // 3. 重新打开任务（设置 completed_at 为 NULL）
+        // ⏱️ 4. 重新打开任务（设置 completed_at 为 NULL）
+        let update_start = std::time::Instant::now();
         database::set_task_reopened_in_tx(&mut tx, task_id, now).await?;
+        tracing::info!(
+            "[PERF] reopen_task UPDATE_TASK took {:.3}ms",
+            update_start.elapsed().as_secs_f64() * 1000.0
+        );
 
-        // 4. 提交事务
+        // ⏱️ 5. 提交事务
+        let commit_start = std::time::Instant::now();
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
+        tracing::info!(
+            "[PERF] reopen_task COMMIT took {:.3}ms",
+            commit_start.elapsed().as_secs_f64() * 1000.0
+        );
 
-        // 5. 重新查询并组装返回数据
+        // ⏱️ 6. 重新查询并组装返回数据
+        let refetch_start = std::time::Instant::now();
         let updated_task = database::find_task(app_state.db_pool(), task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+        tracing::info!(
+            "[PERF] reopen_task REFETCH_TASK took {:.3}ms",
+            refetch_start.elapsed().as_secs_f64() * 1000.0
+        );
 
+        // ⏱️ 7. 组装响应
+        let assemble_start = std::time::Instant::now();
         let task_card = TaskAssembler::task_to_card_basic(&updated_task);
+        tracing::info!(
+            "[PERF] reopen_task ASSEMBLE_RESPONSE took {:.3}ms",
+            assemble_start.elapsed().as_secs_f64() * 1000.0
+        );
+
+        tracing::info!(
+            "[PERF] reopen_task TOTAL took {:.3}ms",
+            start_time.elapsed().as_secs_f64() * 1000.0
+        );
 
         Ok(ReopenTaskResponse { task: task_card })
     }

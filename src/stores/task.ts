@@ -89,6 +89,35 @@ export const useTaskStore = defineStore('task', () => {
    */
   const error = ref<string | null>(null)
 
+  /**
+   * 待处理的 Correlation IDs（用于去重和请求追踪）
+   *
+   * 原理：
+   * - HTTP 请求时生成并记录 correlation_id
+   * - SSE 事件到达时检查是否是自己触发的
+   * - 如果是，跳过任务数据更新（HTTP 已更新），但仍处理副作用
+   * - 5秒后自动清理（防止内存泄漏）
+   */
+  const pendingCorrelations = ref(new Set<string>())
+
+  /**
+   * 性能计时器：记录每个请求的各阶段时间戳
+   * key: correlation_id
+   * value: { start, httpSent, httpReceived, sseReceived, completed }
+   */
+  const performanceTimers = ref(
+    new Map<
+      string,
+      {
+        start: number
+        httpSent: number
+        httpReceived?: number
+        sseReceived?: number
+        sideEffectsCompleted?: number
+      }
+    >()
+  )
+
   // ============================================================
   // GETTERS - 动态过滤（所有视图的数据源）
   // ============================================================
@@ -404,12 +433,50 @@ export const useTaskStore = defineStore('task', () => {
   async function deleteTask(id: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
+
+    // 生成 correlation_id 用于请求追踪和事件去重
+    const correlationId = crypto.randomUUID()
+    pendingCorrelations.value.add(correlationId)
+
+    // ⏱️ 性能计时：阶段1 - 开始
+    const startTime = performance.now()
+    performanceTimers.value.set(correlationId, {
+      start: startTime,
+      httpSent: 0,
+    })
+    console.log(`[⏱️ Performance] deleteTask START | task: ${id} | correlation: ${correlationId}`)
+
     try {
       const apiBaseUrl = await waitForApiReady()
+
+      // ⏱️ 性能计时：阶段2 - HTTP 请求发送
+      const httpSentTime = performance.now()
+      const timer = performanceTimers.value.get(correlationId)
+      if (timer) {
+        timer.httpSent = httpSentTime
+      }
+      console.log(
+        `[⏱️ Performance] HTTP REQUEST SENT | Δ=${(httpSentTime - startTime).toFixed(2)}ms | correlation: ${correlationId}`
+      )
+
       const response = await fetch(`${apiBaseUrl}/tasks/${id}`, {
         method: 'DELETE',
+        headers: {
+          'X-Correlation-ID': correlationId,
+        },
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      // ⏱️ 性能计时：阶段3 - HTTP 响应接收
+      const httpReceivedTime = performance.now()
+      if (timer) {
+        timer.httpReceived = httpReceivedTime
+      }
+      const httpRoundtrip = httpReceivedTime - httpSentTime
+      const totalSoFar = httpReceivedTime - startTime
+      console.log(
+        `[⏱️ Performance] HTTP RESPONSE RECEIVED | Δ=${httpRoundtrip.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
+      )
 
       // 删除任务（主要响应数据）
       removeTask(id)
@@ -417,14 +484,21 @@ export const useTaskStore = defineStore('task', () => {
       // ✅ 注意：副作用（deleted orphan time blocks）已通过 SSE 推送
       // HTTP响应体现在只返回 success 标志，真实的副作用由事件处理器处理
 
-      console.log('[TaskStore] Deleted task:', id)
+      console.log('[TaskStore] Deleted task (HTTP):', id, 'correlation:', correlationId)
       return true
     } catch (e) {
       error.value = `Failed to delete task ${id}: ${e}`
       console.error('[TaskStore] Error deleting task:', e)
+      // 清理性能计时器
+      performanceTimers.value.delete(correlationId)
       return false
     } finally {
       isLoading.value = false
+      // 10秒后清理 correlation_id 和性能计时器（防止内存泄漏）
+      setTimeout(() => {
+        pendingCorrelations.value.delete(correlationId)
+        performanceTimers.value.delete(correlationId)
+      }, 10000)
     }
   }
 
@@ -435,14 +509,52 @@ export const useTaskStore = defineStore('task', () => {
   async function completeTask(id: string): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
+
+    // 生成 correlation_id 用于请求追踪和事件去重
+    const correlationId = crypto.randomUUID()
+    pendingCorrelations.value.add(correlationId)
+
+    // ⏱️ 性能计时：阶段1 - 开始
+    const startTime = performance.now()
+    performanceTimers.value.set(correlationId, {
+      start: startTime,
+      httpSent: 0,
+    })
+    console.log(`[⏱️ Performance] completeTask START | task: ${id} | correlation: ${correlationId}`)
+
     try {
       const apiBaseUrl = await waitForApiReady()
+
+      // ⏱️ 性能计时：阶段2 - HTTP 请求发送
+      const httpSentTime = performance.now()
+      const timer = performanceTimers.value.get(correlationId)
+      if (timer) {
+        timer.httpSent = httpSentTime
+      }
+      console.log(
+        `[⏱️ Performance] HTTP REQUEST SENT | Δ=${(httpSentTime - startTime).toFixed(2)}ms | correlation: ${correlationId}`
+      )
+
       const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
         method: 'POST',
+        headers: {
+          'X-Correlation-ID': correlationId,
+        },
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const result = await response.json()
       const data = result.data as CompleteTaskResponse
+
+      // ⏱️ 性能计时：阶段3 - HTTP 响应接收
+      const httpReceivedTime = performance.now()
+      if (timer) {
+        timer.httpReceived = httpReceivedTime
+      }
+      const httpRoundtrip = httpReceivedTime - httpSentTime
+      const totalSoFar = httpReceivedTime - startTime
+      console.log(
+        `[⏱️ Performance] HTTP RESPONSE RECEIVED | Δ=${httpRoundtrip.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
+      )
 
       // 更新任务（主要响应数据）
       addOrUpdateTask(data.task)
@@ -450,14 +562,21 @@ export const useTaskStore = defineStore('task', () => {
       // ✅ 注意：副作用（deleted/truncated time blocks）已通过 SSE 推送
       // HTTP响应体现在返回空的ID列表，真实的副作用由事件处理器处理
 
-      console.log('[TaskStore] Completed task:', data.task)
+      console.log('[TaskStore] Completed task (HTTP):', data.task, 'correlation:', correlationId)
       return data.task
     } catch (e) {
       error.value = `Failed to complete task ${id}: ${e}`
       console.error('[TaskStore] Error completing task:', e)
+      // 清理性能计时器
+      performanceTimers.value.delete(correlationId)
       return null
     } finally {
       isLoading.value = false
+      // 10秒后清理 correlation_id 和性能计时器（防止内存泄漏）
+      setTimeout(() => {
+        pendingCorrelations.value.delete(correlationId)
+        performanceTimers.value.delete(correlationId)
+      }, 10000)
     }
   }
 
@@ -468,12 +587,38 @@ export const useTaskStore = defineStore('task', () => {
   async function reopenTask(id: string): Promise<TaskCard | null> {
     isLoading.value = true
     error.value = null
-    console.log('[TaskStore] Reopening task:', id)
+
+    // 生成 correlation_id 用于请求追踪和事件去重
+    const correlationId = crypto.randomUUID()
+    pendingCorrelations.value.add(correlationId)
+
+    // ⏱️ 性能计时：阶段1 - 开始
+    const startTime = performance.now()
+    performanceTimers.value.set(correlationId, {
+      start: startTime,
+      httpSent: 0,
+    })
+    console.log(`[⏱️ Performance] reopenTask START | task: ${id} | correlation: ${correlationId}`)
 
     try {
       const apiBaseUrl = await waitForApiReady()
+
+      // ⏱️ 性能计时：阶段2 - HTTP 请求发送
+      const httpSentTime = performance.now()
+      const httpSentTimestamp = new Date().toISOString()
+      const timer = performanceTimers.value.get(correlationId)
+      if (timer) {
+        timer.httpSent = httpSentTime
+      }
+      console.log(
+        `[⏱️ Performance] HTTP REQUEST SENT | Δ=${(httpSentTime - startTime).toFixed(2)}ms | timestamp=${httpSentTimestamp} | correlation: ${correlationId}`
+      )
+
       const response = await fetch(`${apiBaseUrl}/tasks/${id}/completion`, {
         method: 'DELETE',
+        headers: {
+          'X-Correlation-ID': correlationId,
+        },
       })
       if (!response.ok) {
         const errorData = await response.json()
@@ -483,15 +628,35 @@ export const useTaskStore = defineStore('task', () => {
       const result = await response.json()
       const data = result.data as ReopenTaskResponse
       const reopenedTask: TaskCard = data.task
+
+      // ⏱️ 性能计时：阶段3 - HTTP 响应接收
+      const httpReceivedTime = performance.now()
+      const httpReceivedTimestamp = new Date().toISOString()
+      if (timer) {
+        timer.httpReceived = httpReceivedTime
+      }
+      const httpRoundtrip = httpReceivedTime - httpSentTime
+      const totalSoFar = httpReceivedTime - startTime
+      console.log(
+        `[⏱️ Performance] HTTP RESPONSE RECEIVED | Δ=${httpRoundtrip.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | timestamp=${httpReceivedTimestamp} | correlation: ${correlationId}`
+      )
+
       addOrUpdateTask(reopenedTask)
-      console.log('[TaskStore] Reopened task:', reopenedTask)
+      console.log('[TaskStore] Reopened task (HTTP):', reopenedTask)
       return reopenedTask
     } catch (e) {
       error.value = `Failed to reopen task ${id}: ${e}`
       console.error('[TaskStore] Error reopening task:', e)
+      // 清理性能计时器
+      performanceTimers.value.delete(correlationId)
       throw e // 重新抛出错误，让调用者处理
     } finally {
       isLoading.value = false
+      // 10秒后清理 correlation_id 和性能计时器（防止内存泄漏）
+      setTimeout(() => {
+        pendingCorrelations.value.delete(correlationId)
+        performanceTimers.value.delete(correlationId)
+      }, 10000)
     }
   }
 
@@ -550,42 +715,175 @@ export const useTaskStore = defineStore('task', () => {
   /**
    * 幂等事件处理器：任务完成
    * ✅ 一次性处理整个业务事务（任务 + 所有副作用）
+   * ✅ 基于 correlation_id 去重，避免重复更新
    */
   async function handleTaskCompletedEvent(event: any) {
     const task = event.payload.task
     const sideEffects = event.payload.side_effects
-    console.log('[TaskStore] Handling task.completed event:', task.id, sideEffects)
+    const correlationId = event.correlation_id
 
-    // 直接使用事件中的完整数据，无需额外 HTTP 请求 ✅
-    addOrUpdateTask(task)
+    // ⏱️ 性能计时：阶段4 - SSE 事件接收
+    const sseReceivedTime = performance.now()
+    const timer = correlationId ? performanceTimers.value.get(correlationId) : undefined
+    if (timer) {
+      timer.sseReceived = sseReceivedTime
+      const sseDelay = sseReceivedTime - (timer.httpReceived || timer.httpSent)
+      const totalSoFar = sseReceivedTime - timer.start
+      console.log(
+        `[⏱️ Performance] SSE EVENT RECEIVED | Δ=${sseDelay.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
+      )
+    }
 
-    // 处理副作用：通知 TimeBlockStore
+    // 判断是否是自己触发的操作
+    const isOwnOperation = correlationId && pendingCorrelations.value.has(correlationId)
+
+    if (isOwnOperation) {
+      console.log(
+        '[TaskStore] Skipping duplicate task update (own operation):',
+        task.id,
+        'correlation:',
+        correlationId
+      )
+      // ⚠️ 不更新任务数据（HTTP 响应已更新），但副作用仍要处理
+    } else {
+      console.log(
+        '[TaskStore] Handling task.completed event from other source:',
+        task.id,
+        sideEffects
+      )
+      // 这是其他窗口/客户端触发的，完整更新
+      addOrUpdateTask(task)
+    }
+
+    // 副作用总是处理（因为 HTTP 响应没有副作用数据）
     if (sideEffects?.deleted_time_blocks?.length || sideEffects?.truncated_time_blocks?.length) {
       const { useTimeBlockStore } = await import('./timeblock')
       const timeBlockStore = useTimeBlockStore()
       timeBlockStore.handleTimeBlockSideEffects(sideEffects)
+
+      // ⏱️ 性能计时：阶段5 - 副作用处理完成
+      const sideEffectsCompletedTime = performance.now()
+      if (timer) {
+        timer.sideEffectsCompleted = sideEffectsCompletedTime
+        const sideEffectsDuration = sideEffectsCompletedTime - sseReceivedTime
+        const totalDuration = sideEffectsCompletedTime - timer.start
+
+        console.log(
+          `[⏱️ Performance] SIDE EFFECTS COMPLETED | Δ=${sideEffectsDuration.toFixed(2)}ms | Total=${totalDuration.toFixed(2)}ms | correlation: ${correlationId}`
+        )
+        console.log(
+          `[⏱️ Performance] 📊 COMPLETE SUMMARY | correlation: ${correlationId}\n` +
+            `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
+            `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
+            `  ├─ SSE Delay:          ${((timer.sseReceived || 0) - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
+            `  ├─ Side Effects:       ${sideEffectsDuration.toFixed(2)}ms\n` +
+            `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
+        )
+      }
+    } else {
+      // 没有副作用，也输出总结
+      if (timer) {
+        const totalDuration = sseReceivedTime - timer.start
+        console.log(
+          `[⏱️ Performance] 📊 COMPLETE SUMMARY (no side effects) | correlation: ${correlationId}\n` +
+            `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
+            `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
+            `  ├─ SSE Delay:          ${(sseReceivedTime - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
+            `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
+        )
+      }
+    }
+
+    // 清理 correlation_id（如果有）
+    if (correlationId) {
+      pendingCorrelations.value.delete(correlationId)
     }
   }
 
   /**
    * 幂等事件处理器：任务删除
    * ✅ 一次性处理整个业务事务（任务删除 + 孤儿时间块删除）
+   * ✅ 基于 correlation_id 去重，避免重复删除
    */
   async function handleTaskDeletedEvent(event: any) {
-    const taskId = event.payload.task_id
+    const task = event.payload.task
+    const taskId = task.id
     const sideEffects = event.payload.side_effects
-    console.log('[TaskStore] Handling task.deleted event:', taskId, sideEffects)
+    const correlationId = event.correlation_id
 
-    // 从本地状态移除任务
-    removeTask(taskId)
+    // ⏱️ 性能计时：阶段4 - SSE 事件接收
+    const sseReceivedTime = performance.now()
+    const timer = correlationId ? performanceTimers.value.get(correlationId) : undefined
+    if (timer) {
+      timer.sseReceived = sseReceivedTime
+      const sseDelay = sseReceivedTime - (timer.httpReceived || timer.httpSent)
+      const totalSoFar = sseReceivedTime - timer.start
+      console.log(
+        `[⏱️ Performance] SSE EVENT RECEIVED | Δ=${sseDelay.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
+      )
+    }
 
-    // 处理副作用：通知 TimeBlockStore 删除孤儿时间块
+    // 判断是否是自己触发的操作
+    const isOwnOperation = correlationId && pendingCorrelations.value.has(correlationId)
+
+    if (isOwnOperation) {
+      console.log(
+        '[TaskStore] Skipping duplicate task deletion (own operation):',
+        taskId,
+        'correlation:',
+        correlationId
+      )
+      // ⚠️ 不删除任务（HTTP 响应已删除），但副作用仍要处理
+    } else {
+      console.log('[TaskStore] Handling task.deleted event from other source:', taskId, sideEffects)
+      // 这是其他窗口/客户端触发的，完整处理
+      removeTask(taskId)
+    }
+
+    // 副作用总是处理（因为 HTTP 响应没有副作用数据）
     if (sideEffects?.deleted_time_blocks?.length) {
       const { useTimeBlockStore } = await import('./timeblock')
       const timeBlockStore = useTimeBlockStore()
       timeBlockStore.handleTimeBlockSideEffects({
         deleted_time_blocks: sideEffects.deleted_time_blocks,
       })
+
+      // ⏱️ 性能计时：阶段5 - 副作用处理完成
+      const sideEffectsCompletedTime = performance.now()
+      if (timer) {
+        timer.sideEffectsCompleted = sideEffectsCompletedTime
+        const sideEffectsDuration = sideEffectsCompletedTime - sseReceivedTime
+        const totalDuration = sideEffectsCompletedTime - timer.start
+
+        console.log(
+          `[⏱️ Performance] SIDE EFFECTS COMPLETED | Δ=${sideEffectsDuration.toFixed(2)}ms | Total=${totalDuration.toFixed(2)}ms | correlation: ${correlationId}`
+        )
+        console.log(
+          `[⏱️ Performance] 📊 DELETE SUMMARY | correlation: ${correlationId}\n` +
+            `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
+            `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
+            `  ├─ SSE Delay:          ${((timer.sseReceived || 0) - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
+            `  ├─ Side Effects:       ${sideEffectsDuration.toFixed(2)}ms\n` +
+            `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
+        )
+      }
+    } else {
+      // 没有副作用，也输出总结
+      if (timer) {
+        const totalDuration = sseReceivedTime - timer.start
+        console.log(
+          `[⏱️ Performance] 📊 DELETE SUMMARY (no side effects) | correlation: ${correlationId}\n` +
+            `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
+            `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
+            `  ├─ SSE Delay:          ${(sseReceivedTime - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
+            `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
+        )
+      }
+    }
+
+    // 清理 correlation_id（如果有）
+    if (correlationId) {
+      pendingCorrelations.value.delete(correlationId)
     }
   }
 

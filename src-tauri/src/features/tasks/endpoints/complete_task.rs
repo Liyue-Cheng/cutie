@@ -3,6 +3,7 @@
 /// 按照 Cutie 的精确业务逻辑实现
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
@@ -16,7 +17,7 @@ use crate::{
     features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
-        http::error_handler::success_response,
+        http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
 };
@@ -55,8 +56,13 @@ POST /api/tasks/{id}/completion
 */
 
 // ==================== HTTP 处理器 ====================
-pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>) -> Response {
-    match logic::execute(&app_state, task_id).await {
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Path(task_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Response {
+    let correlation_id = extract_correlation_id(&headers);
+    match logic::execute(&app_state, task_id, correlation_id).await {
         Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
@@ -66,7 +72,11 @@ pub async fn handle(State(app_state): State<AppState>, Path(task_id): Path<Uuid>
 mod logic {
     use super::*;
 
-    pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<CompleteTaskResponse> {
+    pub async fn execute(
+        app_state: &AppState,
+        task_id: Uuid,
+        correlation_id: Option<String>,
+    ) -> AppResult<CompleteTaskResponse> {
         let now = app_state.clock().now_utc();
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
@@ -152,14 +162,21 @@ mod logic {
 
         {
             let payload = serde_json::json!({
-                "task": task_card_for_event,
+                    "task": task_card_for_event,
                 "side_effects": {
                     "deleted_time_blocks": deleted_blocks,     // ✅ 完整对象
                     "truncated_time_blocks": truncated_blocks, // ✅ 完整对象
                 }
             });
-            let event = DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
-                .with_aggregate_version(now.timestamp_millis());
+            let mut event =
+                DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
+                    .with_aggregate_version(now.timestamp_millis());
+
+            // 关联 correlation_id（用于前端去重和请求追踪）
+            if let Some(cid) = correlation_id {
+                event = event.with_correlation_id(cid);
+            }
+
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 

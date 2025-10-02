@@ -41,7 +41,7 @@ POST /api/tasks
 ## 边界情况
 - 如果 title 为空，返回 400 Bad Request
 - 如果 title 超过 255 字符，返回 400 Bad Request
-- 如果 area_id 不存在，返回 404 Not Found
+- 如果 area_id 不存在，目前正常返回
 
 ## 预期副作用
 - 插入一条 tasks 记录

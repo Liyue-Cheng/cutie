@@ -120,10 +120,16 @@ impl IntoResponse for AppError {
 
 /// 创建标准的成功响应
 pub fn success_response<T: serde::Serialize>(data: T) -> impl IntoResponse {
-    (
+    let start = std::time::Instant::now();
+    let response = (
         StatusCode::OK,
         Json(super::responses::ApiResponse::success(data)),
-    )
+    );
+    tracing::debug!(
+        "[PERF] success_response serialization took {:.3}ms",
+        start.elapsed().as_secs_f64() * 1000.0
+    );
+    response
 }
 
 /// 创建201 Created响应

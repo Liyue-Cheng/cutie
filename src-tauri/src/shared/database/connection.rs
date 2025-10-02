@@ -109,7 +109,8 @@ pub async fn initialize_database(
     db_path: &std::path::Path,
     config: &DatabaseConfig,
 ) -> Result<SqlitePool, AppError> {
-    tracing::info!("Initializing database connection pool...");
+    let start_time = std::time::Instant::now();
+    tracing::info!("[PERF] DB_INIT START");
 
     // 确保数据库目录存在
     if let Some(parent) = db_path.parent() {
@@ -131,6 +132,7 @@ pub async fn initialize_database(
     tracing::debug!("Database connection options: {:?}", connection_options);
 
     // 创建连接池
+    let pool_start = std::time::Instant::now();
     let pool = SqlitePoolOptions::new()
         .max_connections(config.max_connections)
         .min_connections(config.min_connections)
@@ -140,21 +142,43 @@ pub async fn initialize_database(
         .connect_with(connection_options)
         .await
         .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-
-    tracing::info!("Database connection pool created successfully with busy_timeout=5000ms");
+    tracing::info!(
+        "[PERF] DB_INIT CREATE_POOL took {:.3}ms",
+        pool_start.elapsed().as_secs_f64() * 1000.0
+    );
 
     // 配置SQLite特定设置（缓存、内存等）
+    let config_start = std::time::Instant::now();
     configure_sqlite(&pool, config).await?;
+    tracing::info!(
+        "[PERF] DB_INIT CONFIGURE_SQLITE took {:.3}ms",
+        config_start.elapsed().as_secs_f64() * 1000.0
+    );
 
     // 运行迁移（如果启用）
     if config.auto_migrate {
+        let migrate_start = std::time::Instant::now();
         run_migrations(&pool).await?;
+        tracing::info!(
+            "[PERF] DB_INIT RUN_MIGRATIONS took {:.3}ms",
+            migrate_start.elapsed().as_secs_f64() * 1000.0
+        );
     }
 
     // 验证数据库连接
+    let verify_start = std::time::Instant::now();
     verify_database_connection(&pool).await?;
+    tracing::info!(
+        "[PERF] DB_INIT VERIFY_CONNECTION took {:.3}ms",
+        verify_start.elapsed().as_secs_f64() * 1000.0
+    );
 
-    tracing::info!("Database initialization completed");
+    tracing::info!(
+        "[PERF] DB_INIT TOTAL took {:.3}ms (max_conn={}, min_conn={}, busy_timeout=5000ms)",
+        start_time.elapsed().as_secs_f64() * 1000.0,
+        config.max_connections,
+        config.min_connections
+    );
     Ok(pool)
 }
 

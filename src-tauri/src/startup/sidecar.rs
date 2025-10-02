@@ -103,13 +103,44 @@ async fn monitor_parent_process() {
         }
     };
 
+    // 支持通过环境变量禁用父进程监控，以避免在开发/本地模式下产生额外开销
+    // CUTIE_DISABLE_PARENT_MONITOR=true 时关闭监控
+    if std::env::var("CUTIE_DISABLE_PARENT_MONITOR")
+        .map(|v| v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        tracing::info!("Parent process monitoring disabled via CUTIE_DISABLE_PARENT_MONITOR=true");
+        return;
+    }
+
+    // 允许通过环境变量配置监控间隔，默认 2000ms
+    let interval_ms: u64 = std::env::var("CUTIE_PARENT_MONITOR_INTERVAL_MS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(2000);
+
     tracing::info!("Monitoring parent process (PID: {})", parent_pid);
 
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(interval_ms));
+
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        interval.tick().await;
+
+        // 在专用阻塞线程池中执行阻塞检查，避免阻塞异步运行时线程
+        let check_start = std::time::Instant::now();
+        let pid = parent_pid;
+        let alive = tokio::task::spawn_blocking(move || is_process_alive(pid))
+            .await
+            .unwrap_or(false);
+        let elapsed = check_start.elapsed().as_secs_f64() * 1000.0;
+        tracing::debug!(
+            "[PERF] parent_monitor check took {:.3}ms (interval={}ms)",
+            elapsed,
+            interval_ms
+        );
 
         // 检查父进程是否还存在
-        if !is_process_alive(parent_pid) {
+        if !alive {
             tracing::warn!("Parent process (PID: {}) is no longer alive", parent_pid);
             break;
         }
@@ -172,7 +203,8 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
         let cors = CorsLayer::new()
             .allow_origin(tower_http::cors::Any)
             .allow_methods(tower_http::cors::Any)
-            .allow_headers(tower_http::cors::Any);
+            .allow_headers(tower_http::cors::Any)
+            .max_age(std::time::Duration::from_secs(3600));
 
         app = app.layer(cors);
     }
@@ -266,7 +298,9 @@ pub async fn run_sidecar() -> Result<(), AppError> {
 
     // 启动事件分发器（后台任务）
     {
-        use crate::shared::events::{dispatcher::EventDispatcher, outbox::SqlxEventOutboxRepository};
+        use crate::shared::events::{
+            dispatcher::EventDispatcher, outbox::SqlxEventOutboxRepository,
+        };
         use std::sync::Arc;
 
         let outbox_repo = Arc::new(SqlxEventOutboxRepository::new(db_pool.clone()));
