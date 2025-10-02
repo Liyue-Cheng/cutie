@@ -47,7 +47,7 @@ pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
 
 /// 设置关闭信号监听
 ///
-/// 监听 SIGTERM、SIGINT 信号，以及父进程死亡
+/// 监听 SIGTERM、SIGINT 信号
 async fn setup_shutdown_signal() {
     use tokio::signal;
 
@@ -68,9 +68,6 @@ async fn setup_shutdown_signal() {
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
-    // 父进程监控
-    let parent_monitor = monitor_parent_process();
-
     tokio::select! {
         _ = ctrl_c => {
             tracing::info!("Received Ctrl+C signal, shutting down...");
@@ -78,108 +75,20 @@ async fn setup_shutdown_signal() {
         _ = terminate => {
             tracing::info!("Received SIGTERM signal, shutting down...");
         }
-        _ = parent_monitor => {
-            tracing::warn!("Parent process died, shutting down...");
-        }
     }
 }
 
-/// 监控父进程存活状态
-///
-/// 定期检查父进程是否存活，如果父进程退出则触发关闭
-async fn monitor_parent_process() {
-    // 从环境变量读取父进程 PID（由 main.rs 设置）
-    let parent_pid = match std::env::var("CUTIE_PARENT_PID") {
-        Ok(pid_str) => match pid_str.parse::<u32>() {
-            Ok(pid) => pid,
-            Err(_) => {
-                tracing::warn!("Invalid CUTIE_PARENT_PID, skipping parent monitoring");
-                return;
-            }
-        },
-        Err(_) => {
-            tracing::warn!("CUTIE_PARENT_PID not set, skipping parent monitoring");
-            return;
-        }
-    };
-
-    // 支持通过环境变量禁用父进程监控，以避免在开发/本地模式下产生额外开销
-    // CUTIE_DISABLE_PARENT_MONITOR=true 时关闭监控
-    if std::env::var("CUTIE_DISABLE_PARENT_MONITOR")
-        .map(|v| v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
-    {
-        tracing::info!("Parent process monitoring disabled via CUTIE_DISABLE_PARENT_MONITOR=true");
-        return;
-    }
-
-    // 允许通过环境变量配置监控间隔，默认 2000ms
-    let interval_ms: u64 = std::env::var("CUTIE_PARENT_MONITOR_INTERVAL_MS")
-        .ok()
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(2000);
-
-    tracing::info!("Monitoring parent process (PID: {})", parent_pid);
-
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(interval_ms));
-
-    loop {
-        interval.tick().await;
-
-        // 在专用阻塞线程池中执行阻塞检查，避免阻塞异步运行时线程
-        let check_start = std::time::Instant::now();
-        let pid = parent_pid;
-        let alive = tokio::task::spawn_blocking(move || is_process_alive(pid))
-            .await
-            .unwrap_or(false);
-        let elapsed = check_start.elapsed().as_secs_f64() * 1000.0;
-        tracing::debug!(
-            "[PERF] parent_monitor check took {:.3}ms (interval={}ms)",
-            elapsed,
-            interval_ms
-        );
-
-        // 检查父进程是否还存在
-        if !alive {
-            tracing::warn!("Parent process (PID: {}) is no longer alive", parent_pid);
-            break;
-        }
-    }
-}
-
-/// 检查进程是否存活（跨平台）
-#[cfg(target_os = "windows")]
-fn is_process_alive(pid: u32) -> bool {
-    use std::process::Command;
-
-    // 使用 tasklist 命令检查进程
-    let output = Command::new("tasklist")
-        .args(&["/FI", &format!("PID eq {}", pid), "/NH"])
-        .output();
-
-    match output {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            stdout.contains(&pid.to_string())
-        }
-        Err(_) => {
-            // 如果命令失败，假设进程不存在
-            false
-        }
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn is_process_alive(pid: u32) -> bool {
-    use std::process::Command;
-
-    // Unix/Linux: 使用 kill -0 检查进程
-    Command::new("kill")
-        .args(&["-0", &pid.to_string()])
-        .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
-}
+// ❌ 父进程监控功能已移除
+//
+// 原因：每 2 秒执行一次同步阻塞的 tasklist/kill 命令会严重影响性能
+// 在 Windows 上，tasklist 可能需要 100-300ms，阻塞整个 Tokio runtime
+//
+// 替代方案：
+// 1. Tauri 会自动管理 sidecar 进程的生命周期
+// 2. 如果需要更精细的控制，可以使用：
+//    - Windows: 使用 WinAPI (OpenProcess + WaitForSingleObject) 的异步封装
+//    - Unix: 使用 pidfd (Linux 5.3+) 或 kqueue (BSD/macOS)
+// 3. 或者从 Tauri 前端定期发送心跳请求
 
 /// 创建HTTP路由器
 async fn create_router(app_state: AppState) -> Result<Router, AppError> {
