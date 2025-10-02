@@ -93,40 +93,56 @@ mod logic {
         // 5. 查询所有链接的时间块
         let linked_blocks = database::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
 
-        // 6. 智能处理时间块，记录受影响的时间块
-        let mut deleted_time_block_ids = Vec::new();
-        let mut truncated_time_block_ids = Vec::new();
+        // 6. 第一遍：收集需要删除的时间块（✅ 在删除之前先查询完整数据）
+        let mut blocks_to_delete = Vec::new();
+        let mut blocks_to_truncate = Vec::new();
+        let mut blocks_to_keep = Vec::new();
 
         for block in linked_blocks {
-            let action = process_time_block(&mut tx, &block, &task.title, task_id, now).await?;
-
+            let action =
+                classify_time_block_action(&block, &task.title, task_id, now, &mut tx).await?;
             match action {
-                TimeBlockAction::Deleted => deleted_time_block_ids.push(block.id),
-                TimeBlockAction::Truncated => truncated_time_block_ids.push(block.id),
-                TimeBlockAction::None => {}
+                TimeBlockAction::Deleted => blocks_to_delete.push(block),
+                TimeBlockAction::Truncated => blocks_to_truncate.push(block),
+                TimeBlockAction::None => blocks_to_keep.push(block),
             }
         }
 
-        // 7. 重新查询任务并组装完整 TaskCard（用于事件载荷）
-        let updated_task_in_tx = database::find_task_in_tx(&mut tx, task_id)
-            .await?
-            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
-        let task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
-
-        // 8. 查询被删除和截断的时间块的完整数据（✅ 禁止片面数据）
+        // 7. 查询将被删除的时间块的完整数据（✅ 在删除之前）
+        let deleted_time_block_ids: Vec<Uuid> = blocks_to_delete.iter().map(|b| b.id).collect();
         let deleted_blocks = if !deleted_time_block_ids.is_empty() {
             database::find_time_blocks_for_event(&mut tx, &deleted_time_block_ids).await?
         } else {
             Vec::new()
         };
 
+        // 8. 现在执行删除和截断操作
+        for block in blocks_to_delete {
+            database::delete_time_block_in_tx(&mut tx, block.id).await?;
+            tracing::info!("Deleted future block {}", block.id);
+        }
+
+        let mut truncated_time_block_ids = Vec::new();
+        for block in blocks_to_truncate {
+            database::truncate_time_block_to_now_in_tx(&mut tx, block.id, now).await?;
+            truncated_time_block_ids.push(block.id);
+            tracing::info!("Truncated ongoing block {} to {}", block.id, now);
+        }
+
+        // 9. 查询被截断的时间块的完整数据（✅ 在截断之后，获取新的 end_time）
         let truncated_blocks = if !truncated_time_block_ids.is_empty() {
             database::find_time_blocks_for_event(&mut tx, &truncated_time_block_ids).await?
         } else {
             Vec::new()
         };
 
-        // 9. 在事务中写入领域事件到 outbox
+        // 10. 重新查询任务并组装完整 TaskCard（用于事件载荷）
+        let updated_task_in_tx = database::find_task_in_tx(&mut tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+        let task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
+
+        // 11. 在事务中写入领域事件到 outbox
         // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）
         use crate::shared::events::{
             models::DomainEvent,
@@ -147,14 +163,14 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 10. 提交事务
+        // 12. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 11. 返回结果（复用事件中的 task_card）
+        // 13. 返回结果（复用事件中的 task_card）
         // HTTP 响应与 SSE 事件载荷保持一致
         Ok(CompleteTaskResponse {
             task: task_card_for_event,
@@ -168,13 +184,13 @@ mod logic {
         Deleted,   // 删除
     }
 
-    /// 智能处理单个时间块，返回执行的动作
-    async fn process_time_block(
-        tx: &mut Transaction<'_, Sqlite>,
+    /// 分类时间块应该执行的动作（不实际执行）
+    async fn classify_time_block_action(
         block: &TimeBlock,
         task_title: &str,
         task_id: Uuid,
         now: chrono::DateTime<Utc>,
+        tx: &mut Transaction<'_, Sqlite>,
     ) -> AppResult<TimeBlockAction> {
         // 1. 检查是否仅链接此任务
         let is_exclusive = database::is_exclusive_link_in_tx(tx, block.id, task_id).await?;
@@ -203,16 +219,14 @@ mod logic {
             return Ok(TimeBlockAction::None);
         }
 
-        // 4. 自动创建的时间块：根据时间处理
+        // 4. 自动创建的时间块：根据时间分类
         if block.start_time <= now && block.end_time > now {
-            // 正在发生：截断到 now
-            database::truncate_time_block_to_now_in_tx(tx, block.id, now).await?;
-            tracing::info!("Truncated ongoing block {} to {}", block.id, now);
+            // 正在发生：需要截断
+            tracing::info!("Block {} is ongoing, will truncate", block.id);
             return Ok(TimeBlockAction::Truncated);
         } else if block.start_time > now {
-            // 在未来：删除
-            database::delete_time_block_in_tx(tx, block.id).await?;
-            tracing::info!("Deleted future block {}", block.id);
+            // 在未来：需要删除
+            tracing::info!("Block {} is in the future, will delete", block.id);
             return Ok(TimeBlockAction::Deleted);
         }
 

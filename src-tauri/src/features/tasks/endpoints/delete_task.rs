@@ -97,29 +97,35 @@ mod logic {
         database::delete_task_links_in_tx(&mut tx, task_id).await?;
         database::delete_task_schedules_in_tx(&mut tx, task_id).await?;
 
-        // 6. 检查并删除孤儿时间块
-        let mut deleted_time_block_ids = Vec::new();
+        // 6. 检查并标记需要删除的孤儿时间块，但先不删除（需要先查询完整数据）
+        let mut blocks_to_delete = Vec::new();
         for block in linked_blocks {
             let should_delete = should_delete_orphan_block(&block, &task_title, &mut tx).await?;
             if should_delete {
-                database::soft_delete_time_block_in_tx(&mut tx, block.id).await?;
-                deleted_time_block_ids.push(block.id);
                 tracing::info!(
-                    "Deleted orphan time block {} after deleting task {}",
+                    "Will delete orphan time block {} after deleting task {}",
                     block.id,
                     task_id
                 );
+                blocks_to_delete.push(block);
             }
         }
 
-        // 7. 查询被删除的时间块的完整数据（✅ 禁止片面数据）
+        // 7. 查询被删除的时间块的完整数据（✅ 在删除之前查询）
+        let deleted_time_block_ids: Vec<uuid::Uuid> =
+            blocks_to_delete.iter().map(|b| b.id).collect();
         let deleted_blocks = if !deleted_time_block_ids.is_empty() {
             database::find_time_blocks_for_event(&mut tx, &deleted_time_block_ids).await?
         } else {
             Vec::new()
         };
 
-        // 8. 在事务中写入领域事件到 outbox
+        // 8. 现在才真正删除时间块
+        for block in blocks_to_delete {
+            database::soft_delete_time_block_in_tx(&mut tx, block.id).await?;
+        }
+
+        // 9. 在事务中写入领域事件到 outbox
         // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）
         use crate::shared::events::{
             models::DomainEvent,
@@ -141,7 +147,7 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 9. 提交事务
+        // 10. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
