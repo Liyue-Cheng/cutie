@@ -113,8 +113,21 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
         let task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
 
-        // 8. 在事务中写入领域事件到 outbox
-        // ✅ 一个业务事务 = 一个领域事件（包含所有副作用）
+        // 8. 查询被删除和截断的时间块的完整数据（✅ 禁止片面数据）
+        let deleted_blocks = if !deleted_time_block_ids.is_empty() {
+            database::find_time_blocks_for_event(&mut tx, &deleted_time_block_ids).await?
+        } else {
+            Vec::new()
+        };
+
+        let truncated_blocks = if !truncated_time_block_ids.is_empty() {
+            database::find_time_blocks_for_event(&mut tx, &truncated_time_block_ids).await?
+        } else {
+            Vec::new()
+        };
+
+        // 9. 在事务中写入领域事件到 outbox
+        // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -125,8 +138,8 @@ mod logic {
             let payload = serde_json::json!({
                 "task": task_card_for_event,
                 "side_effects": {
-                    "deleted_time_blocks": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
-                    "truncated_time_blocks": truncated_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                    "deleted_time_blocks": deleted_blocks,     // ✅ 完整对象
+                    "truncated_time_blocks": truncated_blocks, // ✅ 完整对象
                 }
             });
             let event = DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
@@ -134,14 +147,14 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 9. 提交事务
+        // 10. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 10. 返回结果（复用事件中的 task_card）
+        // 11. 返回结果（复用事件中的 task_card）
         // HTTP 响应与 SSE 事件载荷保持一致
         Ok(CompleteTaskResponse {
             task: task_card_for_event,
@@ -409,5 +422,114 @@ mod database {
             })?;
 
         Ok(())
+    }
+
+    /// 查询时间块的完整数据用于事件载荷
+    /// ✅ 禁止片面数据：返回完整的 TimeBlockViewDto
+    pub async fn find_time_blocks_for_event(
+        tx: &mut Transaction<'_, Sqlite>,
+        time_block_ids: &[Uuid],
+    ) -> AppResult<Vec<crate::entities::TimeBlockViewDto>> {
+        use crate::entities::{
+            task::response_dtos::AreaSummary, LinkedTaskSummary, TimeBlockViewDto,
+        };
+
+        if time_block_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut result = Vec::new();
+
+        for block_id in time_block_ids {
+            // 1. 查询时间块（✅ 完整字段列表）
+            let query = r#"
+                SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
+                       created_at, updated_at, is_deleted, source_info,
+                       external_source_id, external_source_provider, external_source_metadata,
+                       recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+                FROM time_blocks
+                WHERE id = ? AND is_deleted = false
+            "#;
+
+            let block_row = sqlx::query_as::<_, TimeBlockRow>(query)
+                .bind(block_id.to_string())
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                })?;
+
+            if let Some(row) = block_row {
+                let block = TimeBlock::try_from(row).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })?;
+
+                // 2. 查询关联的任务
+                let links_query = r#"
+                    SELECT t.id, t.title, t.completed_at
+                    FROM tasks t
+                    INNER JOIN task_time_block_links l ON t.id = l.task_id
+                    WHERE l.time_block_id = ? AND t.is_deleted = false
+                "#;
+
+                let linked_tasks_rows = sqlx::query_as::<
+                    _,
+                    (String, String, Option<chrono::DateTime<Utc>>),
+                >(links_query)
+                .bind(block_id.to_string())
+                .fetch_all(&mut **tx)
+                .await
+                .map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                })?;
+
+                let linked_tasks: Vec<LinkedTaskSummary> = linked_tasks_rows
+                    .into_iter()
+                    .map(|(id, title, completed_at)| LinkedTaskSummary {
+                        id: Uuid::parse_str(&id).unwrap(),
+                        title,
+                        is_completed: completed_at.is_some(),
+                    })
+                    .collect();
+
+                // 3. 查询 Area 信息（如果有）
+                let area = if let Some(area_id) = block.area_id {
+                    let area_query = "SELECT id, name, color FROM areas WHERE id = ?";
+                    sqlx::query_as::<_, (String, String, String)>(area_query)
+                        .bind(area_id.to_string())
+                        .fetch_optional(&mut **tx)
+                        .await
+                        .map_err(|e| {
+                            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(
+                                e,
+                            ))
+                        })?
+                        .map(|(id, name, color)| AreaSummary {
+                            id: Uuid::parse_str(&id).unwrap(),
+                            name,
+                            color,
+                        })
+                } else {
+                    None
+                };
+
+                // 4. 组装 TimeBlockViewDto
+                let view = TimeBlockViewDto {
+                    id: block.id,
+                    start_time: block.start_time,
+                    end_time: block.end_time,
+                    title: block.title,
+                    glance_note: block.glance_note,
+                    detail_note: block.detail_note,
+                    area,
+                    linked_tasks,
+                    is_recurring: block.recurrence_rule.is_some(),
+                };
+
+                result.push(view);
+            }
+        }
+
+        Ok(result)
     }
 }

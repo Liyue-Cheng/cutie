@@ -347,13 +347,15 @@
 **注意**: 副作用通过 SSE 事件异步推送（一个业务事务 = 一个事件）：
 
 - **事件类型**: `task.deleted`
-- **事件载荷**:
+- **事件载荷**（✅ 禁止片面数据：任务和所有副作用都是完整对象）:
   ```json
   {
-    "task_id": "uuid",
+    "task": { "id": "uuid", "title": "任务标题", ... },  // 完整 TaskCard（删除前）
     "deleted_at": "2025-10-01T12:00:00Z",
     "side_effects": {
-      "deleted_time_blocks": ["uuid1", "uuid2"]  // 被删除的孤儿时间块
+      "deleted_time_blocks": [
+        { "id": "uuid1", "title": "任务标题", "start_time": "...", "end_time": "...", ... }
+      ]
     }
   }
   ```
@@ -455,13 +457,17 @@
 **注意**: 副作用通过 SSE 事件异步推送（一个业务事务 = 一个事件）：
 
 - **事件类型**: `task.completed`
-- **事件载荷**:
+- **事件载荷**（✅ 禁止片面数据：所有副作用都是完整对象）:
   ```json
   {
     "task": { /* 完整的 TaskCard */ },
     "side_effects": {
-      "deleted_time_blocks": ["uuid1", "uuid2"],  // 被删除的未来时间块
-      "truncated_time_blocks": ["uuid3"]          // 被截断的正在进行时间块
+      "deleted_time_blocks": [
+        { "id": "uuid1", "title": "写代码", "start_time": "...", "end_time": "...", ... }
+      ],
+      "truncated_time_blocks": [
+        { "id": "uuid2", "title": "写周报", "start_time": "...", "end_time": "2025-10-01T15:30:00Z", ... }
+      ]
     }
   }
   ```

@@ -5,6 +5,7 @@
 ### ✅ 一个业务事务 = 一个领域事件
 
 **错误示例**（分散的事件）：
+
 ```
 用户操作：完成任务
 └─> HTTP 响应：{ task: {...} }
@@ -14,6 +15,7 @@
 ```
 
 **正确示例**（统一的事件）：
+
 ```
 用户操作：完成任务
 └─> HTTP 响应：{ task: {...} }
@@ -36,28 +38,28 @@
 pub struct DomainEvent {
     /// 事件唯一ID（UUID）
     pub event_id: Uuid,
-    
+
     /// 事件类型（如 task.completed, task.deleted）
     pub event_type: String,
-    
+
     /// 事件契约版本
     pub version: i32,
-    
+
     /// 聚合类型（如 task, time_block）
     pub aggregate_type: String,
-    
+
     /// 聚合根ID
     pub aggregate_id: String,
-    
+
     /// 聚合版本（用于幂等，可为空）
     pub aggregate_version: Option<i64>,
-    
+
     /// 关联的命令ID（HTTP 请求 correlation_id）
     pub correlation_id: Option<String>,
-    
+
     /// 事件发生时间（UTC）
     pub occurred_at: DateTime<Utc>,
-    
+
     /// 事件载荷（JSON）
     pub payload: serde_json::Value,
 }
@@ -68,12 +70,14 @@ pub struct DomainEvent {
 #### `task.completed` - 任务完成
 
 **业务事务**：
+
 - 标记任务为已完成
 - 删除未来的日程
 - 删除未来的时间块
 - 截断正在进行的时间块
 
-**事件载荷**：
+**事件载荷**（✅ 禁止片面数据：所有副作用都是完整对象）：
+
 ```json
 {
   "task": {
@@ -84,26 +88,48 @@ pub struct DomainEvent {
     ...  // 完整的 TaskCard
   },
   "side_effects": {
-    "deleted_time_blocks": ["uuid1", "uuid2"],  // 被删除的未来时间块
-    "truncated_time_blocks": ["uuid3"]          // 被截断的正在进行时间块
+    "deleted_time_blocks": [
+      {
+        "id": "uuid1",
+        "title": "写代码",
+        "start_time": "2025-10-02T14:00:00Z",
+        "end_time": "2025-10-02T16:00:00Z",
+        "area": { "id": "uuid", "name": "工作", "color": "#4A90E2" },
+        "linked_tasks": [],
+        ...  // 完整的 TimeBlockView
+      }
+    ],
+    "truncated_time_blocks": [
+      {
+        "id": "uuid2",
+        "title": "写周报",
+        "start_time": "2025-10-01T14:00:00Z",
+        "end_time": "2025-10-01T15:30:00Z",  // ← 截断后的新 end_time
+        ...  // 完整的 TimeBlockView
+      }
+    ]
   }
 }
 ```
 
-**前端处理**：
+**前端处理**（✅ 零额外请求：直接使用完整对象）：
+
 ```typescript
 handleTaskCompletedEvent(event) {
   // 1. 更新任务状态
   addOrUpdateTask(event.payload.task)
-  
-  // 2. 移除被删除的时间块
-  event.payload.side_effects.deleted_time_blocks.forEach(id => {
-    removeTimeBlock(id)
+
+  // 2. 移除被删除的时间块（完整对象，可显示有意义的通知）
+  event.payload.side_effects.deleted_time_blocks.forEach(block => {
+    removeTimeBlock(block.id)
+    showNotification(`时间块「${block.title}」已删除`)
   })
-  
-  // 3. 重新加载被截断的时间块（获取最新 end_time）
-  const dates = getAffectedDates(event.payload.side_effects.truncated_time_blocks)
-  fetchTimeBlocksForRange(dates[0], dates[dates.length - 1])
+
+  // 3. 更新被截断的时间块（✅ 无需 HTTP 请求）
+  event.payload.side_effects.truncated_time_blocks.forEach(block => {
+    addOrUpdateTimeBlock(block)  // 直接更新完整数据
+    showNotification(`时间块「${block.title}」已截断到 ${block.end_time}`)
+  })
 }
 ```
 
@@ -112,6 +138,7 @@ handleTaskCompletedEvent(event) {
 #### `task.deleted` - 任务删除
 
 **业务事务**：
+
 - 软删除任务
 - 删除所有 task_links
 - 删除所有 task_schedules
@@ -119,25 +146,34 @@ handleTaskCompletedEvent(event) {
 - 删除孤儿时间块（只链接此任务且标题相同）
 
 **事件载荷**：
+
 ```json
 {
-  "task_id": "uuid",
+  "task": { "id": "uuid", "title": "任务标题", ... },
   "deleted_at": "2025-10-01T12:00:00Z",
   "side_effects": {
-    "deleted_time_blocks": ["uuid4", "uuid5"]  // 被删除的孤儿时间块
+    "deleted_time_blocks": [
+      { "id": "uuid1", "title": "任务标题", "start_time": "...", "end_time": "...", ... }
+    ]
   }
 }
 ```
 
-**前端处理**：
+**前端处理**（✅ 零额外请求）：
+
 ```typescript
 handleTaskDeletedEvent(event) {
-  // 1. 移除任务
-  removeTask(event.payload.task_id)
-  
+  // 1. 移除任务（完整对象，可实现撤销）
+  const deletedTask = event.payload.task
+  removeTask(deletedTask.id)
+  showNotification({
+    message: `任务「${deletedTask.title}」已删除`,
+    action: { label: '撤销', onClick: () => restoreTask(deletedTask) }
+  })
+
   // 2. 移除孤儿时间块
-  event.payload.side_effects.deleted_time_blocks.forEach(id => {
-    removeTimeBlock(id)
+  event.payload.side_effects.deleted_time_blocks.forEach(block => {
+    removeTimeBlock(block.id)
   })
 }
 ```
@@ -152,16 +188,16 @@ handleTaskDeletedEvent(event) {
 mod logic {
     pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Response> {
         let mut tx = app_state.db_pool().begin().await?;
-        
+
         // 1. 执行业务逻辑
         let mut deleted_time_block_ids = Vec::new();
         let mut truncated_time_block_ids = Vec::new();
         // ... 业务操作 ...
-        
+
         // 2. 重新查询完整数据
         let updated_task = database::find_task_in_tx(&mut tx, task_id).await?;
         let task_card = TaskAssembler::task_to_card_basic(&updated_task);
-        
+
         // 3. 发布领域事件（在事务内）
         let payload = serde_json::json!({
             "task": task_card,
@@ -170,15 +206,15 @@ mod logic {
                 "truncated_time_blocks": truncated_time_block_ids,
             }
         });
-        
+
         let event = DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
             .with_aggregate_version(now.timestamp_millis());
-        
+
         outbox_repo.append_in_tx(&mut tx, &event).await?;
-        
+
         // 4. 提交事务
         tx.commit().await?;
-        
+
         // 5. 返回 HTTP 响应（与事件载荷一致）
         Ok(Response { task: task_card })
     }
@@ -203,10 +239,10 @@ function initEventSubscriptions() {
 async function handleTaskCompletedEvent(event: any) {
   const task = event.payload.task
   const sideEffects = event.payload.side_effects
-  
+
   // 直接使用事件中的完整数据，无需额外 HTTP 请求 ✅
   addOrUpdateTask(task)
-  
+
   // 通知 TimeBlockStore 处理副作用
   if (sideEffects?.deleted_time_blocks?.length || sideEffects?.truncated_time_blocks?.length) {
     const { useTimeBlockStore } = await import('./timeblock')
@@ -227,10 +263,10 @@ async function handleTimeBlockSideEffects(sideEffects: {
   // 处理删除的时间块
   if (sideEffects.deleted_time_blocks?.length) {
     for (const blockId of sideEffects.deleted_time_blocks) {
-      removeTimeBlock(blockId)  // 幂等操作
+      removeTimeBlock(blockId) // 幂等操作
     }
   }
-  
+
   // 处理截断的时间块：重新获取最新数据
   if (sideEffects.truncated_time_blocks?.length) {
     const dates = getAffectedDates(sideEffects.truncated_time_blocks)
@@ -244,22 +280,27 @@ async function handleTimeBlockSideEffects(sideEffects: {
 ## 4. 优势总结
 
 ### ✅ 1. 原子性（Atomicity）
+
 - 一个业务事务的所有变更作为一个整体传递
 - 避免部分事件丢失导致的状态不一致
 
 ### ✅ 2. 简洁性（Simplicity）
+
 - 前端只需处理一个事件，而不是多个
 - 减少事件处理器的数量和复杂度
 
 ### ✅ 3. 性能（Performance）
+
 - 事件中携带完整数据，避免额外的 HTTP 请求
 - 从 N+1 次请求优化为 1 次请求
 
 ### ✅ 4. 可追溯性（Traceability）
+
 - 一个事件 ID 对应一个完整的业务事务
 - 便于审计和调试
 
 ### ✅ 5. 易于演进（Evolvability）
+
 - 新增副作用只需修改 `side_effects` 字段
 - 不需要定义新的事件类型
 - HTTP 响应保持稳定
@@ -271,6 +312,7 @@ async function handleTimeBlockSideEffects(sideEffects: {
 ### 原方案（分散事件）❌
 
 **问题1**：前端需要处理多个事件
+
 ```typescript
 subscriber.on('task.completed', handleTaskCompleted)
 subscriber.on('time_blocks.deleted', handleTimeBlocksDeleted)
@@ -278,10 +320,12 @@ subscriber.on('time_blocks.truncated', handleTimeBlocksTruncated)
 ```
 
 **问题2**：事件顺序问题
+
 - 如果 `time_blocks.truncated` 先到达，`task.completed` 后到达？
 - 如果某个事件丢失？
 
 **问题3**：需要额外的 HTTP 请求
+
 ```typescript
 handleTaskCompletedEvent(event) {
   const taskId = event.payload.task_id  // 只有 ID
@@ -293,14 +337,17 @@ handleTaskCompletedEvent(event) {
 ### 新方案（统一事件）✅
 
 **优势1**：一次性处理
+
 ```typescript
-subscriber.on('task.completed', handleTaskCompleted)  // 只需一个
+subscriber.on('task.completed', handleTaskCompleted) // 只需一个
 ```
 
 **优势2**：无顺序问题
+
 - 所有变更在一个事件中，天然保证顺序和完整性
 
 **优势3**：零额外请求
+
 ```typescript
 handleTaskCompletedEvent(event) {
   const task = event.payload.task  // 完整数据
@@ -337,6 +384,7 @@ handleTaskCompletedEvent(event) {
 如果业务逻辑增加了新的副作用（例如通知其他用户），只需：
 
 1. 后端在 `side_effects` 中添加新字段：
+
    ```rust
    "side_effects": {
        "deleted_time_blocks": [...],
@@ -387,4 +435,3 @@ handleTaskCompletedEvent(event) {
 **文档版本**: 1.0  
 **最后更新**: 2025-10-01  
 **作者**: Cutie Team
-

@@ -12,6 +12,7 @@ use serde::Serialize;
 
 use crate::{
     entities::TimeBlock,
+    features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
         http::error_handler::success_response,
@@ -78,14 +79,13 @@ mod logic {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
 
-        // 1. 检查任务是否存在
-        let task_exists = database::check_task_exists_in_tx(&mut tx, task_id).await?;
-        if !task_exists {
-            return Err(AppError::not_found("Task", task_id.to_string()));
-        }
+        // 1. 查询任务的完整数据（在删除之前，用于事件载荷 ✅ 禁止片面数据）
+        let task = database::find_task_in_tx(&mut tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        // 2. 获取任务信息（用于判断孤儿时间块）
-        let task_title = database::get_task_title_in_tx(&mut tx, task_id).await?;
+        let task_card = TaskAssembler::task_to_card_basic(&task);
+        let task_title = task.title.clone();
 
         // 3. 找到该任务链接的所有时间块
         let linked_blocks = database::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
@@ -112,8 +112,15 @@ mod logic {
             }
         }
 
-        // 7. 在事务中写入领域事件到 outbox
-        // ✅ 一个业务事务 = 一个领域事件（包含所有副作用）
+        // 7. 查询被删除的时间块的完整数据（✅ 禁止片面数据）
+        let deleted_blocks = if !deleted_time_block_ids.is_empty() {
+            database::find_time_blocks_for_event(&mut tx, &deleted_time_block_ids).await?
+        } else {
+            Vec::new()
+        };
+
+        // 8. 在事务中写入领域事件到 outbox
+        // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -123,10 +130,10 @@ mod logic {
 
         {
             let payload = serde_json::json!({
-                "task_id": task_id.to_string(),
+                "task": task_card,  // ✅ 完整 TaskCard
                 "deleted_at": now.to_rfc3339(),
                 "side_effects": {
-                    "deleted_time_blocks": deleted_time_block_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+                    "deleted_time_blocks": deleted_blocks,  // ✅ 完整对象
                 }
             });
             let event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
@@ -134,7 +141,7 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 8. 提交事务
+        // 9. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
@@ -172,34 +179,7 @@ mod logic {
 // ==================== 数据访问层 ====================
 mod database {
     use super::*;
-    use crate::entities::TimeBlockRow;
-
-    pub async fn check_task_exists_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-    ) -> AppResult<bool> {
-        let query = "SELECT COUNT(*) FROM tasks WHERE id = ?";
-        let count: i64 = sqlx::query_scalar(query)
-            .bind(task_id.to_string())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(count > 0)
-    }
-
-    pub async fn get_task_title_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-    ) -> AppResult<String> {
-        let query = "SELECT title FROM tasks WHERE id = ?";
-        sqlx::query_scalar(query)
-            .bind(task_id.to_string())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))
-    }
+    use crate::entities::{TaskRow, TimeBlockRow};
 
     pub async fn find_linked_time_blocks_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
@@ -302,5 +282,148 @@ mod database {
                 AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
             })?;
         Ok(())
+    }
+
+    /// 查询任务的完整数据（用于事件载荷）
+    pub async fn find_task_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+    ) -> AppResult<Option<crate::entities::Task>> {
+        let query = r#"
+            SELECT id, title, glance_note, detail_note, estimated_duration, 
+                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
+                   created_at, updated_at, is_deleted, source_info,
+                   external_source_id, external_source_provider, external_source_metadata,
+                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+            FROM tasks 
+            WHERE id = ? AND is_deleted = false
+        "#;
+
+        let row = sqlx::query_as::<_, TaskRow>(query)
+            .bind(task_id.to_string())
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            })?;
+
+        match row {
+            Some(r) => {
+                let task = crate::entities::Task::try_from(r).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })?;
+                Ok(Some(task))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// 查询时间块的完整数据用于事件载荷（复用 complete_task.rs 的实现）
+    /// ✅ 禁止片面数据：返回完整的 TimeBlockViewDto
+    pub async fn find_time_blocks_for_event(
+        tx: &mut Transaction<'_, Sqlite>,
+        time_block_ids: &[Uuid],
+    ) -> AppResult<Vec<crate::entities::TimeBlockViewDto>> {
+        use crate::entities::{
+            task::response_dtos::AreaSummary, LinkedTaskSummary, TimeBlockViewDto,
+        };
+
+        if time_block_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut result = Vec::new();
+
+        for block_id in time_block_ids {
+            // 1. 查询时间块（✅ 完整字段列表）
+            let query = r#"
+                SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
+                       created_at, updated_at, is_deleted, source_info,
+                       external_source_id, external_source_provider, external_source_metadata,
+                       recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+                FROM time_blocks
+                WHERE id = ? AND is_deleted = false
+            "#;
+
+            let block_row = sqlx::query_as::<_, TimeBlockRow>(query)
+                .bind(block_id.to_string())
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                })?;
+
+            if let Some(row) = block_row {
+                let block = TimeBlock::try_from(row).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })?;
+
+                // 2. 查询关联的任务
+                let links_query = r#"
+                    SELECT t.id, t.title, t.completed_at
+                    FROM tasks t
+                    INNER JOIN task_time_block_links l ON t.id = l.task_id
+                    WHERE l.time_block_id = ? AND t.is_deleted = false
+                "#;
+
+                let linked_tasks_rows = sqlx::query_as::<
+                    _,
+                    (String, String, Option<chrono::DateTime<chrono::Utc>>),
+                >(links_query)
+                .bind(block_id.to_string())
+                .fetch_all(&mut **tx)
+                .await
+                .map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                })?;
+
+                let linked_tasks: Vec<LinkedTaskSummary> = linked_tasks_rows
+                    .into_iter()
+                    .map(|(id, title, completed_at)| LinkedTaskSummary {
+                        id: Uuid::parse_str(&id).unwrap(),
+                        title,
+                        is_completed: completed_at.is_some(),
+                    })
+                    .collect();
+
+                // 3. 查询 Area 信息（如果有）
+                let area = if let Some(area_id) = block.area_id {
+                    let area_query = "SELECT id, name, color FROM areas WHERE id = ?";
+                    sqlx::query_as::<_, (String, String, String)>(area_query)
+                        .bind(area_id.to_string())
+                        .fetch_optional(&mut **tx)
+                        .await
+                        .map_err(|e| {
+                            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(
+                                e,
+                            ))
+                        })?
+                        .map(|(id, name, color)| AreaSummary {
+                            id: Uuid::parse_str(&id).unwrap(),
+                            name,
+                            color,
+                        })
+                } else {
+                    None
+                };
+
+                // 4. 组装 TimeBlockViewDto
+                let view = TimeBlockViewDto {
+                    id: block.id,
+                    start_time: block.start_time,
+                    end_time: block.end_time,
+                    title: block.title,
+                    glance_note: block.glance_note,
+                    detail_note: block.detail_note,
+                    area,
+                    linked_tasks,
+                    is_recurring: block.recurrence_rule.is_some(),
+                };
+
+                result.push(view);
+            }
+        }
+
+        Ok(result)
     }
 }

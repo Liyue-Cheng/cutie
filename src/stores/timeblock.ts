@@ -461,45 +461,30 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
   /**
    * 统一的副作用处理器
-   * ✅ 被 TaskStore 调用，处理业务事务中的时间块副作用
+   * ✅ 禁止片面数据：接收完整的 TimeBlockView 对象
+   * ✅ 零额外请求：直接使用事件中的数据，无需 HTTP 请求
    */
   async function handleTimeBlockSideEffects(sideEffects: {
-    deleted_time_blocks?: string[]
-    truncated_time_blocks?: string[]
+    deleted_time_blocks?: TimeBlockView[]
+    truncated_time_blocks?: TimeBlockView[]
   }) {
     console.log('[TimeBlockStore] Handling side effects:', sideEffects)
 
-    // 处理删除的时间块
+    // 处理删除的时间块：直接使用完整对象，无需查询
     if (sideEffects.deleted_time_blocks?.length) {
-      for (const blockId of sideEffects.deleted_time_blocks) {
-        removeTimeBlock(blockId)
+      for (const block of sideEffects.deleted_time_blocks) {
+        removeTimeBlock(block.id)
+        console.log(`[TimeBlockStore] Removed time block: ${block.id} ("${block.title}")`)
       }
     }
 
-    // 处理截断的时间块：重新获取最新数据
+    // 处理截断的时间块：直接更新完整数据，无需 HTTP 请求 ✅
     if (sideEffects.truncated_time_blocks?.length) {
-      try {
-        const dates = new Set<string>()
-        for (const blockId of sideEffects.truncated_time_blocks) {
-          const block = getTimeBlockById(blockId)
-          if (block) {
-            const date = new Date(block.start_time).toISOString().split('T')[0]
-            if (date) dates.add(date)
-          }
-        }
-
-        // 重新加载这些日期的时间块
-        if (dates.size > 0) {
-          const dateArray = Array.from(dates).sort()
-          if (dateArray.length > 0) {
-            const startDate = dateArray[0] as string
-            const endDate = dateArray[dateArray.length - 1] as string
-            console.log('[TimeBlockStore] Reloading time blocks for dates:', dateArray)
-            await fetchTimeBlocksForRange(startDate, endDate)
-          }
-        }
-      } catch (e) {
-        console.error('[TimeBlockStore] Failed to refresh truncated time blocks:', e)
+      for (const block of sideEffects.truncated_time_blocks) {
+        addOrUpdateTimeBlock(block)
+        console.log(
+          `[TimeBlockStore] Updated truncated time block: ${block.id} (end_time: ${block.end_time})`
+        )
       }
     }
   }
