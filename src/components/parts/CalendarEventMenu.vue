@@ -1,17 +1,14 @@
 <template>
-  <n-card class="context-menu" content-style="padding: 5px;">
-    <n-button text @click="handleDelete">
-      <template #icon>
-        <CuteIcon name="Trash2" />
-      </template>
-      删除事件
-    </n-button>
-  </n-card>
+  <div class="context-menu">
+    <button class="menu-button delete" @click="handleDelete">
+      <CuteIcon name="Trash2" />
+      <span>删除事件</span>
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
-import { NCard, NButton } from 'naive-ui'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import type { EventApi } from '@fullcalendar/core'
 import { useTimeBlockStore } from '@/stores/timeblock'
@@ -35,5 +32,32 @@ const handleDelete = async () => {
   border-radius: 4px;
   background-color: #fff;
   display: inline-block;
+  padding: 5px;
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-button:hover {
+  background-color: #f5f5f5;
+}
+
+.menu-button.delete {
+  color: #d03050;
+}
+
+.menu-button.delete:hover {
+  background-color: #ffe8ee;
 }
 </style>

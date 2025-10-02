@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard, TaskDetail } from '@/types/dtos'
 import { waitForApiReady } from '@/composables/useApiConfig'
+import { useTimeBlockStore } from './timeblock'
 
 /**
  * Task Store
@@ -219,14 +220,27 @@ export const useTaskStore = defineStore('task', () => {
    * 批量添加或更新任务（单一数据源）
    * 使用扩展运算符合并，保证新数据覆盖旧数据，但不会丢失已有字段
    */
+  // function addOrUpdateTasks(newTasks: (TaskCard | TaskDetail)[]) {
+  //   const newMap = new Map(tasks.value)
+  //   for (const task of newTasks) {
+  //     // 合并现有数据和新数据，新数据优先
+  //     const existingTask = newMap.get(task.id) || {}
+  //     newMap.set(task.id, { ...existingTask, ...task })
+  //   }
+  //   tasks.value = newMap
+  // }
   function addOrUpdateTasks(newTasks: (TaskCard | TaskDetail)[]) {
-    const newMap = new Map(tasks.value)
     for (const task of newTasks) {
-      // 合并现有数据和新数据，新数据优先
-      const existingTask = newMap.get(task.id) || {}
-      newMap.set(task.id, { ...existingTask, ...task })
+      if (!task || !task.id) {
+        console.warn('[TaskStore] Skipping task without ID', task)
+        continue
+      }
+
+      // 正确的做法：直接用服务器返回的权威数据进行设置
+      // tasks.value 是一个响应式 Map，调用 .set() 会被 Vue 侦测到
+      // Vue 会自动将新设置的 task 对象转换为响应式代理
+      tasks.value.set(task.id, task)
     }
-    tasks.value = newMap
   }
 
   /**
@@ -388,7 +402,7 @@ export const useTaskStore = defineStore('task', () => {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const result = await response.json()
-      const updatedTask: TaskCard = result.data
+      const updatedTask: TaskCard = result.data.task
       addOrUpdateTask(updatedTask)
       console.log('[TaskStore] Updated task:', updatedTask)
       return updatedTask
@@ -707,6 +721,9 @@ export const useTaskStore = defineStore('task', () => {
       // 订阅任务完成事件
       subscriber.on('task.completed', handleTaskCompletedEvent)
 
+      // 订阅任务更新事件
+      subscriber.on('task.updated', handleTaskUpdatedEvent)
+
       // 订阅任务删除事件
       subscriber.on('task.deleted', handleTaskDeletedEvent)
     })
@@ -721,6 +738,12 @@ export const useTaskStore = defineStore('task', () => {
     const task = event.payload.task
     const sideEffects = event.payload.side_effects
     const correlationId = event.correlation_id
+
+    // ✅ 数据验证：确保任务数据完整
+    if (!task || !task.id || !task.title) {
+      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      return
+    }
 
     // ⏱️ 性能计时：阶段4 - SSE 事件接收
     const sseReceivedTime = performance.now()
@@ -794,6 +817,83 @@ export const useTaskStore = defineStore('task', () => {
       }
     }
 
+    // 清理 correlation_id（如果有）
+    if (correlationId) {
+      pendingCorrelations.value.delete(correlationId)
+    }
+  }
+
+  /**
+   * 幂等事件处理器：任务更新
+   * ✅ 一次性处理整个业务事务（任务 + 所有副作用）
+   * ✅ 基于 correlation_id 去重，避免重复更新
+   */
+  async function handleTaskUpdatedEvent(event: any) {
+    const task = event.payload.task
+    const sideEffects = event.payload.side_effects
+    const correlationId = event.correlation_id
+    // ✅ 数据验证：确保任务数据完整
+    if (!task || !task.id || !task.title) {
+      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      return
+    }
+    // ⏱️ 性能计时：阶段4 - SSE 事件接收
+    const sseReceivedTime = performance.now()
+    const timer = correlationId ? performanceTimers.value.get(correlationId) : undefined
+    if (timer) {
+      timer.sseReceived = sseReceivedTime
+      const sseDelay = sseReceivedTime - (timer.httpReceived || timer.httpSent)
+      const totalSoFar = sseReceivedTime - timer.start
+      console.log(
+        `[⏱️ Performance] SSE EVENT RECEIVED | Δ=${sseDelay.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
+      )
+    }
+    // 判断是否是自己触发的操作
+    const isOwnOperation = correlationId && pendingCorrelations.value.has(correlationId)
+    if (isOwnOperation) {
+      console.log(
+        '[TaskStore] Skipping duplicate task update (own operation):',
+        task.id,
+        'correlation:',
+        correlationId
+      )
+      // ⚠️ 不更新任务（HTTP 响应已更新），但副作用仍要处理
+    } else {
+      // 不是自己的操作，更新任务
+      console.log('[TaskStore] Updating task from SSE:', task.id)
+      addOrUpdateTask(task)
+    }
+    // 处理副作用（无论是否是自己的操作）
+    if (sideEffects) {
+      console.log('[TaskStore] Processing side effects for task.updated:', sideEffects)
+      // 委托给 TimeBlockStore 处理时间块副作用
+      const timeBlockStore = useTimeBlockStore()
+      await timeBlockStore.handleTimeBlockSideEffects(sideEffects)
+    }
+    // ⏱️ 性能计时：阶段5 - 完成更新处理
+    if (timer) {
+      timer.sideEffectsCompleted = performance.now()
+      const totalDuration = timer.sideEffectsCompleted - timer.start
+      if (sideEffects && Object.keys(sideEffects).length > 0) {
+        const sideEffectsDuration = timer.sideEffectsCompleted - sseReceivedTime
+        console.log(
+          `[⏱️ Performance] 📊 UPDATE SUMMARY (with side effects) | correlation: ${correlationId}\n` +
+            `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
+            `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
+            `  ├─ SSE Delay:          ${(sseReceivedTime - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
+            `  ├─ Side Effects:       ${sideEffectsDuration.toFixed(2)}ms\n` +
+            `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
+        )
+      } else {
+        console.log(
+          `[⏱️ Performance] 📊 UPDATE SUMMARY (no side effects) | correlation: ${correlationId}\n` +
+            `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
+            `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
+            `  ├─ SSE Delay:          ${(sseReceivedTime - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
+            `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
+        )
+      }
+    }
     // 清理 correlation_id（如果有）
     if (correlationId) {
       pendingCorrelations.value.delete(correlationId)

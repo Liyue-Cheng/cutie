@@ -1,7 +1,7 @@
 # 性能测试脚本 (PowerShell) - 测试 reopen 和 complete 任务的延迟 + SSE 丢包检测
 
 # 配置
-$SIDECAR_URL = "http://localhost:10494"
+$SIDECAR_URL = "http://localhost:12305"
 $TASK_ID = "194a6b35-03e6-46f6-927f-d12335dda584"
 $SSE_TIMEOUT_MS = 1000  # SSE 事件超时阈值（毫秒）
 
@@ -237,10 +237,6 @@ for ($i = 1; $i -le $Iterations; $i++) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     
     try {
-        $headers = @{
-            "X-Correlation-ID" = $correlationId
-        }
-        
         # 记录发送时间
         $pendingEntry = @{
             Name      = $name
@@ -249,18 +245,29 @@ for ($i = 1; $i -le $Iterations; $i++) {
         }
         $script:PendingCorrelations[$correlationId] = $pendingEntry
         
-        if ($method -eq "DELETE") {
-            $response = Invoke-WebRequest -Uri "$SIDECAR_URL/api/tasks/$TASK_ID/completion" -Method Delete -Headers $headers -UseBasicParsing -ErrorAction Stop
-        }
-        else {
-            $response = Invoke-WebRequest -Uri "$SIDECAR_URL/api/tasks/$TASK_ID/completion" -Method Post -Headers $headers -UseBasicParsing -ErrorAction Stop
-        }
+        # 使用 HttpClient（模仿前端 fetch）
+        $client = New-Object System.Net.Http.HttpClient
+        $client.Timeout = [TimeSpan]::FromSeconds(30)
+        
+        $request = New-Object System.Net.Http.HttpRequestMessage
+        $request.RequestUri = "$SIDECAR_URL/api/tasks/$TASK_ID/completion"
+        $request.Method = if ($method -eq "DELETE") { [System.Net.Http.HttpMethod]::Delete } else { [System.Net.Http.HttpMethod]::Post }
+        $request.Headers.Add("X-Correlation-ID", $correlationId)
+        
+        $response = $client.SendAsync($request).Result
         
         $stopwatch.Stop()
         $elapsed = $stopwatch.Elapsed.TotalMilliseconds
         $times += $elapsed
         
-        Write-Host ("Run {0,2} ({1,8}): {2,7:N2} ms | HTTP Status: {3} | correlation: {4}" -f $i, $name, $elapsed, $response.StatusCode, $correlationId)
+        if ($response.IsSuccessStatusCode) {
+            Write-Host ("Run {0,2} ({1,8}): {2,7:N2} ms | HTTP Status: {3} | correlation: {4}" -f $i, $name, $elapsed, [int]$response.StatusCode, $correlationId)
+        }
+        else {
+            Write-Host ("Run {0,2} ({1,8}): {2,7:N2} ms | HTTP Status: {3} | correlation: {4}" -f $i, $name, $elapsed, [int]$response.StatusCode, $correlationId) -ForegroundColor Yellow
+        }
+        
+        $client.Dispose()
     }
     catch {
         $stopwatch.Stop()

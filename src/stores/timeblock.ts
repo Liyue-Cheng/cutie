@@ -467,6 +467,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   async function handleTimeBlockSideEffects(sideEffects: {
     deleted_time_blocks?: TimeBlockView[]
     truncated_time_blocks?: TimeBlockView[]
+    updated_time_blocks?: TimeBlockView[]
   }) {
     console.log('[TimeBlockStore] Handling side effects:', sideEffects)
 
@@ -484,6 +485,16 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
         addOrUpdateTimeBlock(block)
         console.log(
           `[TimeBlockStore] Updated truncated time block: ${block.id} (end_time: ${block.end_time})`
+        )
+      }
+    }
+
+    // 处理更新的时间块：直接更新完整数据，无需 HTTP 请求 ✅
+    if (sideEffects.updated_time_blocks?.length) {
+      for (const block of sideEffects.updated_time_blocks) {
+        addOrUpdateTimeBlock(block)
+        console.log(
+          `[TimeBlockStore] Updated time block: ${block.id} (title: "${block.title}", area: ${block.area?.name || 'none'})`
         )
       }
     }

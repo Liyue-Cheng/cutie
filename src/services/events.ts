@@ -52,6 +52,10 @@ export class EventSubscriber {
       this.handleEvent('task.completed', e.data)
     })
 
+    this.eventSource.addEventListener('task.updated', (e: MessageEvent) => {
+      this.handleEvent('task.updated', e.data)
+    })
+
     this.eventSource.addEventListener('task.deleted', (e: MessageEvent) => {
       this.handleEvent('task.deleted', e.data)
     })

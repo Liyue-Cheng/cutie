@@ -15,7 +15,6 @@
     "@fullcalendar/vue3": "^6.1.19",
     "@tauri-apps/api": "^2.8.0",
     "lucide-vue-next": "^0.544.0",
-    "naive-ui": "^2.43.1",
     "pinia": "^3.0.3",
     "splitpanes": "^4.0.4",
     "uuid": "^13.0.0",

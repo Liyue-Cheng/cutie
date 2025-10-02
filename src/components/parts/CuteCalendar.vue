@@ -15,7 +15,6 @@ import FullCalendar from '@fullcalendar/vue3'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { reactive, onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
-import { useMessage } from 'naive-ui'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
@@ -26,7 +25,6 @@ import type { TaskCard } from '@/types/dtos'
 const timeBlockStore = useTimeBlockStore()
 const taskStore = useTaskStore()
 const contextMenu = useContextMenu()
-const message = useMessage()
 
 // 预览时间块状态
 const previewEvent = ref<EventInput | null>(null)
@@ -177,10 +175,8 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
         errorMessage = error
       }
 
-      message.error(`创建事件失败: ${errorMessage}`, {
-        duration: 5000,
-        closable: true,
-      })
+      console.error(`创建事件失败: ${errorMessage}`)
+      alert(`创建事件失败: ${errorMessage}`)
     }
   }
 }
@@ -224,10 +220,8 @@ async function handleEventChange(changeInfo: EventChangeArg) {
       errorMessage = error
     }
 
-    message.error(`更新事件失败: ${errorMessage}`, {
-      duration: 5000,
-      closable: true,
-    })
+    console.error(`更新事件失败: ${errorMessage}`)
+    alert(`更新事件失败: ${errorMessage}`)
 
     changeInfo.revert() // Revert the change on the calendar
   }
@@ -428,11 +422,9 @@ async function handleDrop(event: DragEvent) {
       errorMessage = error
     }
 
-    // 使用 Naive UI 消息组件显示错误
-    message.error(`创建时间块失败: ${errorMessage}`, {
-      duration: 5000, // 显示5秒
-      closable: true,
-    })
+    // 显示错误消息
+    console.error(`创建时间块失败: ${errorMessage}`)
+    alert(`创建时间块失败: ${errorMessage}`)
   } finally {
     // 无论成功还是失败，都要重置标志
     isProcessingDrop.value = false

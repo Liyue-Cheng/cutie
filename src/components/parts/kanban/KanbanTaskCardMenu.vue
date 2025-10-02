@@ -1,14 +1,13 @@
 <template>
-  <n-card class="context-menu" content-style="padding: 5px;">
-    <n-button text @click="handleAction('edit')">编辑任务</n-button>
-    <n-divider vertical />
-    <n-button text type="error" @click="handleAction('delete')">删除任务</n-button>
-  </n-card>
+  <div class="context-menu">
+    <button class="menu-button" @click="handleAction('edit')">编辑任务</button>
+    <div class="divider"></div>
+    <button class="menu-button delete" @click="handleAction('delete')">删除任务</button>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
-import { NCard, NButton, NDivider } from 'naive-ui'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskOperations } from '@/composables/useTaskOperations'
 
@@ -45,6 +44,39 @@ const handleAction = async (action: 'edit' | 'delete') => {
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
   border-radius: 4px;
   background-color: #fff;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px;
+  gap: 5px;
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.menu-button:hover {
+  background-color: #f5f5f5;
+}
+
+.menu-button.delete {
+  color: #d03050;
+}
+
+.menu-button.delete:hover {
+  background-color: #ffe8ee;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: #e0e0e0;
+  margin: 0 4px;
 }
 </style>

@@ -1,30 +1,102 @@
 <script setup lang="ts">
-import { NCheckbox } from 'naive-ui'
+// Custom checkbox component with circular style
+// This component forwards all native checkbox attributes and events
 
-// This component will forward all props and events to the Naive UI checkbox.
-// This is a simple wrapper for style consistency and potential future customization.
+interface Props {
+  checked?: boolean
+  size?: 'small' | 'large'
+}
+
+withDefaults(defineProps<Props>(), {
+  checked: false,
+  size: 'small',
+})
+
+const emit = defineEmits<{
+  'update:checked': [value: boolean]
+}>()
+
+const handleChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:checked', target.checked)
+}
 </script>
 
 <template>
-  <NCheckbox v-bind="$attrs" :focusable="false" />
+  <label class="cute-checkbox" :class="[`size-${size}`]">
+    <input type="checkbox" :checked="checked" @change="handleChange" />
+    <span class="checkmark"></span>
+  </label>
 </template>
 
-<style>
-/* Add any custom styles for the checkbox wrapper here if needed. */
-.n-checkbox .n-checkbox-box {
-  border-radius: 50%;
+<style scoped>
+.cute-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
 }
 
-/* stylelint-disable-next-line selector-class-pattern */
-.n-checkbox.n-checkbox--checked .n-checkbox-box {
+.cute-checkbox input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d9d9d9;
+  border-radius: 50%;
+  background-color: #fff;
+  transition: all 0.2s ease-in-out;
+}
+
+.cute-checkbox:hover .checkmark {
+  border-color: var(--color-status-done);
+}
+
+/* Large size variant - must come before checked state */
+.cute-checkbox.size-large .checkmark {
+  width: 24px;
+  height: 24px;
+}
+
+/* Checked state */
+.cute-checkbox input[type='checkbox']:checked ~ .checkmark {
   background-color: var(--color-status-done);
   border-color: var(--color-status-done);
 }
 
-/* stylelint-disable-next-line selector-class-pattern */
-.n-checkbox.n-checkbox--checked .n-checkbox-box .n-checkbox-box__icon {
-  background-color: var(--color-status-done);
+.cute-checkbox input[type='checkbox']:checked ~ .checkmark::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
-/* For example, to make the click area larger or adjust margins. */
+/* Disabled state */
+.cute-checkbox input[type='checkbox']:disabled ~ .checkmark {
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* Large size with checked state - must come last for specificity */
+.cute-checkbox.size-large input[type='checkbox']:checked ~ .checkmark::after {
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+}
 </style>

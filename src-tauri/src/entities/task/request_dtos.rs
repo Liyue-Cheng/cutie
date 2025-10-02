@@ -25,14 +25,35 @@ pub struct CreateTaskRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateTaskRequest {
     pub title: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub glance_note: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub detail_note: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub estimated_duration: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub subtasks: Option<Option<Vec<Subtask>>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub project_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub area_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub due_date: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub due_date_type: Option<Option<DueDateType>>,
+}
+
+/// 自定义反序列化器，用于正确处理三态字段
+/// - 字段缺失 → None (不更新)
+/// - 字段为 null → Some(None) (设为 NULL)
+/// - 字段有值 → Some(Some(value)) (设为值)
+fn deserialize_nullable_field<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    use serde::Deserialize;
+    Ok(Some(Option::deserialize(deserializer)?))
 }
 
 impl UpdateTaskRequest {
