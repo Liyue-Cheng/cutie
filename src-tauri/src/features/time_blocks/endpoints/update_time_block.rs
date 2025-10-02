@@ -6,14 +6,14 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::{DateTime, Utc};
-use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::{
-        task::response_dtos::AreaSummary, LinkedTaskSummary, TimeBlock, TimeBlockRow,
-        TimeBlockViewDto, UpdateTimeBlockRequest,
+    entities::{TimeBlockViewDto, UpdateTimeBlockRequest},
+    features::{
+        shared::repositories::AreaRepository,
+        tasks::shared::assemblers::LinkedTaskAssembler,
+        time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
     },
     shared::{
         core::{AppError, AppResult},
@@ -116,8 +116,8 @@ mod logic {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
 
-        // 3. 获取现有时间块（确保存在）
-        let existing_block = database::get_time_block_in_tx(&mut tx, id).await?;
+        // 3. 获取现有时间块（确保存在）（✅ 使用共享 Repository）
+        let existing_block = TimeBlockRepository::find_by_id_in_tx(&mut tx, id).await?;
 
         // 4. 确定最终的时间范围
         let final_start_time = request.start_time.unwrap_or(existing_block.start_time);
@@ -132,9 +132,9 @@ mod logic {
             ));
         }
 
-        // 6. 如果时间范围发生变化，检查时间冲突
+        // 6. 如果时间范围发生变化，检查时间冲突（✅ 使用共享 ConflictChecker）
         if request.start_time.is_some() || request.end_time.is_some() {
-            let has_conflict = database::check_time_conflict_in_tx(
+            let has_conflict = TimeBlockConflictChecker::check_in_tx(
                 &mut tx,
                 &final_start_time,
                 &final_end_time,
@@ -152,8 +152,8 @@ mod logic {
         // 7. 获取当前时间戳
         let now = app_state.clock().now_utc();
 
-        // 8. 更新时间块
-        database::update_time_block_in_tx(&mut tx, id, &request, now).await?;
+        // 8. 更新时间块（✅ 使用共享 Repository）
+        TimeBlockRepository::update_in_tx(&mut tx, id, &request, now).await?;
 
         // 9. 提交事务
         tx.commit().await.map_err(|e| {
@@ -162,8 +162,8 @@ mod logic {
             })
         })?;
 
-        // 10. 重新查询时间块以获取最新数据
-        let updated_block = database::get_time_block(app_state.db_pool(), id).await?;
+        // 10. 重新查询时间块以获取最新数据（✅ 使用共享 Repository）
+        let updated_block = TimeBlockRepository::find_by_id(app_state.db_pool(), id).await?;
 
         // 11. 组装返回的 TimeBlockViewDto
         let mut time_block_view = TimeBlockViewDto {
@@ -178,14 +178,15 @@ mod logic {
             is_recurring: updated_block.recurrence_rule.is_some(),
         };
 
-        // 12. 获取区域信息（如果有）
+        // 12. 获取区域信息（如果有）（✅ 使用共享 Repository）
         if let Some(area_id) = updated_block.area_id {
-            time_block_view.area = database::get_area_summary(app_state.db_pool(), area_id).await?;
+            time_block_view.area =
+                AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
         }
 
-        // 13. 获取关联的任务摘要
+        // 13. 获取关联的任务摘要（✅ 使用共享 Assembler）
         time_block_view.linked_tasks =
-            database::get_linked_tasks_for_block(app_state.db_pool(), id).await?;
+            LinkedTaskAssembler::get_for_time_block(app_state.db_pool(), id).await?;
 
         tracing::info!("Updated time block: {}", id);
 
@@ -194,224 +195,9 @@ mod logic {
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-
-    /// 在事务中获取时间块
-    pub async fn get_time_block_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        id: Uuid,
-    ) -> AppResult<TimeBlock> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM time_blocks
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TimeBlockRow>(query)
-            .bind(id.to_string())
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        row.ok_or_else(|| AppError::not_found("TimeBlock", id.to_string()))
-            .and_then(|r| {
-                TimeBlock::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })
-            })
-    }
-
-    /// 获取时间块（非事务）
-    pub async fn get_time_block(pool: &sqlx::SqlitePool, id: Uuid) -> AppResult<TimeBlock> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM time_blocks
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TimeBlockRow>(query)
-            .bind(id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        row.ok_or_else(|| AppError::not_found("TimeBlock", "unknown"))
-            .and_then(|r| {
-                TimeBlock::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })
-            })
-    }
-
-    /// 在事务中检查时间冲突
-    pub async fn check_time_conflict_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        start_time: &DateTime<Utc>,
-        end_time: &DateTime<Utc>,
-        exclude_id: Option<Uuid>,
-    ) -> AppResult<bool> {
-        let mut query = String::from(
-            r#"
-            SELECT COUNT(*) as count
-            FROM time_blocks
-            WHERE is_deleted = false
-              AND start_time < ?
-              AND end_time > ?
-        "#,
-        );
-
-        if let Some(id) = exclude_id {
-            query.push_str(&format!(" AND id != '{}'", id));
-        }
-
-        let count: i64 = sqlx::query_scalar(&query)
-            .bind(end_time.to_rfc3339())
-            .bind(start_time.to_rfc3339())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(count > 0)
-    }
-
-    /// 在事务中更新时间块
-    pub async fn update_time_block_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        id: Uuid,
-        request: &UpdateTimeBlockRequest,
-        updated_at: DateTime<Utc>,
-    ) -> AppResult<()> {
-        let mut updates = Vec::new();
-        let mut bindings: Vec<String> = Vec::new();
-
-        // 构建动态 UPDATE 语句
-        if let Some(ref title_opt) = request.title {
-            updates.push("title = ?");
-            bindings.push(title_opt.clone().unwrap_or_default());
-        }
-
-        if let Some(ref glance_note_opt) = request.glance_note {
-            updates.push("glance_note = ?");
-            bindings.push(glance_note_opt.clone().unwrap_or_default());
-        }
-
-        if let Some(ref detail_note_opt) = request.detail_note {
-            updates.push("detail_note = ?");
-            bindings.push(detail_note_opt.clone().unwrap_or_default());
-        }
-
-        if let Some(start_time) = request.start_time {
-            updates.push("start_time = ?");
-            bindings.push(start_time.to_rfc3339());
-        }
-
-        if let Some(end_time) = request.end_time {
-            updates.push("end_time = ?");
-            bindings.push(end_time.to_rfc3339());
-        }
-
-        if let Some(ref area_id_opt) = request.area_id {
-            updates.push("area_id = ?");
-            bindings.push(area_id_opt.map(|id| id.to_string()).unwrap_or_default());
-        }
-
-        // 如果没有任何字段要更新，直接返回
-        if updates.is_empty() {
-            return Ok(());
-        }
-
-        // 添加 updated_at
-        updates.push("updated_at = ?");
-
-        let query = format!("UPDATE time_blocks SET {} WHERE id = ?", updates.join(", "));
-
-        let mut query_builder = sqlx::query(&query);
-
-        // 绑定参数
-        for binding in bindings {
-            query_builder = query_builder.bind(binding);
-        }
-
-        // 绑定 updated_at 和 id
-        query_builder = query_builder
-            .bind(updated_at.to_rfc3339())
-            .bind(id.to_string());
-
-        query_builder.execute(&mut **tx).await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
-
-        Ok(())
-    }
-
-    /// 获取区域摘要信息
-    pub async fn get_area_summary(
-        pool: &sqlx::SqlitePool,
-        area_id: Uuid,
-    ) -> AppResult<Option<AreaSummary>> {
-        let query = r#"
-            SELECT id, name, color
-            FROM areas
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.map(|(id, name, color)| AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
-    }
-
-    /// 获取时间块关联的任务摘要
-    pub async fn get_linked_tasks_for_block(
-        pool: &sqlx::SqlitePool,
-        block_id: Uuid,
-    ) -> AppResult<Vec<LinkedTaskSummary>> {
-        let query = r#"
-            SELECT t.id, t.title, t.completed_at
-            FROM tasks t
-            INNER JOIN task_time_block_links ttbl ON t.id = ttbl.task_id
-            WHERE ttbl.time_block_id = ? AND t.is_deleted = false
-        "#;
-
-        let rows = sqlx::query_as::<_, (String, String, Option<String>)>(query)
-            .bind(block_id.to_string())
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        let summaries = rows
-            .into_iter()
-            .map(|(id, title, completed_at)| LinkedTaskSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                title,
-                is_completed: completed_at.is_some(),
-            })
-            .collect();
-
-        Ok(summaries)
-    }
-}
+// ✅ 已全部迁移到共享 Repository：
+// - TimeBlockRepository::find_by_id_in_tx, find_by_id
+// - TimeBlockConflictChecker::check_in_tx
+// - TimeBlockRepository::update_in_tx
+// - AreaRepository::get_summary
+// - LinkedTaskAssembler::get_for_time_block

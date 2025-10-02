@@ -6,15 +6,16 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Response},
 };
-use chrono::Utc;
-use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use serde::Serialize;
 
 use crate::{
     entities::TaskCardDto,
-    features::tasks::shared::TaskAssembler,
+    features::{
+        shared::repositories::AreaRepository,
+        tasks::shared::{repositories::TaskRepository, TaskAssembler, TaskScheduleRepository},
+    },
     shared::{
         core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
@@ -106,7 +107,7 @@ DELETE /api/tasks/550e8400-e29b-41d4-a716-446655440000/completion
       "glance_note": "需要包含数据分析部分",
       "is_completed": false,
       "completed_at": null,
-      "schedule_status": "staging",
+      "schedule_status": "scheduled",  // 如果任务有日程记录则为 "scheduled"，否则为 "staging"
       "area": {
         "id": "area-123",
         "name": "工作",
@@ -210,6 +211,7 @@ pub async fn handle(
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
+    use crate::features::shared::TransactionHelper;
 
     pub async fn execute(
         app_state: &AppState,
@@ -221,19 +223,17 @@ mod logic {
 
         let now = app_state.clock().now_utc();
 
-        // ⏱️ 1. 取连接
+        // ⏱️ 1. 取连接（✅ 使用 TransactionHelper）
         let acquire_start = std::time::Instant::now();
-        let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
+        let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
         tracing::info!(
             "[PERF] reopen_task ACQUIRE_CONNECTION took {:.3}ms",
             acquire_start.elapsed().as_secs_f64() * 1000.0
         );
 
-        // ⏱️ 2. 查找任务
+        // ⏱️ 2. 查找任务（✅ 使用共享 Repository）
         let find_task_start = std::time::Instant::now();
-        let task = database::find_task_in_tx(&mut tx, task_id)
+        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
         tracing::info!(
@@ -251,29 +251,25 @@ mod logic {
             check_start.elapsed().as_secs_f64() * 1000.0
         );
 
-        // ⏱️ 4. 重新打开任务（设置 completed_at 为 NULL）
+        // ⏱️ 4. 重新打开任务（✅ 使用共享 Repository）
         let update_start = std::time::Instant::now();
-        database::set_task_reopened_in_tx(&mut tx, task_id, now).await?;
+        TaskRepository::set_reopened_in_tx(&mut tx, task_id, now).await?;
         tracing::info!(
             "[PERF] reopen_task UPDATE_TASK took {:.3}ms",
             update_start.elapsed().as_secs_f64() * 1000.0
         );
 
-        // ⏱️ 5. 提交事务
+        // ⏱️ 5. 提交事务（✅ 使用 TransactionHelper）
         let commit_start = std::time::Instant::now();
-        tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
-                message: e.to_string(),
-            })
-        })?;
+        TransactionHelper::commit(tx).await?;
         tracing::info!(
             "[PERF] reopen_task COMMIT took {:.3}ms",
             commit_start.elapsed().as_secs_f64() * 1000.0
         );
 
-        // ⏱️ 6. 重新查询并组装返回数据
+        // ⏱️ 6. 重新查询并组装返回数据（✅ 使用共享 Repository）
         let refetch_start = std::time::Instant::now();
-        let updated_task = database::find_task(app_state.db_pool(), task_id)
+        let updated_task = TaskRepository::find_by_id(app_state.db_pool(), task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
         tracing::info!(
@@ -283,7 +279,23 @@ mod logic {
 
         // ⏱️ 7. 组装响应
         let assemble_start = std::time::Instant::now();
-        let task_card = TaskAssembler::task_to_card_basic(&updated_task);
+        let mut task_card = TaskAssembler::task_to_card_basic(&updated_task);
+
+        // ✅ 修复：正确判断 schedule_status（✅ 使用共享 Repository）
+        // 如果任务有任何 schedule 记录，状态就是 scheduled，否则是 staging
+        let has_schedule =
+            TaskScheduleRepository::has_any_schedule(app_state.db_pool(), task_id).await?;
+        task_card.schedule_status = if has_schedule {
+            crate::entities::ScheduleStatus::Scheduled
+        } else {
+            crate::entities::ScheduleStatus::Staging
+        };
+
+        // 获取 area 信息（✅ 使用共享 Repository）
+        if let Some(area_id) = updated_task.area_id {
+            task_card.area = AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
+        }
+
         tracing::info!(
             "[PERF] reopen_task ASSEMBLE_RESPONSE took {:.3}ms",
             assemble_start.elapsed().as_secs_f64() * 1000.0
@@ -299,91 +311,7 @@ mod logic {
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-    use crate::entities::TaskRow;
-
-    pub async fn find_task_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-    ) -> AppResult<Option<crate::entities::Task>> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TaskRow>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        match row {
-            Some(r) => {
-                let task = crate::entities::Task::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })?;
-                Ok(Some(task))
-            }
-            None => Ok(None),
-        }
-    }
-
-    pub async fn find_task(
-        pool: &sqlx::SqlitePool,
-        task_id: Uuid,
-    ) -> AppResult<Option<crate::entities::Task>> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TaskRow>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        match row {
-            Some(r) => {
-                let task = crate::entities::Task::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })?;
-                Ok(Some(task))
-            }
-            None => Ok(None),
-        }
-    }
-
-    /// 重新打开任务：将 completed_at 设置为 NULL，更新 updated_at
-    pub async fn set_task_reopened_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        updated_at: chrono::DateTime<Utc>,
-    ) -> AppResult<()> {
-        let query = "UPDATE tasks SET completed_at = NULL, updated_at = ? WHERE id = ?";
-        sqlx::query(query)
-            .bind(updated_at.to_rfc3339())
-            .bind(task_id.to_string())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(())
-    }
-}
+// ✅ 已全部迁移到共享 Repository：
+// - TaskRepository::find_by_id_in_tx, find_by_id, set_reopened_in_tx
+// - TaskScheduleRepository::has_any_schedule
+// - AreaRepository::get_summary

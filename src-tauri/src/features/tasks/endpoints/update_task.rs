@@ -6,14 +6,18 @@ use axum::{
     Json,
 };
 use serde::Serialize;
-use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::{
-        task::response_dtos::AreaSummary, ScheduleStatus, Task, TaskCardDto, UpdateTaskRequest,
+    entities::{ScheduleStatus, TaskCardDto, UpdateTaskRequest},
+    features::{
+        shared::repositories::AreaRepository,
+        tasks::shared::{
+            assemblers::TimeBlockAssembler,
+            repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
+            TaskAssembler,
+        },
     },
-    features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
@@ -120,6 +124,7 @@ mod validation {
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
+    use crate::features::shared::TransactionHelper;
 
     pub async fn execute(
         app_state: &AppState,
@@ -133,33 +138,35 @@ mod logic {
 
         let now = app_state.clock().now_utc();
 
-        // 2. 开启事务
-        let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
+        // 2. 开启事务（✅ 使用 TransactionHelper）
+        let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
-        // 3. 查询旧任务数据（用于比较变更）
-        let old_task = database::find_task_in_tx(&mut tx, task_id)
+        // 3. 查询旧任务数据（✅ 使用共享 Repository）
+        let old_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        // 4. 更新任务
-        database::update_task_in_tx(&mut tx, task_id, &request).await?;
+        // 4. 更新任务（✅ 使用共享 Repository）
+        TaskRepository::update_in_tx(&mut tx, task_id, &request).await?;
 
         // 5. 检查标题或 area 是否有变更
         let title_changed =
             request.title.is_some() && request.title.as_ref() != Some(&old_task.title);
         let area_changed = request.area_id.is_some() && request.area_id != Some(old_task.area_id);
 
-        // 6. 如果标题或 area 有变更，更新唯一关联的时间块
+        // 6. 如果标题或 area 有变更，更新唯一关联的时间块（✅ 使用共享 Repository）
         let mut updated_time_block_ids = Vec::new();
         if title_changed || area_changed {
-            let linked_blocks = database::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
+            let linked_blocks =
+                TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx(&mut tx, task_id)
+                    .await?;
 
             for block in linked_blocks {
-                // 检查是否是唯一关联
-                let is_exclusive =
-                    database::is_exclusive_link_in_tx(&mut tx, block.id, task_id).await?;
+                // 检查是否是唯一关联（✅ 使用共享 Repository）
+                let is_exclusive = TaskTimeBlockLinkRepository::is_exclusive_link_in_tx(
+                    &mut tx, block.id, task_id,
+                )
+                .await?;
                 if !is_exclusive {
                     continue;
                 }
@@ -176,15 +183,12 @@ mod logic {
                     continue;
                 }
 
-                // 更新时间块的标题和 area
-                let new_title = request.title.clone();
-                let new_area_id = request.area_id.clone(); // 保留三态：不更新/置空/设置值
-
-                database::update_time_block_in_tx(
+                // 更新时间块的标题和 area（✅ 调用数据访问层）
+                database::update_time_block_title_and_area_in_tx(
                     &mut tx,
                     block.id,
-                    new_title.as_deref(),
-                    new_area_id,
+                    request.title.as_deref(),
+                    request.area_id,
                     now,
                 )
                 .await?;
@@ -198,23 +202,20 @@ mod logic {
             }
         }
 
-        // 7. 查询更新后的完整时间块数据（用于事件）
-        let updated_blocks = if !updated_time_block_ids.is_empty() {
-            database::find_time_blocks_for_event(&mut tx, &updated_time_block_ids).await?
-        } else {
-            Vec::new()
-        };
+        // 7. 查询更新后的完整时间块数据（✅ 使用共享装配器）
+        let updated_blocks =
+            TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &updated_time_block_ids).await?;
 
-        // 8. 重新查询任务以获取最新数据
-        let task = database::find_task_in_tx(&mut tx, task_id)
+        // 8. 重新查询任务以获取最新数据（✅ 使用共享 Repository）
+        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         // 9. 组装 TaskCardDto（用于事件载荷）
         let mut task_card_for_event = TaskAssembler::task_to_card_basic(&task);
 
-        // 9.1. 在事务内查询关联信息，确保 SSE 事件中的任务数据是完整的
-        let has_schedule = database::has_any_schedule_in_tx(&mut tx, task_id).await?;
+        // 9.1. 在事务内查询关联信息（✅ 使用共享 Repository）
+        let has_schedule = TaskScheduleRepository::has_any_schedule(&mut *tx, task_id).await?;
         task_card_for_event.schedule_status = if has_schedule {
             ScheduleStatus::Scheduled
         } else {
@@ -222,7 +223,7 @@ mod logic {
         };
 
         if let Some(area_id) = task.area_id {
-            task_card_for_event.area = database::get_area_summary_in_tx(&mut tx, area_id).await?;
+            task_card_for_event.area = AreaRepository::get_summary(&mut *tx, area_id).await?;
         }
 
         // 10. 在事务中写入领域事件到 outbox
@@ -250,12 +251,8 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 11. 提交事务
-        tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
-                message: e.to_string(),
-            })
-        })?;
+        // 11. 提交事务（✅ 使用 TransactionHelper）
+        TransactionHelper::commit(tx).await?;
 
         // 12. 返回结果（复用事件中的 task_card）
         // HTTP 响应与 SSE 事件载荷保持一致
@@ -268,232 +265,32 @@ mod logic {
 // ==================== 数据访问层 ====================
 mod database {
     use super::*;
-    use crate::entities::{TaskRow, TimeBlock, TimeBlockRow};
+    use chrono::{DateTime, Utc};
+    use sqlx::{Sqlite, Transaction};
 
-    pub async fn find_task_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-    ) -> AppResult<Option<Task>> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TaskRow>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        match row {
-            Some(r) => {
-                let task = Task::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })?;
-                Ok(Some(task))
-            }
-            None => Ok(None),
-        }
-    }
-
-    pub async fn update_task_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        request: &UpdateTaskRequest,
-    ) -> AppResult<()> {
-        let now = chrono::Utc::now();
-
-        // tracing::info!("📝 update_task_in_tx: request = {:?}", request);
-
-        // 收集需要更新的列
-        let mut set_clauses: Vec<&str> = Vec::new();
-        if request.title.is_some() {
-            set_clauses.push("title = ?");
-        }
-        if request.glance_note.is_some() {
-            set_clauses.push("glance_note = ?");
-            // tracing::info!("  glance_note will be set to: {:?}", request.glance_note);
-        }
-        if request.detail_note.is_some() {
-            set_clauses.push("detail_note = ?");
-            // tracing::info!("  detail_note will be set to: {:?}", request.detail_note);
-        }
-        if request.subtasks.is_some() {
-            set_clauses.push("subtasks = ?");
-        }
-        if request.area_id.is_some() {
-            set_clauses.push("area_id = ?");
-            // tracing::info!("  area_id will be set to: {:?}", request.area_id);
-        }
-
-        if set_clauses.is_empty() {
-            return Ok(());
-        }
-
-        // 追加更新时间
-        set_clauses.push("updated_at = ?");
-        let update_clause = set_clauses.join(", ");
-        let query = format!("UPDATE tasks SET {} WHERE id = ?", update_clause);
-
-        let mut q = sqlx::query(&query);
-
-        // 按顺序绑定各字段的值（正确处理 NULL）
-        if let Some(title) = &request.title {
-            q = q.bind(title.clone());
-        }
-        if let Some(glance_note) = &request.glance_note {
-            // Option<Option<String>>: None = 不更新, Some(None) = 设为 NULL, Some(Some(v)) = 设为 v
-            q = q.bind(glance_note.clone());
-        }
-        if let Some(detail_note) = &request.detail_note {
-            q = q.bind(detail_note.clone());
-        }
-        if let Some(subtasks) = &request.subtasks {
-            // 将 Vec<Subtask> 序列化为 JSON 字符串；None 表示置 NULL
-            let value: Option<String> = match subtasks {
-                Some(list) => Some(serde_json::to_string(list).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e.to_string()))
-                })?),
-                None => None,
-            };
-            q = q.bind(value);
-        }
-        if let Some(area_id) = &request.area_id {
-            // None 表示置 NULL；Some(uuid) 表示设置；转换为 Option<String>
-            let bind_val: Option<String> = area_id.map(|id| id.to_string());
-            q = q.bind(bind_val);
-        }
-
-        // 绑定 updated_at 与 id
-        q = q.bind(now.to_rfc3339());
-        q = q.bind(task_id.to_string());
-
-        let result = q.execute(&mut **tx).await.map_err(|e| {
-            tracing::error!("❌ SQL execution error: {:?}", e);
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
-
-        tracing::info!(
-            "✅ Task updated, rows_affected = {}",
-            result.rows_affected()
-        );
-
-        Ok(())
-    }
-
-    pub async fn has_any_schedule_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-    ) -> AppResult<bool> {
-        let query = "SELECT COUNT(*) FROM task_schedules WHERE task_id = ?";
-        let count: i64 = sqlx::query_scalar(query)
-            .bind(task_id.to_string())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(count > 0)
-    }
-
-    pub async fn get_area_summary_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        area_id: Uuid,
-    ) -> AppResult<Option<AreaSummary>> {
-        let query = "SELECT id, name, color FROM areas WHERE id = ? AND is_deleted = false";
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.map(|(id, name, color)| AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
-    }
-
-    pub async fn find_linked_time_blocks_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-    ) -> AppResult<Vec<TimeBlock>> {
-        let query = r#"
-            SELECT DISTINCT
-                tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time, 
-                tb.area_id, tb.created_at, tb.updated_at, tb.is_deleted, tb.source_info,
-                tb.external_source_id, tb.external_source_provider, tb.external_source_metadata,
-                tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_date, 
-                tb.recurrence_exclusions
-            FROM time_blocks tb
-            INNER JOIN task_time_block_links ttbl ON tb.id = ttbl.time_block_id
-            WHERE ttbl.task_id = ? AND tb.is_deleted = false
-        "#;
-
-        let rows = sqlx::query_as::<_, TimeBlockRow>(query)
-            .bind(task_id.to_string())
-            .fetch_all(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        let blocks: Result<Vec<TimeBlock>, _> = rows.into_iter().map(TimeBlock::try_from).collect();
-
-        blocks.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
-    }
-
-    /// 检查时间块是否仅链接此任务
-    pub async fn is_exclusive_link_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        block_id: Uuid,
-        _task_id: Uuid, // 用于未来验证，当前只检查总数
-    ) -> AppResult<bool> {
-        let query = r#"
-            SELECT COUNT(*) as count
-            FROM task_time_block_links
-            WHERE time_block_id = ?
-        "#;
-
-        let total_count: i64 = sqlx::query_scalar(query)
-            .bind(block_id.to_string())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        // 如果只有1个链接，且是这个任务，则为独占
-        Ok(total_count == 1)
-    }
-
-    /// 更新时间块的标题和 area
-    pub async fn update_time_block_in_tx(
+    /// 更新时间块的标题和 area（仅用于任务更新时的联动更新）
+    pub async fn update_time_block_title_and_area_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         block_id: Uuid,
         new_title: Option<&str>,
         new_area_id: Option<Option<Uuid>>, // None: 不更新; Some(None): 置 NULL; Some(Some(id)): 设置
-        now: chrono::DateTime<chrono::Utc>,
+        now: DateTime<Utc>,
     ) -> AppResult<()> {
-        let mut set_clauses: Vec<&str> = Vec::new();
-        if new_title.is_some() {
+        let mut set_clauses = Vec::new();
+        let mut binds: Vec<String> = Vec::new();
+
+        if let Some(title) = new_title {
             set_clauses.push("title = ?");
+            binds.push(title.to_string());
         }
-        if new_area_id.is_some() {
+
+        if let Some(area_opt) = new_area_id {
             set_clauses.push("area_id = ?");
+            binds.push(area_opt.map(|id| id.to_string()).unwrap_or_default());
         }
 
         if set_clauses.is_empty() {
-            return Ok(());
+            return Ok(()); // 没有需要更新的字段
         }
 
         set_clauses.push("updated_at = ?");
@@ -501,13 +298,8 @@ mod database {
         let query = format!("UPDATE time_blocks SET {} WHERE id = ?", update_clause);
 
         let mut q = sqlx::query(&query);
-        if let Some(title) = new_title {
-            q = q.bind(title.to_string());
-        }
-        if let Some(area_opt) = new_area_id {
-            // 正确处理 Option<Uuid>: None = NULL, Some(id) = 值
-            let bind_val: Option<String> = area_opt.map(|id| id.to_string());
-            q = q.bind(bind_val);
+        for bind in binds {
+            q = q.bind(bind);
         }
         q = q.bind(now.to_rfc3339());
         q = q.bind(block_id.to_string());
@@ -518,113 +310,11 @@ mod database {
 
         Ok(())
     }
-
-    /// 查询时间块的完整数据用于事件载荷
-    /// ✅ 禁止片面数据：返回完整的 TimeBlockViewDto
-    pub async fn find_time_blocks_for_event(
-        tx: &mut Transaction<'_, Sqlite>,
-        time_block_ids: &[Uuid],
-    ) -> AppResult<Vec<crate::entities::TimeBlockViewDto>> {
-        use crate::entities::{
-            task::response_dtos::AreaSummary, LinkedTaskSummary, TimeBlockViewDto,
-        };
-
-        if time_block_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let mut result = Vec::new();
-
-        for block_id in time_block_ids {
-            // 1. 查询时间块（✅ 完整字段列表）
-            let query = r#"
-                SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
-                       created_at, updated_at, is_deleted, source_info,
-                       external_source_id, external_source_provider, external_source_metadata,
-                       recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-                FROM time_blocks
-                WHERE id = ? AND is_deleted = false
-            "#;
-
-            let block_row = sqlx::query_as::<_, TimeBlockRow>(query)
-                .bind(block_id.to_string())
-                .fetch_optional(&mut **tx)
-                .await
-                .map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-                })?;
-
-            if let Some(row) = block_row {
-                let block = TimeBlock::try_from(row).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })?;
-
-                // 2. 查询关联的任务
-                let links_query = r#"
-                    SELECT t.id, t.title, t.completed_at
-                    FROM tasks t
-                    INNER JOIN task_time_block_links l ON t.id = l.task_id
-                    WHERE l.time_block_id = ? AND t.is_deleted = false
-                "#;
-
-                let linked_tasks_rows = sqlx::query_as::<
-                    _,
-                    (String, String, Option<chrono::DateTime<chrono::Utc>>),
-                >(links_query)
-                .bind(block_id.to_string())
-                .fetch_all(&mut **tx)
-                .await
-                .map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-                })?;
-
-                let linked_tasks: Vec<LinkedTaskSummary> = linked_tasks_rows
-                    .into_iter()
-                    .map(|(id, title, completed_at)| LinkedTaskSummary {
-                        id: Uuid::parse_str(&id).unwrap(),
-                        title,
-                        is_completed: completed_at.is_some(),
-                    })
-                    .collect();
-
-                // 3. 查询 Area 信息（如果有）
-                let area = if let Some(area_id) = block.area_id {
-                    let area_query = "SELECT id, name, color FROM areas WHERE id = ?";
-                    sqlx::query_as::<_, (String, String, String)>(area_query)
-                        .bind(area_id.to_string())
-                        .fetch_optional(&mut **tx)
-                        .await
-                        .map_err(|e| {
-                            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(
-                                e,
-                            ))
-                        })?
-                        .map(|(id, name, color)| AreaSummary {
-                            id: Uuid::parse_str(&id).unwrap(),
-                            name,
-                            color,
-                        })
-                } else {
-                    None
-                };
-
-                // 4. 组装 TimeBlockViewDto
-                let view = TimeBlockViewDto {
-                    id: block.id,
-                    start_time: block.start_time,
-                    end_time: block.end_time,
-                    title: block.title,
-                    glance_note: block.glance_note,
-                    detail_note: block.detail_note,
-                    area,
-                    linked_tasks,
-                    is_recurring: block.recurrence_rule.is_some(),
-                };
-
-                result.push(view);
-            }
-        }
-
-        Ok(result)
-    }
 }
+
+// ✅ 已迁移到共享 Repository：
+// - TaskRepository::find_by_id_in_tx, update_in_tx
+// - TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx, is_exclusive_link_in_tx
+// - TaskScheduleRepository::has_any_schedule
+// - AreaRepository::get_summary
+// - TimeBlockAssembler::assemble_for_event_in_tx

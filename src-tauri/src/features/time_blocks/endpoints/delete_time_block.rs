@@ -5,10 +5,13 @@ use axum::{
     extract::{Path, State},
     response::{IntoResponse, Response},
 };
-use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
+    features::{
+        tasks::shared::repositories::TaskTimeBlockLinkRepository,
+        time_blocks::shared::repositories::TimeBlockRepository,
+    },
     shared::{
         core::{AppError, AppResult},
         http::error_handler::no_content_response,
@@ -62,17 +65,17 @@ mod logic {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
 
-        // 1. 检查时间块是否存在
-        let block_exists = database::check_time_block_exists_in_tx(&mut tx, block_id).await?;
+        // 1. 检查时间块是否存在（✅ 使用共享 Repository）
+        let block_exists = TimeBlockRepository::exists_in_tx(&mut tx, block_id).await?;
         if !block_exists {
             return Err(AppError::not_found("TimeBlock", block_id.to_string()));
         }
 
-        // 2. 软删除时间块
-        database::soft_delete_time_block_in_tx(&mut tx, block_id).await?;
+        // 2. 软删除时间块（✅ 使用共享 Repository）
+        TimeBlockRepository::soft_delete_in_tx(&mut tx, block_id).await?;
 
-        // 3. 删除任务链接（但保留 task_schedules！）
-        database::delete_block_links_in_tx(&mut tx, block_id).await?;
+        // 3. 删除任务链接（但保留 task_schedules！）（✅ 使用共享 Repository）
+        TaskTimeBlockLinkRepository::delete_all_for_block_in_tx(&mut tx, block_id).await?;
 
         // 4. 提交事务
         tx.commit().await.map_err(|e| {
@@ -86,53 +89,7 @@ mod logic {
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-
-    pub async fn check_time_block_exists_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        block_id: Uuid,
-    ) -> AppResult<bool> {
-        let query = "SELECT COUNT(*) FROM time_blocks WHERE id = ?";
-        let count: i64 = sqlx::query_scalar(query)
-            .bind(block_id.to_string())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(count > 0)
-    }
-
-    pub async fn soft_delete_time_block_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        block_id: Uuid,
-    ) -> AppResult<()> {
-        let query = "UPDATE time_blocks SET is_deleted = true, updated_at = ? WHERE id = ?";
-        sqlx::query(query)
-            .bind(chrono::Utc::now().to_rfc3339())
-            .bind(block_id.to_string())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(())
-    }
-
-    pub async fn delete_block_links_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        block_id: Uuid,
-    ) -> AppResult<()> {
-        let query = "DELETE FROM task_time_block_links WHERE time_block_id = ?";
-        sqlx::query(query)
-            .bind(block_id.to_string())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-        Ok(())
-    }
-}
-
+// ✅ 已全部迁移到共享 Repository：
+// - TimeBlockRepository::exists_in_tx
+// - TimeBlockRepository::soft_delete_in_tx
+// - TaskTimeBlockLinkRepository::delete_all_for_block_in_tx

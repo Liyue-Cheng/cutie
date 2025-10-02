@@ -8,8 +8,11 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
-    entities::{DailyOutcome, ScheduleRecord, Task, TaskDetailDto},
-    features::tasks::shared::TaskAssembler,
+    entities::{Task, TaskDetailDto},
+    features::{
+        shared::repositories::AreaRepository,
+        tasks::shared::{repositories::TaskScheduleRepository, TaskAssembler},
+    },
     shared::{
         core::{AppError, AppResult},
         http::error_handler::success_response,
@@ -59,8 +62,8 @@ mod logic {
         // 2. 组装基础 TaskCard
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
 
-        // 3. 查询 schedules 历史
-        let schedules = database::get_task_schedules(pool, task_id).await?;
+        // 3. 查询 schedules 历史（✅ 使用共享 Repository）
+        let schedules = TaskScheduleRepository::get_all_for_task(pool, task_id).await?;
 
         // 4. ✅ 关键：根据实际 schedules 判断 schedule_status
         // 如果有任何 schedule 记录，状态就是 scheduled
@@ -70,10 +73,9 @@ mod logic {
             crate::entities::ScheduleStatus::Staging
         };
 
-        // 5. 获取其他关联信息
-
+        // 5. 获取其他关联信息（✅ 使用共享 Repository）
         if let Some(area_id) = task.area_id {
-            task_card.area = database::get_area_summary(pool, area_id).await?;
+            task_card.area = AreaRepository::get_summary(pool, area_id).await?;
         }
 
         // 6. 组装 TaskDetailDto
@@ -93,102 +95,17 @@ mod logic {
 // ==================== 数据访问层 ====================
 mod database {
     use super::*;
-    use crate::entities::TaskRow;
 
     pub async fn find_task_by_id(
         pool: &sqlx::SqlitePool,
         task_id: Uuid,
     ) -> AppResult<Option<Task>> {
-        let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
-                   created_at, updated_at, is_deleted, source_info,
-                   external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let row = sqlx::query_as::<_, TaskRow>(query)
-            .bind(task_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        match row {
-            Some(r) => {
-                let task = Task::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
-                })?;
-                Ok(Some(task))
-            }
-            None => Ok(None),
-        }
-    }
-
-    pub async fn get_area_summary(
-        pool: &sqlx::SqlitePool,
-        area_id: Uuid,
-    ) -> AppResult<Option<crate::entities::task::response_dtos::AreaSummary>> {
-        let query = "SELECT id, name, color FROM areas WHERE id = ? AND is_deleted = false";
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.map(
-            |(id, name, color)| crate::entities::task::response_dtos::AreaSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                name,
-                color,
-            },
-        ))
-    }
-
-    /// 获取任务的所有日程记录
-    pub async fn get_task_schedules(
-        pool: &sqlx::SqlitePool,
-        task_id: Uuid,
-    ) -> AppResult<Vec<ScheduleRecord>> {
-        let query = r#"
-            SELECT scheduled_day, outcome
-            FROM task_schedules
-            WHERE task_id = ?
-            ORDER BY scheduled_day ASC
-        "#;
-
-        let rows = sqlx::query_as::<_, (String, String)>(query)
-            .bind(task_id.to_string())
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        let schedules = rows
-            .into_iter()
-            .filter_map(|(day_str, outcome_str)| {
-                let day = chrono::DateTime::parse_from_rfc3339(&day_str)
-                    .ok()?
-                    .with_timezone(&chrono::Utc);
-
-                let outcome = match outcome_str.as_str() {
-                    "PLANNED" => DailyOutcome::Planned,
-                    "PRESENCE_LOGGED" => DailyOutcome::PresenceLogged,
-                    "COMPLETED_ON_DAY" => DailyOutcome::Completed,
-                    "CARRIED_OVER" => DailyOutcome::CarriedOver,
-                    _ => return None,
-                };
-
-                Some(ScheduleRecord { day, outcome })
-            })
-            .collect();
-
-        Ok(schedules)
+        use crate::features::tasks::shared::repositories::TaskRepository;
+        TaskRepository::find_by_id(pool, task_id).await
     }
 }
+
+// ✅ 已迁移到共享 Repository：
+// - TaskRepository::find_by_id
+// - TaskScheduleRepository::get_all_for_task
+// - AreaRepository::get_summary

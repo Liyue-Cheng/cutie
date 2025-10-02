@@ -6,14 +6,16 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::{DateTime, Utc};
-use sqlx::{Sqlite, Transaction};
-use uuid::Uuid;
 
 use crate::{
-    entities::{
-        task::response_dtos::AreaSummary, CreateTimeBlockRequest, LinkedTaskSummary, TimeBlock,
-        TimeBlockViewDto,
+    entities::{CreateTimeBlockRequest, TimeBlock, TimeBlockViewDto},
+    features::{
+        shared::repositories::AreaRepository,
+        tasks::shared::{
+            assemblers::LinkedTaskAssembler,
+            repositories::{TaskScheduleRepository, TaskTimeBlockLinkRepository},
+        },
+        time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
     },
     shared::{
         core::{AppError, AppResult},
@@ -114,8 +116,8 @@ mod logic {
             AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
         })?;
 
-        // 3. 检查时间冲突
-        let has_conflict = database::check_time_conflict_in_tx(
+        // 3. 检查时间冲突（✅ 使用共享 ConflictChecker）
+        let has_conflict = TimeBlockConflictChecker::check_in_tx(
             &mut tx,
             &request.start_time,
             &request.end_time,
@@ -155,8 +157,8 @@ mod logic {
             recurrence_exclusions: None,
         };
 
-        // 6. 插入时间块到数据库
-        database::insert_time_block_in_tx(&mut tx, &time_block).await?;
+        // 6. 插入时间块到数据库（✅ 使用共享 Repository）
+        TimeBlockRepository::insert_in_tx(&mut tx, &time_block).await?;
 
         // 7. 创建任务链接
         if let Some(task_ids) = &request.linked_task_ids {
@@ -169,15 +171,19 @@ mod logic {
                 .and_utc();
 
             for task_id in task_ids {
-                // 7.1. 创建任务与时间块的链接
-                database::link_task_to_block_in_tx(&mut tx, *task_id, block_id).await?;
+                // 7.1. 创建任务与时间块的链接（✅ 使用共享 Repository）
+                TaskTimeBlockLinkRepository::link_in_tx(&mut tx, *task_id, block_id).await?;
 
-                // 7.2. 创建任务的日程记录（如果还没有）
+                // 7.2. 创建任务的日程记录（如果还没有）（✅ 使用共享 Repository）
                 // 这样任务就从 staging 移到 scheduled 状态
-                let has_schedule =
-                    database::has_schedule_for_day_in_tx(&mut tx, *task_id, scheduled_day).await?;
+                let has_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
+                    &mut tx,
+                    *task_id,
+                    scheduled_day,
+                )
+                .await?;
                 if !has_schedule {
-                    database::create_task_schedule_in_tx(&mut tx, *task_id, scheduled_day).await?;
+                    TaskScheduleRepository::create_in_tx(&mut tx, *task_id, scheduled_day).await?;
                 }
             }
         }
@@ -202,15 +208,16 @@ mod logic {
             is_recurring: time_block.recurrence_rule.is_some(),
         };
 
-        // 10. 获取区域信息（如果有）
+        // 10. 获取区域信息（如果有）（✅ 使用共享 Repository）
         if let Some(area_id) = time_block.area_id {
-            time_block_view.area = database::get_area_summary(app_state.db_pool(), area_id).await?;
+            time_block_view.area =
+                AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
         }
 
-        // 11. 获取关联的任务摘要
+        // 11. 获取关联的任务摘要（✅ 使用共享 Assembler）
         if let Some(task_ids) = request.linked_task_ids {
             time_block_view.linked_tasks =
-                database::get_linked_tasks_summary(app_state.db_pool(), &task_ids).await?;
+                LinkedTaskAssembler::get_summaries_batch(app_state.db_pool(), &task_ids).await?;
         }
 
         Ok(time_block_view)
@@ -218,242 +225,10 @@ mod logic {
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-
-    /// 在事务中检查时间冲突
-    pub async fn check_time_conflict_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        start_time: &DateTime<Utc>,
-        end_time: &DateTime<Utc>,
-        exclude_id: Option<Uuid>,
-    ) -> AppResult<bool> {
-        let mut query = String::from(
-            r#"
-            SELECT COUNT(*) as count
-            FROM time_blocks
-            WHERE is_deleted = false
-              AND start_time < ?
-              AND end_time > ?
-        "#,
-        );
-
-        if let Some(id) = exclude_id {
-            query.push_str(&format!(" AND id != '{}'", id));
-        }
-
-        let count: i64 = sqlx::query_scalar(&query)
-            .bind(end_time.to_rfc3339())
-            .bind(start_time.to_rfc3339())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(count > 0)
-    }
-
-    /// 在事务中插入时间块
-    pub async fn insert_time_block_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        block: &TimeBlock,
-    ) -> AppResult<()> {
-        let query = r#"
-            INSERT INTO time_blocks (
-                id, title, glance_note, detail_note, start_time, end_time, area_id,
-                created_at, updated_at, is_deleted, source_info,
-                external_source_id, external_source_provider, external_source_metadata,
-                recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#;
-
-        sqlx::query(query)
-            .bind(block.id.to_string())
-            .bind(&block.title)
-            .bind(&block.glance_note)
-            .bind(&block.detail_note)
-            .bind(block.start_time.to_rfc3339())
-            .bind(block.end_time.to_rfc3339())
-            .bind(block.area_id.map(|id| id.to_string()))
-            .bind(block.created_at.to_rfc3339())
-            .bind(block.updated_at.to_rfc3339())
-            .bind(block.is_deleted)
-            .bind(
-                block
-                    .source_info
-                    .as_ref()
-                    .map(|s| serde_json::to_string(s).unwrap()),
-            )
-            .bind(&block.external_source_id)
-            .bind(&block.external_source_provider)
-            .bind(
-                block
-                    .external_source_metadata
-                    .as_ref()
-                    .map(|m| serde_json::to_string(m).unwrap()),
-            )
-            .bind(&block.recurrence_rule)
-            .bind(block.recurrence_parent_id.map(|id| id.to_string()))
-            .bind(block.recurrence_original_date.map(|d| d.to_rfc3339()))
-            .bind(
-                block
-                    .recurrence_exclusions
-                    .as_ref()
-                    .map(|e| serde_json::to_string(e).unwrap()),
-            )
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(())
-    }
-
-    /// 在事务中创建任务与时间块的链接
-    pub async fn link_task_to_block_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        block_id: Uuid,
-    ) -> AppResult<()> {
-        let now = Utc::now();
-
-        let query = r#"
-            INSERT INTO task_time_block_links (task_id, time_block_id, created_at)
-            VALUES (?, ?, ?)
-        "#;
-
-        sqlx::query(query)
-            .bind(task_id.to_string())
-            .bind(block_id.to_string())
-            .bind(now.to_rfc3339())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(())
-    }
-
-    /// 获取区域摘要信息
-    pub async fn get_area_summary(
-        pool: &sqlx::SqlitePool,
-        area_id: Uuid,
-    ) -> AppResult<Option<AreaSummary>> {
-        let query = r#"
-            SELECT id, name, color
-            FROM areas
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.map(|(id, name, color)| AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
-    }
-
-    /// 检查任务在某天是否已有日程记录
-    pub async fn has_schedule_for_day_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        scheduled_day: DateTime<Utc>,
-    ) -> AppResult<bool> {
-        let query = r#"
-            SELECT COUNT(*) as count
-            FROM task_schedules
-            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
-        "#;
-
-        let count: i64 = sqlx::query_scalar(query)
-            .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(count > 0)
-    }
-
-    /// 在事务中创建任务日程记录
-    pub async fn create_task_schedule_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        scheduled_day: DateTime<Utc>,
-    ) -> AppResult<()> {
-        let schedule_id = Uuid::new_v4();
-        let now = Utc::now();
-
-        let query = r#"
-            INSERT INTO task_schedules (id, task_id, scheduled_day, outcome, created_at, updated_at)
-            VALUES (?, ?, ?, 'PLANNED', ?, ?)
-        "#;
-
-        sqlx::query(query)
-            .bind(schedule_id.to_string())
-            .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
-            .bind(now.to_rfc3339())
-            .bind(now.to_rfc3339())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(())
-    }
-
-    /// 获取关联任务的摘要信息
-    pub async fn get_linked_tasks_summary(
-        pool: &sqlx::SqlitePool,
-        task_ids: &[Uuid],
-    ) -> AppResult<Vec<LinkedTaskSummary>> {
-        if task_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // 构建 IN 查询
-        let placeholders = task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        let query = format!(
-            r#"
-            SELECT id, title, completed_at
-            FROM tasks
-            WHERE id IN ({}) AND is_deleted = false
-            "#,
-            placeholders
-        );
-
-        let mut query_builder = sqlx::query_as::<_, (String, String, Option<String>)>(&query);
-        for task_id in task_ids {
-            query_builder = query_builder.bind(task_id.to_string());
-        }
-
-        let rows = query_builder.fetch_all(pool).await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
-
-        let summaries = rows
-            .into_iter()
-            .map(|(id, title, completed_at)| LinkedTaskSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                title,
-                is_completed: completed_at.is_some(),
-            })
-            .collect();
-
-        Ok(summaries)
-    }
-}
+// ✅ 已全部迁移到共享 Repository：
+// - TimeBlockConflictChecker::check_in_tx
+// - TimeBlockRepository::insert_in_tx
+// - TaskTimeBlockLinkRepository::link_in_tx
+// - TaskScheduleRepository::has_schedule_for_day_in_tx, create_in_tx
+// - AreaRepository::get_summary
+// - LinkedTaskAssembler::get_summaries_batch

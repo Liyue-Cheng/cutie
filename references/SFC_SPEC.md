@@ -210,15 +210,260 @@ mod database {
     }
     ```
 
-## 4. 最佳实践
+## 4. 共享资源清单
 
-### 4.1 事务管理
+**在编写单文件组件之前，请先查看以下共享资源清单，避免重复编写！**
+
+### 4.1 跨功能模块共享资源 (`features/shared`)
+
+这些资源可以在所有功能模块中使用：
+
+#### 📦 Repositories（数据仓库）
+
+- **`AreaRepository`** (`features/shared/repositories/area_repository.rs`)
+  - `get_summary(executor, area_id)` - 获取 Area 摘要
+  - `get_summaries_batch(executor, area_ids)` - 批量获取 Area 摘要
+
+#### 🔧 Utilities（工具类）
+
+- **`TransactionHelper`** (`features/shared/transaction.rs`)
+  - `begin(pool)` - 开始事务（统一错误处理）
+  - `commit(tx)` - 提交事务（统一错误处理）
+
+**使用示例：**
+
+```rust
+use crate::features::shared::{repositories::AreaRepository, TransactionHelper};
+
+let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+// ... 业务逻辑 ...
+TransactionHelper::commit(tx).await?;
+```
+
+---
+
+### 4.2 Tasks 模块共享资源 (`features/tasks/shared`)
+
+这些资源专门用于任务相关操作：
+
+#### 📦 Repositories（数据仓库）
+
+- **`TaskRepository`** (`features/tasks/shared/repositories/task_repository.rs`)
+  - `find_by_id_in_tx(tx, task_id)` - 在事务中查询任务
+  - `find_by_id(pool, task_id)` - 非事务查询任务
+  - `insert_in_tx(tx, task)` - 插入任务
+  - `update_in_tx(tx, task_id, request)` - 更新任务
+  - `soft_delete_in_tx(tx, task_id)` - 软删除任务
+  - `set_completed_in_tx(tx, task_id, completed_at)` - 设置任务为已完成
+  - `set_reopened_in_tx(tx, task_id, updated_at)` - 重新打开任务
+
+- **`TaskScheduleRepository`** (`features/tasks/shared/repositories/task_schedule_repository.rs`)
+  - `has_any_schedule(executor, task_id)` - 检查任务是否有日程
+  - `has_schedule_for_day_in_tx(tx, task_id, scheduled_day)` - 检查某天是否有日程
+  - `create_in_tx(tx, task_id, scheduled_day)` - 创建日程记录
+  - `update_today_to_completed_in_tx(tx, task_id, now)` - 更新当天日程为已完成
+  - `delete_future_schedules_in_tx(tx, task_id, now)` - 删除未来日程
+  - `delete_all_in_tx(tx, task_id)` - 删除任务的所有日程
+  - `get_all_for_task(pool, task_id)` - 获取任务的所有日程记录
+
+- **`TaskTimeBlockLinkRepository`** (`features/tasks/shared/repositories/task_time_block_link_repository.rs`)
+  - `link_in_tx(tx, task_id, block_id)` - 创建任务到时间块的链接
+  - `delete_all_for_task_in_tx(tx, task_id)` - 删除任务的所有链接
+  - `delete_all_for_block_in_tx(tx, block_id)` - 删除时间块的所有链接
+  - `find_linked_time_blocks_in_tx(tx, task_id)` - 查询任务链接的所有时间块
+  - `is_exclusive_link_in_tx(tx, block_id, task_id)` - 检查时间块是否独占链接某任务
+  - `count_remaining_tasks_in_block_in_tx(tx, block_id)` - 统计时间块剩余链接任务数
+
+#### 🏗️ Assemblers（装配器）
+
+- **`TaskAssembler`** (`features/tasks/shared/assembler.rs`)
+  - `task_to_card_basic(task)` - 从 Task 实体创建基础 TaskCardDto
+  - `task_to_card_full(task, schedule_status, area, schedule_info)` - 创建完整 TaskCardDto
+  - `task_to_detail_basic(task)` - 创建基础 TaskDetailDto
+
+- **`LinkedTaskAssembler`** (`features/tasks/shared/assemblers/linked_task_assembler.rs`)
+  - `get_summaries_batch(executor, task_ids)` - 批量获取任务摘要
+  - `get_for_time_block(executor, block_id)` - 获取时间块关联的任务摘要
+
+- **`TimeBlockAssembler`** (`features/tasks/shared/assemblers/time_block_assembler.rs`)
+  - `assemble_for_event_in_tx(tx, time_block_ids)` - 查询并组装完整的 TimeBlockViewDto（用于事件载荷）
+  - `assemble_view(block, pool)` - 从 TimeBlock 实体组装视图（非事务版本）
+
+---
+
+### 4.3 TimeBlocks 模块共享资源 (`features/time_blocks/shared`)
+
+这些资源专门用于时间块相关操作：
+
+#### 📦 Repositories（数据仓库）
+
+- **`TimeBlockRepository`** (`features/time_blocks/shared/repositories/time_block_repository.rs`)
+  - `find_by_id_in_tx(tx, block_id)` - 在事务中查询时间块
+  - `find_by_id(pool, block_id)` - 非事务查询时间块
+  - `insert_in_tx(tx, block)` - 插入时间块
+  - `update_in_tx(tx, block_id, request, updated_at)` - 更新时间块
+  - `soft_delete_in_tx(tx, block_id)` - 软删除时间块
+  - `truncate_to_in_tx(tx, block_id, end_time)` - 截断时间块到指定时间
+  - `find_in_range(pool, start_time, end_time)` - 查询时间范围内的时间块
+  - `exists_in_tx(tx, block_id)` - 检查时间块是否存在
+
+#### 🔍 Utilities（工具类）
+
+- **`TimeBlockConflictChecker`** (`features/time_blocks/shared/conflict_checker.rs`)
+  - `check_in_tx(tx, start_time, end_time, exclude_id)` - 检查时间冲突
+
+---
+
+### 4.4 Views 模块共享资源 (`features/views/shared`)
+
+这些资源专门用于视图聚合：
+
+#### 🏗️ Assemblers（装配器）
+
+- **`ViewTaskCardAssembler`** (`features/views/shared/task_card_assembler.rs`)
+  - `assemble_full(task, pool)` - 为 Task 组装完整 TaskCard（包括 area、schedule_status）
+  - `assemble_batch(tasks, pool)` - 批量组装 TaskCards
+  - `assemble_with_status(task, pool, status)` - 组装 TaskCard 并明确设置 schedule_status
+
+---
+
+## 5. 开发原则与规范 ⚠️
+
+### 5.1 高内聚原则
+
+**单文件组件 = 一个完整的业务功能**
+
+- 一个 SFC 文件应该包含处理一个 API 端点所需的所有逻辑
+- HTTP 处理、验证、业务逻辑、数据访问都在同一个文件中
+- 除非逻辑可以被多个端点复用，否则不要过早抽象
+
+### 5.2 按需抽象原则
+
+**什么时候应该使用共享资源？**
+✅ **应该使用共享资源的情况：**
+
+- 共享资源列表（第 4 章）中已有的功能
+- 3个或以上的端点使用相同的数据库查询
+- 复杂的 DTO 组装逻辑在多处重复
+
+❌ **不应该抽象的情况：**
+
+- 只有 1-2 个端点使用的查询
+- 端点特定的验证逻辑
+- 简单的数据库操作（INSERT/UPDATE）
+
+### 5.3 共享资源使用规范 🚨
+
+#### ✅ 正确做法：优先使用共享资源
+
+```rust
+// ✅ 正确：使用共享 Repository
+use crate::features::tasks::shared::repositories::TaskRepository;
+
+let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
+```
+
+```rust
+// ✅ 正确：使用共享 TransactionHelper
+use crate::features::shared::TransactionHelper;
+
+let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+// ... 业务逻辑 ...
+TransactionHelper::commit(tx).await?;
+```
+
+#### ❌ 错误做法：重复编写已有功能
+
+```rust
+// ❌ 错误：重复编写查询任务的代码
+mod database {
+    pub async fn find_task(tx: &mut Transaction, task_id: Uuid) -> AppResult<Task> {
+        let query = "SELECT * FROM tasks WHERE id = ?";
+        // ... 这个功能 TaskRepository 已经提供了！
+    }
+}
+```
+
+#### 📝 正确做法：端点特定的 SQL 直接写在数据访问层
+
+```rust
+// ✅ 正确：端点特定的复杂查询，直接写在 database 模块
+mod database {
+    pub async fn find_tasks_with_special_filter(
+        pool: &SqlitePool,
+        custom_criteria: &str,
+    ) -> AppResult<Vec<Task>> {
+        // 这是端点特定的查询，共享资源中没有
+        let query = r#"
+            SELECT * FROM tasks
+            WHERE custom_field = ?
+              AND some_complex_condition
+        "#;
+        // ... 实现查询
+    }
+}
+```
+
+### 5.4 禁止修改共享资源 🚫
+
+**重要规则：**
+
+- ❌ **禁止**在开发新功能时直接修改 `features/shared`、`features/xxx/shared` 中的文件
+- ❌ **禁止**为了一个端点的需求修改共享 Repository
+- ✅ **允许**在你的 SFC 的 `database` 模块中编写端点特定的 SQL
+
+**原因：**
+
+- 共享资源被多个端点使用，随意修改可能破坏其他功能
+- 共享资源的更新、重构是**重构团队**的职责
+- 保持 SFC 的独立性，降低耦合
+
+**如果需要新的共享功能怎么办？**
+
+1. 在你的 SFC 的 `database` 模块中先实现功能
+2. 功能验证通过后，由**重构团队**评估是否需要提取到共享资源
+3. 重构团队会统一更新共享资源和相关文档
+
+### 5.5 开发流程 📋
+
+```
+1️⃣ 查看共享资源清单（第 4 章）
+   └─ 需要的功能是否已存在？
+
+2️⃣ 如果存在 → 直接使用共享资源
+   └─ 导入对应的 Repository/Assembler
+
+3️⃣ 如果不存在 → 在 SFC 的 database 模块中编写 SQL
+   └─ 不要修改共享资源！
+
+4️⃣ 功能完成后 → 提交代码审查
+   └─ 审查者会评估是否需要重构
+
+5️⃣ 重构团队定期审查 → 提取通用逻辑到共享资源
+   └─ 更新文档和代码
+```
+
+---
+
+## 6. 最佳实践
+
+### 6.1 事务管理
 
 - **业务逻辑层（`logic`）** 负责开启和提交事务
 - 所有数据库操作（`database`层函数）都必须在事务中执行
 - 只读操作可以省略事务，直接从 `app_state.db_pool()` 获取连接
 
-### 4.2 依赖注入
+**✅ 推荐使用 TransactionHelper：**
+
+```rust
+use crate::features::shared::TransactionHelper;
+
+let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+// ... 业务逻辑 ...
+TransactionHelper::commit(tx).await?;
+```
+
+### 6.2 依赖注入
 
 严格通过 `AppState` 注入依赖，**必须使用正确的方法名**：
 
@@ -240,7 +485,7 @@ let task_id = app_state.id_generator().generate(); // 编译失败
 let now = app_state.clock().now();                // 编译失败
 ```
 
-### 4.3 使用现有工具 - ⚠️ 重要
+### 6.3 使用现有工具 - ⚠️ 重要
 
 **禁止重新实现已有功能！** 在编写任何工具函数之前，先检查 `shared/` 模块：
 
@@ -276,7 +521,7 @@ use crate::shared::core::utils::time_utils;
 - `shared/ports/clock.rs` - 时钟接口
 - `shared/ports/id_generator.rs` - ID 生成接口
 
-### 4.4 错误处理
+### 6.4 错误处理
 
 - 使用 `AppResult<T>` 和 `AppError` 进行统一的错误处理
 - `database` 层将 `sqlx::Error` 转换为 `AppError::DatabaseError`
@@ -293,12 +538,12 @@ let sort_order = get_rank_after(&max)?;  // SortOrderError -> AppError
 AppError::LexoRankError(...)  // 编译失败
 ```
 
-### 4.5 幂等性
+### 6.5 幂等性
 
 - 对于 `POST`（创建）和 `DELETE` 操作，应考虑幂等性
 - 如果资源已存在或已删除，通常应返回成功状态码（`200 OK` 或 `204 No Content`），而不是错误
 
-### 4.6 数据库 Schema - ⚠️ 关键
+### 6.6 数据库 Schema - ⚠️ 关键
 
 **在编写任何数据库查询之前，必须先查看数据库 Schema！禁止猜测表名或字段名！**
 
@@ -357,7 +602,7 @@ let query = "SELECT * FROM task_schedules WHERE ...";
 // 成功执行
 ```
 
-### 4.7 数据真实性原则 - ⚠️ 关键
+### 6.7 数据真实性原则 - ⚠️ 关键
 
 **后端返回的数据必须反映数据库的真实状态，不能依赖默认值或猜测！**
 
@@ -371,6 +616,7 @@ return task_card;  // 返回了错误的状态！
 ```
 
 **问题：**
+
 - Assembler 的 `_basic` 方法使用默认值作为占位符
 - 如果不查询实际状态就返回，前端会接收到错误数据
 - 导致 UI 状态不一致
@@ -411,6 +657,7 @@ let has_schedule = !schedules.is_empty();  // 直接判断
 #### **实际案例：get_task 端点**
 
 **错误版本（导致 UI bug）：**
+
 ```rust
 let task_card = TaskAssembler::task_to_card_basic(&task);
 // schedule_status = 'staging' (默认)
@@ -419,30 +666,35 @@ return TaskDetailDto { card: task_card };
 ```
 
 **正确版本：**
+
 ```rust
 let mut task_card = TaskAssembler::task_to_card_basic(&task);
 let schedules = database::get_task_schedules(pool, task_id).await?;
-task_card.schedule_status = if !schedules.is_empty() { 
-    Scheduled 
-} else { 
-    Staging 
+task_card.schedule_status = if !schedules.is_empty() {
+    Scheduled
+} else {
+    Staging
 };
 return TaskDetailDto { card: task_card };
 // 前端：点击任务 → 任务保持在正确列 ✅
 ```
 
-### 4.8 代码审查清单
+### 6.8 代码审查清单
 
 在提交代码前检查：
 
+- [ ] **是否查看了共享资源清单（第 4 章）？**（新增！🔥）
+- [ ] **是否使用了已有的共享 Repository/Assembler？**（新增！🔥）
+- [ ] **是否遵守"禁止修改共享资源"原则？**（新增！🔥）
 - [ ] **是否查看了数据库 schema？**（最重要！）
-- [ ] **返回的所有字段是否反映真实数据库状态？**（新增！）
+- [ ] **返回的所有字段是否反映真实数据库状态？**
 - [ ] 是否使用了正确的 trait 方法（`new_uuid()`, `now_utc()`）？
 - [ ] 是否复用了 `shared/` 中的现有工具？
 - [ ] 排序功能是否使用了 LexoRank 工具函数？
 - [ ] 错误处理是否使用了 `?` 操作符？
 - [ ] 是否在事务中执行了所有写操作？
+- [ ] 是否使用了 `TransactionHelper`？
 - [ ] SQL 查询的表名和字段名是否与 schema 完全一致？
-- [ ] **是否有冗余查询可以优化？**（新增！）
+- [ ] **是否有冗余查询可以优化？**
 
 通过遵循此规范，我们可以构建一个既灵活又有序、易于理解和扩展的后端系统。

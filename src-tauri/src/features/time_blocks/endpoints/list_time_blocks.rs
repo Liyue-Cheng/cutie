@@ -7,14 +7,14 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
-use uuid::Uuid;
 
 use crate::{
-    entities::{task::response_dtos::AreaSummary, LinkedTaskSummary, TimeBlock, TimeBlockViewDto},
-    shared::{
-        core::{AppError, AppResult},
-        http::error_handler::success_response,
+    entities::{TimeBlock, TimeBlockViewDto},
+    features::{
+        shared::repositories::AreaRepository, tasks::shared::assemblers::LinkedTaskAssembler,
+        time_blocks::shared::repositories::TimeBlockRepository,
     },
+    shared::{core::AppResult, http::error_handler::success_response},
     startup::AppState,
 };
 
@@ -86,8 +86,8 @@ mod logic {
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.with_timezone(&Utc));
 
-        // 2. 查询时间块
-        let time_blocks = database::find_time_blocks_in_range(pool, start_time, end_time).await?;
+        // 2. 查询时间块（✅ 使用共享 Repository）
+        let time_blocks = TimeBlockRepository::find_in_range(pool, start_time, end_time).await?;
 
         // 3. 为每个时间块组装视图模型
         let mut result = Vec::new();
@@ -120,125 +120,20 @@ mod logic {
             is_recurring: block.recurrence_rule.is_some(),
         };
 
-        // 2. 获取区域信息
+        // 2. 获取区域信息（✅ 使用共享 Repository）
         if let Some(area_id) = block.area_id {
-            view.area = database::get_area_summary(pool, area_id).await?;
+            view.area = AreaRepository::get_summary(pool, area_id).await?;
         }
 
-        // 3. 获取关联的任务
-        view.linked_tasks = database::get_linked_tasks_for_block(pool, block.id).await?;
+        // 3. 获取关联的任务（✅ 使用共享 Assembler）
+        view.linked_tasks = LinkedTaskAssembler::get_for_time_block(pool, block.id).await?;
 
         Ok(view)
     }
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-    use crate::entities::TimeBlockRow;
-
-    /// 查询时间范围内的时间块
-    pub async fn find_time_blocks_in_range(
-        pool: &sqlx::SqlitePool,
-        start_time: Option<DateTime<Utc>>,
-        end_time: Option<DateTime<Utc>>,
-    ) -> AppResult<Vec<TimeBlock>> {
-        let mut query = String::from(
-            r#"
-            SELECT 
-                id, title, glance_note, detail_note, start_time, end_time, area_id,
-                created_at, updated_at, is_deleted, source_info,
-                external_source_id, external_source_provider, external_source_metadata,
-                recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM time_blocks
-            WHERE is_deleted = false
-        "#,
-        );
-
-        // 添加时间范围过滤
-        if start_time.is_some() {
-            query.push_str(" AND end_time >= ?");
-        }
-        if end_time.is_some() {
-            query.push_str(" AND start_time < ?");
-        }
-
-        query.push_str(" ORDER BY start_time ASC");
-
-        let mut query_builder = sqlx::query_as::<_, TimeBlockRow>(&query);
-
-        if let Some(start) = start_time {
-            query_builder = query_builder.bind(start.to_rfc3339());
-        }
-        if let Some(end) = end_time {
-            query_builder = query_builder.bind(end.to_rfc3339());
-        }
-
-        let rows = query_builder.fetch_all(pool).await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
-
-        let blocks: Result<Vec<TimeBlock>, _> = rows.into_iter().map(TimeBlock::try_from).collect();
-
-        blocks.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
-    }
-
-    /// 获取时间块关联的任务摘要
-    pub async fn get_linked_tasks_for_block(
-        pool: &sqlx::SqlitePool,
-        block_id: Uuid,
-    ) -> AppResult<Vec<LinkedTaskSummary>> {
-        let query = r#"
-            SELECT t.id, t.title, t.completed_at
-            FROM tasks t
-            INNER JOIN task_time_block_links ttbl ON t.id = ttbl.task_id
-            WHERE ttbl.time_block_id = ? AND t.is_deleted = false
-            ORDER BY t.created_at ASC
-        "#;
-
-        let rows = sqlx::query_as::<_, (String, String, Option<String>)>(query)
-            .bind(block_id.to_string())
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        let summaries = rows
-            .into_iter()
-            .map(|(id, title, completed_at)| LinkedTaskSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                title,
-                is_completed: completed_at.is_some(),
-            })
-            .collect();
-
-        Ok(summaries)
-    }
-
-    /// 获取区域摘要信息
-    pub async fn get_area_summary(
-        pool: &sqlx::SqlitePool,
-        area_id: Uuid,
-    ) -> AppResult<Option<AreaSummary>> {
-        let query = r#"
-            SELECT id, name, color
-            FROM areas
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.map(|(id, name, color)| AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
-    }
-}
+// ✅ 已全部迁移到共享 Repository：
+// - TimeBlockRepository::find_in_range
+// - AreaRepository::get_summary
+// - LinkedTaskAssembler::get_for_time_block

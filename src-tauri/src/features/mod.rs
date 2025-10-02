@@ -11,6 +11,9 @@ use axum::Router;
 
 use crate::startup::AppState;
 
+// 跨功能模块共享基础设施
+pub mod shared;
+
 pub mod areas;
 pub mod tasks;
 pub mod time_blocks;

@@ -6,13 +6,13 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::Utc;
-use sqlx::{Sqlite, Transaction};
-use uuid::Uuid;
 
 use crate::{
     entities::{CreateTaskRequest, ScheduleStatus, Task, TaskCardDto},
-    features::tasks::shared::TaskAssembler,
+    features::{
+        shared::repositories::AreaRepository,
+        tasks::shared::{repositories::TaskRepository, TaskAssembler},
+    },
     shared::{
         core::{AppError, AppResult},
         http::error_handler::created_response,
@@ -137,6 +137,7 @@ mod validation {
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
+    use crate::features::shared::TransactionHelper;
 
     pub async fn execute(
         app_state: &AppState,
@@ -145,10 +146,8 @@ mod logic {
         // 1. 验证请求
         validation::validate_create_request(&request)?;
 
-        // 2. 开始事务
-        let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-        })?;
+        // 2. 开始事务（✅ 使用 TransactionHelper）
+        let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
         // 3. 生成 UUID 和时间戳
         let task_id = app_state.id_generator().new_uuid();
@@ -180,24 +179,19 @@ mod logic {
             recurrence_exclusions: None,
         };
 
-        // 5. 插入任务到数据库
-        database::insert_task_in_tx(&mut tx, &task).await?;
+        // 5. 插入任务到数据库（✅ 使用共享 Repository）
+        TaskRepository::insert_in_tx(&mut tx, &task).await?;
 
-        // 6. 提交事务
-        tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
-                message: e.to_string(),
-            })
-        })?;
+        // 6. 提交事务（✅ 使用 TransactionHelper）
+        TransactionHelper::commit(tx).await?;
 
         // 7. 组装返回的 TaskCardDto
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
         task_card.schedule_status = ScheduleStatus::Staging;
 
-        // 获取 area 信息（如果有）
+        // 获取 area 信息（如果有）（✅ 使用共享 Repository）
         if let Some(area_id) = task.area_id {
-            // 在事务外查询，因为已经提交了
-            task_card.area = database::get_area_summary(app_state.db_pool(), area_id).await?;
+            task_card.area = AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
         }
 
         Ok(task_card)
@@ -205,99 +199,6 @@ mod logic {
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-    use crate::entities::AreaSummary;
-
-    /// 在事务中插入任务
-    pub async fn insert_task_in_tx(tx: &mut Transaction<'_, Sqlite>, task: &Task) -> AppResult<()> {
-        let query = r#"
-            INSERT INTO tasks (
-                id, title, glance_note, detail_note, estimated_duration, subtasks,
-                project_id, area_id, due_date, due_date_type, completed_at,
-                created_at, updated_at, is_deleted, source_info,
-                external_source_id, external_source_provider, external_source_metadata,
-                recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#;
-
-        sqlx::query(query)
-            .bind(task.id.to_string())
-            .bind(&task.title)
-            .bind(&task.glance_note)
-            .bind(&task.detail_note)
-            .bind(task.estimated_duration)
-            .bind(
-                task.subtasks
-                    .as_ref()
-                    .map(|s| serde_json::to_string(s).unwrap()),
-            )
-            .bind(task.project_id.map(|id| id.to_string()))
-            .bind(task.area_id.map(|id| id.to_string()))
-            .bind(task.due_date.map(|d| d.to_rfc3339()))
-            .bind(
-                task.due_date_type
-                    .as_ref()
-                    .map(|t| serde_json::to_string(t).unwrap()),
-            )
-            .bind(task.completed_at.map(|d| d.to_rfc3339()))
-            .bind(task.created_at.to_rfc3339())
-            .bind(task.updated_at.to_rfc3339())
-            .bind(task.is_deleted)
-            .bind(
-                task.source_info
-                    .as_ref()
-                    .map(|s| serde_json::to_string(s).unwrap()),
-            )
-            .bind(&task.external_source_id)
-            .bind(&task.external_source_provider)
-            .bind(
-                task.external_source_metadata
-                    .as_ref()
-                    .map(|m| serde_json::to_string(m).unwrap()),
-            )
-            .bind(&task.recurrence_rule)
-            .bind(task.recurrence_parent_id.map(|id| id.to_string()))
-            .bind(task.recurrence_original_date.map(|d| d.to_rfc3339()))
-            .bind(
-                task.recurrence_exclusions
-                    .as_ref()
-                    .map(|e| serde_json::to_string(e).unwrap()),
-            )
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(())
-    }
-
-    /// 获取区域摘要信息
-    pub async fn get_area_summary(
-        pool: &sqlx::SqlitePool,
-        area_id: Uuid,
-    ) -> AppResult<Option<AreaSummary>> {
-        let query = r#"
-            SELECT id, name, color
-            FROM areas
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(
-            result.map(|(id, name, color)| crate::entities::AreaSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                name,
-                color,
-            }),
-        )
-    }
-}
+// ✅ 已迁移到共享 Repository：
+// - TaskRepository::insert_in_tx
+// - AreaRepository::get_summary

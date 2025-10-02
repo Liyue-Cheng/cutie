@@ -11,6 +11,9 @@ use axum::{
 
 use crate::startup::AppState;
 
+// 共享模块（Repositories、ConflictChecker 等工具）
+pub mod shared;
+
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
     pub mod create_from_task; // POST /time-blocks/from-task (拖动任务到日历)
