@@ -310,7 +310,7 @@ mod database {
     ) -> AppResult<()> {
         let now = chrono::Utc::now();
 
-        tracing::info!("📝 update_task_in_tx: request = {:?}", request);
+        // tracing::info!("📝 update_task_in_tx: request = {:?}", request);
 
         // 收集需要更新的列
         let mut set_clauses: Vec<&str> = Vec::new();
@@ -319,18 +319,18 @@ mod database {
         }
         if request.glance_note.is_some() {
             set_clauses.push("glance_note = ?");
-            tracing::info!("  glance_note will be set to: {:?}", request.glance_note);
+            // tracing::info!("  glance_note will be set to: {:?}", request.glance_note);
         }
         if request.detail_note.is_some() {
             set_clauses.push("detail_note = ?");
-            tracing::info!("  detail_note will be set to: {:?}", request.detail_note);
+            // tracing::info!("  detail_note will be set to: {:?}", request.detail_note);
         }
         if request.subtasks.is_some() {
             set_clauses.push("subtasks = ?");
         }
         if request.area_id.is_some() {
             set_clauses.push("area_id = ?");
-            tracing::info!("  area_id will be set to: {:?}", request.area_id);
+            // tracing::info!("  area_id will be set to: {:?}", request.area_id);
         }
 
         if set_clauses.is_empty() {

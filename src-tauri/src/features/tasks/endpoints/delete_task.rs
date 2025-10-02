@@ -154,12 +154,12 @@ mod logic {
             });
             let mut event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
-            
+
             // 关联 correlation_id（用于前端去重和请求追踪）
             if let Some(cid) = correlation_id {
                 event = event.with_correlation_id(cid);
             }
-            
+
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
