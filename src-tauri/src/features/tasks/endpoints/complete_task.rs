@@ -94,7 +94,7 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         // 2. 检查是否已完成
-        if task.is_completed() {
+        if task.completed_at.is_some() {
             return Err(AppError::conflict("任务已经完成"));
         }
 

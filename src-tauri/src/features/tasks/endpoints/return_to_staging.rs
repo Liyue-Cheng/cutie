@@ -102,7 +102,7 @@ mod logic {
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
         // 3. 查找任务
-        let _task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
+        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
@@ -137,10 +137,13 @@ mod logic {
         // 8. 删除今天及未来的所有 schedules
         database::delete_future_schedules(&mut tx, task_id, today_utc).await?;
 
-        // 9. 更新任务状态为 staging 并重新打开任务
-        database::return_to_staging(&mut tx, task_id, now).await?;
+        // 9. 如果任务已完成，重新打开它
+        if task.completed_at.is_some() {
+            TaskRepository::set_reopened_in_tx(&mut tx, task_id, now).await?;
+        }
 
         // 10. 重新查询任务并组装 TaskCard
+        // 注意：schedule_status 是派生字段，由装配器根据 task_schedules 表计算
         let updated_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
@@ -258,31 +261,6 @@ mod database {
         sqlx::query(query)
             .bind(task_id.to_string())
             .bind(today.to_rfc3339())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| AppError::DatabaseError(e.into()))?;
-
-        Ok(())
-    }
-
-    /// 更新任务状态为 staging 并重新打开任务
-    pub async fn return_to_staging(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        updated_at: chrono::DateTime<chrono::Utc>,
-    ) -> AppResult<()> {
-        let query = r#"
-            UPDATE tasks
-            SET schedule_status = 'staging',
-                is_completed = false,
-                completed_at = null,
-                updated_at = ?
-            WHERE id = ?
-        "#;
-
-        sqlx::query(query)
-            .bind(updated_at.to_rfc3339())
-            .bind(task_id.to_string())
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

@@ -126,8 +126,8 @@ mod logic {
         // 2. 开始事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
-        // 3. 查找任务
-        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
+        // 3. 检查任务是否存在
+        let _task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
@@ -143,15 +143,8 @@ mod logic {
         // 5. 创建日程记录
         TaskScheduleRepository::create_in_tx(&mut tx, task_id, scheduled_day).await?;
 
-        // 6. 检查是否是第一个日程，如果是则更新 schedule_status
-        let has_any_schedule =
-            TaskScheduleRepository::has_any_schedule(&mut **&mut tx, task_id).await?;
-
-        if has_any_schedule && !task.is_completed() {
-            database::update_schedule_status_to_planned(&mut tx, task_id, now).await?;
-        }
-
-        // 7. 重新查询任务并组装 TaskCard
+        // 6. 重新查询任务并组装 TaskCard
+        // 注意：schedule_status 是派生字段，由装配器根据 task_schedules 表计算
         let updated_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
@@ -188,29 +181,5 @@ mod logic {
 }
 
 // ==================== 数据访问层 ====================
-mod database {
-    use super::*;
-    use sqlx::{Sqlite, Transaction};
-
-    /// 更新任务的 schedule_status 为 'planned'
-    pub async fn update_schedule_status_to_planned(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        updated_at: chrono::DateTime<Utc>,
-    ) -> AppResult<()> {
-        let query = r#"
-            UPDATE tasks
-            SET schedule_status = 'planned', updated_at = ?
-            WHERE id = ?
-        "#;
-
-        sqlx::query(query)
-            .bind(updated_at.to_rfc3339())
-            .bind(task_id.to_string())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| AppError::DatabaseError(e.into()))?;
-
-        Ok(())
-    }
-}
+// ✅ 所有数据库操作已迁移到共享 Repository
+// schedule_status 是派生字段，不存储在数据库中，由装配器根据 task_schedules 表计算

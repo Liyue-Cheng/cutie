@@ -172,16 +172,8 @@ mod logic {
         // 9. 删除 schedule 记录
         database::delete_schedule(&mut tx, task_id, scheduled_day).await?;
 
-        // 10. 检查是否还有其他 schedules
-        let has_any_schedule =
-            TaskScheduleRepository::has_any_schedule(&mut **&mut tx, task_id).await?;
-
-        // 11. 如果没有任何 schedule 了，更新为 staging
-        if !has_any_schedule {
-            database::update_schedule_status_to_staging(&mut tx, task_id, now).await?;
-        }
-
-        // 12. 重新查询任务并组装 TaskCard
+        // 10. 重新查询任务并组装 TaskCard
+        // 注意：schedule_status 是派生字段，由装配器根据 task_schedules 表计算
         let updated_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
@@ -300,28 +292,6 @@ mod database {
         sqlx::query(query)
             .bind(task_id.to_string())
             .bind(scheduled_day.to_rfc3339())
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| AppError::DatabaseError(e.into()))?;
-
-        Ok(())
-    }
-
-    /// 更新任务的 schedule_status 为 'staging'
-    pub async fn update_schedule_status_to_staging(
-        tx: &mut Transaction<'_, Sqlite>,
-        task_id: Uuid,
-        updated_at: chrono::DateTime<Utc>,
-    ) -> AppResult<()> {
-        let query = r#"
-            UPDATE tasks
-            SET schedule_status = 'staging', updated_at = ?
-            WHERE id = ?
-        "#;
-
-        sqlx::query(query)
-            .bind(updated_at.to_rfc3339())
-            .bind(task_id.to_string())
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

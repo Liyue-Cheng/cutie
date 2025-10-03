@@ -242,7 +242,7 @@ mod logic {
 
         // ⏱️ 3. 检查是否未完成
         let check_start = std::time::Instant::now();
-        if !task.is_completed() {
+        if task.completed_at.is_none() {
             return Err(AppError::conflict("任务尚未完成"));
         }
         tracing::info!(
