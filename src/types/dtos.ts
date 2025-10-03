@@ -69,6 +69,24 @@ export interface TaskCard {
     is_overdue: boolean
   } | null
 
+  // --- 日程与时间片信息 ---
+  /**
+   * 完整的日程列表（包含每天的时间片）
+   * null = staging 任务（未安排）
+   * [] = planned 任务但无具体时间片
+   */
+  schedules: Array<{
+    scheduled_day: string // YYYY-MM-DD
+    outcome: DailyOutcome
+    time_blocks: Array<{
+      id: string
+      start_time: string
+      end_time: string
+      title: string | null
+      glance_note: string | null
+    }>
+  }> | null
+
   // --- UI提示标志 ---
   has_detail_note: boolean
 }
@@ -85,11 +103,7 @@ export interface TaskDetail extends TaskCard {
   // 1. 完整的详细笔记
   detail_note: string | null
 
-  // 2. 完整的日程安排历史与未来
-  schedules: Array<{
-    day: string
-    outcome: DailyOutcome
-  }>
+  // 2. schedules 已从 TaskCard 继承（包含 time_blocks）
 
   // 3. 完整的项目信息 (如果有关联)
   project: {

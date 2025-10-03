@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::{Task, TaskDetailDto},
-    features::tasks::shared::{repositories::TaskScheduleRepository, TaskAssembler},
+    features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
         http::error_handler::success_response,
@@ -59,22 +59,23 @@ mod logic {
         // 2. 组装基础 TaskCard
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
 
-        // 3. 查询 schedules 历史（✅ 使用共享 Repository）
-        let schedules = TaskScheduleRepository::get_all_for_task(pool, task_id).await?;
+        // 3. 组装完整的 schedules（包含 time_blocks）
+        let schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
 
         // 4. ✅ 关键：根据实际 schedules 判断 schedule_status
-        // 如果有任何 schedule 记录，状态就是 scheduled
-        task_card.schedule_status = if !schedules.is_empty() {
+        task_card.schedule_status = if schedules.is_some() {
             crate::entities::ScheduleStatus::Scheduled
         } else {
             crate::entities::ScheduleStatus::Staging
         };
 
-        // 5. 组装 TaskDetailDto（✅ area_id 已由 TaskAssembler 填充）
+        task_card.schedules = schedules;
+
+        // 5. 组装 TaskDetailDto
         let task_detail = TaskDetailDto {
             card: task_card,
             detail_note: task.detail_note.clone(),
-            schedules,
+            // schedules 已通过 flatten 从 TaskCardDto 继承
             project: None, // TODO: 查询项目信息
             created_at: task.created_at,
             updated_at: task.updated_at,

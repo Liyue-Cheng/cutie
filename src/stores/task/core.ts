@@ -108,6 +108,18 @@ export function createTaskCore() {
   }
 
   /**
+   * 获取指定日期的任务列表（响应式）
+   * ✅ 单一数据源：从 TaskStore 过滤，自动响应变化
+   * ✅ 性能优化：复用 allTasksArray
+   */
+  const getTasksByDate = computed(() => (date: string) => {
+    return allTasksArray.value.filter(
+      (task) =>
+        task.schedules?.some((schedule) => schedule.scheduled_day === date) ?? false
+    )
+  })
+
+  /**
    * 根据项目 ID 获取任务列表
    * ✅ 性能优化：复用 allTasksArray
    */
@@ -179,6 +191,7 @@ export function createTaskCore() {
     completedTasks,
     scheduledTasks,
     getTaskById,
+    getTasksByDate,
     getTasksByProject,
     getTasksByArea,
 

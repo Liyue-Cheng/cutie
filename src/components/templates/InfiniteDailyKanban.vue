@@ -7,10 +7,6 @@ import { useTaskStore } from '@/stores/task'
 // ==================== Stores ====================
 const taskStore = useTaskStore()
 
-// ==================== 日期任务缓存 ====================
-// 每个日期的任务缓存，key: YYYY-MM-DD, value: TaskCard[]
-const dailyTasksCache = ref(new Map<string, TaskCard[]>())
-
 // ==================== 配置常量 ====================
 const KANBAN_WIDTH = 23 // 每个看板宽度（rem）
 const REM_TO_PX = 10 // 1rem = 10px (定义在 style.css 中)
@@ -131,11 +127,8 @@ function shiftKanbansRight() {
 
   const currentScrollLeft = scrollContainer.value?.scrollLeft || 0
 
-  // 移除最左侧的看板（用户看不到的区域）并清理缓存
-  const removedKanban = kanbans.value.shift()
-  if (removedKanban) {
-    dailyTasksCache.value.delete(removedKanban.id)
-  }
+  // 移除最左侧的看板（用户看不到的区域）
+  kanbans.value.shift()
 
   // 在右侧添加新看板（未来日期）
   const lastKanban = kanbans.value[kanbans.value.length - 1]
@@ -150,8 +143,7 @@ function shiftKanbansRight() {
     offset: lastKanban.offset + 1,
   })
 
-  // 加载新看板的任务
-  loadTasksForDate(dateStr)
+  // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取
 
   // console.log('[InfiniteDailyKanban] ✅ New kanban added:', dateStr)
 
@@ -192,11 +184,8 @@ function shiftKanbansLeft() {
 
   const currentScrollLeft = scrollContainer.value?.scrollLeft || 0
 
-  // 移除最右侧的看板（用户看不到的区域）并清理缓存
-  const removedKanban = kanbans.value.pop()
-  if (removedKanban) {
-    dailyTasksCache.value.delete(removedKanban.id)
-  }
+  // 移除最右侧的看板（用户看不到的区域）
+  kanbans.value.pop()
 
   // 在左侧添加新看板（过去日期）
   const firstKanban = kanbans.value[0]
@@ -211,8 +200,7 @@ function shiftKanbansLeft() {
     offset: firstKanban.offset - 1,
   })
 
-  // 加载新看板的任务
-  loadTasksForDate(dateStr)
+  // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取
 
   // console.log('[InfiniteDailyKanban] ✅ New kanban added:', dateStr)
 
@@ -287,29 +275,10 @@ function handleScroll(_event: Event) {
   }
 }
 
-// 为每个看板获取任务
+// 为每个看板获取任务（响应式）
+// ✅ 直接从 TaskStore 过滤，自动响应变化
 function getKanbanTasks(kanban: DailyKanban): TaskCard[] {
-  return dailyTasksCache.value.get(kanban.id) || []
-}
-
-// 加载指定日期的任务
-async function loadTasksForDate(date: string) {
-  try {
-    const tasks = await taskStore.fetchDailyTasks(date)
-    dailyTasksCache.value.set(date, tasks)
-    // console.log(`[InfiniteDailyKanban] ✅ Loaded ${tasks.length} tasks for ${date}`)
-  } catch (error) {
-    console.error(`[InfiniteDailyKanban] ❌ Failed to load tasks for ${date}:`, error)
-    // 失败时设置为空数组
-    dailyTasksCache.value.set(date, [])
-  }
-}
-
-// 批量加载当前所有看板的任务
-async function loadAllVisibleTasks() {
-  const loadPromises = kanbans.value.map((kanban) => loadTasksForDate(kanban.id))
-  await Promise.all(loadPromises)
-  console.log(`[InfiniteDailyKanban] ✅ Loaded tasks for ${kanbans.value.length} kanbans`)
+  return taskStore.getTasksByDate(kanban.id)
 }
 
 // ==================== Props & Events ====================
@@ -319,7 +288,7 @@ const emit = defineEmits<{
   'visible-date-change': [date: string] // 可见日期变化事件
 }>()
 
-// 暴露看板数量和当前可见日期给父组件
+// 暴露属性给父组件
 defineExpose({
   kanbanCount: computed(() => kanbans.value.length),
 })
@@ -476,13 +445,12 @@ function handleTaskDragEnd() {
 }
 
 // ==================== 生命周期 ====================
-onMounted(async () => {
+onMounted(() => {
   console.log('[InfiniteDailyKanban] 🚀 Initializing daily kanbans...')
   // 初始化日期看板
   initKanbans()
 
-  // 加载所有可见看板的任务
-  await loadAllVisibleTasks()
+  // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取（响应式）
 
   // 启动滚动监控
   startScrollMonitor()
@@ -494,7 +462,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopScrollMonitor()
-  
+
   // 清理事件监听器
   document.removeEventListener('dragstart', handleTaskDragStart)
   document.removeEventListener('dragend', handleTaskDragEnd)

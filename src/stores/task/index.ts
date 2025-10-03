@@ -50,6 +50,7 @@ export const useTaskStore = defineStore('task', () => {
     completedTasks: core.completedTasks,
     scheduledTasks: core.scheduledTasks, // @deprecated
     getTaskById: core.getTaskById,
+    getTasksByDate: core.getTasksByDate, // ✅ 日期看板专用
     getTasksByProject: core.getTasksByProject,
     getTasksByArea: core.getTasksByArea,
 

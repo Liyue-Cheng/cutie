@@ -31,8 +31,35 @@ pub struct TaskCardDto {
     pub schedule_info: Option<ScheduleInfo>,
     pub due_date: Option<DueDateInfo>,
 
+    // --- 日程与时间片信息 ---
+    /// 完整的日程列表（包含每天的时间片）
+    /// null = staging 任务（未安排）
+    /// [] = planned 任务但无具体时间片
+    pub schedules: Option<Vec<TaskScheduleDto>>,
+
     // --- UI提示标志 ---
     pub has_detail_note: bool,
+}
+
+/// 任务日程 DTO（包含时间片）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskScheduleDto {
+    /// 安排日期（YYYY-MM-DD）
+    pub scheduled_day: String,
+    /// 当天结局
+    pub outcome: DailyOutcome,
+    /// 该天的时间片列表
+    pub time_blocks: Vec<TimeBlockSummary>,
+}
+
+/// 时间片摘要（在 TaskCard 中显示）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeBlockSummary {
+    pub id: Uuid,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub title: Option<String>,
+    pub glance_note: Option<String>,
 }
 
 /// TaskDetail (任务详情视图模型)
@@ -49,9 +76,7 @@ pub struct TaskDetailDto {
     /// 完整的详细笔记
     pub detail_note: Option<String>,
 
-    /// 完整的日程安排历史与未来
-    pub schedules: Vec<ScheduleRecord>,
-
+    // 注意：schedules 已通过 flatten 从 TaskCardDto 继承，包含 time_blocks
     /// 完整的项目信息
     pub project: Option<ProjectSummary>,
 

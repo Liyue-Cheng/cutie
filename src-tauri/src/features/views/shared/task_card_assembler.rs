@@ -4,24 +4,28 @@ use sqlx::SqlitePool;
 
 use crate::{
     entities::{ScheduleStatus, Task, TaskCardDto},
-    features::tasks::shared::{repositories::TaskScheduleRepository, TaskAssembler},
+    features::tasks::shared::TaskAssembler,
     shared::core::AppResult,
 };
 
 pub struct ViewTaskCardAssembler;
 
 impl ViewTaskCardAssembler {
-    /// 为 Task 组装完整 TaskCard（✅ area_id 已由 TaskAssembler 填充）
+    /// 为 Task 组装完整 TaskCard（包含 schedules 和 time_blocks）
     pub async fn assemble_full(task: &Task, pool: &SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
-        // 判断 schedule_status
-        let has_schedule = TaskScheduleRepository::has_any_schedule(pool, task.id).await?;
-        card.schedule_status = if has_schedule {
+        // 组装完整的 schedules（包含 time_blocks）
+        let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
+
+        // 根据 schedules 设置 schedule_status
+        card.schedule_status = if schedules.is_some() {
             ScheduleStatus::Scheduled
         } else {
             ScheduleStatus::Staging
         };
+
+        card.schedules = schedules;
 
         Ok(card)
     }
@@ -40,16 +44,19 @@ impl ViewTaskCardAssembler {
     }
 
     /// 组装 TaskCard 并明确设置 schedule_status（用于 planned 和 staging 视图）
-    /// ✅ area_id 已由 TaskAssembler 填充
     pub async fn assemble_with_status(
         task: &Task,
-        _pool: &SqlitePool, // 不再需要查询 area
+        pool: &SqlitePool,
         status: ScheduleStatus,
     ) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
+        // 组装完整的 schedules（包含 time_blocks）
+        let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
+
         // 明确设置 schedule_status
         card.schedule_status = status;
+        card.schedules = schedules;
 
         Ok(card)
     }

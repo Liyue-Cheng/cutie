@@ -49,6 +49,8 @@ async function handleAddTask(title: string, date: string) {
     }
 
     console.log('[HomeView] ✅ Schedule added for task:', updatedTask.id, 'on', date)
+    
+    // ✅ 无需手动刷新！TaskStore 已更新，Vue 响应式系统会自动更新 UI
   } catch (error) {
     console.error('[HomeView] ❌ Error adding task with schedule:', error)
   }

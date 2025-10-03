@@ -8,10 +8,13 @@
 /// - 易于测试和维护
 use chrono::Utc;
 
+use crate::entities::task::TaskScheduleDto;
 use crate::entities::{
-    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleRecord, ScheduleStatus,
+    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleStatus,
     SubtaskDto, Task, TaskCardDto, TaskDetailDto,
 };
+use crate::shared::core::AppResult;
+use uuid::Uuid;
 
 /// Task 装配器
 pub struct TaskAssembler;
@@ -44,8 +47,112 @@ impl TaskAssembler {
                 due_date_type: task.due_date_type.clone().unwrap_or(DueDateType::Soft),
                 is_overdue: Utc::now() > date,
             }),
+            schedules: None, // 需要后续填充（调用 assemble_schedules）
             has_detail_note: task.detail_note.is_some(),
         }
+    }
+
+    /// 组装任务的完整日程信息（包含时间片）
+    ///
+    /// 此方法查询任务的所有日程，并为每个日程查询对应的时间片
+    pub async fn assemble_schedules(
+        executor: impl sqlx::Executor<'_, Database = sqlx::Sqlite> + Copy,
+        task_id: Uuid,
+    ) -> AppResult<Option<Vec<TaskScheduleDto>>> {
+        use crate::entities::task::{DailyOutcome, TaskScheduleDto, TimeBlockSummary};
+        use crate::entities::Outcome;
+        use crate::shared::core::{AppError, AppResult as Result, DbError};
+        use chrono::{DateTime, Utc};
+        use uuid::Uuid as UuidType;
+
+        // 1. 查询所有日程
+        let schedule_query = r#"
+            SELECT id, task_id, scheduled_day, outcome, created_at, updated_at
+            FROM task_schedules
+            WHERE task_id = ?
+            ORDER BY scheduled_day ASC
+        "#;
+
+        let schedule_rows = sqlx::query_as::<_, crate::entities::TaskScheduleRow>(schedule_query)
+            .bind(task_id.to_string())
+            .fetch_all(executor)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        if schedule_rows.is_empty() {
+            return Ok(None); // staging 任务
+        }
+
+        // 2. 转换为 TaskSchedule 实体
+        let schedules: Vec<crate::entities::TaskSchedule> = schedule_rows
+            .into_iter()
+            .map(|row| {
+                crate::entities::TaskSchedule::try_from(row)
+                    .map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        // 3. 为每个日程查询时间片
+        let mut schedule_dtos = Vec::new();
+
+        for schedule in schedules {
+            let scheduled_day_str = schedule.scheduled_day.format("%Y-%m-%d").to_string();
+
+            // 查询该日期的时间片
+            let blocks_query = r#"
+                SELECT tb.id, tb.title, tb.glance_note, tb.start_time, tb.end_time
+                FROM time_blocks tb
+                INNER JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
+                WHERE ttbl.task_id = ?
+                  AND DATE(tb.start_time) = DATE(?)
+                  AND tb.is_deleted = false
+                ORDER BY tb.start_time ASC
+            "#;
+
+            let block_rows: Vec<(
+                String,
+                Option<String>,
+                Option<String>,
+                DateTime<Utc>,
+                DateTime<Utc>,
+            )> = sqlx::query_as(blocks_query)
+                .bind(task_id.to_string())
+                .bind(schedule.scheduled_day.to_rfc3339())
+                .fetch_all(executor)
+                .await
+                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+            let time_blocks: Vec<TimeBlockSummary> = block_rows
+                .into_iter()
+                .map(|(id_str, title, glance_note, start_time, end_time)| {
+                    let id = UuidType::parse_str(&id_str)
+                        .map_err(|e| AppError::StringError(e.to_string()))?;
+                    Ok(TimeBlockSummary {
+                        id,
+                        start_time,
+                        end_time,
+                        title,
+                        glance_note,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            // 转换 Outcome 为 DailyOutcome
+            let outcome = match schedule.outcome {
+                Outcome::Planned => DailyOutcome::Planned,
+                Outcome::PresenceLogged => DailyOutcome::PresenceLogged,
+                Outcome::CompletedOnDay => DailyOutcome::Completed,
+                Outcome::CarriedOver => DailyOutcome::CarriedOver,
+            };
+
+            schedule_dtos.push(TaskScheduleDto {
+                scheduled_day: scheduled_day_str,
+                outcome,
+                time_blocks,
+            });
+        }
+
+        Ok(Some(schedule_dtos))
     }
 
     /// 从 Task 实体创建完整的 TaskCardDto
@@ -66,14 +173,14 @@ impl TaskAssembler {
     /// 从 TaskCardDto 和 Task 实体创建 TaskDetailDto（基础版本）
     ///
     /// 需要额外数据的字段保持默认值：
-    /// - schedules（需要从 Schedule 表获取）
     /// - project（需要从 Project 表获取）
+    /// - schedules 已通过 flatten 从 TaskCardDto 继承
     pub fn card_and_task_to_detail_basic(card: TaskCardDto, task: &Task) -> TaskDetailDto {
         TaskDetailDto {
             card,
             detail_note: task.detail_note.clone(),
-            schedules: Vec::new(), // 需要后续填充
-            project: None,         // 需要后续填充
+            // schedules 已通过 flatten 从 TaskCardDto 继承
+            project: None, // 需要后续填充
             created_at: task.created_at,
             updated_at: task.updated_at,
         }
@@ -84,13 +191,12 @@ impl TaskAssembler {
     pub fn card_to_detail_full(
         card: TaskCardDto,
         task: &Task,
-        schedules: Vec<ScheduleRecord>,
         project: Option<ProjectSummary>,
     ) -> TaskDetailDto {
         TaskDetailDto {
             card,
             detail_note: task.detail_note.clone(),
-            schedules,
+            // schedules 已通过 flatten 从 TaskCardDto 继承
             project,
             created_at: task.created_at,
             updated_at: task.updated_at,
