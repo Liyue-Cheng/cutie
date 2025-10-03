@@ -13,5 +13,25 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
     "source.fixAll.stylelint": "explicit"
-  }
+  },
+  "terminal.integrated.profiles.windows": {
+    "Command Prompt": {
+      "path": "C:\\Windows\\System32\\cmd.exe"
+    },
+
+    "PowerShell": {
+      "source": "PowerShell"
+    },
+
+    "Git Bash": {
+      "path": "C:\\Program Files\\Git\\bin\\bash.exe",
+
+      "args": ["--login", "-i"]
+    },
+
+    "WSL": {
+      "path": "C:\\Windows\\System32\\wsl.exe"
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "Git Bash"
 }

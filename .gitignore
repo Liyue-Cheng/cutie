@@ -129,3 +129,6 @@ coverage/
 
 # Tauri build files
 src-tauri/target/
+
+# AI documentation
+ai-doc/

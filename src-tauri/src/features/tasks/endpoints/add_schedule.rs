@@ -1,0 +1,216 @@
+/// 添加任务日程 API - 单文件组件
+///
+/// POST /api/tasks/:id/schedules
+use axum::{
+    extract::{Path, State},
+    http::HeaderMap,
+    response::{IntoResponse, Response},
+    Json,
+};
+use chrono::{NaiveDate, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::{
+    entities::TaskCardDto,
+    features::tasks::shared::{
+        repositories::{TaskRepository, TaskScheduleRepository},
+        TaskAssembler,
+    },
+    shared::{
+        core::{AppError, AppResult},
+        http::{error_handler::created_response, extractors::extract_correlation_id},
+    },
+    startup::AppState,
+};
+
+// ==================== 文档层 ====================
+/*
+CABC for `add_schedule`
+
+## API端点
+POST /api/tasks/:id/schedules
+
+## 预期行为简介
+为任务添加日程安排，指定任务在某天需要完成。
+
+## 业务逻辑
+1. 验证任务存在且未删除
+2. 验证该日期还没有日程记录
+3. 创建 schedule 记录（outcome = 'PLANNED'）
+4. 如果是任务的第一个日程，更新 schedule_status 为 'planned'
+5. 通过 SSE 推送 task.scheduled 事件
+
+## 输入输出规范
+- **前置条件**:
+  - 任务存在且未删除
+  - scheduled_day 是有效日期
+  - 该日期还没有 schedule 记录
+- **后置条件**:
+  - 插入 task_schedules 记录
+  - 更新任务的 schedule_status（如果需要）
+
+## 边界情况
+- 任务不存在 → 404
+- 该日期已有日程 → 409 Conflict
+- 日期格式错误 → 400
+*/
+
+// ==================== 请求/响应结构体 ====================
+#[derive(Debug, Deserialize)]
+pub struct AddScheduleRequest {
+    /// 安排日期（YYYY-MM-DD 格式）
+    pub scheduled_day: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AddScheduleResponse {
+    pub task_card: TaskCardDto,
+}
+
+// ==================== HTTP 处理器 ====================
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Path(task_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<AddScheduleRequest>,
+) -> Response {
+    let correlation_id = extract_correlation_id(&headers);
+    match logic::execute(&app_state, task_id, request, correlation_id).await {
+        Ok(response) => created_response(response).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+// ==================== 验证层 ====================
+mod validation {
+    use super::*;
+
+    pub fn parse_date(date_str: &str) -> AppResult<chrono::DateTime<Utc>> {
+        let naive_date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
+            AppError::validation_error(
+                "scheduled_day",
+                "日期格式错误，请使用 YYYY-MM-DD 格式",
+                "INVALID_DATE_FORMAT",
+            )
+        })?;
+
+        // 转换为 UTC 零点
+        let datetime = naive_date
+            .and_hms_opt(0, 0, 0)
+            .ok_or_else(|| {
+                AppError::validation_error("scheduled_day", "无效的日期", "INVALID_DATE")
+            })?
+            .and_utc();
+
+        Ok(datetime)
+    }
+}
+
+// ==================== 业务逻辑层 ====================
+mod logic {
+    use super::*;
+    use crate::features::shared::TransactionHelper;
+
+    pub async fn execute(
+        app_state: &AppState,
+        task_id: Uuid,
+        request: AddScheduleRequest,
+        correlation_id: Option<String>,
+    ) -> AppResult<AddScheduleResponse> {
+        let now = app_state.clock().now_utc();
+
+        // 1. 解析日期
+        let scheduled_day = validation::parse_date(&request.scheduled_day)?;
+
+        // 2. 开始事务
+        let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+
+        // 3. 查找任务
+        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+
+        // 4. 检查该日期是否已有日程
+        let has_schedule =
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, scheduled_day)
+                .await?;
+
+        if has_schedule {
+            return Err(AppError::conflict("该日期已有日程安排"));
+        }
+
+        // 5. 创建日程记录
+        TaskScheduleRepository::create_in_tx(&mut tx, task_id, scheduled_day).await?;
+
+        // 6. 检查是否是第一个日程，如果是则更新 schedule_status
+        let has_any_schedule =
+            TaskScheduleRepository::has_any_schedule(&mut **&mut tx, task_id).await?;
+
+        if has_any_schedule && !task.is_completed() {
+            database::update_schedule_status_to_planned(&mut tx, task_id, now).await?;
+        }
+
+        // 7. 重新查询任务并组装 TaskCard
+        let updated_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+
+        let task_card = TaskAssembler::task_to_card_basic(&updated_task);
+
+        // 8. 写入领域事件到 outbox
+        use crate::shared::events::{
+            models::DomainEvent,
+            outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+        };
+        let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+
+        let payload = serde_json::json!({
+            "task": task_card,
+            "scheduled_day": request.scheduled_day,
+        });
+
+        let mut event = DomainEvent::new("task.scheduled", "task", task_id.to_string(), payload)
+            .with_aggregate_version(now.timestamp_millis());
+
+        if let Some(cid) = correlation_id {
+            event = event.with_correlation_id(cid);
+        }
+
+        outbox_repo.append_in_tx(&mut tx, &event).await?;
+
+        // 9. 提交事务
+        TransactionHelper::commit(tx).await?;
+
+        // 10. 返回结果
+        Ok(AddScheduleResponse { task_card })
+    }
+}
+
+// ==================== 数据访问层 ====================
+mod database {
+    use super::*;
+    use sqlx::{Sqlite, Transaction};
+
+    /// 更新任务的 schedule_status 为 'planned'
+    pub async fn update_schedule_status_to_planned(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        updated_at: chrono::DateTime<Utc>,
+    ) -> AppResult<()> {
+        let query = r#"
+            UPDATE tasks
+            SET schedule_status = 'planned', updated_at = ?
+            WHERE id = ?
+        "#;
+
+        sqlx::query(query)
+            .bind(updated_at.to_rfc3339())
+            .bind(task_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        Ok(())
+    }
+}

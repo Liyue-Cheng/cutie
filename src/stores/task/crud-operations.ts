@@ -189,6 +189,130 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
     }, `reopen task ${id}`)
   }
 
+  /**
+   * 添加日程
+   * API: POST /tasks/:id/schedules
+   */
+  async function addSchedule(taskId: string, scheduledDay: string): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('addSchedule')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'addSchedule')
+
+        const data = await apiPost(`/tasks/${taskId}/schedules`, { scheduled_day: scheduledDay }, correlationId)
+
+        correlationTracker.markHttpReceived(correlationId, 'addSchedule')
+
+        const updatedTask: TaskCard = data.task_card
+        addOrUpdateTask(updatedTask)
+
+        console.log('[TaskStore] Added schedule (HTTP):', updatedTask, 'correlation:', correlationId)
+        return updatedTask
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, `add schedule for task ${taskId}`)
+  }
+
+  /**
+   * 更新日程
+   * API: PATCH /tasks/:id/schedules/:date
+   */
+  async function updateSchedule(
+    taskId: string,
+    date: string,
+    payload: { new_date?: string; outcome?: string }
+  ): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('updateSchedule')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'updateSchedule')
+
+        const data = await apiPatch(`/tasks/${taskId}/schedules/${date}`, payload, correlationId)
+
+        correlationTracker.markHttpReceived(correlationId, 'updateSchedule')
+
+        const updatedTask: TaskCard = data.task_card
+        addOrUpdateTask(updatedTask)
+
+        console.log('[TaskStore] Updated schedule (HTTP):', updatedTask, 'correlation:', correlationId)
+        return updatedTask
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, `update schedule for task ${taskId}`)
+  }
+
+  /**
+   * 删除日程
+   * API: DELETE /tasks/:id/schedules/:date
+   */
+  async function deleteSchedule(taskId: string, date: string): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('deleteSchedule')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'deleteSchedule')
+
+        const data = await apiDelete(`/tasks/${taskId}/schedules/${date}`, correlationId)
+
+        correlationTracker.markHttpReceived(correlationId, 'deleteSchedule')
+
+        const updatedTask: TaskCard = data.task_card
+        addOrUpdateTask(updatedTask)
+
+        // ✅ 注意：副作用（deleted time blocks）已通过 SSE 推送
+
+        console.log('[TaskStore] Deleted schedule (HTTP):', updatedTask, 'correlation:', correlationId)
+        return updatedTask
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, `delete schedule for task ${taskId}`)
+  }
+
+  /**
+   * 返回暂存区
+   * API: POST /tasks/:id/return-to-staging
+   */
+  async function returnToStaging(taskId: string): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('returnToStaging')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'returnToStaging')
+
+        const data = await apiPost(`/tasks/${taskId}/return-to-staging`, undefined, correlationId)
+
+        correlationTracker.markHttpReceived(correlationId, 'returnToStaging')
+
+        const updatedTask: TaskCard = data.task_card
+        addOrUpdateTask(updatedTask)
+
+        // ✅ 注意：副作用（deleted time blocks）已通过 SSE 推送
+
+        console.log('[TaskStore] Returned to staging (HTTP):', updatedTask, 'correlation:', correlationId)
+        return updatedTask
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, `return task ${taskId} to staging`)
+  }
+
   return {
     createTask,
     updateTask,
@@ -196,6 +320,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
     deleteTask,
     completeTask,
     reopenTask,
+    addSchedule,
+    updateSchedule,
+    deleteSchedule,
+    returnToStaging,
     // 暴露 correlation tracker 供事件处理器使用
     correlationTracker,
   }
