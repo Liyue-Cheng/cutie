@@ -37,9 +37,9 @@ const sortingConfigLoaded = ref(false)
 // ✅ 组件挂载时，加载该视图的排序配置
 onMounted(async () => {
   if (props.viewKey) {
-    console.log(`[SimpleKanbanColumn] 🔄 Loading sorting config for "${props.viewKey}"`)
+    // console.log(`[SimpleKanbanColumn] 🔄 Loading sorting config for "${props.viewKey}"`)
     await viewStore.fetchViewPreference(props.viewKey)
-    console.log(`[SimpleKanbanColumn] ✅ Sorting config loaded for "${props.viewKey}"`)
+    // console.log(`[SimpleKanbanColumn] ✅ Sorting config loaded for "${props.viewKey}"`)
     sortingConfigLoaded.value = true
   } else {
     // 没有 viewKey，标记为已加载（不需要加载）
@@ -172,7 +172,7 @@ function handleDrop(event: DragEvent) {
   // ✅ 使用 displayTasks（包含最新的拖拽结果）
   const finalOrder = displayTasks.value.map((t) => t.id)
 
-  console.log('[SimpleKanbanColumn] Drop完成，最终顺序:', finalOrder)
+  // console.log('[SimpleKanbanColumn] Drop完成，最终顺序:', finalOrder)
 
   // ✅ 持久化到后端（通过父组件）
   emit('reorderTasks', finalOrder)
@@ -203,19 +203,19 @@ function handleDrop(event: DragEvent) {
 watch(
   () => props.tasks,
   (newTasks) => {
-    console.log(`[SimpleKanbanColumn] 🔄 Watch triggered for "${props.viewKey || 'NO_KEY'}":`, {
-      taskCount: newTasks.length,
-      taskIds: newTasks.map((t) => t.id),
-      hasViewKey: !!props.viewKey,
-      isDragging: draggedTaskId.value !== null,
-      sortingConfigLoaded: sortingConfigLoaded.value,
-    })
+    // console.log(`[SimpleKanbanColumn] 🔄 Watch triggered for "${props.viewKey || 'NO_KEY'}":`, {
+    //   taskCount: newTasks.length,
+    //   taskIds: newTasks.map((t) => t.id),
+    //   hasViewKey: !!props.viewKey,
+    //   isDragging: draggedTaskId.value !== null,
+    //   sortingConfigLoaded: sortingConfigLoaded.value,
+    // })
 
     // 等待排序配置加载完成
     if (!sortingConfigLoaded.value) {
-      console.log(
-        `[SimpleKanbanColumn] ⏭️ Skip: Waiting for sorting config to load for "${props.viewKey}"`
-      )
+      // console.log(
+      //   `[SimpleKanbanColumn] ⏭️ Skip: Waiting for sorting config to load for "${props.viewKey}"`
+      // )
       // 更新任务ID记录，但不持久化
       previousTaskIds.value = new Set(newTasks.map((t) => t.id))
       return
@@ -223,15 +223,15 @@ watch(
 
     // 没有 viewKey，无法持久化
     if (!props.viewKey) {
-      console.log(`[SimpleKanbanColumn] ⏭️ Skip: No viewKey`)
+      // console.log(`[SimpleKanbanColumn] ⏭️ Skip: No viewKey`)
       return
     }
 
     // 正在拖拽中，不要干扰（拖拽结束会自己持久化）
     if (draggedTaskId.value !== null) {
-      console.log(
-        `[SimpleKanbanColumn] ⏭️ Skip: Dragging in progress (draggedTaskId=${draggedTaskId.value})`
-      )
+      // console.log(
+      //   `[SimpleKanbanColumn] ⏭️ Skip: Dragging in progress (draggedTaskId=${draggedTaskId.value})`
+      // )
       return
     }
 
@@ -243,37 +243,37 @@ watch(
       currentTaskIds.size !== previousTaskIds.value.size ||
       !Array.from(currentTaskIds).every((id) => previousTaskIds.value.has(id))
 
-    console.log(`[SimpleKanbanColumn] 🔍 Change detection for "${props.viewKey}":`, {
-      previousSize: previousTaskIds.value.size,
-      currentSize: currentTaskIds.size,
-      hasChanges,
-      newTasks: Array.from(currentTaskIds).filter((id) => !previousTaskIds.value.has(id)),
-      removedTasks: Array.from(previousTaskIds.value).filter((id) => !currentTaskIds.has(id)),
-    })
+    // console.log(`[SimpleKanbanColumn] 🔍 Change detection for "${props.viewKey}":`, {
+    //   previousSize: previousTaskIds.value.size,
+    //   currentSize: currentTaskIds.size,
+    //   hasChanges,
+    //   newTasks: Array.from(currentTaskIds).filter((id) => !previousTaskIds.value.has(id)),
+    //   removedTasks: Array.from(previousTaskIds.value).filter((id) => !currentTaskIds.has(id)),
+    // })
 
     if (hasChanges) {
-      console.log(`[SimpleKanbanColumn] ✅ Detected task list changes in "${props.viewKey}":`, {
-        before: previousTaskIds.value.size,
-        after: currentTaskIds.size,
-        new: Array.from(currentTaskIds).filter((id) => !previousTaskIds.value.has(id)),
-        removed: Array.from(previousTaskIds.value).filter((id) => !currentTaskIds.has(id)),
-      })
+      // console.log(`[SimpleKanbanColumn] ✅ Detected task list changes in "${props.viewKey}":`, {
+      //   before: previousTaskIds.value.size,
+      //   after: currentTaskIds.size,
+      //   new: Array.from(currentTaskIds).filter((id) => !previousTaskIds.value.has(id)),
+      //   removed: Array.from(previousTaskIds.value).filter((id) => !currentTaskIds.has(id)),
+      // })
 
       // 更新记录
       previousTaskIds.value = currentTaskIds
 
       // ✅ 自动持久化当前顺序
       const currentOrder = newTasks.map((t) => t.id)
-      console.log(
-        `[SimpleKanbanColumn] 💾 Calling updateSorting for "${props.viewKey}" with order:`,
-        currentOrder
-      )
+      // console.log(
+      //   `[SimpleKanbanColumn] 💾 Calling updateSorting for "${props.viewKey}" with order:`,
+      //   currentOrder
+      // )
 
       viewStore
         .updateSorting(props.viewKey, currentOrder)
         .then((success) => {
           if (success) {
-            console.log(`[SimpleKanbanColumn] ✅ Auto-persisted sorting for "${props.viewKey}"`)
+            // console.log(`[SimpleKanbanColumn] ✅ Auto-persisted sorting for "${props.viewKey}"`)
           } else {
             console.error(
               `[SimpleKanbanColumn] ❌ Failed to auto-persist sorting for "${props.viewKey}"`
@@ -287,9 +287,9 @@ watch(
           )
         })
     } else {
-      console.log(
-        `[SimpleKanbanColumn] ⏭️ No changes detected for "${props.viewKey}", skipping persistence`
-      )
+      // console.log(
+      //   `[SimpleKanbanColumn] ⏭️ No changes detected for "${props.viewKey}", skipping persistence`
+      // )
       // 没有真正的变化，只是响应式更新，更新记录即可
       previousTaskIds.value = currentTaskIds
     }

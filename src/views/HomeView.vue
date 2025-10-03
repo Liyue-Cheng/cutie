@@ -1,80 +1,39 @@
 <script setup lang="ts">
-import { onMounted, computed, ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
-import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
+import InfiniteDailyKanban from '@/components/templates/InfiniteDailyKanban.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import { useTaskStore } from '@/stores/task'
-import { useViewStore } from '@/stores/view'
-import { useViewOperations } from '@/composables/useViewOperations'
-import { useTaskOperations } from '@/composables/useTaskOperations'
 
-const taskStore = useTaskStore()
-const viewStore = useViewStore()
-const viewOps = useViewOperations()
-const taskOps = useTaskOperations()
+// ==================== 状态 ====================
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
+const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
+const currentVisibleDate = ref<string | null>(null) // 当前可见日期
 
-// ✅ 新架构：过滤（TaskStore）+ 排序（ViewStore）
-// ✅ 完全自动的实时更新：任务状态改变立即反映
+// 获取看板数量
+const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
 
-const allTasks = computed(() => {
-  return viewStore.applySorting(taskStore.allTasks, 'all')
-})
-
-const incompleteTasks = computed(() => {
-  return viewStore.applySorting(taskStore.incompleteTasks, 'incomplete')
-})
-
-const stagingTasks = computed(() => {
-  return viewStore.applySorting(taskStore.stagingTasks, 'staging')
-})
-
-const plannedTasks = computed(() => {
-  return viewStore.applySorting(taskStore.plannedTasks, 'planned')
-})
-
+// ==================== 事件处理 ====================
 function handleOpenEditor(task: TaskCard) {
   selectedTaskId.value = task.id
   isEditorOpen.value = true
+  console.log('[HomeView] 📝 Opening editor for task:', task.id)
 }
 
-async function handleAddTask(title: string) {
-  // ✅ 使用 TaskOperations 创建任务
-  const taskId = await taskOps.createTask({ title })
-  if (taskId) {
-    console.log('[HomeView] Task created:', taskId)
-    // ✅ 新架构：无需手动添加，任务会自动出现在 stagingTasks 中
-  }
+function handleAddTask(title: string, date: string) {
+  console.log('[HomeView] ➕ Add task:', { title, date })
+  // TODO: 实现添加任务逻辑
 }
 
-// 处理拖拽排序
-async function handleReorder(viewKey: string, newOrder: string[]) {
-  console.log(`[HomeView] 重新排序 ${viewKey}:`, newOrder)
-  await viewStore.updateSorting(viewKey, newOrder)
+function handleVisibleDateChange(date: string) {
+  console.log('[HomeView] 📅 Visible date changed:', date)
+  currentVisibleDate.value = date
+  // 日历会自动通过 :current-date prop 更新显示
 }
-
-onMounted(async () => {
-  // ✅ 职责分离：
-  // - 父组件：加载业务数据（任务列表）
-  // - 子组件：加载视图配置（排序设置）
-  try {
-    await Promise.all([
-      viewOps.loadAllTasks(),
-      viewOps.loadPlannedTasks(),
-      viewOps.loadStagingTasks(),
-    ])
-
-    console.log('[HomeView] Loaded all task data')
-    // 注意：排序配置由 SimpleKanbanColumn 自己加载
-  } catch (error) {
-    console.error('[HomeView] Failed to fetch tasks:', error)
-  }
-})
 </script>
 
 <template>
@@ -82,45 +41,18 @@ onMounted(async () => {
     <div class="main-content-pane">
       <TwoRowLayout>
         <template #top>
-          <CuteButton>Test Button 1</CuteButton>
+          <div class="kanban-header">
+            <h2>日程看板</h2>
+            <span class="kanban-count">{{ kanbanCount }} 个看板</span>
+          </div>
         </template>
         <template #bottom>
-          <div class="task-view-pane">
-            <SimpleKanbanColumn
-              title="All"
-              subtitle="所有任务"
-              view-key="all"
-              :tasks="allTasks"
-              @open-editor="handleOpenEditor"
-              @reorder-tasks="(order) => handleReorder('all', order)"
-            />
-            <SimpleKanbanColumn
-              title="Incomplete"
-              subtitle="未完成"
-              view-key="incomplete"
-              :tasks="incompleteTasks"
-              @open-editor="handleOpenEditor"
-              @reorder-tasks="(order) => handleReorder('incomplete', order)"
-            />
-            <SimpleKanbanColumn
-              title="Staging"
-              subtitle="未排期"
-              view-key="staging"
-              :tasks="stagingTasks"
-              :show-add-input="true"
-              @open-editor="handleOpenEditor"
-              @add-task="handleAddTask"
-              @reorder-tasks="(order) => handleReorder('staging', order)"
-            />
-            <SimpleKanbanColumn
-              title="Planned"
-              subtitle="已排期"
-              view-key="planned"
-              :tasks="plannedTasks"
-              @open-editor="handleOpenEditor"
-              @reorder-tasks="(order) => handleReorder('planned', order)"
-            />
-          </div>
+          <InfiniteDailyKanban
+            ref="kanbanRef"
+            @open-editor="handleOpenEditor"
+            @add-task="handleAddTask"
+            @visible-date-change="handleVisibleDateChange"
+          />
         </template>
       </TwoRowLayout>
     </div>
@@ -130,7 +62,7 @@ onMounted(async () => {
           <CuteButton>Test Button 2</CuteButton>
         </template>
         <template #bottom>
-          <CuteCalendar />
+          <CuteCalendar :current-date="currentVisibleDate || undefined" />
         </template>
       </TwoRowLayout>
     </div>
@@ -192,10 +124,26 @@ onMounted(async () => {
   padding-top: 1rem;
 }
 
-.task-view-pane {
+/* ==================== 看板标题栏 ==================== */
+.kanban-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 1rem; /* 减少padding，因为top-row已经有padding了 */
   gap: 1rem;
-  height: 100%;
+}
+
+.kanban-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.kanban-count {
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary);
 }
 
 :deep(.top-row .cute-button) {

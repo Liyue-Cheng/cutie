@@ -6,7 +6,7 @@
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
-    <FullCalendar :options="calendarOptions" />
+    <FullCalendar ref="calendarRef" :options="calendarOptions" />
   </div>
 </template>
 
@@ -14,7 +14,7 @@
 import FullCalendar from '@fullcalendar/vue3'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import { reactive, onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
+import { reactive, onMounted, onUnmounted, computed, ref, nextTick, watch } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
@@ -28,11 +28,35 @@ const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const contextMenu = useContextMenu()
 
+// ==================== Props ====================
+const props = defineProps<{
+  currentDate?: string // YYYY-MM-DD 格式的日期
+}>()
+
+// FullCalendar 引用
+const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
+
 // 预览时间块状态
 const previewEvent = ref<EventInput | null>(null)
 const isDragging = ref(false)
 const currentDraggedTask = ref<TaskCard | null>(null)
 const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
+
+// ==================== 日期切换功能 ====================
+// 监听 currentDate prop 变化，切换日历显示的日期
+watch(
+  () => props.currentDate,
+  (newDate) => {
+    if (newDate && calendarRef.value) {
+      const calendarApi = calendarRef.value.getApi()
+      if (calendarApi) {
+        console.log('[CuteCalendar] 📅 Switching to date:', newDate)
+        calendarApi.gotoDate(newDate)
+      }
+    }
+  },
+  { immediate: false }
+)
 
 onMounted(async () => {
   // 监听全局拖拽开始事件
@@ -49,6 +73,15 @@ onMounted(async () => {
     const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6))
 
     await timeBlockStore.fetchTimeBlocksForRange(startOfWeek.toISOString(), endOfWeek.toISOString())
+
+    // 如果有初始日期，切换到该日期
+    if (props.currentDate && calendarRef.value) {
+      const calendarApi = calendarRef.value.getApi()
+      if (calendarApi) {
+        console.log('[CuteCalendar] 📅 Initial date:', props.currentDate)
+        calendarApi.gotoDate(props.currentDate)
+      }
+    }
   } catch (error) {
     console.error('[CuteCalendar] Failed to fetch initial time blocks:', error)
   }

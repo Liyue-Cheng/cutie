@@ -143,7 +143,8 @@ export const useViewStore = defineStore('view', () => {
       )
 
       // ✅ 持久化到后端
-      const contextKey = `misc::${viewKey}` // 使用规范格式
+      // 如果 viewKey 不包含 ::，则添加 misc:: 前缀（兼容旧格式）
+      const contextKey = viewKey.includes('::') ? viewKey : `misc::${viewKey}`
       console.log('[ViewStore] 💾 Saving to backend:', {
         context_key: contextKey,
         task_count: orderedTaskIds.length,
@@ -208,7 +209,8 @@ export const useViewStore = defineStore('view', () => {
   async function fetchViewPreference(viewKey: string): Promise<boolean> {
     try {
       const apiBaseUrl = await waitForApiReady()
-      const contextKey = `misc::${viewKey}` // 使用规范格式
+      // 如果 viewKey 不包含 ::，则添加 misc:: 前缀（兼容旧格式）
+      const contextKey = viewKey.includes('::') ? viewKey : `misc::${viewKey}`
 
       console.log(`[ViewStore] 📥 Fetching preference for: ${contextKey}`)
 

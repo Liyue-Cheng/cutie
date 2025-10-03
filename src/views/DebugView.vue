@@ -23,19 +23,19 @@ const selectedTaskId = ref<string | null>(null)
 // ✅ 完全自动的实时更新：任务状态改变立即反映
 
 const allTasks = computed(() => {
-  return viewStore.applySorting(taskStore.allTasks, 'all')
+  return viewStore.applySorting(taskStore.allTasks, 'misc::all')
 })
 
 const incompleteTasks = computed(() => {
-  return viewStore.applySorting(taskStore.incompleteTasks, 'incomplete')
+  return viewStore.applySorting(taskStore.incompleteTasks, 'misc::incomplete')
 })
 
 const stagingTasks = computed(() => {
-  return viewStore.applySorting(taskStore.stagingTasks, 'staging')
+  return viewStore.applySorting(taskStore.stagingTasks, 'misc::staging')
 })
 
 const plannedTasks = computed(() => {
-  return viewStore.applySorting(taskStore.plannedTasks, 'planned')
+  return viewStore.applySorting(taskStore.plannedTasks, 'misc::planned')
 })
 
 function handleOpenEditor(task: TaskCard) {
@@ -47,14 +47,14 @@ async function handleAddTask(title: string) {
   // ✅ 使用 TaskOperations 创建任务
   const taskId = await taskOps.createTask({ title })
   if (taskId) {
-    console.log('[HomeView] Task created:', taskId)
+    console.log('[DebugView] Task created:', taskId)
     // ✅ 新架构：无需手动添加，任务会自动出现在 stagingTasks 中
   }
 }
 
 // 处理拖拽排序
 async function handleReorder(viewKey: string, newOrder: string[]) {
-  console.log(`[HomeView] 重新排序 ${viewKey}:`, newOrder)
+  console.log(`[DebugView] 重新排序 ${viewKey}:`, newOrder)
   await viewStore.updateSorting(viewKey, newOrder)
 }
 
@@ -69,10 +69,10 @@ onMounted(async () => {
       viewOps.loadStagingTasks(),
     ])
 
-    console.log('[HomeView] Loaded all task data')
+    console.log('[DebugView] Loaded all task data')
     // 注意：排序配置由 SimpleKanbanColumn 自己加载
   } catch (error) {
-    console.error('[HomeView] Failed to fetch tasks:', error)
+    console.error('[DebugView] Failed to fetch tasks:', error)
   }
 })
 </script>
@@ -89,36 +89,36 @@ onMounted(async () => {
             <SimpleKanbanColumn
               title="All"
               subtitle="所有任务"
-              view-key="all"
+              view-key="misc::all"
               :tasks="allTasks"
               @open-editor="handleOpenEditor"
-              @reorder-tasks="(order) => handleReorder('all', order)"
+              @reorder-tasks="(order) => handleReorder('misc::all', order)"
             />
             <SimpleKanbanColumn
               title="Incomplete"
               subtitle="未完成"
-              view-key="incomplete"
+              view-key="misc::incomplete"
               :tasks="incompleteTasks"
               @open-editor="handleOpenEditor"
-              @reorder-tasks="(order) => handleReorder('incomplete', order)"
+              @reorder-tasks="(order) => handleReorder('misc::incomplete', order)"
             />
             <SimpleKanbanColumn
               title="Staging"
               subtitle="未排期"
-              view-key="staging"
+              view-key="misc::staging"
               :tasks="stagingTasks"
               :show-add-input="true"
               @open-editor="handleOpenEditor"
               @add-task="handleAddTask"
-              @reorder-tasks="(order) => handleReorder('staging', order)"
+              @reorder-tasks="(order) => handleReorder('misc::staging', order)"
             />
             <SimpleKanbanColumn
               title="Planned"
               subtitle="已排期"
-              view-key="planned"
+              view-key="misc::planned"
               :tasks="plannedTasks"
               @open-editor="handleOpenEditor"
-              @reorder-tasks="(order) => handleReorder('planned', order)"
+              @reorder-tasks="(order) => handleReorder('misc::planned', order)"
             />
           </div>
         </template>
