@@ -70,6 +70,22 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
   }
 
   /**
+   * 获取指定日期的任务
+   * API: GET /views/daily/:date
+   */
+  async function fetchDailyTasks(date: string): Promise<TaskCard[]> {
+    const result = await withLoading(async () => {
+      const response: { tasks: TaskCard[]; date: string; count: number } = await apiGet(
+        `/views/daily/${date}`
+      )
+      addOrUpdateTasks(response.tasks)
+      console.log('[TaskStore] Fetched', response.tasks.length, 'tasks for date', date)
+      return response.tasks
+    }, `fetch tasks for ${date}`)
+    return result ?? []
+  }
+
+  /**
    * 搜索任务
    * API: GET /tasks/search?q=...
    */
@@ -94,6 +110,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
     fetchAllIncompleteTasks,
     fetchPlannedTasks,
     fetchStagingTasks,
+    fetchDailyTasks,
     searchTasks,
   }
 }

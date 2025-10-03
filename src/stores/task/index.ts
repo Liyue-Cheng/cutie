@@ -67,6 +67,7 @@ export const useTaskStore = defineStore('task', () => {
     fetchAllIncompleteTasks: viewOps.fetchAllIncompleteTasks,
     fetchPlannedTasks: viewOps.fetchPlannedTasks,
     fetchStagingTasks: viewOps.fetchStagingTasks,
+    fetchDailyTasks: viewOps.fetchDailyTasks,
     searchTasks: viewOps.searchTasks,
 
     // CRUD 操作

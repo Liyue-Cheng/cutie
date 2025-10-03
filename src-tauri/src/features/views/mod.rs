@@ -9,14 +9,16 @@ use axum::{routing::get, Router};
 
 use crate::startup::AppState;
 
+// 共享模块（装配器等工具）
+pub mod shared;
+
 // 视图端点
 mod endpoints {
     pub mod get_all; // GET /views/all
     pub mod get_all_incomplete; // GET /views/all-incomplete
+    pub mod get_daily_tasks; // GET /views/daily/:date
     pub mod get_planned; // GET /views/planned
     pub mod get_staging_view; // GET /views/staging
-                              // 其他视图端点（待实现）
-                              // pub mod get_daily_schedule;
 }
 
 /// 创建 views 功能模块的路由
@@ -30,6 +32,6 @@ pub fn create_routes() -> Router<AppState> {
         )
         .route("/planned", get(endpoints::get_planned::handle))
         .route("/staging", get(endpoints::get_staging_view::handle))
-    // 其他视图端点（待实现）
-    // .route("/daily-schedule", get(endpoints::get_daily_schedule::handle))
+        // 日期视图
+        .route("/daily/:date", get(endpoints::get_daily_tasks::handle))
 }
