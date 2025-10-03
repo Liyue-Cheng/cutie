@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { TaskCard } from '@/types/dtos'
+import { useViewStore } from '@/stores/view'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 
@@ -18,12 +19,33 @@ const emit = defineEmits<{
   reorderTasks: [newOrder: string[]] // 新顺序的任务ID数组
 }>()
 
+const viewStore = useViewStore()
+
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
 
 // 拖拽状态
 const draggedTaskId = ref<string | null>(null)
 const draggedOverIndex = ref<number | null>(null)
+
+// 上一次的任务ID列表（用于检测变化）
+const previousTaskIds = ref<Set<string>>(new Set())
+
+// 排序配置是否已加载
+const sortingConfigLoaded = ref(false)
+
+// ✅ 组件挂载时，加载该视图的排序配置
+onMounted(async () => {
+  if (props.viewKey) {
+    console.log(`[SimpleKanbanColumn] 🔄 Loading sorting config for "${props.viewKey}"`)
+    await viewStore.fetchViewPreference(props.viewKey)
+    console.log(`[SimpleKanbanColumn] ✅ Sorting config loaded for "${props.viewKey}"`)
+    sortingConfigLoaded.value = true
+  } else {
+    // 没有 viewKey，标记为已加载（不需要加载）
+    sortingConfigLoaded.value = true
+  }
+})
 
 // ✅ 视觉预览：动态计算显示的任务顺序
 const displayTasks = computed(() => {
@@ -159,6 +181,121 @@ function handleDrop(event: DragEvent) {
   draggedTaskId.value = null
   draggedOverIndex.value = null
 }
+
+// ==================== 自动检测任务列表变化并持久化 ====================
+
+/**
+ * ✅ 核心功能：自动检测任务列表变化
+ *
+ * 触发条件：
+ * - 新任务创建（任务ID集合增加）
+ * - 任务删除（任务ID集合减少）
+ * - 任务状态变化导致进出视图（如完成/重开任务）
+ *
+ * 行为：
+ * - 自动为当前顺序赋予权重并持久化到后端
+ * - 确保刷新页面后顺序不变
+ *
+ * 注意：
+ * - 不在拖拽过程中触发（拖拽有自己的持久化逻辑）
+ * - 只在有 viewKey 时执行
+ */
+watch(
+  () => props.tasks,
+  (newTasks) => {
+    console.log(`[SimpleKanbanColumn] 🔄 Watch triggered for "${props.viewKey || 'NO_KEY'}":`, {
+      taskCount: newTasks.length,
+      taskIds: newTasks.map((t) => t.id),
+      hasViewKey: !!props.viewKey,
+      isDragging: draggedTaskId.value !== null,
+      sortingConfigLoaded: sortingConfigLoaded.value,
+    })
+
+    // 等待排序配置加载完成
+    if (!sortingConfigLoaded.value) {
+      console.log(
+        `[SimpleKanbanColumn] ⏭️ Skip: Waiting for sorting config to load for "${props.viewKey}"`
+      )
+      // 更新任务ID记录，但不持久化
+      previousTaskIds.value = new Set(newTasks.map((t) => t.id))
+      return
+    }
+
+    // 没有 viewKey，无法持久化
+    if (!props.viewKey) {
+      console.log(`[SimpleKanbanColumn] ⏭️ Skip: No viewKey`)
+      return
+    }
+
+    // 正在拖拽中，不要干扰（拖拽结束会自己持久化）
+    if (draggedTaskId.value !== null) {
+      console.log(
+        `[SimpleKanbanColumn] ⏭️ Skip: Dragging in progress (draggedTaskId=${draggedTaskId.value})`
+      )
+      return
+    }
+
+    // 构建当前任务ID集合
+    const currentTaskIds = new Set(newTasks.map((t) => t.id))
+
+    // 检查是否真的有变化（新增或删除）
+    const hasChanges =
+      currentTaskIds.size !== previousTaskIds.value.size ||
+      !Array.from(currentTaskIds).every((id) => previousTaskIds.value.has(id))
+
+    console.log(`[SimpleKanbanColumn] 🔍 Change detection for "${props.viewKey}":`, {
+      previousSize: previousTaskIds.value.size,
+      currentSize: currentTaskIds.size,
+      hasChanges,
+      newTasks: Array.from(currentTaskIds).filter((id) => !previousTaskIds.value.has(id)),
+      removedTasks: Array.from(previousTaskIds.value).filter((id) => !currentTaskIds.has(id)),
+    })
+
+    if (hasChanges) {
+      console.log(`[SimpleKanbanColumn] ✅ Detected task list changes in "${props.viewKey}":`, {
+        before: previousTaskIds.value.size,
+        after: currentTaskIds.size,
+        new: Array.from(currentTaskIds).filter((id) => !previousTaskIds.value.has(id)),
+        removed: Array.from(previousTaskIds.value).filter((id) => !currentTaskIds.has(id)),
+      })
+
+      // 更新记录
+      previousTaskIds.value = currentTaskIds
+
+      // ✅ 自动持久化当前顺序
+      const currentOrder = newTasks.map((t) => t.id)
+      console.log(
+        `[SimpleKanbanColumn] 💾 Calling updateSorting for "${props.viewKey}" with order:`,
+        currentOrder
+      )
+
+      viewStore
+        .updateSorting(props.viewKey, currentOrder)
+        .then((success) => {
+          if (success) {
+            console.log(`[SimpleKanbanColumn] ✅ Auto-persisted sorting for "${props.viewKey}"`)
+          } else {
+            console.error(
+              `[SimpleKanbanColumn] ❌ Failed to auto-persist sorting for "${props.viewKey}"`
+            )
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[SimpleKanbanColumn] ❌ Error during auto-persist for "${props.viewKey}":`,
+            error
+          )
+        })
+    } else {
+      console.log(
+        `[SimpleKanbanColumn] ⏭️ No changes detected for "${props.viewKey}", skipping persistence`
+      )
+      // 没有真正的变化，只是响应式更新，更新记录即可
+      previousTaskIds.value = currentTaskIds
+    }
+  },
+  { deep: false, immediate: true } // immediate: 初始化时也执行一次
+)
 </script>
 
 <template>

@@ -5,9 +5,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// 重用 task 模块的 AreaSummary，避免重复定义
-use crate::entities::task::response_dtos::AreaSummary;
-
 /// TimeBlockView (时间块视图模型)
 ///
 /// 对应前端: src/types/dtos.ts 中的 TimeBlockView
@@ -25,7 +22,7 @@ pub struct TimeBlockViewDto {
     pub detail_note: Option<String>,
 
     // --- 染色信息 ---
-    pub area: Option<AreaSummary>,
+    pub area_id: Option<Uuid>, // ✅ 前端通过 area_id 从 area store 获取完整信息
 
     // --- 关联的任务摘要 ---
     pub linked_tasks: Vec<LinkedTaskSummary>,

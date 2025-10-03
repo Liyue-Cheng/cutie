@@ -13,7 +13,6 @@ use uuid::Uuid;
 use crate::{
     entities::{LinkedTaskSummary, ScheduleStatus, TaskCardDto, TimeBlock, TimeBlockViewDto},
     features::{
-        shared::repositories::AreaRepository,
         tasks::shared::{
             repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
             TaskAssembler,
@@ -192,15 +191,15 @@ mod logic {
             })
         })?;
 
-        // 10. 组装返回数据
-        let mut time_block_view = TimeBlockViewDto {
+        // 10. 组装返回数据（✅ area_id 已直接从 time_block 获取）
+        let time_block_view = TimeBlockViewDto {
             id: time_block.id,
             start_time: time_block.start_time,
             end_time: time_block.end_time,
             title: time_block.title,
             glance_note: time_block.glance_note,
             detail_note: time_block.detail_note,
-            area: None,
+            area_id: time_block.area_id,
             linked_tasks: vec![LinkedTaskSummary {
                 id: task.id,
                 title: task.title.clone(),
@@ -209,20 +208,9 @@ mod logic {
             is_recurring: false,
         };
 
-        // 11. 获取区域信息（✅ 使用共享 Repository）
-        if let Some(area_id) = time_block.area_id {
-            time_block_view.area =
-                AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
-        }
-
-        // 12. 组装更新后的 TaskCard
+        // 11. 组装更新后的 TaskCard（✅ area_id 已由 TaskAssembler 填充）
         let mut updated_task = TaskAssembler::task_to_card_basic(&task);
         updated_task.schedule_status = ScheduleStatus::Scheduled; // 明确设置
-
-        // 获取 area（✅ 使用共享 Repository）
-        if let Some(area_id) = task.area_id {
-            updated_task.area = AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
-        }
 
         Ok(CreateFromTaskResponse {
             time_block: time_block_view,
@@ -238,4 +226,3 @@ mod logic {
 // - TimeBlockRepository::insert_in_tx
 // - TaskTimeBlockLinkRepository::link_in_tx
 // - TaskScheduleRepository::has_schedule_for_day_in_tx, create_in_tx
-// - AreaRepository::get_summary

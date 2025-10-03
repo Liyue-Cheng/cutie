@@ -12,9 +12,8 @@ use serde::Serialize;
 
 use crate::{
     entities::TaskCardDto,
-    features::{
-        shared::repositories::AreaRepository,
-        tasks::shared::{repositories::TaskRepository, TaskAssembler, TaskScheduleRepository},
+    features::tasks::shared::{
+        repositories::TaskRepository, TaskAssembler, TaskScheduleRepository,
     },
     shared::{
         core::{AppError, AppResult},
@@ -277,7 +276,7 @@ mod logic {
             refetch_start.elapsed().as_secs_f64() * 1000.0
         );
 
-        // ⏱️ 7. 组装响应
+        // ⏱️ 7. 组装响应（✅ area_id 已由 TaskAssembler 填充）
         let assemble_start = std::time::Instant::now();
         let mut task_card = TaskAssembler::task_to_card_basic(&updated_task);
 
@@ -290,11 +289,6 @@ mod logic {
         } else {
             crate::entities::ScheduleStatus::Staging
         };
-
-        // 获取 area 信息（✅ 使用共享 Repository）
-        if let Some(area_id) = updated_task.area_id {
-            task_card.area = AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
-        }
 
         tracing::info!(
             "[PERF] reopen_task ASSEMBLE_RESPONSE took {:.3}ms",
@@ -314,4 +308,3 @@ mod logic {
 // ✅ 已全部迁移到共享 Repository：
 // - TaskRepository::find_by_id_in_tx, find_by_id, set_reopened_in_tx
 // - TaskScheduleRepository::has_any_schedule
-// - AreaRepository::get_summary

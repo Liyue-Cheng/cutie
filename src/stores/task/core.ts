@@ -123,7 +123,7 @@ export function createTaskCore() {
    */
   const getTasksByArea = computed(() => {
     return (areaId: string) => {
-      return allTasksArray.value.filter((task) => task.area?.id === areaId)
+      return allTasksArray.value.filter((task) => task.area_id === areaId)
     }
   })
 

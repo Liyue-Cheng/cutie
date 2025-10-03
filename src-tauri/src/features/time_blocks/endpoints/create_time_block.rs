@@ -10,7 +10,6 @@ use axum::{
 use crate::{
     entities::{CreateTimeBlockRequest, TimeBlock, TimeBlockViewDto},
     features::{
-        shared::repositories::AreaRepository,
         tasks::shared::{
             assemblers::LinkedTaskAssembler,
             repositories::{TaskScheduleRepository, TaskTimeBlockLinkRepository},
@@ -195,7 +194,7 @@ mod logic {
             })
         })?;
 
-        // 9. 组装返回的 TimeBlockViewDto
+        // 9. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 time_block 获取）
         let mut time_block_view = TimeBlockViewDto {
             id: time_block.id,
             start_time: time_block.start_time,
@@ -203,18 +202,12 @@ mod logic {
             title: time_block.title,
             glance_note: time_block.glance_note,
             detail_note: time_block.detail_note,
-            area: None,
+            area_id: time_block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: time_block.recurrence_rule.is_some(),
         };
 
-        // 10. 获取区域信息（如果有）（✅ 使用共享 Repository）
-        if let Some(area_id) = time_block.area_id {
-            time_block_view.area =
-                AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
-        }
-
-        // 11. 获取关联的任务摘要（✅ 使用共享 Assembler）
+        // 10. 获取关联的任务摘要（✅ 使用共享 Assembler）
         if let Some(task_ids) = request.linked_task_ids {
             time_block_view.linked_tasks =
                 LinkedTaskAssembler::get_summaries_batch(app_state.db_pool(), &task_ids).await?;
@@ -230,5 +223,4 @@ mod logic {
 // - TimeBlockRepository::insert_in_tx
 // - TaskTimeBlockLinkRepository::link_in_tx
 // - TaskScheduleRepository::has_schedule_for_day_in_tx, create_in_tx
-// - AreaRepository::get_summary
 // - LinkedTaskAssembler::get_summaries_batch

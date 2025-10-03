@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
+import { useAreaStore } from '@/stores/area'
 import { useTaskOperations } from '@/composables/useTaskOperations'
 import { useContextMenu } from '@/composables/useContextMenu'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
@@ -14,6 +15,7 @@ const props = defineProps<{
 }>()
 
 const taskStore = useTaskStore()
+const areaStore = useAreaStore()
 const taskOps = useTaskOperations()
 const emit = defineEmits<{
   openEditor: []
@@ -23,6 +25,11 @@ const contextMenu = useContextMenu()
 
 // 使用任务的subtasks字段替代checkpoints
 const subtasks = computed(() => props.task.subtasks || [])
+
+// ✅ 通过 area_id 从 store 获取完整 area 信息
+const area = computed(() => {
+  return props.task.area_id ? areaStore.getAreaById(props.task.area_id) : null
+})
 
 function showContextMenu(event: MouseEvent) {
   contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
@@ -90,9 +97,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             @click.stop
           ></CuteCheckbox>
         </div>
-        <div v-if="task.area" class="area-tag" :style="{ color: task.area.color }">
-          #{{ task.area.name }}
-        </div>
+        <div v-if="area" class="area-tag" :style="{ color: area.color }">#{{ area.name }}</div>
       </div>
     </div>
   </CuteCard>

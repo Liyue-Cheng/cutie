@@ -151,13 +151,9 @@ mod logic {
         let updated_task_in_tx = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
-        let mut task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
+        let task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
 
-        // 10.1. 填充 area 信息（✅ 在事务内查询）
-        if let Some(area_id) = updated_task_in_tx.area_id {
-            use crate::features::shared::repositories::AreaRepository;
-            task_card_for_event.area = AreaRepository::get_summary(&mut *tx, area_id).await?;
-        }
+        // 10.1. area_id 已由 TaskAssembler 填充
 
         // 11. 在事务中写入领域事件到 outbox
         // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）

@@ -26,7 +26,7 @@ pub struct TaskCardDto {
     pub subtasks: Option<Vec<SubtaskDto>>,
 
     // --- 上下文与聚合信息 ---
-    pub area: Option<AreaSummary>,
+    pub area_id: Option<Uuid>, // ✅ 前端通过 area_id 从 area store 获取完整信息
     pub project_id: Option<Uuid>,
     pub schedule_info: Option<ScheduleInfo>,
     pub due_date: Option<DueDateInfo>,

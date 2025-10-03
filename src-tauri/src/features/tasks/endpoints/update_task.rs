@@ -10,13 +10,10 @@ use uuid::Uuid;
 
 use crate::{
     entities::{ScheduleStatus, TaskCardDto, UpdateTaskRequest},
-    features::{
-        shared::repositories::AreaRepository,
-        tasks::shared::{
-            assemblers::TimeBlockAssembler,
-            repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
-            TaskAssembler,
-        },
+    features::tasks::shared::{
+        assemblers::TimeBlockAssembler,
+        repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
+        TaskAssembler,
     },
     shared::{
         core::{AppError, AppResult},
@@ -214,17 +211,13 @@ mod logic {
         // 9. 组装 TaskCardDto（用于事件载荷）
         let mut task_card_for_event = TaskAssembler::task_to_card_basic(&task);
 
-        // 9.1. 在事务内查询关联信息（✅ 使用共享 Repository）
+        // 9.1. 在事务内查询 schedule_status（✅ 使用共享 Repository，area_id 已由 TaskAssembler 填充）
         let has_schedule = TaskScheduleRepository::has_any_schedule(&mut *tx, task_id).await?;
         task_card_for_event.schedule_status = if has_schedule {
             ScheduleStatus::Scheduled
         } else {
             ScheduleStatus::Staging
         };
-
-        if let Some(area_id) = task.area_id {
-            task_card_for_event.area = AreaRepository::get_summary(&mut *tx, area_id).await?;
-        }
 
         // 10. 在事务中写入领域事件到 outbox
         use crate::shared::events::{
@@ -316,5 +309,4 @@ mod database {
 // - TaskRepository::find_by_id_in_tx, update_in_tx
 // - TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx, is_exclusive_link_in_tx
 // - TaskScheduleRepository::has_any_schedule
-// - AreaRepository::get_summary
 // - TimeBlockAssembler::assemble_for_event_in_tx

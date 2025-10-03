@@ -123,7 +123,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   const getTimeBlocksByArea = computed(() => {
     return (areaId: string): TimeBlockView[] => {
       return Array.from(timeBlocks.value.values())
-        .filter((block) => block.area?.id === areaId)
+        .filter((block) => block.area_id === areaId)
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     }
   })
@@ -494,7 +494,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       for (const block of sideEffects.updated_time_blocks) {
         addOrUpdateTimeBlock(block)
         console.log(
-          `[TimeBlockStore] Updated time block: ${block.id} (title: "${block.title}", area: ${block.area?.name || 'none'})`
+          `[TimeBlockStore] Updated time block: ${block.id} (title: "${block.title}", area_id: ${block.area_id || 'none'})`
         )
       }
     }

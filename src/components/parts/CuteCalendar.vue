@@ -17,6 +17,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import { reactive, onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
+import { useAreaStore } from '@/stores/area'
 import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
@@ -24,6 +25,7 @@ import type { TaskCard } from '@/types/dtos'
 
 const timeBlockStore = useTimeBlockStore()
 const taskStore = useTaskStore()
+const areaStore = useAreaStore()
 const contextMenu = useContextMenu()
 
 // 预览时间块状态
@@ -101,8 +103,10 @@ const calendarEvents = computed((): EventInput[] => {
     // 2. 如果没有 area 但有关联任务（从任务创建），使用灰色
     // 3. 如果没有 area 也没有关联任务（手动创建），使用青色
     let color = '#bceaee' // 默认青色（手动创建）
-    if (timeBlock.area) {
-      color = timeBlock.area.color
+    // ✅ 通过 area_id 从 store 获取完整 area 信息
+    const area = timeBlock.area_id ? areaStore.getAreaById(timeBlock.area_id) : null
+    if (area) {
+      color = area.color
     } else if (timeBlock.linked_tasks && timeBlock.linked_tasks.length > 0) {
       color = '#9ca3af' // 灰色（从无 area 任务创建）
     }
@@ -338,8 +342,11 @@ function updatePreviewEvent(event: DragEvent) {
 
     // 使用全局状态中的任务信息
     const previewTitle = currentDraggedTask.value?.title || '任务'
-    // 获取任务的区域颜色，如果没有区域则使用灰色
-    const previewColor = currentDraggedTask.value?.area?.color || '#9ca3af'
+    // ✅ 通过 area_id 从 store 获取区域颜色，如果没有区域则使用灰色
+    const area = currentDraggedTask.value?.area_id
+      ? areaStore.getAreaById(currentDraggedTask.value.area_id)
+      : null
+    const previewColor = area?.color || '#9ca3af'
 
     previewEvent.value = {
       id: 'preview-event',

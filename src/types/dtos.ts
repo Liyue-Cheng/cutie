@@ -53,11 +53,7 @@ export interface TaskCard {
   }> | null
 
   // --- 上下文与聚合信息 ---
-  area: {
-    id: string
-    name: string
-    color: string
-  } | null
+  area_id: string | null // ✅ 前端通过 area_id 从 area store 获取完整信息
 
   project_id: string | null
 
@@ -124,11 +120,7 @@ export interface TimeBlockView {
   detail_note: string | null
 
   // --- 染色信息 ---
-  area: {
-    id: string
-    name: string
-    color: string
-  } | null
+  area_id: string | null // ✅ 前端通过 area_id 从 area store 获取完整信息
 
   // --- 关联的任务摘要 ---
   linked_tasks: Array<{

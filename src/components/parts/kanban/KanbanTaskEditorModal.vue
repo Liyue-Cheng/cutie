@@ -45,7 +45,7 @@ onMounted(async () => {
       // TaskDetail 包含完整的 note 信息
       glanceNote.value = detail.glance_note || ''
       detailNote.value = detail.detail_note || ''
-      selectedAreaId.value = detail.area?.id || null
+      selectedAreaId.value = detail.area_id || null
     }
   }
 })
@@ -58,7 +58,7 @@ watch(
       if (detail) {
         glanceNote.value = detail.glance_note || ''
         detailNote.value = detail.detail_note || ''
-        selectedAreaId.value = detail.area?.id || null
+        selectedAreaId.value = detail.area_id || null
       }
     }
   }

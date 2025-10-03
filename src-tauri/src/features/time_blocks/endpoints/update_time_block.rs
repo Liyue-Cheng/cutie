@@ -11,7 +11,6 @@ use uuid::Uuid;
 use crate::{
     entities::{TimeBlockViewDto, UpdateTimeBlockRequest},
     features::{
-        shared::repositories::AreaRepository,
         tasks::shared::assemblers::LinkedTaskAssembler,
         time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
     },
@@ -165,7 +164,7 @@ mod logic {
         // 10. 重新查询时间块以获取最新数据（✅ 使用共享 Repository）
         let updated_block = TimeBlockRepository::find_by_id(app_state.db_pool(), id).await?;
 
-        // 11. 组装返回的 TimeBlockViewDto
+        // 11. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 updated_block 获取）
         let mut time_block_view = TimeBlockViewDto {
             id: updated_block.id,
             start_time: updated_block.start_time,
@@ -173,18 +172,12 @@ mod logic {
             title: updated_block.title,
             glance_note: updated_block.glance_note,
             detail_note: updated_block.detail_note,
-            area: None,
+            area_id: updated_block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: updated_block.recurrence_rule.is_some(),
         };
 
-        // 12. 获取区域信息（如果有）（✅ 使用共享 Repository）
-        if let Some(area_id) = updated_block.area_id {
-            time_block_view.area =
-                AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
-        }
-
-        // 13. 获取关联的任务摘要（✅ 使用共享 Assembler）
+        // 12. 获取关联的任务摘要（✅ 使用共享 Assembler）
         time_block_view.linked_tasks =
             LinkedTaskAssembler::get_for_time_block(app_state.db_pool(), id).await?;
 
@@ -199,5 +192,4 @@ mod logic {
 // - TimeBlockRepository::find_by_id_in_tx, find_by_id
 // - TimeBlockConflictChecker::check_in_tx
 // - TimeBlockRepository::update_in_tx
-// - AreaRepository::get_summary
 // - LinkedTaskAssembler::get_for_time_block

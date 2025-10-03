@@ -16,8 +16,14 @@ app.use(router) // 确保已经 use 了 router
 
 // 初始化API配置
 initializeApiConfig()
-  .then(() => {
+  .then(async () => {
     console.log('🚀 API configuration initialized')
+
+    // ✅ 在应用启动时加载所有 areas（解决 N+1 查询问题）
+    const { useAreaStore } = await import('@/stores/area')
+    const areaStore = useAreaStore()
+    await areaStore.fetchAreas()
+    console.log('✅ All areas loaded')
   })
   .catch((error) => {
     console.error('❌ Failed to initialize API configuration:', error)

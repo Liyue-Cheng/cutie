@@ -4,10 +4,7 @@ use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::{
-        task::response_dtos::AreaSummary, TimeBlock, TimeBlockRow,
-        TimeBlockViewDto,
-    },
+    entities::{TimeBlock, TimeBlockRow, TimeBlockViewDto},
     shared::core::{AppError, AppResult, DbError},
 };
 
@@ -52,26 +49,10 @@ impl TimeBlockAssembler {
                     .map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))?;
 
                 // 2. 查询关联的任务
-                let linked_tasks = LinkedTaskAssembler::get_for_time_block(&mut **tx, *block_id).await?;
+                let linked_tasks =
+                    LinkedTaskAssembler::get_for_time_block(&mut **tx, *block_id).await?;
 
-                // 3. 查询 Area 信息（如果有）
-                let area = if let Some(area_id) = block.area_id {
-                    let area_query = "SELECT id, name, color FROM areas WHERE id = ?";
-                    sqlx::query_as::<_, (String, String, String)>(area_query)
-                        .bind(area_id.to_string())
-                        .fetch_optional(&mut **tx)
-                        .await
-                        .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?
-                        .map(|(id, name, color)| AreaSummary {
-                            id: Uuid::parse_str(&id).unwrap(),
-                            name,
-                            color,
-                        })
-                } else {
-                    None
-                };
-
-                // 4. 组装 TimeBlockViewDto
+                // 3. 组装 TimeBlockViewDto（✅ area_id 已直接从 block 获取）
                 let view = TimeBlockViewDto {
                     id: block.id,
                     start_time: block.start_time,
@@ -79,7 +60,7 @@ impl TimeBlockAssembler {
                     title: block.title,
                     glance_note: block.glance_note,
                     detail_note: block.detail_note,
-                    area,
+                    area_id: block.area_id,
                     linked_tasks,
                     is_recurring: block.recurrence_rule.is_some(),
                 };
@@ -96,7 +77,7 @@ impl TimeBlockAssembler {
         block: &TimeBlock,
         pool: &SqlitePool,
     ) -> AppResult<TimeBlockViewDto> {
-        // 1. 创建基础视图
+        // 1. 创建基础视图（✅ area_id 已直接从 block 获取）
         let mut view = TimeBlockViewDto {
             id: block.id,
             start_time: block.start_time,
@@ -104,31 +85,14 @@ impl TimeBlockAssembler {
             title: block.title.clone(),
             glance_note: block.glance_note.clone(),
             detail_note: block.detail_note.clone(),
-            area: None,
+            area_id: block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: block.recurrence_rule.is_some(),
         };
 
-        // 2. 获取区域信息
-        if let Some(area_id) = block.area_id {
-            let area_query = "SELECT id, name, color FROM areas WHERE id = ? AND is_deleted = false";
-            let result = sqlx::query_as::<_, (String, String, String)>(area_query)
-                .bind(area_id.to_string())
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-
-            view.area = result.map(|(id, name, color)| AreaSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                name,
-                color,
-            });
-        }
-
-        // 3. 获取关联的任务
+        // 2. 获取关联的任务
         view.linked_tasks = LinkedTaskAssembler::get_for_time_block(pool, block.id).await?;
 
         Ok(view)
     }
 }
-

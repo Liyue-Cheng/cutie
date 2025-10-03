@@ -9,8 +9,8 @@
 use chrono::Utc;
 
 use crate::entities::{
-    AreaSummary, DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleRecord,
-    ScheduleStatus, SubtaskDto, Task, TaskCardDto, TaskDetailDto,
+    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleRecord, ScheduleStatus,
+    SubtaskDto, Task, TaskCardDto, TaskDetailDto,
 };
 
 /// Task 装配器
@@ -22,7 +22,6 @@ impl TaskAssembler {
     /// 只填充可以直接从 Task 实体获取的字段
     /// 需要额外数据的字段保持默认值，调用者需要手动设置：
     /// - schedule_status（需要从 Schedule 表判断）
-    /// - area（需要从 Area 表获取）
     /// - schedule_info（需要从 Schedule 表计算）
     pub fn task_to_card_basic(task: &Task) -> TaskCardDto {
         TaskCardDto {
@@ -37,7 +36,7 @@ impl TaskAssembler {
                     .map(|s| SubtaskDto::from(s.clone()))
                     .collect()
             }),
-            area: None, // 需要后续填充
+            area_id: task.area_id, // ✅ 直接传递 area_id，前端从 area store 获取完整信息
             project_id: task.project_id,
             schedule_info: None, // 需要后续填充
             due_date: task.due_date.map(|date| DueDateInfo {
@@ -56,12 +55,10 @@ impl TaskAssembler {
     pub fn task_to_card_full(
         task: &Task,
         schedule_status: ScheduleStatus,
-        area: Option<AreaSummary>,
         schedule_info: Option<ScheduleInfo>,
     ) -> TaskCardDto {
         let mut card = Self::task_to_card_basic(task);
         card.schedule_status = schedule_status;
-        card.area = area;
         card.schedule_info = schedule_info;
         card
     }

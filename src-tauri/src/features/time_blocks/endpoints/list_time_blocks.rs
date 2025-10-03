@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::{
     entities::{TimeBlock, TimeBlockViewDto},
     features::{
-        shared::repositories::AreaRepository, tasks::shared::assemblers::LinkedTaskAssembler,
+        tasks::shared::assemblers::LinkedTaskAssembler,
         time_blocks::shared::repositories::TimeBlockRepository,
     },
     shared::{core::AppResult, http::error_handler::success_response},
@@ -107,7 +107,7 @@ mod logic {
         block: &TimeBlock,
         pool: &sqlx::SqlitePool,
     ) -> AppResult<TimeBlockViewDto> {
-        // 1. 创建基础视图
+        // 1. 创建基础视图（✅ area_id 已直接从 block 获取）
         let mut view = TimeBlockViewDto {
             id: block.id,
             start_time: block.start_time,
@@ -115,17 +115,12 @@ mod logic {
             title: block.title.clone(),
             glance_note: block.glance_note.clone(),
             detail_note: block.detail_note.clone(),
-            area: None,
+            area_id: block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: block.recurrence_rule.is_some(),
         };
 
-        // 2. 获取区域信息（✅ 使用共享 Repository）
-        if let Some(area_id) = block.area_id {
-            view.area = AreaRepository::get_summary(pool, area_id).await?;
-        }
-
-        // 3. 获取关联的任务（✅ 使用共享 Assembler）
+        // 2. 获取关联的任务（✅ 使用共享 Assembler）
         view.linked_tasks = LinkedTaskAssembler::get_for_time_block(pool, block.id).await?;
 
         Ok(view)
@@ -135,5 +130,4 @@ mod logic {
 // ==================== 数据访问层 ====================
 // ✅ 已全部迁移到共享 Repository：
 // - TimeBlockRepository::find_in_range
-// - AreaRepository::get_summary
 // - LinkedTaskAssembler::get_for_time_block

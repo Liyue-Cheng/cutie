@@ -3,10 +3,9 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use uuid::Uuid;
 
 use crate::{
-    entities::{task::response_dtos::AreaSummary, ScheduleStatus, Task, TaskCardDto},
+    entities::{ScheduleStatus, Task, TaskCardDto},
     features::tasks::shared::TaskAssembler,
     shared::{
         core::{AppError, AppResult},
@@ -61,17 +60,12 @@ mod logic {
         Ok(task_cards)
     }
 
-    /// 组装单个任务的 TaskCard
-    async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
+    /// 组装单个任务的 TaskCard（✅ area_id 已由 TaskAssembler 填充）
+    async fn assemble_task_card(task: &Task, _pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
         // 明确设置为 scheduled
         card.schedule_status = ScheduleStatus::Scheduled;
-
-        // 获取 area
-        if let Some(area_id) = task.area_id {
-            card.area = database::get_area_summary(pool, area_id).await?;
-        }
 
         Ok(card)
     }
@@ -106,30 +100,5 @@ mod database {
         let tasks: Result<Vec<Task>, _> = rows.into_iter().map(Task::try_from).collect();
 
         tasks.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
-    }
-
-    pub async fn get_area_summary(
-        pool: &sqlx::SqlitePool,
-        area_id: Uuid,
-    ) -> AppResult<Option<AreaSummary>> {
-        let query = r#"
-            SELECT id, name, color
-            FROM areas
-            WHERE id = ? AND is_deleted = false
-        "#;
-
-        let result = sqlx::query_as::<_, (String, String, String)>(query)
-            .bind(area_id.to_string())
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(result.map(|(id, name, color)| AreaSummary {
-            id: Uuid::parse_str(&id).unwrap(),
-            name,
-            color,
-        }))
     }
 }

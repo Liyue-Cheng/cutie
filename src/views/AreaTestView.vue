@@ -20,7 +20,7 @@ onMounted(async () => {
 const areaColumns = computed(() => {
   // ✅ 新架构：过滤（TaskStore）+ 排序（ViewStore）
   return areaStore.allAreas.map((area) => {
-    const filteredTasks = taskStore.allTasks.filter((task) => task.area?.id === area.id)
+    const filteredTasks = taskStore.allTasks.filter((task) => task.area_id === area.id)
     const sortedTasks = viewStore.applySorting(filteredTasks, `area::${area.id}`)
 
     return {

@@ -9,10 +9,7 @@ use axum::{
 
 use crate::{
     entities::{CreateTaskRequest, ScheduleStatus, Task, TaskCardDto},
-    features::{
-        shared::repositories::AreaRepository,
-        tasks::shared::{repositories::TaskRepository, TaskAssembler},
-    },
+    features::tasks::shared::{repositories::TaskRepository, TaskAssembler},
     shared::{
         core::{AppError, AppResult},
         http::error_handler::created_response,
@@ -185,14 +182,9 @@ mod logic {
         // 6. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // 7. 组装返回的 TaskCardDto
+        // 7. 组装返回的 TaskCardDto（✅ area_id 已由 TaskAssembler 填充）
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
         task_card.schedule_status = ScheduleStatus::Staging;
-
-        // 获取 area 信息（如果有）（✅ 使用共享 Repository）
-        if let Some(area_id) = task.area_id {
-            task_card.area = AreaRepository::get_summary(app_state.db_pool(), area_id).await?;
-        }
 
         Ok(task_card)
     }
@@ -201,4 +193,3 @@ mod logic {
 // ==================== 数据访问层 ====================
 // ✅ 已迁移到共享 Repository：
 // - TaskRepository::insert_in_tx
-// - AreaRepository::get_summary

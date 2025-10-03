@@ -59,24 +59,18 @@ async function handleReorder(viewKey: string, newOrder: string[]) {
 }
 
 onMounted(async () => {
-  // ✅ 加载任务数据和排序配置
+  // ✅ 职责分离：
+  // - 父组件：加载业务数据（任务列表）
+  // - 子组件：加载视图配置（排序设置）
   try {
-    // 1. 加载任务数据
     await Promise.all([
       viewOps.loadAllTasks(),
       viewOps.loadPlannedTasks(),
       viewOps.loadStagingTasks(),
     ])
 
-    // 2. ✅ 加载排序配置
-    await Promise.all([
-      viewStore.fetchViewPreference('all'),
-      viewStore.fetchViewPreference('incomplete'),
-      viewStore.fetchViewPreference('staging'),
-      viewStore.fetchViewPreference('planned'),
-    ])
-
-    console.log('[HomeView] Loaded all task views')
+    console.log('[HomeView] Loaded all task data')
+    // 注意：排序配置由 SimpleKanbanColumn 自己加载
   } catch (error) {
     console.error('[HomeView] Failed to fetch tasks:', error)
   }

@@ -9,10 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::{Task, TaskDetailDto},
-    features::{
-        shared::repositories::AreaRepository,
-        tasks::shared::{repositories::TaskScheduleRepository, TaskAssembler},
-    },
+    features::tasks::shared::{repositories::TaskScheduleRepository, TaskAssembler},
     shared::{
         core::{AppError, AppResult},
         http::error_handler::success_response,
@@ -73,12 +70,7 @@ mod logic {
             crate::entities::ScheduleStatus::Staging
         };
 
-        // 5. 获取其他关联信息（✅ 使用共享 Repository）
-        if let Some(area_id) = task.area_id {
-            task_card.area = AreaRepository::get_summary(pool, area_id).await?;
-        }
-
-        // 6. 组装 TaskDetailDto
+        // 5. 组装 TaskDetailDto（✅ area_id 已由 TaskAssembler 填充）
         let task_detail = TaskDetailDto {
             card: task_card,
             detail_note: task.detail_note.clone(),
@@ -108,4 +100,3 @@ mod database {
 // ✅ 已迁移到共享 Repository：
 // - TaskRepository::find_by_id
 // - TaskScheduleRepository::get_all_for_task
-// - AreaRepository::get_summary
