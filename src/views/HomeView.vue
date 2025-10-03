@@ -7,6 +7,10 @@ import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
+import { useTaskStore } from '@/stores/task'
+
+// ==================== Stores ====================
+const taskStore = useTaskStore()
 
 // ==================== 状态 ====================
 const isEditorOpen = ref(false)
@@ -24,9 +28,30 @@ function handleOpenEditor(task: TaskCard) {
   console.log('[HomeView] 📝 Opening editor for task:', task.id)
 }
 
-function handleAddTask(title: string, date: string) {
+async function handleAddTask(title: string, date: string) {
   console.log('[HomeView] ➕ Add task:', { title, date })
-  // TODO: 实现添加任务逻辑
+
+  try {
+    // 1. 创建任务
+    const newTask = await taskStore.createTask({ title })
+    if (!newTask) {
+      console.error('[HomeView] ❌ Failed to create task')
+      return
+    }
+
+    console.log('[HomeView] ✅ Task created:', newTask.id)
+
+    // 2. 立即为任务添加日程
+    const updatedTask = await taskStore.addSchedule(newTask.id, date)
+    if (!updatedTask) {
+      console.error('[HomeView] ❌ Failed to add schedule')
+      return
+    }
+
+    console.log('[HomeView] ✅ Schedule added for task:', updatedTask.id, 'on', date)
+  } catch (error) {
+    console.error('[HomeView] ❌ Error adding task with schedule:', error)
+  }
 }
 
 function handleVisibleDateChange(date: string) {

@@ -77,6 +77,12 @@ export const useTaskStore = defineStore('task', () => {
     completeTask: crudOps.completeTask,
     reopenTask: crudOps.reopenTask,
 
+    // 日程管理操作
+    addSchedule: crudOps.addSchedule,
+    updateSchedule: crudOps.updateSchedule,
+    deleteSchedule: crudOps.deleteSchedule,
+    returnToStaging: crudOps.returnToStaging,
+
     // 事件处理
     initEventSubscriptions: eventHandlers.initEventSubscriptions,
   }

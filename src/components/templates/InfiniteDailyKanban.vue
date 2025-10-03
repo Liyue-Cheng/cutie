@@ -2,6 +2,10 @@
 import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
+import { useTaskStore } from '@/stores/task'
+
+// ==================== Stores ====================
+const taskStore = useTaskStore()
 
 // ==================== 配置常量 ====================
 const KANBAN_WIDTH = 23 // 每个看板宽度（rem）
