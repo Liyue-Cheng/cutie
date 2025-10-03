@@ -32,6 +32,11 @@ const routes: Array<RouteRecordRaw> = [
         name: 'area-test',
         component: () => import('../views/AreaTestView.vue'),
       },
+      {
+        path: 'debug',
+        name: 'debug',
+        component: () => import('../views/DebugView.vue'),
+      },
     ],
   },
 

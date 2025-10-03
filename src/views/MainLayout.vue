@@ -40,6 +40,9 @@
             <li @click="$router.push('/area-test')">
               <CuteIcon name="Tag" :size="16" /><span>Area Test</span>
             </li>
+            <li @click="$router.push('/debug')">
+              <CuteIcon name="Bug" :size="16" /><span>Debug</span>
+            </li>
           </ul>
 
           <div class="collapsible-section">
@@ -139,6 +142,10 @@ onBeforeUnmount(() => {
   background-color: var(--color-background-primary);
   padding: 1rem;
   padding-top: 2.6rem;
+
+  /* 🔧 防止内容溢出 */
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .title-bar {
@@ -179,10 +186,11 @@ onBeforeUnmount(() => {
 .content-wrapper {
   flex-grow: 1;
   display: flex;
-
-  /* padding: 1rem;
-  padding-top: 3.2rem; Make space for the title bar */
   gap: 1rem;
+
+  /* 🔧 关键：防止 flex 子元素撑破容器 */
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar-pane {
@@ -193,6 +201,10 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   padding: 1rem;
+
+  /* 🔧 防止侧边栏溢出 */
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -205,6 +217,10 @@ onBeforeUnmount(() => {
 
 .sidebar-content {
   flex-grow: 1;
+
+  /* 🔧 允许侧边栏内容滚动，但不影响外层布局 */
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar-footer {
@@ -290,9 +306,18 @@ onBeforeUnmount(() => {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+
+  /* 🔧 关键：防止子视图撑破主内容区域 */
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .main-content-pane > :deep(*) {
   flex-grow: 1;
+
+  /* 🔧 确保子视图也遵守尺寸约束 */
+  min-height: 0;
+  min-width: 0;
 }
 </style>
