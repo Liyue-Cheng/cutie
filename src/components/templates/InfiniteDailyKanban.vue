@@ -32,6 +32,9 @@ const isDragging = ref(false)
 const dragStartX = ref(0)
 const dragStartScrollLeft = ref(0)
 
+// 任务卡片拖动状态（用于禁用看板拖动）
+const isTaskDragging = ref(false)
+
 // ==================== 日期看板系统 ====================
 interface DailyKanban {
   id: string // 日期字符串 YYYY-MM-DD
@@ -339,11 +342,21 @@ function handleMouseDown(event: MouseEvent) {
   // 只处理左键
   if (event.button !== 0) return
 
+  // ✅ 关键修复：如果任务卡片正在拖动，完全禁用看板拖动
+  if (isTaskDragging.value) {
+    return
+  }
+
   // 如果点击的是看板内部元素（比如任务卡片），不启用拖动
   const target = event.target as HTMLElement
   if (target.closest('.simple-kanban-column')) {
     // 如果点击的是看板列本身内部的可交互元素，跳过
-    if (target.closest('.kanban-card') || target.closest('input') || target.closest('button')) {
+    if (
+      target.closest('.kanban-card') ||
+      target.closest('input') ||
+      target.closest('button') ||
+      target.closest('[draggable="true"]') // ✅ 检测所有可拖动元素
+    ) {
       return
     }
   }
@@ -447,6 +460,21 @@ function stopScrollMonitor() {
   }
 }
 
+// ==================== 任务卡片拖动监听 ====================
+// 监听任务卡片的拖动开始和结束，以禁用/启用看板拖动
+function handleTaskDragStart(event: DragEvent) {
+  // 检查是否是任务卡片拖动（通过数据类型判断）
+  if (event.dataTransfer?.types.includes('application/json')) {
+    isTaskDragging.value = true
+    console.log('[InfiniteDailyKanban] 🎯 Task drag started, disabling kanban drag')
+  }
+}
+
+function handleTaskDragEnd() {
+  isTaskDragging.value = false
+  console.log('[InfiniteDailyKanban] 🎯 Task drag ended, enabling kanban drag')
+}
+
 // ==================== 生命周期 ====================
 onMounted(async () => {
   console.log('[InfiniteDailyKanban] 🚀 Initializing daily kanbans...')
@@ -458,10 +486,18 @@ onMounted(async () => {
 
   // 启动滚动监控
   startScrollMonitor()
+
+  // 监听任务卡片拖动事件
+  document.addEventListener('dragstart', handleTaskDragStart)
+  document.addEventListener('dragend', handleTaskDragEnd)
 })
 
 onBeforeUnmount(() => {
   stopScrollMonitor()
+  
+  // 清理事件监听器
+  document.removeEventListener('dragstart', handleTaskDragStart)
+  document.removeEventListener('dragend', handleTaskDragEnd)
 })
 </script>
 
