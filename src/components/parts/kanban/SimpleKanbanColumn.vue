@@ -280,6 +280,29 @@ function handleContainerDragOver(event: DragEvent) {
 }
 
 /**
+ * 容器级 dragleave（用于同看板拖放的顺序恢复）
+ */
+function handleContainerDragLeave(event: DragEvent) {
+  const context = crossViewDrag.currentContext.value
+
+  // 只处理源看板的同看板拖放
+  if (!context || context.sourceView.id !== props.viewMetadata.id) return
+  if (!sameViewDrag.isDragging.value) return
+
+  // 检查是否真的离开了容器
+  const container = event.currentTarget as HTMLElement
+  const rect = container.getBoundingClientRect()
+  const x = event.clientX
+  const y = event.clientY
+  const reallyLeft = x < rect.left || x > rect.right || y < rect.top || y > rect.bottom
+
+  if (reallyLeft) {
+    console.log('[SimpleKanbanColumn] 🚪 Drag left column, resetting order')
+    sameViewDrag.resetDragOverIndex()
+  }
+}
+
+/**
  * 放置
  */
 async function handleDrop(event: DragEvent) {
@@ -310,7 +333,7 @@ async function handleDrop(event: DragEvent) {
   <CutePane
     class="simple-kanban-column"
     @dragenter="crossViewTarget.handleEnter"
-    @dragleave="crossViewTarget.handleLeave"
+    @dragleave="(e) => { crossViewTarget.handleLeave(e); handleContainerDragLeave(e); }"
     @drop="handleDrop"
     @dragover.prevent
   >

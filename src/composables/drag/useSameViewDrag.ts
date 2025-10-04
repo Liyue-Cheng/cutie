@@ -123,6 +123,16 @@ export function useSameViewDrag(getTasksFn: () => TaskCard[]) {
     lastDragOverTime = 0
   }
 
+  /**
+   * 重置拖动悬停索引（用于恢复原始顺序）
+   */
+  function resetDragOverIndex(): void {
+    if (draggedOverIndex.value !== null) {
+      console.log('[useSameViewDrag] 🔄 Reset drag over index')
+      draggedOverIndex.value = null
+    }
+  }
+
   return {
     // 状态（只读）
     isDragging,
@@ -135,5 +145,6 @@ export function useSameViewDrag(getTasksFn: () => TaskCard[]) {
     dragOver,
     finishDrag,
     cancelDrag,
+    resetDragOverIndex,
   }
 }
