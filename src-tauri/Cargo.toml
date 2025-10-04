@@ -30,6 +30,11 @@ edition = "2021"
 name = "explore_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# Documentation composer tool
+[[bin]]
+name = "doc-composer"
+path = "src/bin/doc_composer.rs"
+
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -77,6 +82,7 @@ ts-rs = { version = "8.1", features = [
     "serde-json-impl",
 ] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
+regex = "1.10"
 
 [dev-dependencies]
 # 测试框架

@@ -6,7 +6,8 @@
       "Bash(git add:*)",
       "Bash(for:*)",
       "Bash(grep:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(cargo run:*)"
     ],
     "deny": [],
     "ask": []

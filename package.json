@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docs:generate": "cd src-tauri && cargo run --bin doc-composer",
+    "prebuild": "npm run docs:generate"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.19",

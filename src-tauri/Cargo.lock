@@ -1264,6 +1264,7 @@ dependencies = [
  "chrono",
  "dirs 5.0.1",
  "fake",
+ "regex",
  "reqwest",
  "rstest",
  "serde",
