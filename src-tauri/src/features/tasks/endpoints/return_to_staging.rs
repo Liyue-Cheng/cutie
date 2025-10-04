@@ -94,9 +94,10 @@ mod logic {
     ) -> AppResult<ReturnToStagingResponse> {
         let now = app_state.clock().now_utc();
 
-        // 1. 计算"今天"的UTC日期（零点）
-        // TODO: 未来实现用户配置后，考虑 day_start_hour
-        let today_utc = now.date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc();
+        // 1. 计算"今天"的本地日期（UTC零点表示）
+        // 🔧 FIX: 使用系统时区提取本地日期
+        use crate::shared::core::utils::time_utils::utc_time_to_local_date_utc_midnight;
+        let today_utc = utc_time_to_local_date_utc_midnight(now);
 
         // 2. 开始事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
@@ -148,9 +149,13 @@ mod logic {
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        let task_card = TaskAssembler::task_to_card_basic(&updated_task);
+        let mut task_card = TaskAssembler::task_to_card_basic(&updated_task);
 
-        // 11. 写入领域事件到 outbox
+        // 11. ✅ 在事务内填充 schedules 字段
+        // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
+        task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
+
+        // 12. 写入领域事件到 outbox
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -178,10 +183,10 @@ mod logic {
 
         outbox_repo.append_in_tx(&mut tx, &event).await?;
 
-        // 12. 提交事务
+        // 13. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 13. 返回结果
+        // 14. 返回结果
         Ok(ReturnToStagingResponse { task_card })
     }
 }

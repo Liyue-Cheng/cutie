@@ -219,7 +219,12 @@ mod logic {
             ScheduleStatus::Staging
         };
 
-        // 10. 在事务中写入领域事件到 outbox
+        // 10. ✅ 在事务内填充 schedules 字段
+        // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
+        task_card_for_event.schedules =
+            TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
+
+        // 11. 在事务中写入领域事件到 outbox
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -244,10 +249,10 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 11. 提交事务（✅ 使用 TransactionHelper）
+        // 12. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // 12. 返回结果（复用事件中的 task_card）
+        // 13. 返回结果（复用事件中的 task_card）
         // HTTP 响应与 SSE 事件载荷保持一致
         Ok(UpdateTaskResponse {
             task: task_card_for_event,

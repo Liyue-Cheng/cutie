@@ -14,7 +14,9 @@ pub struct CreateTimeBlockRequest {
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub area_id: Option<Uuid>,
-    pub linked_task_ids: Option<Vec<Uuid>>,
+    // 🔧 REMOVED: linked_task_ids
+    // 职责分离：创建纯时间块不应关联任务
+    // 任务关联应使用专门的 POST /time-blocks/from-task 端点
 }
 
 /// 更新时间块的请求载荷
@@ -27,4 +29,3 @@ pub struct UpdateTimeBlockRequest {
     pub end_time: Option<DateTime<Utc>>,
     pub area_id: Option<Option<Uuid>>,
 }
-

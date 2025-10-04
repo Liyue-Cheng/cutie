@@ -10,8 +10,8 @@ use chrono::Utc;
 
 use crate::entities::task::TaskScheduleDto;
 use crate::entities::{
-    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleStatus,
-    SubtaskDto, Task, TaskCardDto, TaskDetailDto,
+    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleStatus, SubtaskDto, Task,
+    TaskCardDto, TaskDetailDto,
 };
 use crate::shared::core::AppResult;
 use uuid::Uuid;
@@ -52,11 +52,11 @@ impl TaskAssembler {
         }
     }
 
-    /// 组装任务的完整日程信息（包含时间片）
+    /// 在事务中组装任务的 schedules（包含 time_blocks）
     ///
-    /// 此方法查询任务的所有日程，并为每个日程查询对应的时间片
-    pub async fn assemble_schedules(
-        executor: impl sqlx::Executor<'_, Database = sqlx::Sqlite> + Copy,
+    /// 用于在事务内填充 TaskCardDto.schedules 字段
+    pub async fn assemble_schedules_in_tx(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         task_id: Uuid,
     ) -> AppResult<Option<Vec<TaskScheduleDto>>> {
         use crate::entities::task::{DailyOutcome, TaskScheduleDto, TimeBlockSummary};
@@ -75,7 +75,7 @@ impl TaskAssembler {
 
         let schedule_rows = sqlx::query_as::<_, crate::entities::TaskScheduleRow>(schedule_query)
             .bind(task_id.to_string())
-            .fetch_all(executor)
+            .fetch_all(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 
@@ -118,7 +118,110 @@ impl TaskAssembler {
             )> = sqlx::query_as(blocks_query)
                 .bind(task_id.to_string())
                 .bind(schedule.scheduled_day.to_rfc3339())
-                .fetch_all(executor)
+                .fetch_all(&mut **tx)
+                .await
+                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+            let time_blocks: Vec<TimeBlockSummary> = block_rows
+                .into_iter()
+                .map(|(id_str, title, glance_note, start_time, end_time)| {
+                    let id = UuidType::parse_str(&id_str)
+                        .map_err(|e| AppError::StringError(e.to_string()))?;
+                    Ok(TimeBlockSummary {
+                        id,
+                        start_time,
+                        end_time,
+                        title,
+                        glance_note,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            // 转换 Outcome 为 DailyOutcome
+            let outcome = match schedule.outcome {
+                Outcome::Planned => DailyOutcome::Planned,
+                Outcome::PresenceLogged => DailyOutcome::PresenceLogged,
+                Outcome::CompletedOnDay => DailyOutcome::Completed,
+                Outcome::CarriedOver => DailyOutcome::CarriedOver,
+            };
+
+            schedule_dtos.push(TaskScheduleDto {
+                scheduled_day: scheduled_day_str,
+                outcome,
+                time_blocks,
+            });
+        }
+
+        Ok(Some(schedule_dtos))
+    }
+
+    /// 使用连接池组装任务的 schedules（包含 time_blocks）
+    ///
+    /// 用于在事务外填充 TaskCardDto.schedules 字段
+    pub async fn assemble_schedules(
+        pool: &sqlx::SqlitePool,
+        task_id: Uuid,
+    ) -> AppResult<Option<Vec<TaskScheduleDto>>> {
+        use crate::entities::task::{DailyOutcome, TaskScheduleDto, TimeBlockSummary};
+        use crate::entities::Outcome;
+        use crate::shared::core::{AppError, AppResult as Result, DbError};
+        use chrono::{DateTime, Utc};
+        use uuid::Uuid as UuidType;
+
+        // 1. 查询所有日程
+        let schedule_query = r#"
+            SELECT id, task_id, scheduled_day, outcome, created_at, updated_at
+            FROM task_schedules
+            WHERE task_id = ?
+            ORDER BY scheduled_day ASC
+        "#;
+
+        let schedule_rows = sqlx::query_as::<_, crate::entities::TaskScheduleRow>(schedule_query)
+            .bind(task_id.to_string())
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        if schedule_rows.is_empty() {
+            return Ok(None); // staging 任务
+        }
+
+        // 2. 转换为 TaskSchedule 实体
+        let schedules: Vec<crate::entities::TaskSchedule> = schedule_rows
+            .into_iter()
+            .map(|row| {
+                crate::entities::TaskSchedule::try_from(row)
+                    .map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        // 3. 为每个日程查询时间片
+        let mut schedule_dtos = Vec::new();
+
+        for schedule in schedules {
+            let scheduled_day_str = schedule.scheduled_day.format("%Y-%m-%d").to_string();
+
+            // 查询该日期的时间片
+            let blocks_query = r#"
+                SELECT tb.id, tb.title, tb.glance_note, tb.start_time, tb.end_time
+                FROM time_blocks tb
+                INNER JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
+                WHERE ttbl.task_id = ?
+                  AND DATE(tb.start_time) = DATE(?)
+                  AND tb.is_deleted = false
+                ORDER BY tb.start_time ASC
+            "#;
+
+            let block_rows: Vec<(
+                String,
+                Option<String>,
+                Option<String>,
+                DateTime<Utc>,
+                DateTime<Utc>,
+            )> = sqlx::query_as(blocks_query)
+                .bind(task_id.to_string())
+                .bind(schedule.scheduled_day.to_rfc3339())
+                .fetch_all(pool)
                 .await
                 .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 

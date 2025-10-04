@@ -151,11 +151,16 @@ mod logic {
         let updated_task_in_tx = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
-        let task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
+        let mut task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
 
         // 10.1. area_id 已由 TaskAssembler 填充
 
-        // 11. 在事务中写入领域事件到 outbox
+        // 11. ✅ 在事务内填充 schedules 字段
+        // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
+        task_card_for_event.schedules =
+            TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
+
+        // 12. 在事务中写入领域事件到 outbox
         // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）
         use crate::shared::events::{
             models::DomainEvent,
@@ -167,15 +172,14 @@ mod logic {
             let payload = serde_json::json!({
                     "task": task_card_for_event,
                 "side_effects": {
-                    "deleted_time_blocks": deleted_blocks,     // ✅ 完整对象
-                    "truncated_time_blocks": truncated_blocks, // ✅ 完整对象
+                    "deleted_time_blocks": deleted_blocks,
+                    "truncated_time_blocks": truncated_blocks,
                 }
             });
             let mut event =
                 DomainEvent::new("task.completed", "task", task_id.to_string(), payload)
                     .with_aggregate_version(now.timestamp_millis());
 
-            // 关联 correlation_id（用于前端去重和请求追踪）
             if let Some(cid) = correlation_id {
                 event = event.with_correlation_id(cid);
             }
@@ -183,10 +187,10 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 12. 提交事务（✅ 使用 TransactionHelper）
+        // 13. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // 13. 返回结果（复用事件中的 task_card）
+        // 14. 返回结果（复用事件中的 task_card）
         // HTTP 响应与 SSE 事件载荷保持一致
         Ok(CompleteTaskResponse {
             task: task_card_for_event,

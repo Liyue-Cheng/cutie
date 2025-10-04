@@ -157,7 +157,12 @@ CREATE INDEX idx_templates_area_id ON templates(area_id);
 CREATE TABLE task_schedules (
     id TEXT PRIMARY KEY NOT NULL,
     task_id TEXT NOT NULL,
-    scheduled_day TEXT NOT NULL, -- UTC timestamp in RFC 3339 format (represents the start of day in UTC)
+    -- 📅 scheduled_day: 日历日期的 UTC 零点时间戳（RFC 3339 格式）
+    -- 语义：表示"用户本地时区的某一天"，而非"UTC 的某一天"
+    -- 存储格式：YYYY-MM-DDT00:00:00Z
+    -- 计算方式：从 UTC 时间转换到系统本地时区，提取日期，再转为 UTC 零点
+    -- 前端显示：仅显示日期部分 (YYYY-MM-DD)，忽略时间部分
+    scheduled_day TEXT NOT NULL,
     outcome TEXT NOT NULL DEFAULT 'PLANNED' CHECK (outcome IN ('PLANNED', 'PRESENCE_LOGGED', 'COMPLETED_ON_DAY', 'CARRIED_OVER')),
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format

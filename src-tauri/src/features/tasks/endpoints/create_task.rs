@@ -186,6 +186,10 @@ mod logic {
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
         task_card.schedule_status = ScheduleStatus::Staging;
 
+        // 8. ✅ 填充 schedules 字段（新任务应该是 None）
+        task_card.schedules =
+            TaskAssembler::assemble_schedules(app_state.db_pool(), task.id).await?;
+
         Ok(task_card)
     }
 }

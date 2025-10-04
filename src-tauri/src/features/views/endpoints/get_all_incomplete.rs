@@ -3,7 +3,6 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use uuid::Uuid;
 
 use crate::{
     entities::{ScheduleStatus, Task, TaskCardDto},
@@ -64,17 +63,21 @@ mod logic {
         Ok(task_cards)
     }
 
-    /// 组装单个任务的 TaskCard（✅ area_id 已由 TaskAssembler 填充）
+    /// 组装单个任务的 TaskCard（包含完整的 schedules + time_blocks）
     async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
-        // 判断 schedule_status
-        let has_schedule = database::has_any_schedule(pool, task.id).await?;
-        card.schedule_status = if has_schedule {
+        // 组装完整的 schedules（包含 time_blocks）
+        let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
+
+        // 根据 schedules 判断 schedule_status
+        card.schedule_status = if schedules.is_some() {
             ScheduleStatus::Scheduled
         } else {
             ScheduleStatus::Staging
         };
+
+        card.schedules = schedules;
 
         Ok(card)
     }
@@ -108,23 +111,5 @@ mod database {
         let tasks: Result<Vec<Task>, _> = rows.into_iter().map(Task::try_from).collect();
 
         tasks.map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
-    }
-
-    pub async fn has_any_schedule(pool: &sqlx::SqlitePool, task_id: Uuid) -> AppResult<bool> {
-        let query = r#"
-            SELECT COUNT(*) as count
-            FROM task_schedules
-            WHERE task_id = ?
-        "#;
-
-        let count: i64 = sqlx::query_scalar(query)
-            .bind(task_id.to_string())
-            .fetch_one(pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
-            })?;
-
-        Ok(count > 0)
     }
 }

@@ -113,10 +113,26 @@ export function createTaskCore() {
    * ✅ 性能优化：复用 allTasksArray
    */
   const getTasksByDate = computed(() => (date: string) => {
-    return allTasksArray.value.filter(
-      (task) =>
-        task.schedules?.some((schedule) => schedule.scheduled_day === date) ?? false
+    const result = allTasksArray.value.filter((task) => {
+      // 🔍 调试：打印每个任务的 schedules 信息
+      if (task.schedules && task.schedules.length > 0) {
+        console.log('[getTasksByDate] Task:', task.id, 'schedules:', task.schedules)
+      }
+
+      // 检查任务是否有该日期的 schedule
+      const hasSchedule = task.schedules?.some((schedule) => schedule.scheduled_day === date)
+
+      if (hasSchedule) {
+        console.log(`[getTasksByDate] ✅ Task ${task.id} matches date ${date}`)
+      }
+
+      return hasSchedule ?? false
+    })
+
+    console.log(
+      `[getTasksByDate] Date: ${date}, Total tasks: ${allTasksArray.value.length}, Matched: ${result.length}`
     )
+    return result
   })
 
   /**

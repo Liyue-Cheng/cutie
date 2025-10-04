@@ -1,10 +1,3 @@
-/// 获取 Staging 视图 API - 单文件组件
-///
-/// 按照单文件组件模式实现
-use axum::{
-    extract::State,
-    response::{IntoResponse, Response},
-};
 use crate::{
     entities::{ScheduleStatus, Task, TaskCardDto},
     features::tasks::shared::TaskAssembler,
@@ -13,6 +6,13 @@ use crate::{
         http::error_handler::success_response,
     },
     startup::AppState,
+};
+/// 获取 Staging 视图 API - 单文件组件
+///
+/// 按照单文件组件模式实现
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
 };
 
 // ==================== 文档层 ====================
@@ -79,15 +79,17 @@ mod logic {
         Ok(task_cards)
     }
 
-    /// 组装单个任务的 TaskCard（✅ area_id 已由 TaskAssembler 填充）
-    async fn assemble_task_card(task: &Task, _pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
+    /// 组装单个任务的 TaskCard（包含完整的 schedules + time_blocks）
+    async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         // 1. 创建基础 TaskCard
         let mut card = TaskAssembler::task_to_card_basic(task);
-        // 2. 设置 schedule_status 为 staging
-        card.schedule_status = ScheduleStatus::Staging;
 
-        // 3. schedule_info 为 None（staging 任务没有日程信息）
-        card.schedule_info = None;
+        // 2. 组装完整的 schedules（对于 staging 任务应该是 None）
+        let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
+        card.schedules = schedules;
+
+        // 3. 设置 schedule_status 为 staging
+        card.schedule_status = ScheduleStatus::Staging;
 
         Ok(card)
     }

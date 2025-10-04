@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import InfiniteDailyKanban from '@/components/templates/InfiniteDailyKanban.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
@@ -11,6 +11,13 @@ import { useTaskStore } from '@/stores/task'
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
+
+// ==================== 初始化 ====================
+onMounted(async () => {
+  console.log('[HomeView] 🚀 Initializing, loading all incomplete tasks...')
+  await taskStore.fetchAllIncompleteTasks()
+  console.log('[HomeView] ✅ Loaded', taskStore.incompleteTasks.length, 'incomplete tasks')
+})
 
 // ==================== 状态 ====================
 const isEditorOpen = ref(false)
@@ -49,7 +56,7 @@ async function handleAddTask(title: string, date: string) {
     }
 
     console.log('[HomeView] ✅ Schedule added for task:', updatedTask.id, 'on', date)
-    
+
     // ✅ 无需手动刷新！TaskStore 已更新，Vue 响应式系统会自动更新 UI
   } catch (error) {
     console.error('[HomeView] ❌ Error adding task with schedule:', error)

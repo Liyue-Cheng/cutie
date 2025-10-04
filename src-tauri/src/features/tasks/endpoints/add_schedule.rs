@@ -95,15 +95,10 @@ mod validation {
             )
         })?;
 
-        // 转换为 UTC 零点
-        let datetime = naive_date
-            .and_hms_opt(0, 0, 0)
-            .ok_or_else(|| {
-                AppError::validation_error("scheduled_day", "无效的日期", "INVALID_DATE")
-            })?
-            .and_utc();
-
-        Ok(datetime)
+        // 🔧 FIX: 直接使用 NaiveDate 转换为 UTC 零点
+        // 因为前端传递的日期已经是"用户本地日期"，不需要再做时区转换
+        use crate::shared::core::utils::time_utils::local_date_to_utc_midnight;
+        Ok(local_date_to_utc_midnight(naive_date))
     }
 }
 
@@ -149,7 +144,11 @@ mod logic {
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        let task_card = TaskAssembler::task_to_card_basic(&updated_task);
+        let mut task_card = TaskAssembler::task_to_card_basic(&updated_task);
+
+        // 7. ✅ 在事务内填充 schedules 字段
+        // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
+        task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
 
         // 8. 写入领域事件到 outbox
         use crate::shared::events::{

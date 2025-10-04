@@ -290,6 +290,10 @@ mod logic {
             crate::entities::ScheduleStatus::Staging
         };
 
+        // ✅ 填充 schedules 字段（事务已提交，使用 pool 查询）
+        task_card.schedules =
+            TaskAssembler::assemble_schedules(app_state.db_pool(), task_id).await?;
+
         tracing::info!(
             "[PERF] reopen_task ASSEMBLE_RESPONSE took {:.3}ms",
             assemble_start.elapsed().as_secs_f64() * 1000.0

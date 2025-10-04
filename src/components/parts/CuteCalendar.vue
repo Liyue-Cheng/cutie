@@ -52,6 +52,10 @@ watch(
       if (calendarApi) {
         console.log('[CuteCalendar] 📅 Switching to date:', newDate)
         calendarApi.gotoDate(newDate)
+
+        // 🔧 FIX: 清除缓存，强制重新计算位置
+        cachedCalendarEl = null
+        cachedRect = null
       }
     }
   },
@@ -67,12 +71,18 @@ onMounted(async () => {
   await nextTick()
 
   try {
-    // 获取当前日期范围的时间块
+    // 🔧 FIX: 加载更大的时间范围（前后各 3 个月），避免切换日历时看不到数据
     const today = new Date()
-    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()))
-    const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6))
+    const startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1) // 3个月前
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0) // 3个月后（下个月的0号=本月最后一天）
 
-    await timeBlockStore.fetchTimeBlocksForRange(startOfWeek.toISOString(), endOfWeek.toISOString())
+    console.log(
+      '[CuteCalendar] Loading time blocks from',
+      startDate.toISOString(),
+      'to',
+      endDate.toISOString()
+    )
+    await timeBlockStore.fetchTimeBlocksForRange(startDate.toISOString(), endDate.toISOString())
 
     // 如果有初始日期，切换到该日期
     if (props.currentDate && calendarRef.value) {
@@ -391,6 +401,8 @@ function updatePreviewEvent(event: DragEvent) {
       classNames: ['preview-event'],
       display: 'block',
     }
+
+    console.log('[CuteCalendar] Preview event updated:', previewEvent.value)
   }
 }
 
@@ -492,17 +504,24 @@ function getTimeFromDropPosition(event: DragEvent): Date | null {
   // 计算相对于日历顶部的百分比
   const percentage = relativeY / cachedRect.height
 
-  // 获取当前日期
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // 🔧 FIX: 获取日历当前显示的日期（而不是系统今天）
+  if (!calendarRef.value) return null
+  const calendarApi = calendarRef.value.getApi()
+  const currentDate = calendarApi.getDate() // 获取日历当前显示的日期
+  currentDate.setHours(0, 0, 0, 0)
 
   // 计算时间（从0:00到24:00，共24小时）
   const totalMinutes = percentage * 24 * 60
   const hours = Math.floor(totalMinutes / 60)
   const minutes = Math.floor((totalMinutes % 60) / 10) * 10 // 10分钟间隔对齐
 
-  const dropTime = new Date(today)
+  const dropTime = new Date(currentDate)
   dropTime.setHours(hours, minutes, 0, 0)
+
+  console.log('[CuteCalendar] Drop position calculated:', {
+    calendarDate: currentDate.toISOString().split('T')[0],
+    dropTime: dropTime.toISOString(),
+  })
 
   return dropTime
 }

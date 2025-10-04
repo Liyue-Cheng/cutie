@@ -9,13 +9,7 @@ use axum::{
 
 use crate::{
     entities::{CreateTimeBlockRequest, TimeBlock, TimeBlockViewDto},
-    features::{
-        tasks::shared::{
-            assemblers::LinkedTaskAssembler,
-            repositories::{TaskScheduleRepository, TaskTimeBlockLinkRepository},
-        },
-        time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
-    },
+    features::time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
     shared::{
         core::{AppError, AppResult},
         http::error_handler::created_response,
@@ -31,27 +25,23 @@ CABC for `create_time_block`
 POST /api/time-blocks
 
 ## 预期行为简介
-创建一个新的时间块，并可选地将其与一个或多个任务关联。
-支持 Cutie 的核心特性：任务与时间块多对多连接。
+创建一个纯时间块（会议、约会、独立事件）。
+🔧 职责分离：此端点不关联任务，任务关联使用 POST /time-blocks/from-task
 
 ## 输入输出规范
 - **前置条件**:
   - start_time < end_time
   - 时间块不与现有时间块重叠（关键约束）
-  - linked_task_ids 中的任务必须存在
 - **后置条件**:
   - 在 time_blocks 表中创建新时间块
-  - 在 task_time_block_links 表中创建关联记录
   - 返回完整的 TimeBlockViewDto
 
 ## 边界情况
 - 如果时间范围无效，返回 400 Bad Request
 - 如果与现有时间块重叠，返回 409 Conflict
-- 如果关联的任务不存在，返回 404 Not Found
 
 ## 预期副作用
 - 插入一条 time_blocks 记录
-- 插入 N 条 task_time_block_links 记录
 
 ## 事务保证
 - 所有数据库操作在单个事务中执行
@@ -159,43 +149,17 @@ mod logic {
         // 6. 插入时间块到数据库（✅ 使用共享 Repository）
         TimeBlockRepository::insert_in_tx(&mut tx, &time_block).await?;
 
-        // 7. 创建任务链接
-        if let Some(task_ids) = &request.linked_task_ids {
-            // 从 start_time 提取日期（UTC 零点）
-            let scheduled_day = request
-                .start_time
-                .date_naive()
-                .and_hms_opt(0, 0, 0)
-                .unwrap()
-                .and_utc();
-
-            for task_id in task_ids {
-                // 7.1. 创建任务与时间块的链接（✅ 使用共享 Repository）
-                TaskTimeBlockLinkRepository::link_in_tx(&mut tx, *task_id, block_id).await?;
-
-                // 7.2. 创建任务的日程记录（如果还没有）（✅ 使用共享 Repository）
-                // 这样任务就从 staging 移到 scheduled 状态
-                let has_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
-                    &mut tx,
-                    *task_id,
-                    scheduled_day,
-                )
-                .await?;
-                if !has_schedule {
-                    TaskScheduleRepository::create_in_tx(&mut tx, *task_id, scheduled_day).await?;
-                }
-            }
-        }
-
-        // 8. 提交事务
+        // 7. 提交事务
+        // 🔧 REMOVED: 任务关联逻辑已移除，职责分离
+        // 任务关联应使用 POST /time-blocks/from-task 端点
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 9. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 time_block 获取）
-        let mut time_block_view = TimeBlockViewDto {
+        // 8. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 time_block 获取）
+        let time_block_view = TimeBlockViewDto {
             id: time_block.id,
             start_time: time_block.start_time,
             end_time: time_block.end_time,
@@ -203,15 +167,9 @@ mod logic {
             glance_note: time_block.glance_note,
             detail_note: time_block.detail_note,
             area_id: time_block.area_id,
-            linked_tasks: Vec::new(),
+            linked_tasks: Vec::new(), // 🔧 纯时间块不关联任务
             is_recurring: time_block.recurrence_rule.is_some(),
         };
-
-        // 10. 获取关联的任务摘要（✅ 使用共享 Assembler）
-        if let Some(task_ids) = request.linked_task_ids {
-            time_block_view.linked_tasks =
-                LinkedTaskAssembler::get_summaries_batch(app_state.db_pool(), &task_ids).await?;
-        }
 
         Ok(time_block_view)
     }
@@ -221,6 +179,7 @@ mod logic {
 // ✅ 已全部迁移到共享 Repository：
 // - TimeBlockConflictChecker::check_in_tx
 // - TimeBlockRepository::insert_in_tx
-// - TaskTimeBlockLinkRepository::link_in_tx
-// - TaskScheduleRepository::has_schedule_for_day_in_tx, create_in_tx
-// - LinkedTaskAssembler::get_summaries_batch
+//
+// 🔧 职责分离说明：
+// 此端点仅创建纯时间块，不涉及任务关联
+// 任务关联使用专门的 POST /time-blocks/from-task 端点

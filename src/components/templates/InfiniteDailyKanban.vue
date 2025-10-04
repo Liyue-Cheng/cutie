@@ -278,7 +278,10 @@ function handleScroll(_event: Event) {
 // 为每个看板获取任务（响应式）
 // ✅ 直接从 TaskStore 过滤，自动响应变化
 function getKanbanTasks(kanban: DailyKanban): TaskCard[] {
-  return taskStore.getTasksByDate(kanban.id)
+  console.log(`[InfiniteDailyKanban] Getting tasks for kanban: ${kanban.id}`)
+  const tasks = taskStore.getTasksByDate(kanban.id)
+  console.log(`[InfiniteDailyKanban] Kanban ${kanban.id} got ${tasks.length} tasks`)
+  return tasks
 }
 
 // ==================== Props & Events ====================

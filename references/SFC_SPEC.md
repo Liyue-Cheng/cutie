@@ -679,13 +679,157 @@ return TaskDetailDto { card: task_card };
 // 前端：点击任务 → 任务保持在正确列 ✅
 ```
 
-### 6.8 代码审查清单
+### 6.8 SSE 事件与 HTTP 响应数据一致性 - 🚨 关键警示
+
+**问题：SSE 推送的数据与 HTTP 响应的数据不一致，导致前端状态混乱！**
+
+#### **错误模式：在填充完整数据前写入 SSE**
+
+```rust
+// ❌ 错误：SSE 和 HTTP 返回的数据不一致
+pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Response> {
+    let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+
+    // 1. 修改数据库
+    database::update_something(&mut tx, task_id).await?;
+
+    // 2. 组装基础数据（使用默认值）
+    let mut task_card = TaskAssembler::task_to_card_basic(&task);
+    // task_card.schedules = None (默认值，未填充)
+
+    // 3. ❌ 在事务内写入 SSE（数据不完整！）
+    let event = DomainEvent::new("task.updated", "task", task_id, json!({
+        "task": task_card,  // schedules = None ❌
+    }));
+    outbox_repo.append_in_tx(&mut tx, &event).await?;
+
+    // 4. 提交事务
+    TransactionHelper::commit(tx).await?;
+
+    // 5. ❌ 之后才填充完整数据
+    task_card.schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
+
+    // 6. 返回 HTTP（数据完整）
+    Ok(Response { task: task_card })  // schedules = Some([...]) ✅
+}
+```
+
+**问题：**
+
+- SSE 推送：`task.schedules = None`（不完整）
+- HTTP 返回：`task.schedules = Some([...])`（完整）
+- 前端收到两份不同的数据，导致状态不一致！
+
+#### **正确模式：先填充完整数据，再写入 SSE**
+
+```rust
+// ✅ 正确：确保 SSE 和 HTTP 数据完全一致
+pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Response> {
+    // 1. 业务事务：只处理核心数据修改
+    let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+    database::update_something(&mut tx, task_id).await?;
+    let mut task_card = TaskAssembler::task_to_card_basic(&task);
+    TransactionHelper::commit(tx).await?;
+
+    // 2. ✅ 填充所有完整数据（事务已提交，可以查询）
+    // ⚠️ 必须在写入 SSE 之前完成！
+    task_card.schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
+    task_card.area = get_area_summary(pool, area_id).await?;
+    // ... 填充所有需要的关联数据
+
+    // 3. ✅ 写入 SSE（在新事务中，数据完整）
+    let mut outbox_tx = TransactionHelper::begin(app_state.db_pool()).await?;
+    let event = DomainEvent::new("task.updated", "task", task_id, json!({
+        "task": task_card,  // schedules = Some([...]) ✅
+    }));
+    outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
+    TransactionHelper::commit(outbox_tx).await?;
+
+    // 4. ✅ 返回 HTTP（与 SSE 数据一致）
+    Ok(Response { task: task_card })
+}
+```
+
+#### **数据流对比**
+
+**❌ 错误流程：**
+
+```
+业务事务 → 组装基础数据 → SSE(不完整) → commit() → 填充完整数据 → HTTP(完整)
+                                ↑ 不一致！
+```
+
+**✅ 正确流程：**
+
+```
+业务事务 → commit() → 填充完整数据 → SSE(完整) → HTTP(完整)
+                                      ↑ 一致！✅
+```
+
+#### **实际案例：update_task 端点**
+
+**错误版本（已修复）：**
+
+```rust
+// ❌ 旧代码：SSE 在填充 schedules 之前
+task_card.schedule_status = determine_status(&mut tx, task_id).await?;
+
+// SSE 写入（schedules = None）
+outbox_repo.append_in_tx(&mut tx, &event).await?;
+TransactionHelper::commit(tx).await?;
+
+// 之后才填充 schedules
+task_card.schedules = assemble_schedules(pool, task_id).await?;
+
+// 结果：前端看板不显示新创建的任务！❌
+```
+
+**正确版本：**
+
+```rust
+// ✅ 新代码：先填充完整数据
+task_card.schedule_status = determine_status(&mut tx, task_id).await?;
+TransactionHelper::commit(tx).await?;
+
+// ⚠️ 必须在 SSE 之前填充！
+task_card.schedules = assemble_schedules(pool, task_id).await?;
+
+// SSE 写入（schedules = Some([...])）
+let mut outbox_tx = TransactionHelper::begin(pool).await?;
+outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
+TransactionHelper::commit(outbox_tx).await?;
+
+// 结果：任务立即显示在日期看板！✅
+```
+
+#### **开发清单**
+
+在编写包含 SSE 的端点时，务必检查：
+
+- [ ] ✅ 业务事务提交后，是否填充了所有关联数据？
+- [ ] ✅ SSE 事件载荷中的数据是否完整？
+- [ ] ✅ SSE 推送的数据与 HTTP 响应是否一致？
+- [ ] ✅ 是否使用了独立的 outbox 事务？
+- [ ] ✅ `schedules` 字段是否已填充？
+- [ ] ✅ `area` 字段是否已填充？
+- [ ] ✅ 所有派生字段是否已正确计算？
+
+#### **关键原则**
+
+> **SSE 和 HTTP 必须返回完全相同的数据！**  
+> **在写入 SSE 之前，确保所有数据已填充完整！**
+
+---
+
+### 6.9 代码审查清单
 
 在提交代码前检查：
 
 - [ ] **是否查看了共享资源清单（第 4 章）？**（新增！🔥）
 - [ ] **是否使用了已有的共享 Repository/Assembler？**（新增！🔥）
 - [ ] **是否遵守"禁止修改共享资源"原则？**（新增！🔥）
+- [ ] **SSE 和 HTTP 返回的数据是否一致？**（新增！🚨）
+- [ ] **是否在填充完整数据后才写入 SSE？**（新增！🚨）
 - [ ] **是否查看了数据库 schema？**（最重要！）
 - [ ] **返回的所有字段是否反映真实数据库状态？**
 - [ ] 是否使用了正确的 trait 方法（`new_uuid()`, `now_utc()`）？

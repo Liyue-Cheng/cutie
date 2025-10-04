@@ -167,12 +167,18 @@ mod logic {
         TaskTimeBlockLinkRepository::link_in_tx(&mut tx, request.task_id, block_id).await?;
 
         // 8. 创建日程记录（✅ 使用共享 Repository）
-        let scheduled_day = request
-            .start_time
-            .date_naive()
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_utc();
+        // 🔧 FIX: 使用系统时区提取本地日期
+        // 数据流：UTC时间 → 本地时区 → 提取日期 → UTC零点时间戳
+        // 例如：2025-10-02T18:00:00Z (UTC) → 2025-10-03T02:00+08 (Local) → 2025-10-03 → 2025-10-03T00:00:00Z
+        use crate::shared::core::utils::time_utils::utc_time_to_local_date_utc_midnight;
+
+        let scheduled_day = utc_time_to_local_date_utc_midnight(request.start_time);
+
+        tracing::info!(
+            "[create_from_task] start_time (UTC): {}, scheduled_day (UTC midnight): {}",
+            request.start_time,
+            scheduled_day
+        );
 
         let has_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
             &mut tx,
@@ -211,6 +217,11 @@ mod logic {
         // 11. 组装更新后的 TaskCard（✅ area_id 已由 TaskAssembler 填充）
         let mut updated_task = TaskAssembler::task_to_card_basic(&task);
         updated_task.schedule_status = ScheduleStatus::Scheduled; // 明确设置
+
+        // 12. ✅ 填充 schedules 字段（事务已提交，使用 pool 查询）
+        // ⚠️ 必须填充完整数据，否则前端筛选会失败！
+        updated_task.schedules =
+            TaskAssembler::assemble_schedules(app_state.db_pool(), request.task_id).await?;
 
         Ok(CreateFromTaskResponse {
             time_block: time_block_view,
