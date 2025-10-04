@@ -12,6 +12,8 @@ export { useDragState } from './useDragState'
 
 // ==================== 跨看板拖放核心 ====================
 export { useCrossViewDrag } from './useCrossViewDrag'
+export { useSameViewDrag } from './useSameViewDrag'
+export { useCrossViewDragTarget } from './useCrossViewDragTarget'
 
 // ==================== 上下文管理（高级用法） ====================
 export { useDragContext } from './useCrossViewDrag/context'
