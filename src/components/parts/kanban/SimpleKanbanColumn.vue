@@ -220,18 +220,29 @@ function handleDragEnd(event: DragEvent) {
     event.target.style.opacity = '1'
   }
 
+  // 检查是否有跨看板拖放正在执行
+  const context = crossViewDrag.currentContext.value
+  const isDropExecuting = crossViewDrag.isDropInProgress.value
+
+  // 如果 drop 正在执行，延迟清理以避免闪烁
+  if (isDropExecuting) {
+    console.log('[SimpleKanbanColumn] dragend: Drop in progress, delaying cleanup')
+    // drop 会在完成后自动清理上下文，这里只清理本地状态
+    sameViewDrag.cancelDrag()
+    crossViewTarget.clearReceivingState()
+    return
+  }
+
   // 清理同看板拖放状态
   sameViewDrag.cancelDrag()
 
   // 清理跨看板拖放状态
   crossViewTarget.clearReceivingState()
 
-  // 如果 drop 被拒绝，清理全局上下文
-  if (crossViewDrag.currentContext.value) {
-    const dropInProgress = (crossViewDrag as any).isDropInProgress?.value
-    if (!dropInProgress && event.dataTransfer?.dropEffect === 'none') {
-      crossViewDrag.cancelDrag()
-    }
+  // 如果 drop 被拒绝（dropEffect === 'none'），清理全局上下文
+  if (context && event.dataTransfer?.dropEffect === 'none') {
+    console.log('[SimpleKanbanColumn] dragend: Drop rejected, clearing context')
+    crossViewDrag.cancelDrag()
   }
 
   crossViewDrag.setTargetViewId(null)

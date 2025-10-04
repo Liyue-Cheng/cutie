@@ -273,6 +273,7 @@ export function useCrossViewDrag() {
     currentTask: dragContext.currentTask,
     sourceView: dragContext.sourceView,
     targetViewId: dragContext.targetViewId, // 🆕 导出目标看板ID
+    isDropInProgress: dragContext.isDropInProgress, // 🆕 导出 drop 执行状态
     isSnapMode,
     isNormalMode,
 
