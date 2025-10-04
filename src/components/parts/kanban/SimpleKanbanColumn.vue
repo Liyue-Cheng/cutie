@@ -356,7 +356,7 @@ async function handleDrop(event: DragEvent) {
   flex-direction: column;
   height: 100%;
   background-color: var(--color-background-content);
-  width: 21rem;
+  width: 23rem;
   flex-shrink: 0;
   padding-left: 0.5rem;
   padding-right: 0.5rem;

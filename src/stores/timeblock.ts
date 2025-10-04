@@ -450,16 +450,6 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   // ============================================================
 
   /**
-   * 占位函数：保持与 TaskStore 的接口兼容
-   * 注意：TimeBlockStore 不再独立订阅事件，而是由 TaskStore 调用
-   */
-  function initEventSubscriptions() {
-    // 不再需要单独订阅 time_blocks.deleted 和 time_blocks.truncated
-    // 这些副作用现在包含在 task.completed 和 task.deleted 事件中
-    console.log('[TimeBlockStore] Event subscriptions managed by TaskStore')
-  }
-
-  /**
    * 统一的副作用处理器
    * ✅ 禁止片面数据：接收完整的 TimeBlockView 对象
    * ✅ 零额外请求：直接使用事件中的数据，无需 HTTP 请求
@@ -528,7 +518,6 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     unlinkTaskFromBlock,
 
     // Event handlers
-    initEventSubscriptions,
     handleTimeBlockSideEffects,
   }
 })

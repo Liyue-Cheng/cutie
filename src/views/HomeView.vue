@@ -5,9 +5,13 @@ import InfiniteDailyKanban from '@/components/templates/InfiniteDailyKanban.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
-import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
+import StagingColumn from '@/components/parts/kanban/StagingColumn.vue'
+import UnderConstruction from '@/components/parts/UnderConstruction.vue'
 import { useTaskStore } from '@/stores/task'
+
+// ==================== 视图类型 ====================
+type RightPaneView = 'calendar' | 'staging' | 'projects' | 'polling' | 'completed' | 'deleted'
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
@@ -24,9 +28,20 @@ const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
 const currentVisibleDate = ref<string | null>(null) // 当前可见日期
+const currentRightPaneView = ref<RightPaneView>('calendar') // 右侧面板当前视图
 
 // 获取看板数量
 const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
+
+// 视图配置
+const viewConfig = {
+  calendar: { icon: 'Calendar', label: '日历' },
+  staging: { icon: 'Theater', label: 'Staging' },
+  projects: { icon: 'FolderKanban', label: '项目' },
+  polling: { icon: 'ListChecks', label: '轮询' },
+  completed: { icon: 'CheckCheck', label: '已完成' },
+  deleted: { icon: 'Trash2', label: '最近删除' },
+} as const
 
 // ==================== 事件处理 ====================
 function handleOpenEditor(task: TaskCard) {
@@ -67,6 +82,11 @@ function handleVisibleDateChange(date: string) {
   console.log('[HomeView] 📅 Visible date changed:', date)
   currentVisibleDate.value = date
   // 日历会自动通过 :current-date prop 更新显示
+}
+
+function switchRightPaneView(view: RightPaneView) {
+  console.log('[HomeView] 🔄 Switching right pane view to:', view)
+  currentRightPaneView.value = view
 }
 
 // ==================== 调试功能 ====================
@@ -141,25 +161,57 @@ async function handleDeleteAllTasks() {
     <div class="calendar-pane">
       <TwoRowLayout>
         <template #top>
-          <CuteButton>Test Button 2</CuteButton>
+          <div class="calendar-pane-header">
+            <h3>{{ viewConfig[currentRightPaneView].label }}</h3>
+          </div>
         </template>
         <template #bottom>
-          <CuteCalendar :current-date="currentVisibleDate || undefined" />
+          <!-- 日历视图 -->
+          <CuteCalendar
+            v-if="currentRightPaneView === 'calendar'"
+            :current-date="currentVisibleDate || undefined"
+          />
+          <!-- Staging 视图 -->
+          <div v-else-if="currentRightPaneView === 'staging'" class="centered-column-wrapper">
+            <StagingColumn @open-editor="handleOpenEditor" />
+          </div>
+          <!-- 其他视图（开发中） -->
+          <UnderConstruction
+            v-else-if="currentRightPaneView === 'projects'"
+            title="项目管理"
+            description="管理你的项目和任务分类"
+          />
+          <UnderConstruction
+            v-else-if="currentRightPaneView === 'polling'"
+            title="轮询清单"
+            description="需要定期检查的阻碍点和检查清单"
+          />
+          <UnderConstruction
+            v-else-if="currentRightPaneView === 'completed'"
+            title="已完成任务"
+            description="查看已完成的任务历史"
+          />
+          <UnderConstruction
+            v-else-if="currentRightPaneView === 'deleted'"
+            title="最近删除"
+            description="查看和恢复最近删除的任务"
+          />
         </template>
       </TwoRowLayout>
     </div>
     <div class="toolbar-pane">
-      <TwoRowLayout>
-        <template #top>
-          <CuteButton>Test</CuteButton>
-        </template>
-        <template #bottom>
-          <div class="toolbar-icons">
-            <CuteIcon name="Calendar" :size="28" />
-            <CuteIcon name="Theater" :size="28" />
-          </div>
-        </template>
-      </TwoRowLayout>
+      <div class="toolbar-content">
+        <button
+          v-for="(config, viewKey) in viewConfig"
+          :key="viewKey"
+          class="toolbar-button"
+          :class="{ active: currentRightPaneView === viewKey }"
+          :title="config.label"
+          @click="switchRightPaneView(viewKey as RightPaneView)"
+        >
+          <CuteIcon :name="config.icon" :size="24" />
+        </button>
+      </div>
     </div>
     <KanbanTaskEditorModal
       v-if="isEditorOpen"
@@ -193,17 +245,85 @@ async function handleDeleteAllTasks() {
   border-right: 1px solid var(--color-border-default);
 }
 
+.calendar-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.calendar-pane-header h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.centered-column-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  margin: -1rem; /* 抵消 TwoRowLayout bottom-row 的 padding */
+  padding: 1rem; /* 重新添加 padding，保持间距 */
+}
+
 .toolbar-pane {
   width: 6rem; /* 96px */
   min-width: 6rem;
-}
-
-.toolbar-icons {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+}
+
+.toolbar-content {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding-top: 1rem;
+  padding: 1rem 0;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.toolbar-button {
+  width: 4.8rem;
+  height: 4.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-tertiary);
+  position: relative;
+}
+
+.toolbar-button:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  color: var(--color-text-secondary);
+}
+
+.toolbar-button.active {
+  background-color: var(--color-button-primary, #4a90e2);
+  color: white;
+}
+
+.toolbar-button.active::before {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.3rem;
+  height: 2.4rem;
+  background-color: var(--color-button-primary, #4a90e2);
+  border-radius: 0 0.2rem 0.2rem 0;
+}
+
+.toolbar-button:active {
+  transform: scale(0.95);
 }
 
 /* ==================== 看板标题栏 ==================== */

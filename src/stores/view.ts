@@ -111,12 +111,9 @@ export const useViewStore = defineStore('view', () => {
       sortWeights.value = newMap
 
       // ✅ 持久化到后端
-      // 如果 viewKey 不包含 ::，则添加 misc:: 前缀（兼容旧格式）
-      const contextKey = viewKey.includes('::') ? viewKey : `misc::${viewKey}`
-
       const apiBaseUrl = await waitForApiReady()
       const requestBody = {
-        context_key: contextKey,
+        context_key: viewKey,
         sorted_task_ids: orderedTaskIds,
       }
 
@@ -187,17 +184,12 @@ export const useViewStore = defineStore('view', () => {
 
   /**
    * 从后端加载视图的排序配置
-   * @param viewKey 视图标识（如 'all', 'staging', 'planned'）
+   * @param viewKey 视图标识（必须符合 VIEW_CONTEXT_KEY_SPEC 规范，如 'misc::staging', 'daily::2025-10-01'）
    */
   async function fetchViewPreference(viewKey: string): Promise<boolean> {
     try {
       const apiBaseUrl = await waitForApiReady()
-      // 如果 viewKey 不包含 ::，则添加 misc:: 前缀（兼容旧格式）
-      const contextKey = viewKey.includes('::') ? viewKey : `misc::${viewKey}`
-
-      const response = await fetch(
-        `${apiBaseUrl}/view-preferences/${encodeURIComponent(contextKey)}`
-      )
+      const response = await fetch(`${apiBaseUrl}/view-preferences/${encodeURIComponent(viewKey)}`)
 
       if (response.status === 404) {
         // ✅ 没有保存的配置，使用默认顺序（静默处理）
