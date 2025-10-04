@@ -172,9 +172,10 @@ async function handleDeleteAllTasks() {
             :current-date="currentVisibleDate || undefined"
           />
           <!-- Staging 视图 -->
-          <div v-else-if="currentRightPaneView === 'staging'" class="centered-column-wrapper">
-            <StagingColumn @open-editor="handleOpenEditor" />
-          </div>
+          <StagingColumn
+            v-else-if="currentRightPaneView === 'staging'"
+            @open-editor="handleOpenEditor"
+          />
           <!-- 其他视图（开发中） -->
           <UnderConstruction
             v-else-if="currentRightPaneView === 'projects'"
@@ -257,16 +258,6 @@ async function handleDeleteAllTasks() {
   font-size: 1.6rem;
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-.centered-column-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  width: 100%;
-  height: 100%;
-  margin: -1rem; /* 抵消 TwoRowLayout bottom-row 的 padding */
-  padding: 1rem; /* 重新添加 padding，保持间距 */
 }
 
 .toolbar-pane {

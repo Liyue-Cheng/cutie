@@ -158,6 +158,12 @@ mod logic {
         // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
 
+        // 11.5. ✅ 根据 schedules 设置正确的 schedule_status
+        // staging 定义：今天和未来没有排期的任务，过去的排期不影响
+        // 返回暂存区操作删除了所有未来排期，所以这里应该是 Staging
+        use crate::entities::ScheduleStatus;
+        task_card.schedule_status = ScheduleStatus::Staging;
+
         // 12. 写入领域事件到 outbox
         use crate::shared::events::{
             models::DomainEvent,

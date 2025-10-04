@@ -283,19 +283,36 @@ mod logic {
         let assemble_start = std::time::Instant::now();
         let mut task_card = TaskAssembler::task_to_card_basic(&updated_task);
 
-        // ✅ 修复：正确判断 schedule_status（✅ 使用共享 Repository）
-        // 如果任务有任何 schedule 记录，状态就是 scheduled，否则是 staging
-        let has_schedule =
-            TaskScheduleRepository::has_any_schedule(app_state.db_pool(), task_id).await?;
-        task_card.schedule_status = if has_schedule {
+        // ✅ 填充 schedules 字段（事务已提交，使用 pool 查询）
+        task_card.schedules =
+            TaskAssembler::assemble_schedules(app_state.db_pool(), task_id).await?;
+
+        // ✅ 修复：正确判断 schedule_status
+        // staging 定义：今天和未来没有排期的任务，过去的排期不影响
+        use chrono::Utc;
+        let today = Utc::now().date_naive();
+
+        let has_future_schedule = task_card
+            .schedules
+            .as_ref()
+            .map(|schedules| {
+                schedules.iter().any(|s| {
+                    if let Ok(schedule_date) =
+                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                    {
+                        schedule_date >= today
+                    } else {
+                        false
+                    }
+                })
+            })
+            .unwrap_or(false);
+
+        task_card.schedule_status = if has_future_schedule {
             crate::entities::ScheduleStatus::Scheduled
         } else {
             crate::entities::ScheduleStatus::Staging
         };
-
-        // ✅ 填充 schedules 字段（事务已提交，使用 pool 查询）
-        task_card.schedules =
-            TaskAssembler::assemble_schedules(app_state.db_pool(), task_id).await?;
 
         tracing::info!(
             "[PERF] reopen_task ASSEMBLE_RESPONSE took {:.3}ms",

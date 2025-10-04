@@ -64,12 +64,63 @@ const dateToDate: DragStrategy = async (context, targetView) => {
     mode: context.dragMode.mode,
   })
 
-  console.log(`  ➡️ Action: Update scheduled_date from ${sourceDate} to ${targetDate}`)
+  // 导入 taskStore
+  const { useTaskStore } = await import('@/stores/task')
+  const taskStore = useTaskStore()
 
-  return {
-    success: true,
-    message: `已改期至 ${targetDate}`,
-    affectedViews: [context.sourceView.id, targetView.id],
+  try {
+    // 检查目标日期是否已有安排
+    const hasTargetSchedule = context.task.schedules?.some((s) => s.scheduled_day === targetDate)
+
+    if (hasTargetSchedule) {
+      // 目标天已有安排，删除源日期的安排即可
+      console.log(
+        `  ➡️ Action: Target date already has schedule, deleting source date ${sourceDate}`
+      )
+
+      await taskStore.deleteSchedule(context.task.id, sourceDate)
+
+      return {
+        success: true,
+        message: `任务在 ${targetDate} 已有安排，已删除 ${sourceDate} 的安排`,
+        affectedViews: [context.sourceView.id, targetView.id],
+      }
+    } else {
+      // 目标天没有安排，更新日期
+      console.log(`  ➡️ Action: Update scheduled_date from ${sourceDate} to ${targetDate}`)
+
+      const updatedTask = await taskStore.updateSchedule(context.task.id, sourceDate, {
+        new_date: targetDate,
+      })
+
+      if (!updatedTask) {
+        return {
+          success: false,
+          error: '更新日程失败',
+        }
+      }
+
+      return {
+        success: true,
+        message: `已改期至 ${targetDate}`,
+        affectedViews: [context.sourceView.id, targetView.id],
+        updatedTask,
+      }
+    }
+  } catch (error) {
+    console.error('  ❌ Failed to update date schedule:', error)
+
+    let errorMessage = '改期失败'
+    if (error instanceof Error) {
+      errorMessage = error.message
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    }
+
+    return {
+      success: false,
+      error: errorMessage,
+    }
   }
 }
 
@@ -123,12 +174,54 @@ const statusToDate: DragStrategy = async (context, targetView) => {
     mode: context.dragMode.mode,
   })
 
-  console.log(`  ➡️ Action: Set scheduled_date to ${targetDate}`)
+  // 导入 taskStore
+  const { useTaskStore } = await import('@/stores/task')
+  const taskStore = useTaskStore()
 
-  return {
-    success: true,
-    message: `已设置排期：${targetDate}`,
-    affectedViews: [context.sourceView.id, targetView.id],
+  try {
+    // 特殊处理：从 staging 拖到日期看板，新建安排
+    if (sourceStatus === 'staging') {
+      console.log(`  ➡️ Action: Add schedule for ${targetDate}`)
+
+      const updatedTask = await taskStore.addSchedule(context.task.id, targetDate)
+
+      if (!updatedTask) {
+        return {
+          success: false,
+          error: '添加日程失败',
+        }
+      }
+
+      return {
+        success: true,
+        message: `已添加排期：${targetDate}`,
+        affectedViews: [context.sourceView.id, targetView.id],
+        updatedTask,
+      }
+    }
+
+    // 其他状态看板：仅提示（保留原有逻辑）
+    console.log(`  ➡️ Action: Set scheduled_date to ${targetDate}`)
+
+    return {
+      success: true,
+      message: `已设置排期：${targetDate}`,
+      affectedViews: [context.sourceView.id, targetView.id],
+    }
+  } catch (error) {
+    console.error('  ❌ Failed to add schedule:', error)
+
+    let errorMessage = '设置排期失败'
+    if (error instanceof Error) {
+      errorMessage = error.message
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    }
+
+    return {
+      success: false,
+      error: errorMessage,
+    }
   }
 }
 

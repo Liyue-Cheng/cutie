@@ -153,6 +153,28 @@ mod logic {
         // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
 
+        // 8. ✅ 根据 schedules 设置正确的 schedule_status
+        // staging 定义：今天和未来没有排期的任务，过去的排期不影响
+        use crate::entities::ScheduleStatus;
+        use chrono::Utc;
+        let today = Utc::now().date_naive();
+        
+        let has_future_schedule = task_card.schedules.as_ref().map(|schedules| {
+            schedules.iter().any(|s| {
+                if let Ok(schedule_date) = chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d") {
+                    schedule_date >= today
+                } else {
+                    false
+                }
+            })
+        }).unwrap_or(false);
+        
+        task_card.schedule_status = if has_future_schedule {
+            ScheduleStatus::Scheduled
+        } else {
+            ScheduleStatus::Staging
+        };
+
         // 8. 写入领域事件到 outbox
         use crate::shared::events::{
             models::DomainEvent,
