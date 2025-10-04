@@ -19,6 +19,7 @@ const areaStore = useAreaStore()
 const taskOps = useTaskOperations()
 const emit = defineEmits<{
   openEditor: []
+  taskCompleted: [taskId: string]
 }>()
 
 const contextMenu = useContextMenu()
@@ -39,6 +40,8 @@ async function handleStatusChange(isChecked: boolean) {
   if (isChecked) {
     // ✅ 完成任务
     await taskOps.completeTask(props.task.id)
+    // 通知父组件任务已完成，以便重新排序
+    emit('taskCompleted', props.task.id)
   } else {
     // ✅ 重新打开任务
     await taskOps.reopenTask(props.task.id)

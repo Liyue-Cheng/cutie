@@ -65,6 +65,45 @@ async function handleAddTask() {
   }
 }
 
+// ==================== 任务完成后重新排序 ====================
+
+function handleTaskCompleted(completedTaskId: string) {
+  // 找到已完成任务的当前索引
+  const currentIndex = props.tasks.findIndex((t) => t.id === completedTaskId)
+  if (currentIndex === -1) return
+
+  // 找到最后一个未完成任务的索引
+  let lastIncompleteIndex = -1
+  for (let i = props.tasks.length - 1; i >= 0; i--) {
+    const task = props.tasks[i]
+    if (task && !task.is_completed && task.id !== completedTaskId) {
+      lastIncompleteIndex = i
+      break
+    }
+  }
+
+  // 如果没有其他未完成的任务，或者已完成任务已经在正确位置，则不需要移动
+  if (lastIncompleteIndex === -1 || currentIndex === lastIncompleteIndex + 1) {
+    return
+  }
+
+  // 创建新的任务顺序
+  const newOrder = [...props.tasks.map((t) => t.id)]
+  // 移除已完成的任务
+  newOrder.splice(currentIndex, 1)
+
+  // 计算插入位置（移除元素后索引会变化）
+  // 如果被完成的任务原本在最后一个未完成任务之前，移除后 lastIncompleteIndex 需要减 1
+  const insertPosition =
+    currentIndex < lastIncompleteIndex ? lastIncompleteIndex : lastIncompleteIndex + 1
+
+  // 插入到最后一个未完成任务的后面
+  newOrder.splice(insertPosition, 0, completedTaskId)
+
+  // 触发重新排序
+  emit('reorderTasks', newOrder)
+}
+
 // ==================== 排序配置管理 ====================
 
 const sortingConfigLoaded = ref(false)
@@ -302,6 +341,7 @@ async function handleDrop(event: DragEvent) {
           :task="task"
           class="kanban-task-card"
           @open-editor="emit('openEditor', task)"
+          @task-completed="handleTaskCompleted"
         />
       </div>
 
