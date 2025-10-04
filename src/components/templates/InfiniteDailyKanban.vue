@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import type { TaskCard } from '@/types/dtos'
+import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 import { useTaskStore } from '@/stores/task'
+import { useViewStore } from '@/stores/view'
+import { useDragTransfer } from '@/composables/drag'
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
+const viewStore = useViewStore()
+const dragTransfer = useDragTransfer()
 
 // ==================== 配置常量 ====================
 const KANBAN_WIDTH = 23 // 每个看板宽度（rem）
 const REM_TO_PX = 10 // 1rem = 10px (定义在 style.css 中)
 const KANBAN_WIDTH_PX = KANBAN_WIDTH * REM_TO_PX // 230px，用于滚动计算
-const KANBAN_GAP_PX = 1 * REM_TO_PX // 看板之间的间隔 1rem = 10px
+const KANBAN_GAP_PX = 0 // ✅ gap 设为 0（看板自身 padding 填补缝隙）
 const TRACK_PADDING_PX = 1 * REM_TO_PX // track 的左右 padding 1rem = 10px
-const KANBAN_TOTAL_WIDTH_PX = KANBAN_WIDTH_PX + KANBAN_GAP_PX // 每个看板加间隔的总宽度 240px
+const KANBAN_TOTAL_WIDTH_PX = KANBAN_WIDTH_PX + KANBAN_GAP_PX // 每个看板总宽度 = 230px
 const VISIBLE_COUNT = 6 // 可见看板数量（用户屏幕显示的）
 const BUFFER_SIZE = 7 // 左右缓冲区大小（增大缓冲区，提前加载）
 const TOTAL_KANBANS = VISIBLE_COUNT + BUFFER_SIZE * 2 // 总共 20 个看板 (7+6+7)
@@ -276,12 +281,38 @@ function handleScroll(_event: Event) {
 }
 
 // 为每个看板获取任务（响应式）
-// ✅ 直接从 TaskStore 过滤，自动响应变化
+// ✅ 使用computed缓存，避免重复计算
+const kanbanTasksMap = computed(() => {
+  console.log('[InfiniteDailyKanban] 🔄 Recomputing all kanban tasks')
+  const map = new Map<string, TaskCard[]>()
+
+  kanbans.value.forEach((kanban) => {
+    const tasks = taskStore.getTasksByDate(kanban.id)
+    const sorted = viewStore.applySorting(tasks, kanban.viewKey)
+    map.set(kanban.viewKey, sorted)
+    console.log(`[InfiniteDailyKanban] Cached ${sorted.length} tasks for ${kanban.id}`)
+  })
+
+  return map
+})
+
+// 获取缓存的任务列表
 function getKanbanTasks(kanban: DailyKanban): TaskCard[] {
-  console.log(`[InfiniteDailyKanban] Getting tasks for kanban: ${kanban.id}`)
-  const tasks = taskStore.getTasksByDate(kanban.id)
-  console.log(`[InfiniteDailyKanban] Kanban ${kanban.id} got ${tasks.length} tasks`)
-  return tasks
+  return kanbanTasksMap.value.get(kanban.viewKey) ?? []
+}
+
+// 🆕 为每个看板生成 ViewMetadata
+function getKanbanMetadata(kanban: DailyKanban): ViewMetadata {
+  const config: DateViewConfig = {
+    date: kanban.id, // YYYY-MM-DD
+  }
+
+  return {
+    type: 'date',
+    id: kanban.viewKey, // daily::YYYY-MM-DD
+    config,
+    label: `${kanban.date.getMonth() + 1}月${kanban.date.getDate()}日`,
+  }
 }
 
 // ==================== Props & Events ====================
@@ -304,9 +335,9 @@ function handleAddTask(title: string, kanban: DailyKanban) {
   emit('add-task', title, kanban.id)
 }
 
-function handleReorder(viewKey: string, newOrder: string[]) {
-  console.log('[InfiniteDailyKanban] 🔄 Reorder (placeholder):', viewKey, newOrder)
-  // TODO: 实现排序逻辑
+async function handleReorder(viewKey: string, newOrder: string[]) {
+  console.log('[InfiniteDailyKanban] 🔄 Reorder:', viewKey, newOrder)
+  await viewStore.updateSorting(viewKey, newOrder)
 }
 
 // ==================== 拖动滚动 ====================
@@ -382,10 +413,8 @@ function startScrollMonitor() {
 
     const scrollLeft = scrollContainer.value.scrollLeft
     const containerWidth = scrollContainer.value.offsetWidth
-    // 总宽度 = 左padding + (看板数量 * 看板总宽度) - 最后一个gap + 右padding
-    // 因为最后一个看板后面没有gap，所以要减去一个gap
-    const totalWidth =
-      TRACK_PADDING_PX + TOTAL_KANBANS * KANBAN_TOTAL_WIDTH_PX - KANBAN_GAP_PX + TRACK_PADDING_PX
+    // ✅ 总宽度 = 左padding + (看板数量 * 看板总宽度) + 右padding（gap=0无需减）
+    const totalWidth = TRACK_PADDING_PX + TOTAL_KANBANS * KANBAN_TOTAL_WIDTH_PX + TRACK_PADDING_PX
     const maxScrollLeft = totalWidth - containerWidth
 
     // 触发阈值计算：
@@ -435,8 +464,8 @@ function stopScrollMonitor() {
 // ==================== 任务卡片拖动监听 ====================
 // 监听任务卡片的拖动开始和结束，以禁用/启用看板拖动
 function handleTaskDragStart(event: DragEvent) {
-  // 检查是否是任务卡片拖动（通过数据类型判断）
-  if (event.dataTransfer?.types.includes('application/json')) {
+  // 检查是否是任务卡片拖动（使用统一的 dragTransfer 检测）
+  if (dragTransfer.hasDragData(event)) {
     isTaskDragging.value = true
     console.log('[InfiniteDailyKanban] 🎯 Task drag started, disabling kanban drag')
   }
@@ -448,10 +477,14 @@ function handleTaskDragEnd() {
 }
 
 // ==================== 生命周期 ====================
-onMounted(() => {
+onMounted(async () => {
   console.log('[InfiniteDailyKanban] 🚀 Initializing daily kanbans...')
   // 初始化日期看板
   initKanbans()
+
+  // ✅ 批量加载所有看板的view preferences（防抖优化）
+  const viewKeys = kanbans.value.map((k) => k.viewKey)
+  await viewStore.batchFetchViewPreferences(viewKeys)
 
   // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取（响应式）
 
@@ -461,6 +494,18 @@ onMounted(() => {
   // 监听任务卡片拖动事件
   document.addEventListener('dragstart', handleTaskDragStart)
   document.addEventListener('dragend', handleTaskDragEnd)
+
+  // 🆕 兜底：当全局 drop 发生时，确保恢复看板拖动能力
+  document.addEventListener(
+    'drop',
+    () => {
+      if (isTaskDragging.value) {
+        isTaskDragging.value = false
+        console.log('[InfiniteDailyKanban] ♻️ Global drop detected, re-enable kanban drag')
+      }
+    },
+    true
+  )
 })
 
 onBeforeUnmount(() => {
@@ -489,12 +534,16 @@ onBeforeUnmount(() => {
         :title="kanban.id"
         :subtitle="`${getWeekdayName(kanban.date)}${isToday(kanban.date) ? ' · 今天' : ''}`"
         :view-key="kanban.viewKey"
+        :view-metadata="getKanbanMetadata(kanban)"
         :tasks="getKanbanTasks(kanban)"
         :show-add-input="true"
         :style="{ width: `${KANBAN_WIDTH}rem`, flexShrink: 0 }"
         @open-editor="handleOpenEditor"
         @add-task="(title) => handleAddTask(title, kanban)"
         @reorder-tasks="(order) => handleReorder(kanban.viewKey, order)"
+        @cross-view-drop="
+          (taskId, targetViewId) => console.log('📦 Cross-view drop:', taskId, 'to', targetViewId)
+        "
       />
     </div>
   </div>
@@ -517,7 +566,7 @@ onBeforeUnmount(() => {
 
 .kanban-track {
   display: flex;
-  gap: 1rem;
+  gap: 0; /* ✅ gap 设为 0，由看板自身 padding 填补 */
   height: 100%;
   padding: 0 1rem;
 

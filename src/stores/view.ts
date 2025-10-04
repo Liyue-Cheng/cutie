@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
 import { waitForApiReady } from '@/composables/useApiConfig'
@@ -39,6 +39,13 @@ export const useViewStore = defineStore('view', () => {
    */
   const error = ref<string | null>(null)
 
+  /**
+   * 🆕 批量更新防抖机制
+   * 缓存待更新的排序，在下一个tick统一应用
+   */
+  let pendingUpdates = new Map<string, Map<string, number>>()
+  let updateScheduled = false
+
   // ============================================================
   // ACTIONS - 排序管理
   // ============================================================
@@ -54,21 +61,9 @@ export const useViewStore = defineStore('view', () => {
    * - 预先构建索引，排序时 O(1) 查找
    */
   function applySorting(tasks: TaskCard[], viewKey: string): TaskCard[] {
-    console.log(`[ViewStore] 📊 applySorting called for "${viewKey}":`, {
-      taskCount: tasks.length,
-      taskIds: tasks.map((t) => t.id),
-    })
-
     const weights = sortWeights.value.get(viewKey)
 
-    console.log(`[ViewStore] 🔍 Weights lookup for "${viewKey}":`, {
-      hasWeights: !!weights,
-      weightsSize: weights?.size ?? 0,
-      weights: weights ? Array.from(weights.entries()) : null,
-    })
-
     if (!weights || weights.size === 0) {
-      console.log(`[ViewStore] ⏭️ No weights found for "${viewKey}", returning original order`)
       // 如果没有排序信息，保持原顺序
       return tasks
     }
@@ -78,14 +73,6 @@ export const useViewStore = defineStore('view', () => {
     tasks.forEach((task, index) => {
       originalIndexMap.set(task.id, index)
     })
-
-    // 检测没有权重的新任务
-    const tasksWithoutWeights = tasks.filter((t) => !weights.has(t.id))
-    if (tasksWithoutWeights.length > 0) {
-      console.log(`[ViewStore] ⚠️ Found ${tasksWithoutWeights.length} tasks without weights:`, {
-        taskIds: tasksWithoutWeights.map((t) => t.id),
-      })
-    }
 
     // ✅ 排序时使用 Map 查找（O(1)），而不是 indexOf（O(n)）
     const sorted = [...tasks].sort((a, b) => {
@@ -102,10 +89,6 @@ export const useViewStore = defineStore('view', () => {
       return weightA - weightB
     })
 
-    console.log(`[ViewStore] ✅ Sorted result for "${viewKey}":`, {
-      sortedIds: sorted.map((t) => t.id),
-    })
-
     return sorted
   }
 
@@ -115,11 +98,6 @@ export const useViewStore = defineStore('view', () => {
    * @param orderedTaskIds 新的任务ID顺序
    */
   async function updateSorting(viewKey: string, orderedTaskIds: string[]): Promise<boolean> {
-    console.log(`[ViewStore] 📥 updateSorting called for "${viewKey}":`, {
-      taskCount: orderedTaskIds.length,
-      taskIds: orderedTaskIds,
-    })
-
     try {
       // 构建权重映射
       const weights = new Map<string, number>()
@@ -127,38 +105,20 @@ export const useViewStore = defineStore('view', () => {
         weights.set(id, index)
       })
 
-      console.log(`[ViewStore] 🔧 Built weights map:`, {
-        viewKey,
-        weightsSize: weights.size,
-      })
-
       // 更新本地状态
       const newMap = new Map(sortWeights.value)
       newMap.set(viewKey, weights)
       sortWeights.value = newMap
 
-      console.log(
-        `[ViewStore] 💾 Updated local state, current sortWeights keys:`,
-        Array.from(sortWeights.value.keys())
-      )
-
       // ✅ 持久化到后端
       // 如果 viewKey 不包含 ::，则添加 misc:: 前缀（兼容旧格式）
       const contextKey = viewKey.includes('::') ? viewKey : `misc::${viewKey}`
-      console.log('[ViewStore] 💾 Saving to backend:', {
-        context_key: contextKey,
-        task_count: orderedTaskIds.length,
-        task_ids: orderedTaskIds,
-      })
 
       const apiBaseUrl = await waitForApiReady()
-      console.log(`[ViewStore] 🌐 API Base URL: ${apiBaseUrl}`)
-
       const requestBody = {
         context_key: contextKey,
         sorted_task_ids: orderedTaskIds,
       }
-      console.log(`[ViewStore] 📤 Request body:`, requestBody)
 
       const response = await fetch(`${apiBaseUrl}/view-preferences`, {
         method: 'PUT',
@@ -166,19 +126,16 @@ export const useViewStore = defineStore('view', () => {
         body: JSON.stringify(requestBody),
       })
 
-      console.log(`[ViewStore] 📡 Response status: ${response.status} ${response.statusText}`)
-
       if (!response.ok) {
         const errorText = await response.text()
-        console.error(`[ViewStore] ❌ HTTP Error Response:`, errorText)
+        console.error(`[ViewStore] Failed to save sorting for ${viewKey}:`, errorText)
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
-      const responseData = await response.json()
-      console.log('[ViewStore] ✅ Saved successfully, response:', responseData)
+      await response.json()
       return true
     } catch (err) {
-      console.error('[ViewStore] ❌ Failed to update sorting:', err)
+      console.error(`[ViewStore] Failed to update sorting for ${viewKey}:`, err)
       error.value = `Failed to update sorting: ${err}`
       return false
     }
@@ -186,6 +143,7 @@ export const useViewStore = defineStore('view', () => {
 
   /**
    * 加载排序配置（从后端加载时调用）
+   * 🆕 使用防抖批量更新，避免多次触发响应式重新计算
    * @param viewKey 视图标识
    * @param orderedTaskIds 保存的任务ID顺序
    */
@@ -195,11 +153,36 @@ export const useViewStore = defineStore('view', () => {
       weights.set(id, index)
     })
 
-    const newMap = new Map(sortWeights.value)
-    newMap.set(viewKey, weights)
-    sortWeights.value = newMap
+    // ✅ 缓存待更新的数据
+    pendingUpdates.set(viewKey, weights)
 
-    console.log(`[ViewStore] Loaded sorting for ${viewKey}:`, orderedTaskIds.length, 'tasks')
+    // ✅ 如果还没有调度更新，在下一个tick批量应用所有更新
+    if (!updateScheduled) {
+      updateScheduled = true
+      nextTick(() => {
+        // 一次性应用所有缓存的更新
+        const newMap = new Map(sortWeights.value)
+        pendingUpdates.forEach((weights, key) => {
+          newMap.set(key, weights)
+        })
+        sortWeights.value = newMap
+
+        // 清理
+        pendingUpdates.clear()
+        updateScheduled = false
+      })
+    }
+  }
+
+  /**
+   * 🆕 批量加载多个视图的排序配置
+   * @param viewKeys 视图标识数组
+   * @returns 成功加载的数量
+   */
+  async function batchFetchViewPreferences(viewKeys: string[]): Promise<number> {
+    const results = await Promise.all(viewKeys.map((key) => fetchViewPreference(key)))
+    const successCount = results.filter((r) => r).length
+    return successCount
   }
 
   /**
@@ -212,15 +195,12 @@ export const useViewStore = defineStore('view', () => {
       // 如果 viewKey 不包含 ::，则添加 misc:: 前缀（兼容旧格式）
       const contextKey = viewKey.includes('::') ? viewKey : `misc::${viewKey}`
 
-      console.log(`[ViewStore] 📥 Fetching preference for: ${contextKey}`)
-
       const response = await fetch(
         `${apiBaseUrl}/view-preferences/${encodeURIComponent(contextKey)}`
       )
 
       if (response.status === 404) {
-        // 没有保存的配置，使用默认顺序
-        console.log(`[ViewStore] No saved preference for ${contextKey}`)
+        // ✅ 没有保存的配置，使用默认顺序（静默处理）
         return true
       }
 
@@ -238,11 +218,6 @@ export const useViewStore = defineStore('view', () => {
       // 加载排序配置
       loadSorting(viewKey, data.sorted_task_ids)
 
-      console.log(
-        `[ViewStore] ✅ Loaded preference for ${contextKey}:`,
-        data.sorted_task_ids.length,
-        'tasks'
-      )
       return true
     } catch (err) {
       console.error(`[ViewStore] Failed to fetch preference for ${viewKey}:`, err)
@@ -291,6 +266,7 @@ export const useViewStore = defineStore('view', () => {
     updateSorting,
     loadSorting,
     fetchViewPreference,
+    batchFetchViewPreferences, // 🆕 批量加载
     getSortedTaskIds,
     clearSorting,
     clearAllSorting,

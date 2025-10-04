@@ -22,11 +22,15 @@ import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 import type { TaskCard } from '@/types/dtos'
+import { useCrossViewDrag, useDragTransfer } from '@/composables/drag'
+import type { ViewMetadata, CalendarViewConfig } from '@/types/drag'
 
 const timeBlockStore = useTimeBlockStore()
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const contextMenu = useContextMenu()
+const crossViewDrag = useCrossViewDrag()
+const dragTransfer = useDragTransfer()
 
 // ==================== Props ====================
 const props = defineProps<{
@@ -46,7 +50,10 @@ const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
 // 监听 currentDate prop 变化，切换日历显示的日期
 watch(
   () => props.currentDate,
-  (newDate) => {
+  (newDate, oldDate) => {
+    // 🔍 检查点3：日历日期同步
+    console.log('[CHK-3] calendar watch currentDate:', oldDate, '->', newDate)
+
     if (newDate && calendarRef.value) {
       const calendarApi = calendarRef.value.getApi()
       if (calendarApi) {
@@ -56,6 +63,12 @@ watch(
         // 🔧 FIX: 清除缓存，强制重新计算位置
         cachedCalendarEl = null
         cachedRect = null
+
+        // 🔍 检查点3：确认切换后的日期
+        console.log(
+          '[CHK-3] After gotoDate, calendarApi.getDate()=',
+          calendarApi.getDate().toISOString().split('T')[0]
+        )
       }
     }
   },
@@ -63,6 +76,21 @@ watch(
 )
 
 onMounted(async () => {
+  // 🔍 检查点2：全局 drop 捕获监听（检测是否被内部拦截）
+  document.addEventListener(
+    'drop',
+    (e) => {
+      const target = e.target as HTMLElement
+      console.log(
+        '[CHK-2] 🌍 Global drop capture! target=',
+        target?.className,
+        'tagName=',
+        target?.tagName
+      )
+    },
+    true
+  ) // 捕获阶段
+
   // 监听全局拖拽开始事件
   document.addEventListener('dragstart', handleGlobalDragStart)
   document.addEventListener('dragend', handleGlobalDragEnd)
@@ -99,11 +127,10 @@ onMounted(async () => {
 
 function handleGlobalDragStart(event: DragEvent) {
   try {
-    if (event.dataTransfer) {
-      const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
-      if (dragData.type === 'task' && dragData.task) {
-        currentDraggedTask.value = dragData.task
-      }
+    // 使用统一的 dragTransfer 获取数据
+    const dragData = dragTransfer.getDragData(event)
+    if (dragData && dragData.type === 'task') {
+      currentDraggedTask.value = dragData.task
     }
   } catch (error) {
     // 忽略解析错误
@@ -288,7 +315,17 @@ let scrollTimer: number | null = null
 
 function handleDragOver(event: DragEvent) {
   event.preventDefault()
+
+  // 🔍 检查点1：effectAllowed/dropEffect 匹配
   if (event.dataTransfer) {
+    console.log(
+      '[CHK-1] dragover: dropEffect(before)=',
+      event.dataTransfer.dropEffect,
+      'effectAllowed=',
+      event.dataTransfer.effectAllowed,
+      'types=',
+      Array.from(event.dataTransfer.types)
+    )
     event.dataTransfer.dropEffect = 'copy'
   }
 
@@ -304,9 +341,15 @@ function handleDragOver(event: DragEvent) {
 function handleDragEnter(event: DragEvent) {
   event.preventDefault()
 
-  // 检查是否包含任务数据
-  if (event.dataTransfer && event.dataTransfer.types.includes('application/json')) {
+  // 🔍 检查点4：重置几何缓存，确保日期切换后位置准确
+  cachedCalendarEl = null
+  cachedRect = null
+  console.log('[CHK-4] dragenter: reset cache')
+
+  // 检查是否包含任务数据（使用统一的 dragTransfer）
+  if (dragTransfer.hasDragData(event)) {
     isDragging.value = true
+    console.log('[CHK-1] dragenter: hasDragData=true, isDragging set')
   }
 }
 
@@ -419,45 +462,64 @@ function clearPreviewEvent() {
 async function handleDrop(event: DragEvent) {
   event.preventDefault()
 
+  // 🔍 检查点1 & 2：drop 是否被触发
+  console.log(
+    '[CHK-1] ✅ DROP FIRED! target=',
+    (event.target as HTMLElement)?.className,
+    'effectAllowed=',
+    event.dataTransfer?.effectAllowed,
+    'dropEffect=',
+    event.dataTransfer?.dropEffect
+  )
+
   // 标记开始处理 drop，防止 dragend 事件清除预览
   isProcessingDrop.value = true
 
-  if (!event.dataTransfer) {
-    clearPreviewEvent()
-    isProcessingDrop.value = false
-    return
-  }
-
   try {
-    const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
+    // 获取拖拽位置对应的时间
+    const dropTime = getTimeFromDropPosition(event)
 
-    if (dragData.type === 'task' && dragData.task) {
-      // 获取拖拽位置对应的时间
-      const dropTime = getTimeFromDropPosition(event)
+    if (!dropTime) {
+      clearPreviewEvent()
+      isProcessingDrop.value = false
+      return
+    }
 
-      if (dropTime) {
-        // 创建一个默认1小时的时间块
-        const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+    // 创建一个默认1小时的时间块
+    const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
 
-        // 调用专门的"从任务创建"端点
-        const result = await timeBlockStore.createTimeBlockFromTask({
-          task_id: dragData.task.id,
-          start_time: dropTime.toISOString(),
-          end_time: endTime.toISOString(),
-        })
+    // 构建日历的 ViewMetadata
+    const calendarView: ViewMetadata = {
+      type: 'calendar',
+      id: `calendar-${dropTime.toISOString()}`,
+      config: {
+        startTime: dropTime.toISOString(),
+        endTime: endTime.toISOString(),
+      } as CalendarViewConfig,
+      label: `${dropTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
+    }
 
-        if (result) {
-          console.log('[Calendar] Created time block from task:', result)
-          // ✅ 后端返回了更新后的任务，直接更新到 store
-          taskStore.addOrUpdateTask(result.updated_task)
-        }
+    // 🔍 检查点5：确认策略调用
+    console.log('[CHK-5] About to call crossViewDrag.handleDrop with calendarView=', calendarView)
 
-        // 创建成功后再清除预览
-        clearPreviewEvent()
-      } else {
-        clearPreviewEvent()
+    // 🆕 统一走策略系统
+    const result = await crossViewDrag.handleDrop(calendarView, event)
+
+    // 🔍 检查点5：策略结果
+    console.log('[CHK-5] Strategy result:', result)
+
+    if (result.success) {
+      console.log('[Calendar] ✅ Drop handled via strategy:', result.message)
+
+      // 如果策略返回了更新后的任务，更新到 store
+      if (result.updatedTask) {
+        taskStore.addOrUpdateTask(result.updatedTask)
       }
+
+      clearPreviewEvent()
     } else {
+      console.error('[Calendar] ❌ Drop failed:', result.error)
+      alert(`创建时间块失败: ${result.error}`)
       clearPreviewEvent()
     }
   } catch (error) {
@@ -474,7 +536,6 @@ async function handleDrop(event: DragEvent) {
       errorMessage = error
     }
 
-    // 显示错误消息
     console.error(`创建时间块失败: ${errorMessage}`)
     alert(`创建时间块失败: ${errorMessage}`)
   } finally {
@@ -518,9 +579,15 @@ function getTimeFromDropPosition(event: DragEvent): Date | null {
   const dropTime = new Date(currentDate)
   dropTime.setHours(hours, minutes, 0, 0)
 
-  console.log('[CuteCalendar] Drop position calculated:', {
+  // 🔍 检查点3 & 4：日历日期同步 & 缓存
+  console.log('[CHK-3] Drop position calculated:', {
     calendarDate: currentDate.toISOString().split('T')[0],
     dropTime: dropTime.toISOString(),
+    clientY: event.clientY,
+    cachedRectTop: cachedRect.top,
+    relativeY,
+    percentage: percentage.toFixed(3),
+    lastUpdateTime: now - lastUpdateTime,
   })
 
   return dropTime
