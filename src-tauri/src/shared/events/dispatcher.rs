@@ -1,6 +1,6 @@
 /// 事件分发器 - 从 outbox 扫描并推送到 SSE
 use std::{sync::Arc, time::Duration};
-use tokio::time;
+use tokio::{time, sync::Semaphore};
 
 use super::{outbox::EventOutboxRepository, SseState};
 
@@ -11,6 +11,8 @@ pub struct EventDispatcher {
     outbox_repo: Arc<dyn EventOutboxRepository>,
     sse_state: Arc<SseState>,
     interval_ms: u64,
+    /// 写入串行化信号量（与应用其他写操作共享）
+    write_semaphore: Arc<Semaphore>,
 }
 
 impl EventDispatcher {
@@ -18,11 +20,13 @@ impl EventDispatcher {
         outbox_repo: Arc<dyn EventOutboxRepository>,
         sse_state: Arc<SseState>,
         interval_ms: u64,
+        write_semaphore: Arc<Semaphore>,
     ) -> Self {
         Self {
             outbox_repo,
             sse_state,
             interval_ms,
+            write_semaphore,
         }
     }
 
@@ -51,7 +55,11 @@ impl EventDispatcher {
         // 广播并标记为已分发
         for (outbox_id, event) in events {
             self.sse_state.broadcast(event);
+            
+            // ✅ 获取写入许可，确保 mark_dispatched 与其他写操作串行
+            let _permit = self.write_semaphore.acquire().await?;
             self.outbox_repo.mark_dispatched(outbox_id).await?;
+            // _permit 自动 drop，释放许可
         }
 
         Ok(())

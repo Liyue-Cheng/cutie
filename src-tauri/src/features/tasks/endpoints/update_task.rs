@@ -135,6 +135,9 @@ mod logic {
 
         let now = app_state.clock().now_utc();
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 2. 开启事务（✅ 使用 TransactionHelper）
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

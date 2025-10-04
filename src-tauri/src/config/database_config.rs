@@ -60,7 +60,7 @@ impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
             filename: "cutie.db".to_string(),
-            max_connections: 10,
+            max_connections: 5, // ✅ 降低到 5，配合应用层写串行化，减少无意义并发
             min_connections: 1,
             connect_timeout_seconds: 30,
             idle_timeout_seconds: 600, // 10分钟

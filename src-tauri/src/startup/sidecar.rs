@@ -214,7 +214,13 @@ pub async fn run_sidecar() -> Result<(), AppError> {
 
         let outbox_repo = Arc::new(SqlxEventOutboxRepository::new(db_pool.clone()));
         let sse_state = app_state.sse_state().clone();
-        let dispatcher = Arc::new(EventDispatcher::new(outbox_repo, sse_state, 100));
+        let write_semaphore = app_state.write_semaphore(); // ✅ 注入写入信号量
+        let dispatcher = Arc::new(EventDispatcher::new(
+            outbox_repo,
+            sse_state,
+            100,
+            write_semaphore,
+        ));
 
         tokio::spawn(async move {
             dispatcher.start().await;

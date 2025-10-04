@@ -152,6 +152,9 @@ mod logic {
         // 2. 解析原始日期
         let original_date = validation::parse_date(date_str)?;
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 3. 开始事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

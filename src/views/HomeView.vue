@@ -68,6 +68,46 @@ function handleVisibleDateChange(date: string) {
   currentVisibleDate.value = date
   // 日历会自动通过 :current-date prop 更新显示
 }
+
+// ==================== 调试功能 ====================
+const isDeletingAll = ref(false)
+
+async function handleDeleteAllTasks() {
+  const confirmed = confirm('⚠️ 确定要删除所有任务吗？此操作不可撤销！')
+  if (!confirmed) return
+
+  isDeletingAll.value = true
+  console.log('[HomeView] 🗑️ Starting to delete all tasks...')
+
+  try {
+    const allTasks = taskStore.allTasks
+    const totalCount = allTasks.length
+    console.log(`[HomeView] 🗑️ Deleting ${totalCount} tasks...`)
+
+    // 批量删除所有任务（添加延迟避免数据库锁冲突）
+    let successCount = 0
+    let failCount = 0
+
+    for (const task of allTasks) {
+      try {
+        await taskStore.deleteTask(task.id)
+        successCount++
+        console.log(`[HomeView] ✅ Deleted task ${successCount}/${totalCount}: ${task.title}`)
+      } catch (error) {
+        failCount++
+        console.error(`[HomeView] ❌ Failed to delete task: ${task.title}`, error)
+      }
+    }
+
+    console.log(`[HomeView] 🎉 Delete completed: ${successCount} succeeded, ${failCount} failed`)
+    alert(`删除完成！成功：${successCount}，失败：${failCount}`)
+  } catch (error) {
+    console.error('[HomeView] ❌ Error during batch delete:', error)
+    alert('删除过程中出现错误')
+  } finally {
+    isDeletingAll.value = false
+  }
+}
 </script>
 
 <template>
@@ -78,6 +118,14 @@ function handleVisibleDateChange(date: string) {
           <div class="kanban-header">
             <h2>日程看板</h2>
             <span class="kanban-count">{{ kanbanCount }} 个看板</span>
+            <button
+              class="delete-all-btn"
+              :disabled="isDeletingAll || taskStore.allTasks.length === 0"
+              @click="handleDeleteAllTasks"
+              title="删除所有任务（调试用）"
+            >
+              {{ isDeletingAll ? '删除中...' : '🗑️ 删除全部' }}
+            </button>
           </div>
         </template>
         <template #bottom>
@@ -178,6 +226,37 @@ function handleVisibleDateChange(date: string) {
 .kanban-count {
   font-size: 1.3rem;
   color: var(--color-text-tertiary);
+}
+
+/* ==================== 调试按钮 ==================== */
+.delete-all-btn {
+  padding: 0.5rem 1rem;
+  font-size: 1.3rem;
+  font-weight: 500;
+  background-color: #ff4d4f;
+  color: #fff;
+  border: none;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.delete-all-btn:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.delete-all-btn:hover:not(:disabled) {
+  background-color: #d9363e;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgb(255 77 79 / 30%);
+}
+
+.delete-all-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 :deep(.top-row .cute-button) {

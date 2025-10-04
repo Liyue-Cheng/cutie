@@ -90,6 +90,9 @@ mod logic {
         task_id: Uuid,
         correlation_id: Option<String>,
     ) -> AppResult<DeleteTaskResponse> {
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 开始事务（✅ 使用 TransactionHelper）
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

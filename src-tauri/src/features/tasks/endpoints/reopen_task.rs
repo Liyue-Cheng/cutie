@@ -222,6 +222,9 @@ mod logic {
 
         let now = app_state.clock().now_utc();
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // ⏱️ 1. 取连接（✅ 使用 TransactionHelper）
         let acquire_start = std::time::Instant::now();
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;

@@ -290,7 +290,7 @@ const kanbanTasksMap = computed(() => {
     const tasks = taskStore.getTasksByDate(kanban.id)
     const sorted = viewStore.applySorting(tasks, kanban.viewKey)
     map.set(kanban.viewKey, sorted)
-    console.log(`[InfiniteDailyKanban] Cached ${sorted.length} tasks for ${kanban.id}`)
+    // console.log(`[InfiniteDailyKanban] Cached ${sorted.length} tasks for ${kanban.id}`)
   })
 
   return map

@@ -174,7 +174,7 @@ pub async fn initialize_database(
     );
 
     tracing::info!(
-        "[PERF] DB_INIT TOTAL took {:.3}ms (max_conn={}, min_conn={}, busy_timeout=5000ms)",
+        "[PERF] DB_INIT TOTAL took {:.3}ms (max_conn={}, min_conn={}, busy_timeout=30000ms)",
         start_time.elapsed().as_secs_f64() * 1000.0,
         config.max_connections,
         config.min_connections

@@ -118,6 +118,9 @@ mod logic {
         // 1. 解析日期
         let scheduled_day = validation::parse_date(&request.scheduled_day)?;
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 2. 开始事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

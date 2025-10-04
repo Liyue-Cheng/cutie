@@ -1,6 +1,7 @@
 /// 应用状态模块 - 为sidecar架构设计
 use sqlx::SqlitePool;
 use std::sync::Arc;
+use tokio::sync::{Semaphore, OwnedSemaphorePermit};
 
 use crate::config::AppConfig;
 use crate::shared::core::AppError;
@@ -28,6 +29,10 @@ pub struct AppState {
 
     /// SSE 状态（事件广播）
     sse_state: Arc<SseState>,
+
+    /// 写入串行化信号量（SQLite 写锁优化）
+    /// 确保所有写操作在应用层串行执行，避免数据库锁冲突
+    write_semaphore: Arc<Semaphore>,
 }
 
 impl AppState {
@@ -45,6 +50,8 @@ impl AppState {
             clock,
             id_generator,
             sse_state,
+            // ✅ 写入串行化：permits=1，确保同一时刻只有一个写事务
+            write_semaphore: Arc::new(Semaphore::new(1)),
         }
     }
 
@@ -82,6 +89,32 @@ impl AppState {
     /// 获取 SSE 状态
     pub fn sse_state(&self) -> &Arc<SseState> {
         &self.sse_state
+    }
+
+    /// 获取写入信号量（用于外部注入，如 EventDispatcher）
+    pub fn write_semaphore(&self) -> Arc<Semaphore> {
+        self.write_semaphore.clone()
+    }
+
+    /// 获取写入许可（串行化写操作）
+    ///
+    /// 在所有写事务开始前调用此方法，确保应用层写操作串行执行。
+    /// 许可在返回的 OwnedSemaphorePermit 被 drop 时自动释放。
+    ///
+    /// # Example
+    /// ```rust
+    /// let _permit = app_state.acquire_write_permit().await;
+    /// let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+    /// // ... 写操作 ...
+    /// TransactionHelper::commit(tx).await?;
+    /// // _permit 自动 drop，释放许可
+    /// ```
+    pub async fn acquire_write_permit(&self) -> OwnedSemaphorePermit {
+        self.write_semaphore
+            .clone()
+            .acquire_owned()
+            .await
+            .expect("Write semaphore should never be closed")
     }
 
     /// 健康检查
