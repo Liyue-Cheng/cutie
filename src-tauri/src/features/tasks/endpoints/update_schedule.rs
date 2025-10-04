@@ -28,36 +28,161 @@ use crate::{
 /*
 CABC for `update_schedule`
 
-## API端点
-PATCH /api/tasks/:id/schedules/:date
+## 1. 端点签名 (Endpoint Signature)
 
-## 预期行为简介
-更新任务在指定日期的日程，可以改变日期或更新 outcome 状态。
+PATCH /api/tasks/{id}/schedules/{date}
 
-## 业务逻辑
-1. 验证任务存在且未删除
-2. 验证该日期有日程记录
-3. 根据请求参数：
-   - 如果提供 new_date：检查目标日期没有日程，然后更新日期
-   - 如果提供 outcome：更新 outcome 状态
-   - 可以同时更新
-4. 通过 SSE 推送 task.schedule_updated 事件
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**:
-  - 任务存在且未删除
-  - 该日期有日程记录
-  - new_date（如果提供）还没有日程记录
-  - outcome（如果提供）是有效值
-- **后置条件**:
-  - 更新 task_schedules 记录
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 任务不存在 → 404
-- 该日期没有日程 → 404
-- new_date 已有日程 → 409 Conflict
-- outcome 不是有效值 → 400
-- 两个字段都不提供 → 400
+> 作为一个用户，我想要修改任务的日程安排，可以更改日期或更新完成状态，
+> 以便我能灵活调整我的任务计划。
+
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+更新任务在指定日期的日程记录。支持两种更新：
+1. 更改日期（`new_date`）：将日程从原日期移动到新日期
+2. 更新结果状态（`outcome`）：标记日程的完成情况（PLANNED/PRESENCE_LOGGED/COMPLETED_ON_DAY/CARRIED_OVER）
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
+- `date` (YYYY-MM-DD, required): 原日期
+
+**请求体 (Request Body):** `application/json`
+
+```json
+{
+  "new_date": "string (YYYY-MM-DD) | null (optional)",
+  "outcome": "string ('PLANNED' | 'PRESENCE_LOGGED' | 'COMPLETED_ON_DAY' | 'CARRIED_OVER') | null (optional)"
+}
+```
+
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "task_card": {
+    "id": "uuid",
+    "title": "string",
+    "schedule_status": "scheduled",
+    "schedules": [...],
+    ...
+  }
+}
+```
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}" | "Schedule not found: Task {id} on {date}"
+}
+```
+
+**409 Conflict:**
+
+```json
+{
+  "error_code": "CONFLICT",
+  "message": "目标日期已有日程安排"
+}
+```
+
+**422 Unprocessable Entity:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "输入验证失败",
+  "details": [
+    { "field": "request", "code": "EMPTY_REQUEST", "message": "必须提供 new_date 或 outcome 至少一个字段" }
+  ]
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- **请求完整性:**
+    - `new_date` 和 `outcome` **至少提供一个**。
+    - 违反时返回错误码：`EMPTY_REQUEST`
+- `new_date`:
+    - 如果提供，**必须**符合 `YYYY-MM-DD` 格式。
+    - 违反时返回错误码：`INVALID_DATE_FORMAT`
+- `outcome`:
+    - 如果提供，**必须**是有效值之一：`PLANNED`, `PRESENCE_LOGGED`, `COMPLETED_ON_DAY`, `CARRIED_OVER`。
+    - 违反时返回错误码：`INVALID_OUTCOME`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  验证请求（`validation::validate_request`，确保至少提供一个字段）。
+2.  解析原始日期（`validation::parse_date`）。
+3.  获取写入许可（`app_state.acquire_write_permit()`）。
+4.  启动数据库事务（`TransactionHelper::begin`）。
+5.  查询任务（`TaskRepository::find_by_id_in_tx`）。
+6.  如果任务不存在，返回 404 错误。
+7.  检查原始日期是否有日程（`TaskScheduleRepository::has_schedule_for_day_in_tx`）。
+8.  如果原始日期没有日程，返回 404 错误。
+9.  如果提供了 `new_date`：
+    - 解析新日期
+    - 如果新日期与原日期不同，检查新日期是否已有日程
+    - 如果新日期已有日程，返回 409 冲突
+    - 更新日程的日期（`database::update_schedule_date`）
+10. 如果提供了 `outcome`：
+    - 解析 outcome 枚举值（`validation::parse_outcome`）
+    - 确定目标日期（如果更改了日期，使用新日期；否则使用原日期）
+    - 更新日程的 outcome（`database::update_schedule_outcome`）
+11. 重新查询任务并组装 `TaskCardDto`。
+12. 在事务内填充 `schedules` 字段。
+13. 根据 schedules 设置正确的 `schedule_status`。
+14. 写入领域事件到 outbox（`task.schedule_updated` 事件）。
+15. 提交事务（`TransactionHelper::commit`）。
+16. 返回更新后的任务。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **原日期没有日程:** 返回 `404` 错误。
+- **新日期已有日程:** 返回 `409` 冲突。
+- **新日期与原日期相同:** 允许（仅视为 outcome 更新）。
+- **两个字段都不提供:** 返回 `422` 验证错误。
+- **outcome 值无效:** 返回 `422` 验证错误。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 1次查询 `tasks` 表（验证任务存在）。
+    - **`SELECT`:** 1-2次查询 `task_schedules` 表（检查原日期和新日期）。
+    - **`UPDATE`:** 1条记录在 `task_schedules` 表（更新日期和/或 outcome）。
+    - **`SELECT`:** 1次查询 `tasks` 表（重新获取数据）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（填充 schedules）。
+    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **SSE 事件:**
+    - 发送 `task.schedule_updated` 事件，包含：
+        - 更新后的任务（`TaskCardDto`）
+        - 原日期（`original_date`）
+        - 新日期（`new_date`，如果有）
+        - 新 outcome（`outcome`，如果有）
+- **日志记录:**
+    - 成功时，记录日程更新信息。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== 请求/响应结构体 ====================

@@ -32,143 +32,123 @@ pub struct ReopenTaskResponse {
 /*
 CABC for `reopen_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 DELETE /api/tasks/{id}/completion
 
-## 预期行为简介
-将已完成的任务重新打开，使其回到未完成状态。这是 complete_task 的逆操作。
+## 2. 预期行为简介 (High-Level Behavior)
 
-## Cutie 业务逻辑
-1. 验证任务存在且已完成
-2. 将任务的 completed_at 设置为 NULL
-3. 更新任务的 updated_at 时间戳
-4. 返回更新后的任务信息
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 输入输出规范
-- **输入**:
-  - Path 参数: task_id (UUID)
+> 作为一个用户，当我误标记了一个任务为已完成，或者需要重新开始一个已完成的任务时，
+> 我希望能够将其重新打开，使其回到未完成状态。
 
-- **输出**:
-  - 200 OK: 返回重新打开的任务信息
-    ```json
-    {
-      "success": true,
-      "data": {
-        "task": {
-          "id": "uuid",
-          "title": "任务标题",
-          "is_completed": false,
-          ...
-        }
-      }
-    }
-    ```
+### 2.2. 核心业务逻辑 (Core Business Logic)
 
-- **前置条件**:
-  - task_id 必须存在
-  - 任务必须处于已完成状态 (completed_at IS NOT NULL)
+将已完成的任务重新打开，设置 `completed_at = NULL`，使任务回到未完成状态。
+这是 `complete_task` 的逆操作，但不会恢复已删除或截断的时间块（这些是完成任务时的副作用，不可逆）。
 
-- **后置条件**:
-  - 任务的 completed_at 字段被设置为 NULL
-  - 任务的 updated_at 字段被更新为当前时间
-  - 任务回到未完成状态
+## 3. 输入输出规范 (Request/Response Specification)
 
-- **不变量**:
-  - 任务的其他属性（标题、描述、area等）保持不变
-  - 任务的历史日程记录不受影响
+### 3.1. 请求 (Request)
 
-## 边界情况
-- **任务不存在**: 返回 404 Not Found
-- **任务未完成**: 返回 409 Conflict，提示任务尚未完成
-- **任务已删除**: 返回 404 Not Found（is_deleted = true 的任务不可见）
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
 
-## 预期副作用
-- **数据库写入**: 更新 tasks 表中对应记录的 completed_at 和 updated_at 字段
-- **日程状态**: 不影响已有的日程记录（outcome 保持不变）
-- **时间块**: 不影响已删除或截断的时间块（不恢复）
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
 
-## 请求/响应示例
+### 3.2. 响应 (Responses)
 
-### 成功场景
-**请求:**
-```http
-DELETE /api/tasks/550e8400-e29b-41d4-a716-446655440000/completion
-```
+**200 OK:**
 
-**响应:**
+*   **Content-Type:** `application/json`
+
 ```json
 {
-  "success": true,
-  "data": {
-    "task": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "title": "完成项目报告",
-      "glance_note": "需要包含数据分析部分",
-      "is_completed": false,
-      "completed_at": null,
-      "schedule_status": "scheduled",  // 如果任务有日程记录则为 "scheduled"，否则为 "staging"
-      "area": {
-        "id": "area-123",
-        "name": "工作",
-        "color": "#4a90e2"
-      },
-      ...
-    }
-  },
-  "message": null
+  "task": {
+    "id": "uuid",
+    "title": "string",
+    "schedule_status": "staging" | "scheduled",
+    "is_completed": false,
+    "completed_at": null,
+    "schedules": [...] | null,
+    ...
+  }
 }
 ```
 
-### 错误场景 - 任务未完成
-**请求:**
-```http
-DELETE /api/tasks/550e8400-e29b-41d4-a716-446655440000/completion
-```
+**404 Not Found:**
 
-**响应:**
 ```json
 {
-  "success": false,
-  "data": null,
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}"
+}
+```
+
+**409 Conflict:**
+
+```json
+{
+  "error_code": "CONFLICT",
   "message": "任务尚未完成"
 }
 ```
 
-### 错误场景 - 任务不存在
-**请求:**
-```http
-DELETE /api/tasks/00000000-0000-0000-0000-000000000000/completion
-```
+## 4. 验证规则 (Validation Rules)
 
-**响应:**
-```json
-{
-  "success": false,
-  "data": null,
-  "message": "Task with id 00000000-0000-0000-0000-000000000000 not found"
-}
-```
+- `task_id`:
+    - **必须**是有效的 UUID 格式。
+    - **必须**存在于数据库中且未删除。
+    - 违反时返回 `404 NOT_FOUND`
+- **业务规则验证:**
+    - 任务**必须**已完成（`completed_at IS NOT NULL`）。
+    - 违反时返回 `409 CONFLICT`
 
-## 数据库操作
-- **查询**: SELECT FROM tasks WHERE id = ? AND is_deleted = false
-- **更新**: UPDATE tasks SET completed_at = NULL, updated_at = ? WHERE id = ?
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
 
-## 事务管理
-- 所有数据库操作在单个事务中执行
-- 失败时自动回滚
+1.  获取当前时间 `now`。
+2.  获取写入许可（`app_state.acquire_write_permit()`）。
+3.  启动数据库事务（`TransactionHelper::begin`）。
+4.  查询任务（`TaskRepository::find_by_id_in_tx`）。
+5.  如果任务不存在，返回 404 错误。
+6.  检查任务是否已完成，如果未完成，返回 409 冲突。
+7.  设置任务为未完成（`TaskRepository::set_reopened_in_tx`，设置 `completed_at = NULL`, `updated_at = now`）。
+8.  提交事务（`TransactionHelper::commit`）。
+9.  重新查询任务（`TaskRepository::find_by_id`）。
+10. 组装 `TaskCardDto`（`TaskAssembler::task_to_card_basic`）。
+11. 填充 `schedules` 字段（`TaskAssembler::assemble_schedules`）。
+12. 根据 schedules 设置正确的 `schedule_status`：
+    - 如果今天或未来有日程：`Scheduled`
+    - 否则：`Staging`
+13. 返回重新打开后的任务。
 
-## 幂等性
-- 对已经未完成的任务调用 reopen 会返回 409 错误
-- 不具有幂等性（不同于 complete 操作）
+## 6. 边界情况 (Edge Cases)
 
-## 安全性
-- 无需额外权限验证（V1.0 单用户应用）
-- UUID 参数自动验证
+- **任务不存在:** 返回 `404` 错误。
+- **任务已删除 (`is_deleted = true`):** 返回 `404` 错误（视为不存在）。
+- **任务未完成:** 返回 `409` 冲突。
+- **日程记录:** 不影响已有的日程记录（包括 outcome 状态），只改变任务的完成状态。
+- **时间块:** 不恢复完成任务时已删除或截断的时间块（这些副作用不可逆）。
+- **幂等性:** 对已未完成的任务调用会返回 409 错误（不具有幂等性）。
 
-## 性能考虑
-- 单次数据库查询 + 单次更新
-- 使用事务保证一致性
-- 查询使用主键索引（高效）
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 1次查询 `tasks` 表（事务内）。
+    - **`UPDATE`:** 1条记录在 `tasks` 表（设置 `completed_at = NULL`, `updated_at = now`）。
+    - **`SELECT`:** 1次查询 `tasks` 表（事务后，重新获取数据）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（填充 schedules）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **无 SSE 事件:** 当前实现不发送 SSE 事件（可能需要补充 `task.reopened` 事件）。
+- **日志记录:**
+    - 成功时，记录性能指标（各阶段耗时）。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== HTTP 处理器 ====================

@@ -28,32 +28,149 @@ use crate::{
 /*
 CABC for `add_schedule`
 
-## API端点
-POST /api/tasks/:id/schedules
+## 1. 端点签名 (Endpoint Signature)
 
-## 预期行为简介
-为任务添加日程安排，指定任务在某天需要完成。
+POST /api/tasks/{id}/schedules
 
-## 业务逻辑
-1. 验证任务存在且未删除
-2. 验证该日期还没有日程记录
-3. 创建 schedule 记录（outcome = 'PLANNED'）
-4. 如果是任务的第一个日程，更新 schedule_status 为 'planned'
-5. 通过 SSE 推送 task.scheduled 事件
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**:
-  - 任务存在且未删除
-  - scheduled_day 是有效日期
-  - 该日期还没有 schedule 记录
-- **后置条件**:
-  - 插入 task_schedules 记录
-  - 更新任务的 schedule_status（如果需要）
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 任务不存在 → 404
-- 该日期已有日程 → 409 Conflict
-- 日期格式错误 → 400
+> 作为一个用户，我想要为任务添加日程安排，指定任务在某天需要完成，
+> 以便我能更好地规划我的每日工作。
+
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+为任务添加日程记录到 `task_schedules` 表，初始 `outcome` 为 `PLANNED`。
+如果这是任务的第一个日程，任务的 `schedule_status` 会从 `Staging` 变为 `Scheduled`。
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
+
+**请求体 (Request Body):** `application/json`
+
+```json
+{
+  "scheduled_day": "string (YYYY-MM-DD, required)"
+}
+```
+
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+
+### 3.2. 响应 (Responses)
+
+**201 Created:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "task_card": {
+    "id": "uuid",
+    "title": "string",
+    "schedule_status": "scheduled",
+    "schedules": [
+      {
+        "id": "uuid",
+        "scheduled_day": "2025-10-05",
+        "outcome": "PLANNED",
+        "time_blocks": []
+      }
+    ],
+    ...
+  }
+}
+```
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}"
+}
+```
+
+**409 Conflict:**
+
+```json
+{
+  "error_code": "CONFLICT",
+  "message": "该日期已有日程安排"
+}
+```
+
+**422 Unprocessable Entity:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "输入验证失败",
+  "details": [
+    { "field": "scheduled_day", "code": "INVALID_DATE_FORMAT", "message": "日期格式错误，请使用 YYYY-MM-DD 格式" }
+  ]
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `scheduled_day`:
+    - **必须**存在。
+    - **必须**符合 `YYYY-MM-DD` 格式。
+    - 违反时返回错误码：`INVALID_DATE_FORMAT`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  解析日期字符串为 `DateTime<Utc>`（`validation::parse_date`）。
+2.  获取写入许可（`app_state.acquire_write_permit()`）。
+3.  启动数据库事务（`TransactionHelper::begin`）。
+4.  查询任务（`TaskRepository::find_by_id_in_tx`）。
+5.  如果任务不存在，返回 404 错误。
+6.  检查该日期是否已有日程（`TaskScheduleRepository::has_schedule_for_day_in_tx`）。
+7.  如果已有日程，返回 409 冲突。
+8.  创建日程记录（`TaskScheduleRepository::create_in_tx`，初始 `outcome = PLANNED`）。
+9.  重新查询任务（`TaskRepository::find_by_id_in_tx`）。
+10. 组装 `TaskCardDto`（`TaskAssembler::task_to_card_basic`）。
+11. 在事务内填充 `schedules` 字段（`TaskAssembler::assemble_schedules_in_tx`）。
+12. 根据 schedules 设置正确的 `schedule_status`（应为 `Scheduled`，因为刚添加了日程）。
+13. 写入领域事件到 outbox（`task.scheduled` 事件）。
+14. 提交事务（`TransactionHelper::commit`）。
+15. 返回 `201 Created` 和更新后的任务。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **该日期已有日程:** 返回 `409` 冲突。
+- **日期格式错误:** 返回 `422` 验证错误。
+- **添加过去的日期:** 允许（系统不限制日期范围）。
+- **添加未来很远的日期:** 允许（系统不限制日期范围）。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 1次查询 `tasks` 表（验证任务存在）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（检查日期冲突）。
+    - **`INSERT`:** 1条记录到 `task_schedules` 表。
+    - **`SELECT`:** 1次查询 `tasks` 表（重新获取数据）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（填充 schedules）。
+    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **SSE 事件:**
+    - 发送 `task.scheduled` 事件，包含：
+        - 更新后的任务（`TaskCardDto`）
+        - 新增的日期（`scheduled_day`）
+- **日志记录:**
+    - 成功时，记录日程创建信息。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== 请求/响应结构体 ====================

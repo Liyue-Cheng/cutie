@@ -33,26 +33,155 @@ pub struct UpdateTaskResponse {
 /*
 CABC for `update_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 PATCH /api/tasks/{id}
 
-## 预期行为简介
-更新任务的可变字段（标题、笔记、子任务等）。
-当标题或 area 变更时，自动更新所有唯一关联的时间块。
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**: task_id 必须存在
-- **后置条件**: 任务字段被更新，返回最新的 TaskCardDto
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## Cutie 业务逻辑
-1. 更新任务字段
-2. 如果标题或 area 有变更，查询所有唯一关联的时间块
-3. 更新这些时间块的标题和 area（与任务保持一致）
-4. 通过 SSE 推送更新事件
+> 作为一个用户，我想要修改任务的标题、笔记、子任务等信息，
+> 并且当我修改任务标题或 area 时，系统能自动同步更新相关的时间块，
+> 以保持数据一致性。
 
-## 边界情况
-- 任务不存在 → 404
-- 所有字段都是 None → 422（无需更新）
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+更新任务的可变字段（标题、笔记、子任务、area 等）。
+特殊业务逻辑：当标题或 area 有变更时，自动更新所有"唯一关联且自动创建"的时间块，
+确保时间块的标题和 area 与任务保持一致。
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**请求体 (Request Body):** `application/json`
+
+所有字段都是可选的（部分更新）：
+
+```json
+{
+  "title": "string | null (optional, 1-255 chars)",
+  "glance_note": "string | null (optional, 支持置空)",
+  "detail_note": "string | null (optional, 支持置空)",
+  "estimated_duration": "number | null (optional, 0-10080)",
+  "area_id": "UUID | null (optional, 支持置空)",
+  "due_date": "string (YYYY-MM-DD) | null (optional)",
+  "due_date_type": "'soft' | 'hard' | null (optional)",
+  "subtasks": "array | null (optional, 最多50个, 支持置空)"
+}
+```
+
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "task": {
+    "id": "uuid",
+    "title": "string",
+    "glance_note": "string | null",
+    "schedule_status": "staging" | "scheduled",
+    "is_completed": false,
+    "area": {...} | null,
+    "project_id": null,
+    "subtasks": [...] | null,
+    "schedules": [...] | null,
+    "due_date": {...} | null,
+    "has_detail_note": boolean
+  }
+}
+```
+
+**注意：** 副作用（更新的时间块）通过 SSE 事件推送，不在 HTTP 响应中包含。
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "任务不存在"
+}
+```
+
+**422 Unprocessable Entity:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "输入验证失败",
+  "details": [...]
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `title`:
+    - 如果提供，**必须**为非空字符串 (trim后)。
+    - 如果提供，长度**必须**小于等于 255 个字符。
+    - 违反时返回错误码：`TITLE_EMPTY` 或 `TITLE_TOO_LONG`
+- `subtasks`:
+    - 如果提供，数组长度**必须**小于等于 50。
+    - 违反时返回错误码：`TOO_MANY_SUBTASKS`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  调用 `validation::validate_update_request` 验证请求体。
+2.  获取当前时间 `now`。
+3.  获取写入许可（`app_state.acquire_write_permit()`）。
+4.  启动数据库事务（`TransactionHelper::begin`）。
+5.  查询旧任务数据（`TaskRepository::find_by_id_in_tx`）。
+6.  如果任务不存在，返回 404 错误。
+7.  更新任务（`TaskRepository::update_in_tx`）。
+8.  检查标题或 area 是否有变更。
+9.  如果有变更，查询所有链接的时间块（`TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx`）。
+10. 对每个时间块：
+    - 检查是否是唯一关联（`is_exclusive_link_in_tx`）
+    - 检查是否是自动创建的（标题与旧任务标题一致）
+    - 如果是唯一关联且自动创建，更新时间块的标题和 area
+11. 查询更新后的完整时间块数据（`TimeBlockAssembler::assemble_for_event_in_tx`）。
+12. 重新查询任务并组装 `TaskCardDto`。
+13. 在事务内填充 `schedules` 字段。
+14. 根据 schedules 设置正确的 `schedule_status`。
+15. 写入领域事件到 outbox（包含更新的任务和副作用的时间块）。
+16. 提交事务（`TransactionHelper::commit`）。
+17. 返回更新后的任务。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **`title` 为空或全空格:** 返回 `422` 错误，错误码 `TITLE_EMPTY`。
+- **`title` 超过 255 字符:** 返回 `422` 错误，错误码 `TITLE_TOO_LONG`。
+- **`subtasks` 超过 50 个:** 返回 `422` 错误，错误码 `TOO_MANY_SUBTASKS`。
+- **时间块是手动创建的（标题与任务不一致）:** 不自动更新。
+- **时间块关联多个任务:** 不自动更新（避免影响其他任务）。
+- **幂等性:** 相同参数重复调用，结果一致，副作用只执行一次（通过 correlation_id 实现）。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 查询旧任务、链接的时间块、排他性检查。
+    - **`UPDATE`:** 1条记录在 `tasks` 表。
+    - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（仅更新唯一关联且自动创建的时间块）。
+    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **SSE 事件:**
+    - 发送 `task.updated` 事件，包含：
+        - 更新后的任务（`TaskCardDto`）
+        - 副作用：更新的时间块列表（`TimeBlockViewDto[]`）
+- **日志记录:**
+    - 成功时，记录更新的时间块 ID。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== HTTP 处理器 ====================

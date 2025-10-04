@@ -36,35 +36,122 @@ pub struct DeleteTaskResponse {
 /*
 CABC for `delete_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 DELETE /api/tasks/{id}
 
-## 预期行为简介
-软删除任务（设置 is_deleted = true）。
-根据 Cutie 的业务规则，如果任务链接的时间块变成"孤儿"，也会删除该时间块。
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**: task_id 必须存在
-- **后置条件**:
-  - 任务的 is_deleted = true
-  - 删除所有 task_time_block_links 记录
-  - 删除所有 task_schedules 记录
-  - 如果时间块变成孤儿且是自动创建的，删除该时间块
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 如果任务不存在，返回 404
-- 如果任务已删除，返回 204（幂等）
+> 作为一个用户，当我删除一个任务时，我希望系统能够：
+> 1. 软删除任务（标记为已删除，而非物理删除）
+> 2. 清理所有相关的日程和链接记录
+> 3. 智能清理"孤儿"时间块（只关联这一个任务且是自动创建的）
 
-## 孤儿时间块定义
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+软删除任务（设置 `is_deleted = true`），并清理相关数据：
+1. 删除所有 `task_time_block_links` 记录
+2. 删除所有 `task_schedules` 记录
+3. 检查时间块是否变成"孤儿"，如果是且为自动创建的，则删除该时间块
+
+**孤儿时间块定义：**
 - 该时间块只链接了这一个任务
 - 删除这个任务后，时间块没有任何关联任务
-- 时间块的 title 与任务 title 相同（自动创建的标志）
+- 时间块的 `title` 与任务 `title` 相同（自动创建的标志）
 
-## 预期副作用
-- 更新 tasks 表（is_deleted = true）
-- 删除 task_time_block_links 记录
-- 删除 task_schedules 记录
-- 可能删除孤儿时间块
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
+
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "success": true
+}
+```
+
+**注意：** 副作用（删除的时间块）通过 SSE 事件推送。
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}"
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `task_id`:
+    - **必须**是有效的 UUID 格式。
+    - **必须**存在于数据库中。
+    - 违反时返回 `404 NOT_FOUND`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  获取写入许可（`app_state.acquire_write_permit()`）。
+2.  启动数据库事务（`TransactionHelper::begin`）。
+3.  查询任务的完整数据（`TaskRepository::find_by_id_in_tx`）。
+4.  如果任务不存在，返回 404 错误。
+5.  组装基础 `TaskCardDto`（用于事件载荷）。
+6.  查询任务链接的所有时间块（`TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx`）。
+7.  软删除任务（`TaskRepository::soft_delete_in_tx`，设置 `is_deleted = true`）。
+8.  删除任务的所有链接记录（`TaskTimeBlockLinkRepository::delete_all_for_task_in_tx`）。
+9.  删除任务的所有日程记录（`TaskScheduleRepository::delete_all_in_tx`）。
+10. 对每个链接的时间块，调用 `should_delete_orphan_block` 判断是否应该删除：
+    - 检查时间块是否还有其他任务（`count_remaining_tasks_in_block_in_tx`）
+    - 检查时间块是否是自动创建的（标题与任务标题一致）
+11. 在执行删除之前，先查询被删除的时间块的完整数据（用于 SSE 事件）。
+12. 删除孤儿时间块（`TimeBlockRepository::soft_delete_in_tx`）。
+13. 写入领域事件到 outbox（包含删除的任务和副作用的时间块）。
+14. 提交事务（`TransactionHelper::commit`）。
+15. 返回成功响应。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **任务已删除:** 幂等，返回 `404` 错误（因为 find_by_id_in_tx 不返回已删除的任务）。
+- **时间块还有其他任务:** 不删除时间块（避免影响其他任务）。
+- **时间块是手动创建的（标题与任务不一致）:** 不删除时间块（保留用户的手动数据）。
+- **时间块是孤儿且自动创建:** 删除时间块。
+- **无关联时间块和日程的任务:** 只软删除任务本身。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 查询任务、链接的时间块、剩余任务数量。
+    - **`UPDATE`:** 1条记录在 `tasks` 表（设置 `is_deleted = true`）。
+    - **`DELETE`:** 0-N 条记录在 `task_time_block_links` 表。
+    - **`DELETE`:** 0-N 条记录在 `task_schedules` 表。
+    - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除孤儿时间块）。
+    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **SSE 事件:**
+    - 发送 `task.deleted` 事件，包含：
+        - 删除的任务（`TaskCardDto`）
+        - 删除时间（`deleted_at`）
+        - 副作用：删除的时间块列表（`TimeBlockViewDto[]`）
+- **日志记录:**
+    - 记录被删除的孤儿时间块 ID。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== HTTP 处理器 ====================

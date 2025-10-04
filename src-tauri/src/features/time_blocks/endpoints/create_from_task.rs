@@ -30,31 +30,200 @@ use crate::{
 /*
 CABC for `create_time_block_from_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 POST /api/time-blocks/from-task
 
-## 预期行为简介
-从拖动的任务创建时间块。这是专门为"拖动任务到日历"场景设计的端点。
-会同时：
-1. 创建时间块
-2. 链接任务到时间块
-3. 创建任务的日程记录（task_schedules）
-4. 返回更新后的任务卡片
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**:
-  - task_id 必须存在
-  - start_time < end_time
-  - 时间块不与现有时间块重叠
-- **后置条件**:
-  - 创建 time_blocks 记录
-  - 创建 task_time_block_links 记录
-  - 创建 task_schedules 记录
-  - 返回时间块和更新后的任务
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 如果任务不存在，返回 404
-- 如果时间冲突，返回 409
+> 作为一个用户，当我将一个任务拖动到日历的特定时间段时，
+> 我希望系统能够：
+> 1. 为这个任务创建一个时间块（分配具体的执行时间）
+> 2. 自动创建任务的日程记录（标记任务在该日期有安排）
+> 3. 更新任务的状态为"已排期"
+> 4. 返回完整的任务信息，以便我能看到更新后的状态
+
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+这是专门为"拖动任务到日历"场景设计的端点，执行一系列原子操作：
+1. 创建时间块（记录具体的执行时间段）
+2. 建立任务与时间块的链接关系
+3. 创建或更新任务的日程记录（task_schedules），标记任务在该日期有安排
+4. 时间块的标题默认使用任务标题（可自定义）
+5. 时间块的 area 继承任务的 area
+6. 返回完整的时间块视图和更新后的任务卡片
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**请求体 (Request Body):** `application/json`
+
+```json
+{
+  "task_id": "UUID (required)",
+  "start_time": "string (ISO 8601 UTC, required)",
+  "end_time": "string (ISO 8601 UTC, required)",
+  "title": "string | null (optional, 默认使用任务标题)"
+}
+```
+
+### 3.2. 响应 (Responses)
+
+**201 Created:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "time_block": {
+    "id": "uuid",
+    "start_time": "2025-10-05T14:00:00Z",
+    "end_time": "2025-10-05T15:00:00Z",
+    "title": "string",
+    "glance_note": null,
+    "detail_note": null,
+    "area_id": "uuid | null",
+    "linked_tasks": [
+      {
+        "id": "uuid",
+        "title": "string",
+        "is_completed": false
+      }
+    ],
+    "is_recurring": false
+  },
+  "updated_task": {
+    "id": "uuid",
+    "title": "string",
+    "schedule_status": "scheduled",
+    "is_completed": false,
+    "area": {...} | null,
+    "schedules": [
+      {
+        "scheduled_day": "2025-10-05",
+        "outcome": null
+      }
+    ],
+    ...
+  }
+}
+```
+
+**400 Bad Request:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "开始时间必须早于结束时间",
+  "details": [
+    { "field": "time_range", "code": "INVALID_TIME_RANGE", "message": "开始时间必须早于结束时间" }
+  ]
+}
+```
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {task_id}"
+}
+```
+
+**409 Conflict:**
+
+```json
+{
+  "error_code": "CONFLICT",
+  "message": "该时间段与现有时间块重叠"
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `task_id`:
+    - **必须**存在。
+    - **必须**是有效的 UUID 格式。
+    - 对应的任务**必须**存在于数据库中。
+    - 违反时返回错误码：`NOT_FOUND`
+- `start_time`:
+    - **必须**存在。
+    - **必须**是有效的 ISO 8601 UTC 时间格式。
+    - **必须**早于 `end_time`。
+    - 违反时返回错误码：`INVALID_TIME_RANGE`
+- `end_time`:
+    - **必须**存在。
+    - **必须**是有效的 ISO 8601 UTC 时间格式。
+    - **必须**晚于 `start_time`。
+    - 违反时返回错误码：`INVALID_TIME_RANGE`
+- **时间冲突验证**:
+    - 新时间块的时间范围**不能**与现有时间块重叠。
+    - 违反时返回错误码：`CONFLICT`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  调用 `validation::validate_request` 验证请求体。
+2.  启动数据库事务（`app_state.db_pool().begin()`）。
+3.  调用 `TaskRepository::find_by_id_in_tx` 查询任务：
+    - 如果任务不存在，返回 404 错误
+4.  调用 `TimeBlockConflictChecker::check_in_tx` 检查时间冲突：
+    - 查询时间范围重叠的现有时间块
+    - 如果存在重叠，返回 409 冲突错误
+5.  通过 `IdGenerator` 生成新的 `block_id`（UUID）。
+6.  通过 `Clock` 服务获取当前时间 `now`。
+7.  确定时间块标题：使用请求中的自定义标题，如果没有则使用任务标题。
+8.  构造 `TimeBlock` 领域实体对象：
+    - 设置 `id`, `title`（来自请求或任务）
+    - 设置 `start_time`, `end_time`
+    - 设置 `area_id`（继承任务的 area）
+    - 设置 `created_at = now`, `updated_at = now`
+    - 设置 `is_deleted = false`
+9.  调用 `TimeBlockRepository::insert_in_tx` 持久化时间块。
+10. 调用 `TaskTimeBlockLinkRepository::link_in_tx` 建立任务与时间块的链接。
+11. 计算日程日期：
+    - 使用 `utc_time_to_local_date_utc_midnight` 将 UTC 时间转换为本地日期的 UTC 零点
+    - 例如：`2025-10-02T18:00:00Z (UTC)` → `2025-10-03T00:00:00Z`（如果在 UTC+8 时区）
+12. 检查该日期是否已有日程记录（`TaskScheduleRepository::has_schedule_for_day_in_tx`）。
+13. 如果没有日程记录，创建新的日程（`TaskScheduleRepository::create_in_tx`）。
+14. 提交数据库事务。
+15. 组装返回的 `TimeBlockViewDto`：
+    - 填充所有基础字段
+    - 填充 `linked_tasks`（包含任务摘要）
+16. 组装返回的 `TaskCardDto`：
+    - 调用 `TaskAssembler::task_to_card_basic` 创建基础卡片
+    - 设置 `schedule_status = Scheduled`
+    - 填充 `schedules` 字段（包含新创建的日程）
+17. 返回 `201 Created` 和包含时间块与任务的响应对象。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **`start_time >= end_time`:** 返回 `400` 错误，错误码 `INVALID_TIME_RANGE`。
+- **时间范围与现有时间块重叠:** 返回 `409` 错误，错误码 `CONFLICT`。
+- **该日期已有日程记录:** 不重复创建，保持幂等性。
+- **跨时区的时间处理:** 使用系统时区正确计算日程日期（例如：UTC 晚上 10 点在 UTC+8 时区算第二天）。
+- **任务已完成:** 当前实现允许为已完成的任务创建时间块（未来可能需要限制）。
+- **并发创建:** 事务隔离保证数据一致性。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 1次，查询任务是否存在。
+    - **`SELECT`:** 1次，查询重叠的时间块（冲突检测）。
+    - **`SELECT`:** 1次，检查日程是否已存在。
+    - **`INSERT`:** 1条记录到 `time_blocks` 表。
+    - **`INSERT`:** 1条记录到 `task_time_block_links` 表。
+    - **`INSERT`:** 0-1条记录到 `task_schedules` 表（如果该日期尚无日程）。
+    - **`SELECT`:** 1次，查询任务的完整日程列表（用于返回）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **日志记录:**
+    - 记录时间块创建和日程创建的详细信息（包含时间转换日志）。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用，不发送 SSE 事件）*
 */
 
 // ==================== 请求/响应结构 ====================

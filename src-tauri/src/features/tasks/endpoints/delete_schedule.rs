@@ -30,35 +30,134 @@ use crate::{
 /*
 CABC for `delete_schedule`
 
-## API端点
-DELETE /api/tasks/:id/schedules/:date
+## 1. 端点签名 (Endpoint Signature)
 
-## 预期行为简介
-删除任务在指定日期的日程，并智能清理相关的时间块。
+DELETE /api/tasks/{id}/schedules/{date}
 
-## 业务逻辑
-1. 验证任务存在且未删除
-2. 验证该日期有日程记录
-3. 查找该日期的所有时间块
-4. 删除 task_time_block_links
-5. 软删除"孤儿"时间片（没有其他任务链接的）
-6. 删除 schedule 记录
-7. 如果没有任何 schedule 了，更新 schedule_status 为 'staging'
-8. 通过 SSE 推送 task.schedule_deleted 事件
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**:
-  - 任务存在且未删除
-  - 该日期有日程记录
-- **后置条件**:
-  - 删除 task_schedules 记录
-  - 删除 task_time_block_links
-  - 软删除孤儿 time_blocks
-  - 更新 schedule_status（如果需要）
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 任务不存在 → 404
-- 该日期没有日程 → 404
+> 作为一个用户，当我取消某天的任务安排时，我希望系统能够：
+> 1. 删除该日期的日程记录
+> 2. 清理该日期关联的时间块链接
+> 3. 智能清理"孤儿"时间块（只关联该任务且没有其他用途的时间块）
+
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+删除任务在指定日期的日程记录，并清理相关数据：
+1. 删除 `task_schedules` 记录
+2. 删除该日期所有时间块的 `task_time_block_links` 记录
+3. 软删除"孤儿"时间块（删除链接后没有任何关联任务的时间块）
+4. 如果任务没有剩余日程，`schedule_status` 会变回 `Staging`
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
+- `date` (YYYY-MM-DD, required): 日程日期
+
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "task_card": {
+    "id": "uuid",
+    "title": "string",
+    "schedule_status": "staging" | "scheduled",
+    "schedules": [...] | null,
+    ...
+  }
+}
+```
+
+**注意：** 副作用（删除的时间块）通过 SSE 事件推送。
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}" | "Schedule not found: Task {id} on {date}"
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `task_id`:
+    - **必须**是有效的 UUID 格式。
+    - **必须**存在于数据库中且未删除。
+    - 违反时返回 `404 NOT_FOUND`
+- `date`:
+    - **必须**符合 `YYYY-MM-DD` 格式。
+    - 该日期**必须**有日程记录。
+    - 违反时返回 `404 NOT_FOUND` 或 `422 VALIDATION_FAILED`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  解析日期字符串为 `DateTime<Utc>`（`validation::parse_date`）。
+2.  获取写入许可（`app_state.acquire_write_permit()`）。
+3.  启动数据库事务（`TransactionHelper::begin`）。
+4.  查询任务（`TaskRepository::find_by_id_in_tx`）。
+5.  如果任务不存在，返回 404 错误。
+6.  检查该日期是否有日程（`TaskScheduleRepository::has_schedule_for_day_in_tx`）。
+7.  如果该日期没有日程，返回 404 错误。
+8.  查找该日期的所有时间块（`database::find_time_blocks_for_day`）。
+9.  对每个时间块，删除任务到时间块的链接（`database::delete_task_time_block_link`）。
+10. 对每个时间块，检查是否变成"孤儿"（`TaskTimeBlockLinkRepository::count_remaining_tasks_in_block_in_tx`）。
+11. 如果时间块没有剩余任务，软删除该时间块（`TimeBlockRepository::soft_delete_in_tx`）。
+12. 在删除之前，查询被删除的时间块的完整数据（用于 SSE 事件）。
+13. 删除日程记录（`database::delete_schedule`）。
+14. 重新查询任务并组装 `TaskCardDto`。
+15. 在事务内填充 `schedules` 字段。
+16. 根据 schedules 设置正确的 `schedule_status`（如果没有剩余日程，应为 `Staging`）。
+17. 写入领域事件到 outbox（`task.schedule_deleted` 事件）。
+18. 提交事务（`TransactionHelper::commit`）。
+19. 返回更新后的任务。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **该日期没有日程:** 返回 `404` 错误。
+- **时间块还有其他任务:** 不删除时间块（避免影响其他任务）。
+- **该日期没有时间块:** 只删除日程记录。
+- **删除最后一个日程:** `schedule_status` 变为 `Staging`。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 1次查询 `tasks` 表（验证任务存在）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（检查日程是否存在）。
+    - **`SELECT`:** 1次查询 `time_blocks` 表（查找该日期的时间块）。
+    - **`DELETE`:** 0-N 条记录在 `task_time_block_links` 表。
+    - **`SELECT`:** 0-N 次查询 `task_time_block_links` 表（检查孤儿状态）。
+    - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除孤儿时间块）。
+    - **`DELETE`:** 1条记录在 `task_schedules` 表。
+    - **`SELECT`:** 1次查询 `tasks` 表（重新获取数据）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（填充 schedules）。
+    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **SSE 事件:**
+    - 发送 `task.schedule_deleted` 事件，包含：
+        - 更新后的任务（`TaskCardDto`）
+        - 删除的日期（`deleted_date`）
+        - 副作用：删除的时间块列表（`TimeBlockViewDto[]`）
+- **日志记录:**
+    - 记录删除的孤儿时间块 ID。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== 响应结构体 ====================

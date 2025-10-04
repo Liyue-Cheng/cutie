@@ -38,26 +38,152 @@ pub struct CompleteTaskResponse {
 /*
 CABC for `complete_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 POST /api/tasks/{id}/completion
 
-## 预期行为简介
-完成任务，并根据 Cutie 的业务规则智能处理相关的日程和时间块。
+## 2. 预期行为简介 (High-Level Behavior)
 
-## Cutie 业务逻辑
-1. 当天日程 → 设置为已完成（outcome = 'COMPLETED_ON_DAY'）
-2. 未来日程 → 删除
-3. 时间块（仅链接此任务 + 在过去） → 保留
-4. 时间块（仅链接此任务 + 标题一致 + 正在发生） → 截断到 now
-5. 时间块（仅链接此任务 + 标题一致 + 在未来） → 删除
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 输入输出规范
-- **前置条件**: task_id 必须存在且未完成
-- **后置条件**: 任务完成，相关数据清理
+> 作为一个用户，当我完成一个任务时，我希望系统能够：
+> 1. 标记任务为已完成
+> 2. 保留当天的日程记录（记录我的努力）
+> 3. 清理未来的日程和时间块（因为任务已完成，不需要未来的安排）
+> 4. 智能处理正在进行的时间块（截断到当前时间）
 
-## 边界情况
-- 任务不存在 → 404
-- 任务已完成 → 409 Conflict
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+完成任务，并根据 Cutie 的业务规则智能处理相关的日程和时间块：
+1. **当天日程**: 设置为已完成（`outcome = 'COMPLETED_ON_DAY'`）
+2. **未来日程**: 删除
+3. **时间块处理**（仅针对唯一关联且自动创建的时间块）:
+   - 在过去：保留
+   - 正在进行（start_time <= now < end_time）：截断到当前时间
+   - 在未来：删除
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
+
+**请求头 (Request Headers):**
+- `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+
+```json
+{
+  "task": {
+    "id": "uuid",
+    "title": "string",
+    "schedule_status": "staging" | "scheduled",
+    "is_completed": true,
+    "completed_at": "2025-10-05T12:00:00Z",
+    ...
+  }
+}
+```
+
+**注意：** 副作用（删除/截断的时间块）通过 SSE 事件推送。
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}"
+}
+```
+
+**409 Conflict:**
+
+```json
+{
+  "error_code": "CONFLICT",
+  "message": "任务已经完成"
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `task_id`:
+    - **必须**是有效的 UUID 格式。
+    - **必须**存在于数据库中。
+    - 违反时返回 `404 NOT_FOUND`
+- **业务规则验证:**
+    - 任务**不能**已经完成（`completed_at IS NOT NULL`）。
+    - 违反时返回 `409 CONFLICT`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  获取当前时间 `now`。
+2.  获取写入许可（`app_state.acquire_write_permit()`）。
+3.  启动数据库事务（`TransactionHelper::begin`）。
+4.  查询任务（`TaskRepository::find_by_id_in_tx`）。
+5.  如果任务不存在，返回 404 错误。
+6.  检查任务是否已完成，如果是，返回 409 冲突。
+7.  设置任务为已完成（`TaskRepository::set_completed_in_tx`）。
+8.  处理日程:
+    - 更新当天日程为已完成（`TaskScheduleRepository::update_today_to_completed_in_tx`）
+    - 删除未来日程（`TaskScheduleRepository::delete_future_schedules_in_tx`）
+9.  查询所有链接的时间块（`TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx`）。
+10. 对每个时间块，调用 `classify_time_block_action` 分类处理动作：
+    - 检查是否是唯一关联（`is_exclusive_link_in_tx`）
+    - 检查是否是自动创建的（标题与任务标题一致）
+    - 根据时间判断动作：保留/截断/删除
+11. 在执行删除/截断之前，先查询完整的时间块数据（用于 SSE 事件）。
+12. 执行时间块的删除和截断操作：
+    - 删除未来的时间块（`TimeBlockRepository::soft_delete_in_tx`）
+    - 截断正在进行的时间块（`TimeBlockRepository::truncate_to_in_tx`）
+13. 查询被截断的时间块的完整数据。
+14. 重新查询任务并组装 `TaskCardDto`。
+15. 在事务内填充 `schedules` 字段。
+16. 根据 schedules 设置正确的 `schedule_status`。
+17. 写入领域事件到 outbox（包含完成的任务和副作用的时间块）。
+18. 提交事务（`TransactionHelper::commit`）。
+19. 返回完成后的任务。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **任务已完成:** 返回 `409` 冲突（幂等性保护）。
+- **时间块是手动创建的（标题与任务不一致）:** 保留，不删除也不截断。
+- **时间块关联多个任务:** 保留，不删除也不截断（避免影响其他任务）。
+- **时间块在过去:** 保留（记录已完成的工作）。
+- **时间块正在进行:** 截断到当前时间（记录部分努力）。
+- **时间块在未来:** 删除（因为任务已完成，不需要未来的时间安排）。
+- **无日程和时间块的任务:** 只更新 `completed_at` 字段。
+- **幂等性:** 通过 `completed_at` 检查和 correlation_id 实现。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 查询任务、链接的时间块、排他性检查。
+    - **`UPDATE`:** 1条记录在 `tasks` 表（设置 `completed_at`）。
+    - **`UPDATE`:** 0-N 条记录在 `task_schedules` 表（当天设为完成）。
+    - **`DELETE`:** 0-N 条记录在 `task_schedules` 表（删除未来日程）。
+    - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除或截断）。
+    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **SSE 事件:**
+    - 发送 `task.completed` 事件，包含：
+        - 完成的任务（`TaskCardDto`）
+        - 副作用：删除的时间块列表（`TimeBlockViewDto[]`）
+        - 副作用：截断的时间块列表（`TimeBlockViewDto[]`）
+- **日志记录:**
+    - 记录删除和截断的时间块 ID。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== HTTP 处理器 ====================

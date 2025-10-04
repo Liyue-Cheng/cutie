@@ -21,47 +21,132 @@ use crate::{
 /*
 CABC for `create_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 POST /api/tasks
 
-## 预期行为简介
-创建一个新任务。
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**:
-  - title 不能为空，长度必须在 1-255 之间
-  - area_id（如果提供）必须存在
-- **后置条件**:
-  - 在 tasks 表中创建新任务
-  - 返回完整的 TaskCardDto
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 如果 title 为空，返回 400 Bad Request
-- 如果 title 超过 255 字符，返回 400 Bad Request
-- 如果 area_id 不存在，目前正常返回
+> 作为一个用户，我想要快速创建一个新任务并放入 Staging 区，
+> 以便我能立即捕捉我的想法，而不需要复杂的步骤。
 
-## 预期副作用
-- 插入一条 tasks 记录
+### 2.2. 核心业务逻辑 (Core Business Logic)
 
-## 事务保证
-- 所有数据库操作在单个事务中执行
-- 如果任何步骤失败，整个操作回滚
+在数据库中创建一个新的 `Task` 实体，默认进入 Staging 区（未安排到具体日期）。
+新任务的初始状态为未完成（`completed_at = NULL`），无日程安排记录。
 
-## 请求/响应示例
-Request:
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**请求体 (Request Body):** `application/json`
+
+```json
 {
-  "title": "新任务",
-  "glance_note": "快速笔记",
-  "area_id": "..."
+  "title": "string (required, 1-255 chars)",
+  "glance_note": "string | null (optional)",
+  "detail_note": "string | null (optional)",
+  "estimated_duration": "number | null (optional, 分钟数，0-10080)",
+  "area_id": "string (UUID) | null (optional)",
+  "due_date": "string (YYYY-MM-DD) | null (optional)",
+  "due_date_type": "'soft' | 'hard' | null (optional)",
+  "subtasks": "array | null (optional, 最多50个)"
 }
+```
 
-Response: 201 Created
+### 3.2. 响应 (Responses)
+
+**201 Created:**
+
+*   **Content-Type:** `application/json`
+*   **Schema:** `TaskCardDto`
+
+```json
 {
-  "id": "...",
-  "title": "新任务",
+  "id": "uuid",
+  "title": "string",
+  "glance_note": "string | null",
   "schedule_status": "staging",
-  ...
+  "is_completed": false,
+  "area": { "id": "uuid", "name": "string", "color": "string" } | null,
+  "project_id": null,
+  "subtasks": [...] | null,
+  "schedules": null,
+  "due_date": {...} | null,
+  "has_detail_note": boolean
 }
+```
+
+**422 Unprocessable Entity:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "输入验证失败",
+  "details": [
+    { "field": "title", "code": "TITLE_EMPTY", "message": "任务标题不能为空" }
+  ]
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `title`:
+    - **必须**存在。
+    - **必须**为非空字符串 (trim后)。
+    - 长度**必须**小于等于 255 个字符。
+    - 违反时返回错误码：`TITLE_EMPTY` 或 `TITLE_TOO_LONG`
+- `estimated_duration`:
+    - 如果提供，**必须**是大于等于 0 的整数。
+    - 如果提供，**必须**小于等于 10080 (7天 = 7*24*60 分钟)。
+    - 违反时返回错误码：`DURATION_NEGATIVE` 或 `DURATION_TOO_LONG`
+- `subtasks`:
+    - 如果提供，数组长度**必须**小于等于 50。
+    - 违反时返回错误码：`TOO_MANY_SUBTASKS`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  调用 `validation::validate_create_request` 验证请求体。
+2.  获取写入许可（`app_state.acquire_write_permit()`），确保写操作串行执行。
+3.  启动数据库事务（`TransactionHelper::begin`）。
+4.  通过 `IdGenerator` 生成新的 `task_id`（UUID）。
+5.  通过 `Clock` 服务获取当前时间 `now`。
+6.  构造 `Task` 领域实体对象：
+    - 设置 `id`, `title`, `glance_note`, `detail_note` 等字段
+    - 设置 `completed_at = None`（未完成）
+    - 设置 `created_at = now`, `updated_at = now`
+    - 设置 `is_deleted = false`
+7.  调用 `TaskRepository::insert_in_tx` 持久化任务到 `tasks` 表。
+8.  提交数据库事务（`TransactionHelper::commit`）。
+9.  调用 `TaskAssembler::task_to_card_basic` 组装 `TaskCardDto`。
+10. 设置 `task_card.schedule_status = Staging`（因为新任务无日程）。
+11. 填充 `task_card.schedules` 字段（应为 `None`，因为无日程）。
+12. 返回 `201 Created` 和组装好的 `TaskCardDto`。
+
+## 6. 边界情况 (Edge Cases)
+
+- **`title` 为空或全空格:** 返回 `422` 错误，错误码 `TITLE_EMPTY`。
+- **`title` 超过 255 字符:** 返回 `422` 错误，错误码 `TITLE_TOO_LONG`。
+- **`estimated_duration` 为负数:** 返回 `422` 错误，错误码 `DURATION_NEGATIVE`。
+- **`estimated_duration` 超过 10080:** 返回 `422` 错误，错误码 `DURATION_TOO_LONG`。
+- **`subtasks` 超过 50 个:** 返回 `422` 错误，错误码 `TOO_MANY_SUBTASKS`。
+- **`area_id` 不存在:** 当前实现中正常返回（area 字段为 null），未来可能需要验证。
+- **并发创建:** 使用写入许可确保写操作串行执行，避免并发问题。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`INSERT`:** 1条记录到 `tasks` 表。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **写入许可:**
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
+- **日志记录:**
+    - 成功时，以 `INFO` 级别记录 "Task created successfully" 及任务ID（如有）。
+    - 失败时（验证失败或数据库错误），以 `WARN` 或 `ERROR` 级别记录详细错误信息。
+
+*（无其他已知副作用，不发送 SSE 事件）*
 */
 
 // ==================== HTTP 处理器 ====================

@@ -22,27 +22,151 @@ use crate::{
 /*
 CABC for `list_time_blocks`
 
-## API端点
-GET /api/time-blocks?start_date=...&end_date=...
+## 1. 端点签名 (Endpoint Signature)
 
-## 预期行为简介
-查询指定时间范围内的所有时间块，返回包含关联任务信息的视图模型列表。
+GET /api/time-blocks?start_date={start_date}&end_date={end_date}
 
-## 输入输出规范
-- **查询参数**:
-  - start_date: 开始时间（ISO 8601 UTC）
-  - end_date: 结束时间（ISO 8601 UTC）
-- **后置条件**:
-  - 返回该时间范围内所有未删除的时间块
-  - 每个时间块包含关联的任务摘要
-  - 时间块按 start_time 排序
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 边界情况
-- 如果时间范围无效（start > end），返回 400
-- 如果没有时间块，返回空数组
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 预期副作用
-- 无（只读操作）
+> 作为一个用户，当我查看日历视图时，我需要看到特定时间范围内的所有时间块，
+> 包括每个时间块关联的任务信息，以便我能够了解我的日程安排和待办事项。
+
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+查询指定时间范围内的所有未删除的时间块，并为每个时间块组装完整的视图模型。
+返回的数据包括：
+1. 时间块的基本信息（时间、标题、笔记、区域）
+2. 关联的任务摘要列表（任务ID、标题、完成状态）
+3. 是否为循环时间块的标记
+
+查询结果按 `start_time` 升序排序，方便前端按时间顺序展示。
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**Query Parameters:**
+- `start_date` (string, optional): 开始时间（ISO 8601 UTC 格式）
+- `end_date` (string, optional): 结束时间（ISO 8601 UTC 格式）
+
+**注意**：两个参数都是可选的：
+- 如果都不提供，返回所有时间块
+- 如果只提供 `start_date`，返回该时间之后的所有时间块
+- 如果只提供 `end_date`，返回该时间之前的所有时间块
+- 如果都提供，返回该时间范围内的时间块
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+*   **Schema:** `Array<TimeBlockViewDto>`
+
+```json
+[
+  {
+    "id": "uuid",
+    "start_time": "2025-10-05T09:00:00Z",
+    "end_time": "2025-10-05T10:00:00Z",
+    "title": "string | null",
+    "glance_note": "string | null",
+    "detail_note": "string | null",
+    "area_id": "uuid | null",
+    "linked_tasks": [
+      {
+        "id": "uuid",
+        "title": "string",
+        "is_completed": false
+      }
+    ],
+    "is_recurring": false
+  },
+  {
+    "id": "uuid",
+    "start_time": "2025-10-05T14:00:00Z",
+    "end_time": "2025-10-05T15:00:00Z",
+    "title": "string | null",
+    "glance_note": "string | null",
+    "detail_note": "string | null",
+    "area_id": "uuid | null",
+    "linked_tasks": [],
+    "is_recurring": false
+  }
+]
+```
+
+**400 Bad Request:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "时间范围参数格式无效"
+}
+```
+
+**空结果情况:**
+
+如果指定时间范围内没有时间块，返回空数组 `[]`。
+
+## 4. 验证规则 (Validation Rules)
+
+- `start_date`:
+    - 如果提供，**必须**是有效的 ISO 8601 格式（支持 RFC3339）。
+    - 如果格式无效，将被忽略（视为未提供）。
+- `end_date`:
+    - 如果提供，**必须**是有效的 ISO 8601 格式（支持 RFC3339）。
+    - 如果格式无效，将被忽略（视为未提供）。
+- **时间范围逻辑**:
+    - 不要求 `start_date < end_date`（由数据库查询自然处理）。
+    - 如果 `start_date >= end_date`，可能返回空数组（取决于数据）。
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  解析查询参数：
+    - 尝试将 `start_date` 字符串解析为 `DateTime<Utc>`
+    - 尝试将 `end_date` 字符串解析为 `DateTime<Utc>`
+    - 如果解析失败，将对应参数设为 `None`
+2.  调用 `TimeBlockRepository::find_in_range` 查询时间块：
+    - 传入 `start_time` 和 `end_time`（可能为 `None`）
+    - 查询所有未删除的时间块（`is_deleted = false`）
+    - 根据时间范围过滤结果
+3.  对每个时间块，调用 `assemble_time_block_view` 组装视图模型：
+    - 创建 `TimeBlockViewDto` 基础对象
+    - 填充所有基础字段（`id`, `start_time`, `end_time`, `title`, 等）
+    - 调用 `LinkedTaskAssembler::get_for_time_block` 查询关联的任务
+    - 填充 `linked_tasks` 字段
+    - 设置 `is_recurring` 标记（基于 `recurrence_rule` 是否为空）
+4.  对结果列表按 `start_time` 升序排序。
+5.  返回 `200 OK` 和时间块视图列表。
+
+## 6. 边界情况 (Edge Cases)
+
+- **没有提供时间范围参数:** 返回所有未删除的时间块。
+- **时间范围内没有时间块:** 返回空数组 `[]`。
+- **`start_date` 格式无效:** 忽略该参数，相当于没有下限。
+- **`end_date` 格式无效:** 忽略该参数，相当于没有上限。
+- **`start_date >= end_date`:** 可能返回空数组或部分结果（取决于数据）。
+- **时间块没有关联任务:** `linked_tasks` 字段为空数组 `[]`。
+- **时间块关联多个任务:** `linked_tasks` 包含所有关联任务的摘要。
+- **大量时间块:** 当前实现一次性加载所有结果（未来可能需要分页）。
+- **跨时区查询:** 所有时间都使用 UTC，前端负责时区转换和展示。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库读取:**
+    - **`SELECT`:** 1次，查询指定范围内的时间块（`time_blocks` 表）。
+    - **`SELECT`:** N次，为每个时间块查询关联的任务（`task_time_block_links` 和 `tasks` 表）。
+    - **注意**：当前实现使用 N+1 查询模式，可能需要优化为 JOIN 查询（性能考虑）。
+    - **无事务**：只读操作，不使用事务。
+- **性能考虑:**
+    - 时间块数量较多时，可能需要较长查询时间。
+    - 未来可能需要实现分页或虚拟滚动。
+- **日志记录:**
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用，不发送 SSE 事件）*
 */
 
 // ==================== 请求参数 ====================

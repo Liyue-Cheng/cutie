@@ -21,19 +21,108 @@ use crate::{
 /*
 CABC for `get_task`
 
-## API端点
+## 1. 端点签名 (Endpoint Signature)
+
 GET /api/tasks/{id}
 
-## 预期行为简介
-返回指定任务的完整卡片信息，用于调试和详情查看。
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 输入输出规范
-- **前置条件**: task_id 必须是有效的 UUID
-- **后置条件**: 返回任务的 TaskCardDto
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 边界情况
-- 如果任务不存在，返回 404 Not Found
-- 如果任务已删除，返回 404 Not Found
+> 作为一个用户，我想要查看任务的详细信息（包括完整笔记、日程、时间块等），
+> 以便我能全面了解任务的状态和相关安排。
+
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+根据任务 ID 查询任务的完整详情，包括基础信息、详细笔记、所有日程（包含关联的时间块）。
+返回 `TaskDetailDto`，其中包含比 `TaskCardDto` 更详细的信息（如 detail_note）。
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 任务ID
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+*   **Schema:** `TaskDetailDto`
+
+```json
+{
+  "card": {
+    "id": "uuid",
+    "title": "string",
+    "glance_note": "string | null",
+    "schedule_status": "staging" | "scheduled",
+    "is_completed": boolean,
+    "area": {...} | null,
+    "schedules": [...] | null,
+    "due_date": {...} | null,
+    "has_detail_note": boolean
+  },
+  "detail_note": "string | null",
+  "project": null,
+  "created_at": "2025-10-05T12:00:00Z",
+  "updated_at": "2025-10-05T12:00:00Z"
+}
+```
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "Task not found: {id}"
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `task_id`:
+    - **必须**是有效的 UUID 格式。
+    - **必须**存在于数据库中且未删除（`is_deleted = false`）。
+    - 违反时返回 `404 NOT_FOUND`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  查询任务实体（`TaskRepository::find_by_id`）。
+2.  如果任务不存在或已删除，返回 404 错误。
+3.  组装基础 `TaskCardDto`（`TaskAssembler::task_to_card_basic`）。
+4.  查询并组装完整的 schedules 数据（`TaskAssembler::assemble_schedules`）。
+5.  根据 schedules 判断并设置正确的 `schedule_status`:
+    - 如果今天或未来有日程：`Scheduled`
+    - 否则：`Staging`
+6.  组装 `TaskDetailDto`，包含：
+    - `card`: 完整的任务卡片
+    - `detail_note`: 详细笔记
+    - `project`: 项目信息（暂未实现，返回 null）
+    - `created_at`, `updated_at`: 时间戳
+7.  返回 `TaskDetailDto`。
+
+## 6. 边界情况 (Edge Cases)
+
+- **任务不存在:** 返回 `404` 错误。
+- **任务已删除 (`is_deleted = true`):** 返回 `404` 错误（视为不存在）。
+- **任务无 schedules:** `schedules` 字段为 `None`，`schedule_status` 为 `Staging`。
+- **任务无 detail_note:** `detail_note` 字段为 `null`。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库查询:**
+    - **`SELECT`:** 1次查询 `tasks` 表（获取任务基础信息）。
+    - **`SELECT`:** 1次查询 `task_schedules` 表（获取所有日程）。
+    - **`SELECT`:** 0-N 次查询 `time_blocks` 表（获取每个日程关联的时间块）。
+    - **`SELECT`:** 0-1 次查询 `areas` 表（获取 area 信息，如果有）。
+- **无写操作:** 此端点为只读查询，不修改任何数据。
+- **无 SSE 事件:** 不发送任何事件。
+- **日志记录:**
+    - 失败时（如任务不存在），以 `WARN` 级别记录错误信息。
+
+*（无其他已知副作用）*
 */
 
 // ==================== HTTP 处理器 ====================

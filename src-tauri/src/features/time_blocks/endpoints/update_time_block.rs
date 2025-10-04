@@ -25,34 +25,195 @@ use crate::{
 /*
 CABC for `update_time_block`
 
-## API端点
-PATCH /api/time-blocks/:id
+## 1. 端点签名 (Endpoint Signature)
 
-## 预期行为简介
-更新现有时间块的时间范围、标题、笔记或区域。
-支持拖曳时间块调整时间的核心功能。
+PATCH /api/time-blocks/{id}
 
-## 输入输出规范
-- **前置条件**:
-  - 时间块必须存在且未被删除
-  - 如果更新时间范围，start_time < end_time
-  - 更新后的时间不与其他时间块重叠
-- **后置条件**:
-  - 更新 time_blocks 表中的记录
-  - 返回完整的 TimeBlockViewDto（包含关联任务和区域信息）
+## 2. 预期行为简介 (High-Level Behavior)
 
-## 边界情况
-- 如果时间块不存在，返回 404 Not Found
-- 如果时间范围无效，返回 400 Bad Request
-- 如果与其他时间块重叠，返回 409 Conflict
+### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-## 预期副作用
-- 更新一条 time_blocks 记录
-- 更新 updated_at 时间戳
+> 作为一个用户，我想要调整日历上时间块的时间、标题、笔记或所属区域，
+> 以便我能够灵活管理我的日程安排，适应计划的变化。
+> 特别是在拖动时间块调整时间时，系统应该自动验证是否与其他时间块冲突。
 
-## 事务保证
-- 所有数据库操作在单个事务中执行
-- 如果任何步骤失败，整个操作回滚
+### 2.2. 核心业务逻辑 (Core Business Logic)
+
+更新现有时间块的可变字段（时间范围、标题、笔记、area 等）。
+支持部分更新（PATCH 语义），只需提供要更改的字段。
+关键业务规则：
+1. 如果更新时间范围，必须确保新时间范围不与其他时间块重叠（排除自身）
+2. 更新后自动刷新 `updated_at` 时间戳
+3. 返回完整的时间块视图（包含关联的任务信息）
+
+## 3. 输入输出规范 (Request/Response Specification)
+
+### 3.1. 请求 (Request)
+
+**URL Parameters:**
+- `id` (UUID, required): 时间块ID
+
+**请求体 (Request Body):** `application/json`
+
+所有字段都是可选的（部分更新）：
+
+```json
+{
+  "start_time": "string (ISO 8601 UTC) | null (optional)",
+  "end_time": "string (ISO 8601 UTC) | null (optional)",
+  "title": "string | null (optional, 最多255字符, 支持置空)",
+  "glance_note": "string | null (optional, 支持置空)",
+  "detail_note": "string | null (optional, 支持置空)",
+  "area_id": "UUID | null (optional, 支持置空)"
+}
+```
+
+### 3.2. 响应 (Responses)
+
+**200 OK:**
+
+*   **Content-Type:** `application/json`
+*   **Schema:** `TimeBlockViewDto`
+
+```json
+{
+  "id": "uuid",
+  "start_time": "2025-10-05T14:00:00Z",
+  "end_time": "2025-10-05T16:00:00Z",
+  "title": "string | null",
+  "glance_note": "string | null",
+  "detail_note": "string | null",
+  "area_id": "uuid | null",
+  "linked_tasks": [
+    {
+      "id": "uuid",
+      "title": "string",
+      "is_completed": false
+    }
+  ],
+  "is_recurring": false
+}
+```
+
+**400 Bad Request:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "开始时间必须早于结束时间",
+  "details": [
+    { "field": "time_range", "code": "INVALID_TIME_RANGE", "message": "开始时间必须早于结束时间" }
+  ]
+}
+```
+
+**404 Not Found:**
+
+```json
+{
+  "error_code": "NOT_FOUND",
+  "message": "TimeBlock not found: {id}"
+}
+```
+
+**409 Conflict:**
+
+```json
+{
+  "error_code": "CONFLICT",
+  "message": "该时间段与现有时间块重叠，时间块不允许重叠"
+}
+```
+
+**422 Unprocessable Entity:**
+
+```json
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "输入验证失败",
+  "details": [
+    { "field": "title", "code": "TITLE_TOO_LONG", "message": "标题不能超过255个字符" }
+  ]
+}
+```
+
+## 4. 验证规则 (Validation Rules)
+
+- `id`:
+    - **必须**是有效的 UUID 格式。
+    - 对应的时间块**必须**存在且未被删除。
+    - 违反时返回错误码：`NOT_FOUND`
+- `start_time`:
+    - 如果提供，**必须**是有效的 ISO 8601 UTC 时间格式。
+    - 如果同时提供 `start_time` 和 `end_time`，**必须**满足 `start_time < end_time`。
+    - 违反时返回错误码：`INVALID_TIME_RANGE`
+- `end_time`:
+    - 如果提供，**必须**是有效的 ISO 8601 UTC 时间格式。
+    - 如果同时提供 `start_time` 和 `end_time`，**必须**满足 `start_time < end_time`。
+    - 违反时返回错误码：`INVALID_TIME_RANGE`
+- **最终时间范围验证**:
+    - 合并现有值和新值后，**必须**满足 `final_start_time < final_end_time`。
+    - 违反时返回错误码：`INVALID_TIME_RANGE`
+- `title`:
+    - 如果提供，长度**必须**小于等于 255 个字符。
+    - 违反时返回错误码：`TITLE_TOO_LONG`
+- **时间冲突验证**:
+    - 如果更新了时间范围，新时间范围**不能**与其他时间块重叠（排除自身）。
+    - 违反时返回错误码：`CONFLICT`
+
+## 5. 业务逻辑详解 (Business Logic Walkthrough)
+
+1.  调用 `validation::validate_update_request` 验证请求体（初步验证）。
+2.  启动数据库事务（`app_state.db_pool().begin()`）。
+3.  调用 `TimeBlockRepository::find_by_id_in_tx` 查询现有时间块：
+    - 如果时间块不存在，返回 404 错误
+4.  确定最终的时间范围：
+    - `final_start_time = request.start_time.unwrap_or(existing_block.start_time)`
+    - `final_end_time = request.end_time.unwrap_or(existing_block.end_time)`
+5.  再次验证最终时间范围：
+    - 检查 `final_start_time < final_end_time`
+    - 如果不满足，返回 400 错误
+6.  如果时间范围发生变化（`request.start_time` 或 `request.end_time` 非空）：
+    - 调用 `TimeBlockConflictChecker::check_in_tx` 检查时间冲突
+    - 传入 `Some(id)` 排除当前时间块
+    - 如果存在重叠，返回 409 冲突错误
+7.  通过 `Clock` 服务获取当前时间 `now`。
+8.  调用 `TimeBlockRepository::update_in_tx` 更新时间块。
+9.  提交数据库事务。
+10. 重新查询时间块以获取最新数据（`TimeBlockRepository::find_by_id`）。
+11. 组装返回的 `TimeBlockViewDto`：
+    - 填充所有基础字段
+    - 调用 `LinkedTaskAssembler::get_for_time_block` 填充关联任务
+12. 返回 `200 OK` 和组装好的 `TimeBlockViewDto`。
+
+## 6. 边界情况 (Edge Cases)
+
+- **时间块不存在:** 返回 `404` 错误。
+- **只更新 `start_time`:** 结合现有 `end_time`，验证最终时间范围。
+- **只更新 `end_time`:** 结合现有 `start_time`，验证最终时间范围。
+- **最终时间范围无效:** 返回 `400` 错误，错误码 `INVALID_TIME_RANGE`。
+- **时间范围与其他时间块重叠:** 返回 `409` 错误，错误码 `CONFLICT`。
+- **`title` 超过 255 字符:** 返回 `422` 错误，错误码 `TITLE_TOO_LONG`。
+- **清空 `title`（设置为 `null`）:** 允许，时间块可以没有标题。
+- **更新 `area_id` 为 `null`:** 允许，时间块可以不属于任何区域。
+- **空更新（不提供任何字段）:** 仍然更新 `updated_at` 时间戳，返回成功。
+- **并发更新:** 事务隔离保证数据一致性，后者可能因冲突检测失败。
+- **幂等性:** 相同参数重复调用，结果一致（`updated_at` 会变化）。
+
+## 7. 预期副作用 (Expected Side Effects)
+
+- **数据库写入:**
+    - **`SELECT`:** 1次，查询现有时间块。
+    - **`SELECT`:** 0-1次，查询重叠的时间块（仅当时间范围变化时）。
+    - **`UPDATE`:** 1条记录在 `time_blocks` 表。
+    - **`SELECT`:** 1次，重新查询更新后的时间块。
+    - **`SELECT`:** 1次，查询关联的任务列表。
+    - **(事务):** 所有数据库写操作包含在一个数据库事务内。
+- **日志记录:**
+    - 成功时，记录时间块更新信息（包含 block_id）。
+    - 失败时，记录详细错误信息。
+
+*（无其他已知副作用，不发送 SSE 事件）*
 */
 
 // ==================== HTTP 处理器 ====================
