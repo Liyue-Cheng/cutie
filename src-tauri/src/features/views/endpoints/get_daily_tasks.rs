@@ -26,12 +26,12 @@ CABC for `get_daily_tasks`
 GET /api/views/daily/:date
 
 ## 预期行为简介
-获取指定日期的所有已安排任务（scheduled）。
+获取指定日期的所有已安排任务（scheduled），包括已完成和未完成的任务。
 
 ## 业务逻辑
 1. 解析日期参数（YYYY-MM-DD）
 2. 查询该日期的所有 task_schedules
-3. 获取对应的 tasks（未删除且未完成）
+3. 获取对应的 tasks（未删除，包括已完成）
 4. 组装 TaskCard（包含完整的上下文信息）
 5. 返回任务列表
 
@@ -128,7 +128,6 @@ mod database {
             INNER JOIN task_schedules ts ON ts.task_id = t.id
             WHERE DATE(ts.scheduled_day) = DATE(?)
               AND t.is_deleted = false
-              AND t.completed_at IS NULL
             ORDER BY t.created_at DESC
         "#;
 
