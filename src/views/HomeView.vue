@@ -14,9 +14,9 @@ const taskStore = useTaskStore()
 
 // ==================== 初始化 ====================
 onMounted(async () => {
-  console.log('[HomeView] 🚀 Initializing, loading all incomplete tasks...')
-  await taskStore.fetchAllIncompleteTasks()
-  console.log('[HomeView] ✅ Loaded', taskStore.incompleteTasks.length, 'incomplete tasks')
+  console.log('[HomeView] 🚀 Initializing, loading all tasks...')
+  await taskStore.fetchAllTasks()
+  console.log('[HomeView] ✅ Loaded', taskStore.allTasks.length, 'tasks')
 })
 
 // ==================== 状态 ====================
