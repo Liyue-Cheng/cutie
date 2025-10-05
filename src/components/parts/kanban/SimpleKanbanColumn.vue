@@ -333,7 +333,12 @@ async function handleDrop(event: DragEvent) {
   <CutePane
     class="simple-kanban-column"
     @dragenter="crossViewTarget.handleEnter"
-    @dragleave="(e) => { crossViewTarget.handleLeave(e); handleContainerDragLeave(e); }"
+    @dragleave="
+      (e: DragEvent) => {
+        crossViewTarget.handleLeave(e)
+        handleContainerDragLeave(e)
+      }
+    "
     @drop="handleDrop"
     @dragover.prevent
   >
