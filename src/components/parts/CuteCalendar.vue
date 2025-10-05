@@ -1,6 +1,7 @@
 <template>
   <div
     class="calendar-container"
+    :class="`zoom-${currentZoom}x`"
     @dragenter="handleDragEnter"
     @dragover="handleDragOver"
     @dragleave="handleDragLeave"
@@ -57,7 +58,11 @@ const dragTransfer = useDragTransfer()
 // ==================== Props ====================
 const props = defineProps<{
   currentDate?: string // YYYY-MM-DD 格式的日期
+  zoom?: 1 | 2 | 3 // 缩放倍率
 }>()
+
+// 默认缩放倍率为 1
+const currentZoom = computed(() => props.zoom ?? 1)
 
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
@@ -1039,5 +1044,24 @@ const calendarOptions = reactive({
   background: #d1d1d1;
   pointer-events: none;
   z-index: 5;
+}
+
+/* ===============================================
+ * 9. 日历缩放样式（调整时间槽高度）
+ * =============================================== */
+
+/* 1x 缩放（默认） - 保持 FullCalendar 默认高度 1.5rem */
+.calendar-container.zoom-1x .fc .fc-timegrid-slot {
+  height: 1.5rem !important; /* 10分钟槽，默认值 */
+}
+
+/* 2x 缩放 - 每小时约 2倍 */
+.calendar-container.zoom-2x .fc .fc-timegrid-slot {
+  height: 3rem !important; /* 10分钟槽 = 3rem，1小时 = 18rem */
+}
+
+/* 3x 缩放 - 每小时约 3倍 */
+.calendar-container.zoom-3x .fc .fc-timegrid-slot {
+  height: 4.5rem !important; /* 10分钟槽 = 4.5rem，1小时 = 27rem */
 }
 </style>

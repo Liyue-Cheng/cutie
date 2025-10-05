@@ -29,6 +29,7 @@ const selectedTaskId = ref<string | null>(null)
 const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
 const currentVisibleDate = ref<string | null>(null) // 当前可见日期
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右侧面板当前视图
+const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
 
 // 获取看板数量
 const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
@@ -163,6 +164,17 @@ async function handleDeleteAllTasks() {
         <template #top>
           <div class="calendar-pane-header">
             <h3>{{ viewConfig[currentRightPaneView].label }}</h3>
+            <!-- 日历缩放按钮 -->
+            <div v-if="currentRightPaneView === 'calendar'" class="calendar-zoom-controls">
+              <button
+                v-for="scale in [1, 2, 3] as const"
+                :key="scale"
+                :class="['zoom-btn', { active: calendarZoom === scale }]"
+                @click="calendarZoom = scale as 1 | 2 | 3"
+              >
+                {{ scale }}x
+              </button>
+            </div>
           </div>
         </template>
         <template #bottom>
@@ -170,6 +182,7 @@ async function handleDeleteAllTasks() {
           <CuteCalendar
             v-if="currentRightPaneView === 'calendar'"
             :current-date="currentVisibleDate || undefined"
+            :zoom="calendarZoom"
           />
           <!-- Staging 视图 -->
           <StagingColumn
@@ -249,8 +262,9 @@ async function handleDeleteAllTasks() {
 .calendar-pane-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   width: 100%;
+  gap: 1rem;
 }
 
 .calendar-pane-header h3 {
@@ -258,6 +272,40 @@ async function handleDeleteAllTasks() {
   font-size: 1.6rem;
   font-weight: 600;
   color: var(--color-text-primary);
+  flex: 1;
+  text-align: center;
+}
+
+.calendar-zoom-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.zoom-btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-content);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 3.2rem;
+}
+
+.zoom-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-background-hover);
+  border-color: var(--color-border-hover);
+}
+
+.zoom-btn.active {
+  color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  font-weight: 600;
 }
 
 .toolbar-pane {
