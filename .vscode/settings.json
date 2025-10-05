@@ -33,5 +33,5 @@
       "path": "C:\\Windows\\System32\\wsl.exe"
     }
   },
-  "terminal.integrated.defaultProfile.windows": "Git Bash"
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
 }
