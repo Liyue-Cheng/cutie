@@ -295,10 +295,26 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
     // 🔍 检查点5：即将调用 timeBlockStore
     console.log('[CHK-5] About to call timeBlockStore.createTimeBlockFromTask')
 
+    // 截断跨天：如果是分时事件，确保 end <= 当日 24:00
+    let startISO = calendarConfig.startTime
+    let endISO = calendarConfig.endTime
+    if (!calendarConfig.isAllDay) {
+      const start = new Date(startISO)
+      let end = new Date(endISO)
+      const dayEnd = new Date(start)
+      dayEnd.setHours(0, 0, 0, 0)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+      if (end.getTime() > dayEnd.getTime()) {
+        end = dayEnd
+      }
+      startISO = start.toISOString()
+      endISO = end.toISOString()
+    }
+
     const result = await timeBlockStore.createTimeBlockFromTask({
       task_id: context.task.id,
-      start_time: calendarConfig.startTime,
-      end_time: calendarConfig.endTime,
+      start_time: startISO,
+      end_time: endISO,
       is_all_day: calendarConfig.isAllDay, // ✅ 传递全天事件标记
     })
 

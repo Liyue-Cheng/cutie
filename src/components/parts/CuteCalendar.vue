@@ -343,10 +343,26 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
     previewEvent.value = tempEvent
 
     try {
+      // 截断：非全天情况下不得跨天
+      let startISO = selectInfo.start.toISOString()
+      let endISO = selectInfo.end.toISOString()
+      if (!isAllDay) {
+        const start = new Date(selectInfo.start)
+        let end = new Date(selectInfo.end)
+        const dayEnd = new Date(start)
+        dayEnd.setHours(0, 0, 0, 0)
+        dayEnd.setDate(dayEnd.getDate() + 1)
+        if (end.getTime() > dayEnd.getTime()) {
+          end = dayEnd
+        }
+        startISO = start.toISOString()
+        endISO = end.toISOString()
+      }
+
       await timeBlockStore.createTimeBlock({
         title,
-        start_time: selectInfo.start.toISOString(),
-        end_time: selectInfo.end.toISOString(),
+        start_time: startISO,
+        end_time: endISO,
         is_all_day: isAllDay, // ✅ 传递全天标志
       })
 
@@ -405,6 +421,19 @@ async function handleEventChange(changeInfo: EventChangeArg) {
     endTime = endDate.toISOString()
 
     console.log(`[Calendar] Converting timed event to all-day event: ${startTime} - ${endTime}`)
+  }
+
+  // 统一截断：分时事件不得跨天（包括拖动/拉伸）
+  if (!isNowAllDay && event.start && event.end) {
+    const start = new Date(event.start)
+    let end = new Date(event.end)
+    const dayEnd = new Date(start)
+    dayEnd.setHours(0, 0, 0, 0)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    if (end.getTime() > dayEnd.getTime()) {
+      end = dayEnd
+      endTime = end.toISOString()
+    }
   }
 
   try {
@@ -603,7 +632,15 @@ function updatePreviewEvent(event: DragEvent) {
     const dropTime = getTimeFromDropPosition(event)
 
     if (dropTime) {
-      const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+      let endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+
+      // 截断到当日 24:00，禁止跨天预览
+      const dayEnd = new Date(dropTime)
+      dayEnd.setHours(0, 0, 0, 0)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+      if (endTime.getTime() > dayEnd.getTime()) {
+        endTime = dayEnd
+      }
 
       const previewTitle = currentDraggedTask.value?.title || '任务'
       const area = currentDraggedTask.value?.area_id
@@ -707,8 +744,14 @@ async function handleDrop(event: DragEvent) {
         return
       }
 
-      // 创建一个默认1小时的时间块
-      const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+    // 创建一个默认1小时的时间块，并在日界处截断
+    let endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+    const dayEnd = new Date(dropTime)
+    dayEnd.setHours(0, 0, 0, 0)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    if (endTime.getTime() > dayEnd.getTime()) {
+      endTime = dayEnd
+    }
 
       calendarView = {
         type: 'calendar',
