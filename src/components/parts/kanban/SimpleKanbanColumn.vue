@@ -309,11 +309,29 @@ async function handleDrop(event: DragEvent) {
   event.preventDefault()
 
   // 1. 尝试跨看板拖放
+  // 预先记录当前预览的插入索引（目标 composable 在 handleDrop 内会清理状态）
+  const plannedInsertIndex =
+    crossViewTarget.targetIndex.value !== null
+      ? (crossViewTarget.targetIndex.value as number)
+      : props.tasks.length
+
   const crossViewResult = await crossViewTarget.handleDrop(event)
 
   if (crossViewResult.isHandled) {
     if (crossViewResult.success) {
       emit('crossViewDrop', crossViewResult.taskId!, props.viewMetadata.id)
+
+      // 固化跨列插入位置到 ViewStore，避免回到底部
+      if (props.viewKey && crossViewResult.taskId) {
+        const incomingId = crossViewResult.taskId
+        // 基于当前列任务构建排序，移除可能已存在的该任务ID
+        const baseOrder = props.tasks.map((t) => t.id).filter((id) => id !== incomingId)
+        const safeIndex = Math.max(0, Math.min(plannedInsertIndex, baseOrder.length))
+        baseOrder.splice(safeIndex, 0, incomingId)
+        viewStore
+          .updateSorting(props.viewKey, baseOrder)
+          .catch((err) => console.error('[SimpleKanbanColumn] Failed to persist cross-view sort:', err))
+      }
     } else {
       console.error('❌ Cross-view drop failed:', crossViewResult.error)
     }
