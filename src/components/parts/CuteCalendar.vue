@@ -14,6 +14,21 @@
     </div>
 
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
+
+    <!-- 装饰竖线（跨越 TwoRowLayout 可视区域） -->
+    <div
+      v-if="
+        decorativeLinePosition !== null &&
+        decorativeLineTop !== null &&
+        decorativeLineHeight !== null
+      "
+      class="decorative-line"
+      :style="{
+        left: `${decorativeLinePosition}px`,
+        top: `${decorativeLineTop}px`,
+        height: `${decorativeLineHeight}px`,
+      }"
+    ></div>
   </div>
 </template>
 
@@ -52,6 +67,11 @@ const previewEvent = ref<EventInput | null>(null)
 const isDragging = ref(false)
 const currentDraggedTask = ref<TaskCard | null>(null)
 const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
+
+// 装饰竖线位置与尺寸（跨越外层布局）
+const decorativeLinePosition = ref<number | null>(null)
+const decorativeLineTop = ref<number | null>(null)
+const decorativeLineHeight = ref<number | null>(null)
 
 // ==================== 日期显示 ====================
 // 格式化日期显示
@@ -142,6 +162,10 @@ onMounted(async () => {
         calendarApi.gotoDate(props.currentDate)
       }
     }
+
+    // 计算装饰竖线位置
+    await nextTick()
+    updateDecorativeLinePosition()
   } catch (error) {
     console.error('[CuteCalendar] Failed to fetch initial time blocks:', error)
   }
@@ -173,6 +197,52 @@ onUnmounted(() => {
   document.removeEventListener('dragstart', handleGlobalDragStart)
   document.removeEventListener('dragend', handleGlobalDragEnd)
 })
+
+// ==================== 装饰竖线 ====================
+function updateDecorativeLinePosition() {
+  if (!calendarRef.value) return
+
+  // 获取当前显示的日期字符串（YYYY-MM-DD）
+  const displayDate = props.currentDate || new Date().toISOString().split('T')[0]
+
+  // 查找当前日期的单元格
+  const calendarEl = calendarRef.value.$el as HTMLElement
+  const dateCell = calendarEl.querySelector(
+    `.fc-daygrid-day[data-date="${displayDate}"]`
+  ) as HTMLElement
+
+  if (dateCell) {
+    // 获取外层 TwoRowLayout 的可视容器（以它为参考，避免 padding 影响）
+    const layoutEl = calendarEl.closest('.two-row-layout') as HTMLElement
+    if (!layoutEl) return
+
+    // 仅覆盖 TwoRowLayout 的下半部分（.bottom-row）
+    const bottomRowEl = layoutEl.querySelector('.bottom-row') as HTMLElement | null
+    if (!bottomRowEl) return
+
+    const bottomRowRect = bottomRowEl.getBoundingClientRect()
+    const cellRect = dateCell.getBoundingClientRect()
+
+    // 使用 viewport 坐标（position: fixed）
+    decorativeLinePosition.value = cellRect.left
+    decorativeLineTop.value = bottomRowRect.top
+    decorativeLineHeight.value = bottomRowRect.height
+  } else {
+    decorativeLinePosition.value = null
+    decorativeLineTop.value = null
+    decorativeLineHeight.value = null
+  }
+}
+
+// 监听日历视图变化，重新计算竖线位置
+watch(
+  () => props.currentDate,
+  () => {
+    nextTick(() => {
+      updateDecorativeLinePosition()
+    })
+  }
+)
 
 /**
  * 日历事件列表（响应式）
@@ -769,6 +839,24 @@ const calendarOptions = reactive({
 .calendar-container {
   height: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 日历头部固定高度 */
+.calendar-header {
+  flex-shrink: 0;
+  padding: 1rem 1.5rem;
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* FullCalendar 占据剩余空间 */
+.calendar-container > :nth-child(2) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 预览事件样式 */
@@ -904,8 +992,8 @@ const calendarOptions = reactive({
   margin: 1px 4px !important; /* 外边距，让事件之间有间隔 */
 }
 
-.fc-daygrid-day-frame {
-  /* padding-bottom: 1.6rem !important; */
+.fc-timegrid-axis-cushion {
+  display: none !important;
 }
 
 /* 全天事件标题容器 */
@@ -928,13 +1016,6 @@ const calendarOptions = reactive({
  * 7. 日期显示栏样式
  * =============================================== */
 
-.calendar-header {
-  padding: 1rem 1.5rem;
-  background: var(--color-background);
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 0.5rem;
-}
-
 .date-display {
   display: flex;
   align-items: center;
@@ -946,5 +1027,17 @@ const calendarOptions = reactive({
   font-weight: 600;
   color: var(--color-text);
   letter-spacing: 0.5px;
+}
+
+/* ===============================================
+ * 8. 装饰竖线样式
+ * =============================================== */
+
+.decorative-line {
+  position: fixed; /* 脱离内层 padding 影响，参照 viewport */
+  width: 0.8px;
+  background: #d1d1d1;
+  pointer-events: none;
+  z-index: 5;
 }
 </style>
