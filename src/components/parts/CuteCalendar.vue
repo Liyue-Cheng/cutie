@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <FullCalendar ref="calendarRef" :options="calendarOptions" />
+    <FullCalendar ref="calendarRef" :key="calendarInstanceKey" :options="calendarOptions" />
 
     <!-- 装饰竖线（跨越 TwoRowLayout 可视区域） -->
     <div
@@ -63,6 +63,7 @@ const props = defineProps<{
 
 // 默认缩放倍率为 1
 const currentZoom = computed(() => props.zoom ?? 1)
+const calendarInstanceKey = computed(() => `calendar-${currentZoom.value}`)
 
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
@@ -246,6 +247,21 @@ watch(
     nextTick(() => {
       updateDecorativeLinePosition()
     })
+  }
+)
+
+// 缩放变化：强制更新日历尺寸并重算装饰线
+watch(
+  () => props.zoom,
+  async () => {
+    await nextTick()
+    if (calendarRef.value) {
+      try {
+        const api = calendarRef.value.getApi()
+        api.updateSize()
+      } catch {}
+    }
+    updateDecorativeLinePosition()
   }
 )
 
