@@ -744,14 +744,14 @@ async function handleDrop(event: DragEvent) {
         return
       }
 
-    // 创建一个默认1小时的时间块，并在日界处截断
-    let endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
-    const dayEnd = new Date(dropTime)
-    dayEnd.setHours(0, 0, 0, 0)
-    dayEnd.setDate(dayEnd.getDate() + 1)
-    if (endTime.getTime() > dayEnd.getTime()) {
-      endTime = dayEnd
-    }
+      // 创建一个默认1小时的时间块，并在日界处截断
+      let endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+      const dayEnd = new Date(dropTime)
+      dayEnd.setHours(0, 0, 0, 0)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+      if (endTime.getTime() > dayEnd.getTime()) {
+        endTime = dayEnd
+      }
 
       calendarView = {
         type: 'calendar',
