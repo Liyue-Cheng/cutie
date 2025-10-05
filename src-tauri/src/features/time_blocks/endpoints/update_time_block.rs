@@ -279,9 +279,10 @@ mod logic {
         // 3. 获取现有时间块（确保存在）（✅ 使用共享 Repository）
         let existing_block = TimeBlockRepository::find_by_id_in_tx(&mut tx, id).await?;
 
-        // 4. 确定最终的时间范围
+        // 4. 确定最终的时间范围和全天状态
         let final_start_time = request.start_time.unwrap_or(existing_block.start_time);
         let final_end_time = request.end_time.unwrap_or(existing_block.end_time);
+        let final_is_all_day = request.is_all_day.unwrap_or(existing_block.is_all_day);
 
         // 5. 再次验证最终时间范围
         if final_start_time >= final_end_time {
@@ -292,12 +293,13 @@ mod logic {
             ));
         }
 
-        // 6. 如果时间范围发生变化，检查时间冲突（✅ 使用共享 ConflictChecker）
-        if request.start_time.is_some() || request.end_time.is_some() {
+        // 6. 如果时间范围或全天状态发生变化，检查时间冲突（✅ 使用共享 ConflictChecker）
+        if request.start_time.is_some() || request.end_time.is_some() || request.is_all_day.is_some() {
             let has_conflict = TimeBlockConflictChecker::check_in_tx(
                 &mut tx,
                 &final_start_time,
                 &final_end_time,
+                final_is_all_day,
                 Some(id), // 排除当前时间块
             )
             .await?;
@@ -330,6 +332,7 @@ mod logic {
             id: updated_block.id,
             start_time: updated_block.start_time,
             end_time: updated_block.end_time,
+            is_all_day: updated_block.is_all_day,
             title: updated_block.title,
             glance_note: updated_block.glance_note,
             detail_note: updated_block.detail_note,

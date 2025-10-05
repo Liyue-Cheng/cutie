@@ -21,6 +21,7 @@ export interface CreateTimeBlockPayload {
   detail_note?: string | null
   start_time: string // ISO 8601 UTC
   end_time: string // ISO 8601 UTC
+  is_all_day?: boolean
   area_id?: string | null
 }
 
@@ -42,6 +43,7 @@ export interface UpdateTimeBlockPayload {
   detail_note?: string | null
   start_time?: string
   end_time?: string
+  is_all_day?: boolean
   area_id?: string | null
 }
 

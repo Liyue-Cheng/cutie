@@ -330,7 +330,9 @@ async function handleDrop(event: DragEvent) {
         baseOrder.splice(safeIndex, 0, incomingId)
         viewStore
           .updateSorting(props.viewKey, baseOrder)
-          .catch((err) => console.error('[SimpleKanbanColumn] Failed to persist cross-view sort:', err))
+          .catch((err) =>
+            console.error('[SimpleKanbanColumn] Failed to persist cross-view sort:', err)
+          )
       }
     } else {
       console.error('❌ Cross-view drop failed:', crossViewResult.error)

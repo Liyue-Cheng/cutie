@@ -290,10 +290,12 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", request.task_id.to_string()))?;
 
         // 4. 检查时间冲突（✅ 使用共享 ConflictChecker）
+        // 从任务创建的时间块默认为分时事件（is_all_day = false）
         let has_conflict = TimeBlockConflictChecker::check_in_tx(
             &mut tx,
             &request.start_time,
             &request.end_time,
+            false, // 从任务创建的时间块默认为分时事件
             None,
         )
         .await?;
@@ -316,6 +318,7 @@ mod logic {
             detail_note: None,
             start_time: request.start_time,
             end_time: request.end_time,
+            is_all_day: false, // 从任务创建的时间块默认为分时事件
             area_id: task.area_id, // 继承任务的 area
             created_at: now,
             updated_at: now,
@@ -371,6 +374,7 @@ mod logic {
             id: time_block.id,
             start_time: time_block.start_time,
             end_time: time_block.end_time,
+            is_all_day: time_block.is_all_day,
             title: time_block.title,
             glance_note: time_block.glance_note,
             detail_note: time_block.detail_note,

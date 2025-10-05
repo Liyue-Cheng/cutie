@@ -236,6 +236,7 @@ mod logic {
             id: block.id,
             start_time: block.start_time,
             end_time: block.end_time,
+            is_all_day: block.is_all_day,
             title: block.title.clone(),
             glance_note: block.glance_note.clone(),
             detail_note: block.detail_note.clone(),

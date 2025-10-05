@@ -241,7 +241,7 @@ async function handleDeleteAllTasks() {
 }
 
 .calendar-pane {
-  width: 30rem;
+  width: 28rem;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
 }

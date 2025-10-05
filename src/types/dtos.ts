@@ -127,6 +127,7 @@ export interface TimeBlockView {
   id: string
   start_time: string
   end_time: string
+  is_all_day: boolean
 
   // --- 显示内容 ---
   title: string | null

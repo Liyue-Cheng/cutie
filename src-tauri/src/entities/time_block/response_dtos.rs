@@ -15,6 +15,7 @@ pub struct TimeBlockViewDto {
     pub id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
+    pub is_all_day: bool,
 
     // --- 显示内容 ---
     pub title: Option<String>,

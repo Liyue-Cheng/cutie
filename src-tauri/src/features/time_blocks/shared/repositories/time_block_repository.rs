@@ -17,7 +17,7 @@ impl TimeBlockRepository {
         block_id: Uuid,
     ) -> AppResult<TimeBlock> {
         let query = r#"
-            SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
+            SELECT id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
                    created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
@@ -40,7 +40,7 @@ impl TimeBlockRepository {
     /// 非事务查询时间块
     pub async fn find_by_id(pool: &SqlitePool, block_id: Uuid) -> AppResult<TimeBlock> {
         let query = r#"
-            SELECT id, title, glance_note, detail_note, start_time, end_time, area_id,
+            SELECT id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
                    created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
@@ -67,11 +67,11 @@ impl TimeBlockRepository {
     ) -> AppResult<()> {
         let query = r#"
             INSERT INTO time_blocks (
-                id, title, glance_note, detail_note, start_time, end_time, area_id,
+                id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
                 created_at, updated_at, is_deleted, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -81,6 +81,7 @@ impl TimeBlockRepository {
             .bind(&block.detail_note)
             .bind(block.start_time.to_rfc3339())
             .bind(block.end_time.to_rfc3339())
+            .bind(block.is_all_day)
             .bind(block.area_id.map(|id| id.to_string()))
             .bind(block.created_at.to_rfc3339())
             .bind(block.updated_at.to_rfc3339())
@@ -149,6 +150,11 @@ impl TimeBlockRepository {
         if let Some(end_time) = request.end_time {
             updates.push("end_time = ?");
             bindings.push(end_time.to_rfc3339());
+        }
+
+        if let Some(is_all_day) = request.is_all_day {
+            updates.push("is_all_day = ?");
+            bindings.push(if is_all_day { "1" } else { "0" }.to_string());
         }
 
         if let Some(ref area_id_opt) = request.area_id {
@@ -227,7 +233,7 @@ impl TimeBlockRepository {
         let mut query = String::from(
             r#"
             SELECT 
-                id, title, glance_note, detail_note, start_time, end_time, area_id,
+                id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
                 created_at, updated_at, is_deleted, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
@@ -266,10 +272,7 @@ impl TimeBlockRepository {
     }
 
     /// 检查时间块是否存在
-    pub async fn exists_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        block_id: Uuid,
-    ) -> AppResult<bool> {
+    pub async fn exists_in_tx(tx: &mut Transaction<'_, Sqlite>, block_id: Uuid) -> AppResult<bool> {
         let query = "SELECT COUNT(*) FROM time_blocks WHERE id = ?";
         let count: i64 = sqlx::query_scalar(query)
             .bind(block_id.to_string())
@@ -279,4 +282,3 @@ impl TimeBlockRepository {
         Ok(count > 0)
     }
 }
-

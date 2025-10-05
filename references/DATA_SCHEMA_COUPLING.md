@@ -99,11 +99,12 @@ pub struct TaskCardDto {
 
 #### **3. 装配器层**
 
-**文件：** `src-tauri/src/features/xxx/shared/assembler.rs`
+**文件：** `src-tauri/src/features/xxx/shared/assembler.rs` 或 `assemblers/*.rs`
 
 **需要修改：**
 
 - 从实体转 DTO 的转换逻辑
+- **⚠️ 跨功能装配器**：检查是否有其他功能模块也在组装该 DTO
 
 **示例：**
 
@@ -115,6 +116,21 @@ pub fn task_to_card_basic(task: &Task) -> TaskCardDto {
     }
 }
 ```
+
+**⚠️ 特殊情况：跨功能依赖**
+
+某些实体/DTO 可能被多个功能模块使用，例如：
+
+**TimeBlock 实体的跨功能依赖：**
+
+- **装配器**：`features/tasks/shared/assemblers/time_block_assembler.rs` 组装 `TimeBlockViewDto`
+- **Repository**：`features/tasks/shared/repositories/task_time_block_link_repository.rs` 查询 `TimeBlock` 实体
+
+修改 `TimeBlock` 实体或 `TimeBlockViewDto` 时，必须同时更新：
+
+1. `features/time_blocks/` 下的所有代码
+2. `features/tasks/shared/assemblers/time_block_assembler.rs` 的装配逻辑
+3. `features/tasks/shared/repositories/task_time_block_link_repository.rs` 的 SQL 查询
 
 #### **4. 数据访问层**
 
@@ -249,7 +265,63 @@ export interface UpdateTaskPayload {
 
 ---
 
-### 场景3：添加新实体（如 Project）
+### 场景3：给 TimeBlock 添加新字段 `is_all_day`
+
+#### **步骤清单：**
+
+- [ ] 1. 更新 `migrations/20241001000000_initial_schema.sql`：添加 `is_all_day BOOLEAN NOT NULL DEFAULT FALSE`
+- [ ] 2. 更新 `entities/time_block/model.rs`：
+  - TimeBlock struct 添加 `pub is_all_day: bool`
+  - TimeBlockRow struct 添加 `pub is_all_day: bool`
+  - TryFrom 实现添加字段映射
+- [ ] 3. 更新 `entities/time_block/response_dtos.rs`：TimeBlockViewDto 添加字段
+- [ ] 4. 更新 `entities/time_block/request_dtos.rs`：
+  - CreateTimeBlockRequest 添加 `pub is_all_day: Option<bool>`
+  - UpdateTimeBlockRequest 添加 `pub is_all_day: Option<bool>`
+- [ ] 5. 更新 `features/time_blocks/shared/repositories/time_block_repository.rs`：
+  - 所有 SELECT 语句添加 `is_all_day`
+  - INSERT 语句添加字段和绑定
+  - UPDATE 语句添加字段更新逻辑
+- [ ] 6. 更新 `features/time_blocks/shared/conflict_checker.rs`：添加业务逻辑（如全天事件不冲突）
+- [ ] 7. 更新所有 time_blocks 端点：
+  - `create_time_block.rs` - 处理新字段
+  - `update_time_block.rs` - 处理新字段
+  - `create_from_task.rs` - 设置默认值
+  - `list_time_blocks.rs` - 返回新字段
+- [ ] 8. **⚠️ 跨功能装配器**：更新 `features/tasks/shared/assemblers/time_block_assembler.rs`：
+  - `assemble_for_event_in_tx` - SQL 查询添加字段
+  - `assemble_for_event_in_tx` - DTO 初始化添加字段
+  - `assemble_view` - DTO 初始化添加字段
+- [ ] 8.1. **⚠️ 跨功能 Repository**：更新 `features/tasks/shared/repositories/task_time_block_link_repository.rs`：
+  - `find_linked_time_blocks_in_tx` - SQL 查询添加字段（查询 TimeBlock 实体）
+- [ ] 9. 更新 `src/types/dtos.ts`：TimeBlockView 添加 `is_all_day: boolean`
+- [ ] 10. 更新 `src/stores/timeblock.ts`：
+  - CreateTimeBlockPayload 添加 `is_all_day?: boolean`
+  - UpdateTimeBlockPayload 添加 `is_all_day?: boolean`
+- [ ] 11. 更新 `src/components/parts/CuteCalendar.vue`：
+  - 渲染时使用 `is_all_day`
+  - 创建/更新时传递 `is_all_day`
+  - 处理全天/分时转换逻辑
+
+#### **必须同步的文件：**
+
+- 后端：13-16个文件（包括跨功能装配器和跨功能 Repository）
+- 前端：3个文件
+
+#### **关键注意事项：**
+
+- ⚠️ **跨功能依赖**：TimeBlock 被 Task 功能模块依赖，必须同步更新：
+  - `features/tasks/shared/assemblers/time_block_assembler.rs` - 组装 DTO
+  - `features/tasks/shared/repositories/task_time_block_link_repository.rs` - 查询实体
+- 使用以下命令查找所有依赖点：
+  ```bash
+  grep -rn "TimeBlockViewDto {" src-tauri/src/features
+  grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features/tasks
+  ```
+
+---
+
+### 场景4：添加新实体（如 Project）
 
 #### **完整步骤：**
 
@@ -413,11 +485,24 @@ TimeBlockViewDto {
 
 ### 错误3：改了 DTO，忘记改装配器
 
-**现象：** 编译错误
+**现象：** 编译错误 `missing field 'xxx' in initializer of 'XxxDto'`
 
 **原因：** Assembler 返回的 DTO 缺少新字段
 
-**解决：** 更新 `assembler.rs` 的转换逻辑
+**解决：**
+
+1. 更新主装配器：`features/xxx/shared/assembler.rs`
+2. **⚠️ 检查跨功能装配器**：使用 `grep -rn "XxxDto {" src-tauri/src/features` 查找所有组装该 DTO 的位置
+3. **⚠️ 检查跨功能 Repository**：使用 `grep -rn "SELECT.*FROM xxx_table" src-tauri/src/features` 查找所有查询该实体的位置
+4. 逐一更新所有装配器和 Repository 的 SQL 查询
+
+**真实案例：**
+
+- 修改 `TimeBlock` 实体添加 `is_all_day` 字段时
+- 除了 `features/time_blocks/` 下的代码
+- 还需要修改：
+  - `features/tasks/shared/assemblers/time_block_assembler.rs` - 装配器的 SQL 和 DTO 初始化
+  - `features/tasks/shared/repositories/task_time_block_link_repository.rs` - Repository 的 SQL 查询
 
 ### 错误4：改了结构，忘记改 SQL
 
@@ -452,11 +537,16 @@ TimeBlockViewDto {
 # 搜索所有使用该字段的地方
 grep -r "field_name" src-tauri/src
 grep -r "field_name" src
+
+# ⚠️ 关键：搜索所有组装该 DTO 的位置
+grep -rn "TimeBlockViewDto {" src-tauri/src/features
+grep -rn "TaskCardDto {" src-tauri/src/features
 ```
 
 **确保：**
 
 - 找到所有依赖
+- **特别注意跨功能模块的装配器**
 - 逐一更新
 
 ### 策略3：测试驱动
@@ -498,10 +588,16 @@ Schema: tasks 表
 
 ```
 Schema: time_blocks 表
-  → entities/time_block/model.rs: TimeBlock
+  → entities/time_block/model.rs: TimeBlock, TimeBlockRow
   → entities/time_block/response_dtos.rs: TimeBlockViewDto
+  → entities/time_block/request_dtos.rs: CreateTimeBlockRequest, UpdateTimeBlockRequest
+  → features/time_blocks/shared/repositories/time_block_repository.rs: CRUD SQL
+  → features/time_blocks/shared/conflict_checker.rs: 冲突检查逻辑
+  → features/time_blocks/endpoints/*.rs: 所有时间块端点
+  → features/tasks/shared/assemblers/time_block_assembler.rs: ⚠️ 跨功能装配器
+  → features/tasks/shared/repositories/task_time_block_link_repository.rs: ⚠️ 跨功能查询
   → src/types/dtos.ts: TimeBlockView
-  → src/stores/timeblock.ts
+  → src/stores/timeblock.ts: CreateTimeBlockPayload, UpdateTimeBlockPayload
   → 组件: CuteCalendar
 ```
 
@@ -509,6 +605,9 @@ Schema: time_blocks 表
 
 - 包含 Area（AreaSummary）
 - 包含 LinkedTasks（任务摘要）
+- **被 Task 功能依赖**：
+  - `features/tasks/shared/assemblers/time_block_assembler.rs` 会组装 TimeBlockViewDto
+  - `features/tasks/shared/repositories/task_time_block_link_repository.rs` 会查询 TimeBlock 实体
 
 ### Area
 
@@ -546,6 +645,14 @@ grep -rn "schedule_status" src
 # 检查 DTO 定义
 grep -rn "interface TaskCard" src
 grep -rn "struct TaskCardDto" src-tauri/src
+
+# ⚠️ 修改 DTO 后必须执行：查找所有组装该 DTO 的位置
+grep -rn "TimeBlockViewDto {" src-tauri/src/features
+grep -rn "TaskCardDto {" src-tauri/src/features
+
+# 查找特定实体的所有 SQL 查询
+grep -rn "SELECT.*FROM time_blocks" src-tauri/src
+grep -rn "INSERT INTO time_blocks" src-tauri/src
 ```
 
 ### 重新生成数据库
@@ -569,4 +676,73 @@ cargo tauri dev
 
 ---
 
-**记住：数据结构是系统的骨架，修改需谨慎且全面！**
+## 💡 经验教训
+
+### 教训1：跨功能装配器容易被遗漏
+
+**案例：** 2025-10-05 修改 `TimeBlock` 实体添加 `is_all_day` 字段
+
+**问题：**
+
+- 更新了 `features/time_blocks/` 下的所有代码
+- 编译通过，以为完成了
+- 运行时发现 `features/tasks/shared/assemblers/time_block_assembler.rs` 报错：`missing field 'is_all_day'`
+
+**原因：**
+
+- TimeBlock 被 Task 功能模块依赖
+- Task 模块有自己的装配器来组装 `TimeBlockViewDto`
+- 这种跨功能依赖不在常规的依赖链中
+
+**解决方案：**
+
+1. 修改任何 DTO 后，必须执行：
+   ```bash
+   # 查找所有组装该 DTO 的位置
+   grep -rn "XxxDto {" src-tauri/src/features
+   ```
+2. 检查所有组装该 DTO 的位置，不仅限于该实体的功能模块
+3. 更新文档，明确标注跨功能依赖
+
+**预防措施：**
+
+- 在依赖链图中明确标注跨功能装配器
+- 修改检查清单中增加"跨功能装配器检查"步骤
+- 使用全局搜索确认所有组装点
+
+### 教训2：跨功能 Repository 的 SQL 查询容易遗漏
+
+**案例：** 2025-10-05 修改 `TimeBlock` 实体添加 `is_all_day` 字段
+
+**问题：**
+
+- 更新了 `features/time_blocks/` 下的所有 SQL 查询
+- 更新了装配器 `time_block_assembler.rs`
+- 编译通过，以为完成了
+- 修改任务的 area 时报错：`no column found for name: is_all_day`
+
+**原因：**
+
+- `features/tasks/shared/repositories/task_time_block_link_repository.rs` 中的 `find_linked_time_blocks_in_tx` 函数
+- 直接查询 `time_blocks` 表，返回 `TimeBlock` 实体
+- SQL 查询中缺少 `is_all_day` 字段
+
+**解决方案：**
+
+1. 修改实体后，使用以下命令查找所有 SQL 查询：
+
+   ```bash
+   # 查找主功能模块的查询
+   grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features/time_blocks
+
+   # 查找跨功能模块的查询
+   grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features/tasks
+   grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features
+   ```
+
+2. 逐一更新所有 SELECT 语句的字段列表
+3. 特别注意 Repository 中的查询，不仅仅是装配器
+
+---
+
+**记住：数据结构是系统的骨架，修改需谨慎且全面！特别注意跨功能模块的隐藏依赖！**

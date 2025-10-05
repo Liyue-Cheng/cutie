@@ -6,6 +6,13 @@
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
+    <!-- 日期显示栏 -->
+    <div class="calendar-header">
+      <div class="date-display">
+        <span class="date-text">{{ formattedDate }}</span>
+      </div>
+    </div>
+
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
   </div>
 </template>
@@ -45,6 +52,21 @@ const previewEvent = ref<EventInput | null>(null)
 const isDragging = ref(false)
 const currentDraggedTask = ref<TaskCard | null>(null)
 const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
+
+// ==================== 日期显示 ====================
+// 格式化日期显示
+const formattedDate = computed(() => {
+  const dateToDisplay = props.currentDate || new Date().toISOString().split('T')[0]
+  const date = new Date(dateToDisplay + 'T00:00:00')
+
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+  const weekDay = weekDays[date.getDay()]
+
+  return `${year}年${month}月${day}日 ${weekDay}`
+})
 
 // ==================== 日期切换功能 ====================
 // 监听 currentDate prop 变化，切换日历显示的日期
@@ -186,7 +208,7 @@ const calendarEvents = computed((): EventInput[] => {
       title: timeBlock.title ?? 'Time Block',
       start: timeBlock.start_time,
       end: timeBlock.end_time,
-      allDay: false,
+      allDay: timeBlock.is_all_day, // ✅ 使用后端返回的 is_all_day 字段
       color: color,
     }
   })
@@ -212,13 +234,16 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
 
   const title = prompt('Please enter a new title for your time block')
   if (title) {
+    // ✅ 根据选择区域判断是否为全天事件
+    const isAllDay = selectInfo.allDay
+
     // 创建临时预览事件，减少视觉跳动
     const tempEvent = {
       id: 'temp-creating',
       title: title,
       start: selectInfo.start.toISOString(),
       end: selectInfo.end.toISOString(),
-      allDay: false,
+      allDay: isAllDay,
       color: '#BCEAEE',
       classNames: ['creating-event'],
     }
@@ -231,6 +256,7 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
         title,
         start_time: selectInfo.start.toISOString(),
         end_time: selectInfo.end.toISOString(),
+        is_all_day: isAllDay, // ✅ 传递全天标志
       })
 
       // 清除临时预览，真实事件会通过store更新显示
@@ -258,14 +284,15 @@ async function handleDateSelect(selectInfo: DateSelectArg) {
 async function handleEventChange(changeInfo: EventChangeArg) {
   const { event, oldEvent } = changeInfo
 
-  // Check if this is a drag from all-day to timed event
+  // ✅ 检查全天状态变化
   const wasAllDay = oldEvent.allDay
+  const isNowAllDay = event.allDay
   const isNowTimed = !event.allDay
 
   let startTime = event.start?.toISOString()
   let endTime = event.end?.toISOString()
 
-  // If dragging from all-day to timed, set duration to 1 hour
+  // ✅ 从全天拖到分时：设置为 1 小时
   if (wasAllDay && isNowTimed && event.start) {
     const start = new Date(event.start)
     const end = new Date(start.getTime() + 60 * 60 * 1000) // Add 1 hour
@@ -277,11 +304,24 @@ async function handleEventChange(changeInfo: EventChangeArg) {
     )
   }
 
+  // ✅ 从分时拖到全天：规整到日界
+  if (!wasAllDay && isNowAllDay && event.start && event.end) {
+    const startDate = new Date(event.start)
+    startDate.setHours(0, 0, 0, 0)
+    const endDate = new Date(event.end)
+    endDate.setHours(0, 0, 0, 0)
+    startTime = startDate.toISOString()
+    endTime = endDate.toISOString()
+
+    console.log(`[Calendar] Converting timed event to all-day event: ${startTime} - ${endTime}`)
+  }
+
   try {
     await timeBlockStore.updateTimeBlock(event.id, {
       title: event.title,
       start_time: startTime,
       end_time: endTime,
+      is_all_day: isNowAllDay, // ✅ 更新全天标志
     })
   } catch (error) {
     console.error('Failed to update event:', error)
@@ -421,14 +461,20 @@ function stopAutoScroll() {
 }
 
 function updatePreviewEvent(event: DragEvent) {
-  const dropTime = getTimeFromDropPosition(event)
+  // ✅ 检查是否拖到全日区域
+  const target = event.target as HTMLElement
+  const isAllDayArea = target.closest('.fc-daygrid-day') !== null
 
-  if (dropTime) {
-    const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+  if (isAllDayArea) {
+    // 全天预览：使用当前日期
+    if (!calendarRef.value) return
+    const calendarApi = calendarRef.value.getApi()
+    const currentDate = calendarApi.getDate()
+    currentDate.setHours(0, 0, 0, 0)
+    const nextDay = new Date(currentDate)
+    nextDay.setDate(nextDay.getDate() + 1)
 
-    // 使用全局状态中的任务信息
     const previewTitle = currentDraggedTask.value?.title || '任务'
-    // ✅ 通过 area_id 从 store 获取区域颜色，如果没有区域则使用灰色
     const area = currentDraggedTask.value?.area_id
       ? areaStore.getAreaById(currentDraggedTask.value.area_id)
       : null
@@ -437,16 +483,40 @@ function updatePreviewEvent(event: DragEvent) {
     previewEvent.value = {
       id: 'preview-event',
       title: previewTitle,
-      start: dropTime.toISOString(),
-      end: endTime.toISOString(),
-      allDay: false,
+      start: currentDate.toISOString(),
+      end: nextDay.toISOString(),
+      allDay: true, // ✅ 全天预览
       color: previewColor,
       classNames: ['preview-event'],
       display: 'block',
     }
+  } else {
+    // 分时预览：使用拖拽位置计算时间
+    const dropTime = getTimeFromDropPosition(event)
 
-    console.log('[CuteCalendar] Preview event updated:', previewEvent.value)
+    if (dropTime) {
+      const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+
+      const previewTitle = currentDraggedTask.value?.title || '任务'
+      const area = currentDraggedTask.value?.area_id
+        ? areaStore.getAreaById(currentDraggedTask.value.area_id)
+        : null
+      const previewColor = area?.color || '#9ca3af'
+
+      previewEvent.value = {
+        id: 'preview-event',
+        title: previewTitle,
+        start: dropTime.toISOString(),
+        end: endTime.toISOString(),
+        allDay: false, // ✅ 分时预览
+        color: previewColor,
+        classNames: ['preview-event'],
+        display: 'block',
+      }
+    }
   }
+
+  console.log('[CuteCalendar] Preview event updated:', previewEvent.value)
 }
 
 function clearPreviewEvent() {
@@ -598,6 +668,7 @@ const calendarOptions = reactive({
   headerToolbar: false as const,
   dayHeaders: false,
   initialView: 'timeGridDay',
+  allDaySlot: true, // ✅ 启用全日槽位
   slotLabelFormat: {
     hour: '2-digit' as const,
     minute: '2-digit' as const,
@@ -729,7 +800,8 @@ const calendarOptions = reactive({
  * 4. 时间网格分隔线样式
  * =============================================== */
 .fc .fc-timegrid-divider {
-  padding: 1rem !important; /* 增加分隔线区域的内边距 */
+  padding: 0 !important; /* 增加分隔线区域的内边距 */
+  border-bottom: none !important;
   background-color: transparent !important; /* 设置透明背景 */
 }
 
@@ -762,5 +834,55 @@ const calendarOptions = reactive({
 .fc-timegrid-event {
   border-color: #ddd !important; /* 设置事件边框为灰色 */
   box-shadow: none !important; /* 移除默认阴影效果 */
+}
+
+/* 全天事件内边距 */
+.fc-daygrid-event {
+  padding: 2px 6px !important; /* 上下2px，左右6px */
+  margin: 1px 4px !important; /* 外边距，让事件之间有间隔 */
+}
+
+.fc-daygrid-day-frame {
+  /* padding-bottom: 1.6rem !important; */
+}
+
+/* 全天事件标题容器 */
+
+.fc-daygrid-day-events {
+  padding: 0 !important;
+  min-height: 2px !important;
+  margin-bottom: 2rem !important;
+
+  /* display: none !important; */
+}
+
+/* 全天事件标题文字 */
+.fc-daygrid-event .fc-event-title {
+  padding: 1px 0 !important; /* 微调文字内边距 */
+  line-height: 1.4 !important; /* 调整行高，让文字更舒适 */
+}
+
+/* ===============================================
+ * 7. 日期显示栏样式
+ * =============================================== */
+
+.calendar-header {
+  padding: 1rem 1.5rem;
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 0.5rem;
+}
+
+.date-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.5px;
 }
 </style>

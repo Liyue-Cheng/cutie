@@ -13,6 +13,7 @@ pub struct CreateTimeBlockRequest {
     pub detail_note: Option<String>,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
+    pub is_all_day: Option<bool>,
     pub area_id: Option<Uuid>,
     // 🔧 REMOVED: linked_task_ids
     // 职责分离：创建纯时间块不应关联任务
@@ -27,5 +28,6 @@ pub struct UpdateTimeBlockRequest {
     pub detail_note: Option<Option<String>>,
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
+    pub is_all_day: Option<bool>,
     pub area_id: Option<Option<Uuid>>,
 }

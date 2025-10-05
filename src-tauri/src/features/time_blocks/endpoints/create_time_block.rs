@@ -231,10 +231,12 @@ mod logic {
         })?;
 
         // 3. 检查时间冲突（✅ 使用共享 ConflictChecker）
+        let is_all_day = request.is_all_day.unwrap_or(false);
         let has_conflict = TimeBlockConflictChecker::check_in_tx(
             &mut tx,
             &request.start_time,
             &request.end_time,
+            is_all_day,
             None, // 新建时没有要排除的ID
         )
         .await?;
@@ -257,6 +259,7 @@ mod logic {
             detail_note: request.detail_note.clone(),
             start_time: request.start_time,
             end_time: request.end_time,
+            is_all_day,
             area_id: request.area_id,
             created_at: now,
             updated_at: now,
@@ -288,6 +291,7 @@ mod logic {
             id: time_block.id,
             start_time: time_block.start_time,
             end_time: time_block.end_time,
+            is_all_day: time_block.is_all_day,
             title: time_block.title,
             glance_note: time_block.glance_note,
             detail_note: time_block.detail_note,

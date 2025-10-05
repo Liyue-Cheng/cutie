@@ -104,6 +104,7 @@ CREATE TABLE time_blocks (
     detail_note TEXT,
     start_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     end_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    is_all_day BOOLEAN NOT NULL DEFAULT FALSE, -- 是否为全天事件
     area_id TEXT,
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
