@@ -232,7 +232,8 @@ pub struct CreateFromTaskRequest {
     pub task_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    pub title: Option<String>, // 可选，默认使用任务标题
+    pub title: Option<String>,    // 可选，默认使用任务标题
+    pub is_all_day: Option<bool>, // 可选，支持在日历全天槽位创建全天事件
 }
 
 #[derive(Debug, Serialize)]
@@ -290,12 +291,12 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", request.task_id.to_string()))?;
 
         // 4. 检查时间冲突（✅ 使用共享 ConflictChecker）
-        // 从任务创建的时间块默认为分时事件（is_all_day = false）
+        let is_all_day = request.is_all_day.unwrap_or(false);
         let has_conflict = TimeBlockConflictChecker::check_in_tx(
             &mut tx,
             &request.start_time,
             &request.end_time,
-            false, // 从任务创建的时间块默认为分时事件
+            is_all_day,
             None,
         )
         .await?;
@@ -318,7 +319,7 @@ mod logic {
             detail_note: None,
             start_time: request.start_time,
             end_time: request.end_time,
-            is_all_day: false, // 从任务创建的时间块默认为分时事件
+            is_all_day,
             area_id: task.area_id, // 继承任务的 area
             created_at: now,
             updated_at: now,

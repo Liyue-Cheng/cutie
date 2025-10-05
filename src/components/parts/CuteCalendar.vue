@@ -462,17 +462,34 @@ function stopAutoScroll() {
 
 function updatePreviewEvent(event: DragEvent) {
   // ✅ 检查是否拖到全日区域
-  const target = event.target as HTMLElement
-  const isAllDayArea = target.closest('.fc-daygrid-day') !== null
+  const target =
+    (event.target as HTMLElement) ||
+    (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
+  const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
+  const isAllDayArea = !!dayCell
 
   if (isAllDayArea) {
-    // 全天预览：使用当前日期
-    if (!calendarRef.value) return
-    const calendarApi = calendarRef.value.getApi()
-    const currentDate = calendarApi.getDate()
-    currentDate.setHours(0, 0, 0, 0)
-    const nextDay = new Date(currentDate)
-    nextDay.setDate(nextDay.getDate() + 1)
+    // 全天预览：优先从 dayCell 的 data-date 获取具体日期
+    let startDate: Date | null = null
+    let endDate: Date | null = null
+
+    const dateStr = dayCell?.getAttribute('data-date')
+    if (dateStr) {
+      // 使用本地时区的日期，转为 UTC ISO（避免时区偏移）
+      startDate = new Date(`${dateStr}T00:00:00`)
+      endDate = new Date(`${dateStr}T00:00:00`)
+      endDate.setDate(endDate.getDate() + 1)
+    } else if (calendarRef.value) {
+      // 回退：使用当前视图日期
+      const calendarApi = calendarRef.value.getApi()
+      const currentDate = calendarApi.getDate()
+      currentDate.setHours(0, 0, 0, 0)
+      startDate = new Date(currentDate)
+      endDate = new Date(currentDate)
+      endDate.setDate(endDate.getDate() + 1)
+    } else {
+      return
+    }
 
     const previewTitle = currentDraggedTask.value?.title || '任务'
     const area = currentDraggedTask.value?.area_id
@@ -483,8 +500,8 @@ function updatePreviewEvent(event: DragEvent) {
     previewEvent.value = {
       id: 'preview-event',
       title: previewTitle,
-      start: currentDate.toISOString(),
-      end: nextDay.toISOString(),
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
       allDay: true, // ✅ 全天预览
       color: previewColor,
       classNames: ['preview-event'],
@@ -546,27 +563,72 @@ async function handleDrop(event: DragEvent) {
   isProcessingDrop.value = true
 
   try {
-    // 获取拖拽位置对应的时间
-    const dropTime = getTimeFromDropPosition(event)
+    // ✅ 检查是否拖到全天区域
+    const target =
+      (event.target as HTMLElement) ||
+      (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
+    const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
+    const isAllDayArea = !!dayCell
 
-    if (!dropTime) {
-      clearPreviewEvent()
-      isProcessingDrop.value = false
-      return
-    }
+    let calendarView: ViewMetadata
 
-    // 创建一个默认1小时的时间块
-    const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+    if (isAllDayArea) {
+      console.log('[CuteCalendar] isAllDayArea=true')
+      // 全天事件：优先从 dayCell 的 data-date 获取具体日期
+      let startDate: Date | null = null
+      let endDate: Date | null = null
 
-    // 构建日历的 ViewMetadata
-    const calendarView: ViewMetadata = {
-      type: 'calendar',
-      id: `calendar-${dropTime.toISOString()}`,
-      config: {
-        startTime: dropTime.toISOString(),
-        endTime: endTime.toISOString(),
-      } as CalendarViewConfig,
-      label: `${dropTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
+      const dateStr = dayCell?.getAttribute('data-date')
+      if (dateStr) {
+        startDate = new Date(`${dateStr}T00:00:00Z`)
+        endDate = new Date(`${dateStr}T00:00:00Z`)
+        endDate.setUTCDate(endDate.getUTCDate() + 1)
+      } else if (calendarRef.value) {
+        const calendarApi = calendarRef.value.getApi()
+        const currentDate = calendarApi.getDate()
+        currentDate.setHours(0, 0, 0, 0)
+        startDate = new Date(currentDate)
+        endDate = new Date(currentDate)
+        endDate.setDate(endDate.getDate() + 1)
+      } else {
+        clearPreviewEvent()
+        isProcessingDrop.value = false
+        return
+      }
+
+      calendarView = {
+        type: 'calendar',
+        id: `calendar-allday-${startDate.toISOString()}`,
+        config: {
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+          isAllDay: true, // ✅ 标记为全天事件
+        } as CalendarViewConfig,
+        label: `全天 ${startDate.toLocaleDateString()}`,
+      }
+    } else {
+      // 分时事件：获取拖拽位置对应的时间
+      const dropTime = getTimeFromDropPosition(event)
+
+      if (!dropTime) {
+        clearPreviewEvent()
+        isProcessingDrop.value = false
+        return
+      }
+
+      // 创建一个默认1小时的时间块
+      const endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+
+      calendarView = {
+        type: 'calendar',
+        id: `calendar-${dropTime.toISOString()}`,
+        config: {
+          startTime: dropTime.toISOString(),
+          endTime: endTime.toISOString(),
+          isAllDay: false, // ✅ 标记为分时事件
+        } as CalendarViewConfig,
+        label: `${dropTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
+      }
     }
 
     // 🔍 检查点5：确认策略调用

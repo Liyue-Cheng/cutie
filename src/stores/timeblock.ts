@@ -30,6 +30,7 @@ export interface CreateFromTaskPayload {
   start_time: string // ISO 8601 UTC
   end_time: string // ISO 8601 UTC
   title?: string | null // 可选，默认使用任务标题
+  is_all_day?: boolean // 可选，是否为全天事件
 }
 
 export interface CreateFromTaskResponse {

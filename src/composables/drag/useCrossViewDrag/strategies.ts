@@ -299,6 +299,7 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
       task_id: context.task.id,
       start_time: calendarConfig.startTime,
       end_time: calendarConfig.endTime,
+      is_all_day: calendarConfig.isAllDay, // ✅ 传递全天事件标记
     })
 
     // 🔍 检查点5：timeBlockStore 返回结果

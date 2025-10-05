@@ -77,6 +77,8 @@ export interface CalendarViewConfig {
   startTime: string
   /** ISO 8601 UTC 格式 */
   endTime: string
+  /** 是否为全天事件 */
+  isAllDay?: boolean
 }
 
 export interface CustomViewConfig {
