@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
+import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useTaskOperations } from '@/composables/useTaskOperations'
@@ -12,6 +13,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
   task: TaskCard
+  viewMetadata?: ViewMetadata
 }>()
 
 const taskStore = useTaskStore()
@@ -30,6 +32,23 @@ const subtasks = computed(() => props.task.subtasks || [])
 // ✅ 通过 area_id 从 store 获取完整 area 信息
 const area = computed(() => {
   return props.task.area_id ? areaStore.getAreaById(props.task.area_id) : null
+})
+
+// ✅ 判断是否为日期看板（daily::*）
+const isDateKanban = computed(() => {
+  return props.viewMetadata?.type === 'date'
+})
+
+// ✅ 判断是否为过去的日期
+const isPastDate = computed(() => {
+  if (!isDateKanban.value || !props.viewMetadata?.config) return false
+
+  const config = props.viewMetadata.config as DateViewConfig
+  const kanbanDate = new Date(config.date + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  return kanbanDate < today
 })
 
 function showContextMenu(event: MouseEvent) {
@@ -92,11 +111,24 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
       <div class="card-footer">
         <div class="main-checkbox-wrapper">
+          <!-- 完成按钮：过去日期时隐藏但保留空间 -->
           <CuteCheckbox
+            v-if="!isPastDate"
             class="main-checkbox"
             :checked="task.is_completed"
             size="large"
             @update:checked="handleStatusChange"
+            @click.stop
+          ></CuteCheckbox>
+          <div v-else class="main-checkbox-placeholder"></div>
+
+          <!-- 星星按钮：只在日期看板显示 -->
+          <CuteCheckbox
+            v-if="isDateKanban"
+            class="star-checkbox"
+            variant="star"
+            size="large"
+            :checked="false"
             @click.stop
           ></CuteCheckbox>
         </div>
@@ -177,7 +209,25 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 }
 
 .main-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
   align-self: flex-start;
+}
+
+/* 完成按钮占位符（保持空间但不显示） */
+.main-checkbox-placeholder {
+  width: 2.55rem;
+  height: 2.55rem;
+}
+
+.star-checkbox {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.task-card:hover .star-checkbox {
+  opacity: 1;
 }
 
 .area-tag {

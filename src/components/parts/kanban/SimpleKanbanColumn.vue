@@ -398,6 +398,7 @@ async function handleDrop(event: DragEvent) {
       >
         <KanbanTaskCard
           :task="task"
+          :view-metadata="viewMetadata"
           class="kanban-task-card"
           @open-editor="emit('openEditor', task)"
           @task-completed="handleTaskCompleted"

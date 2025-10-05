@@ -5,11 +5,13 @@
 interface Props {
   checked?: boolean
   size?: 'small' | 'large'
+  variant?: 'check' | 'star' // check: 对钩(绿色), star: 星星(蓝色)
 }
 
 withDefaults(defineProps<Props>(), {
   checked: false,
   size: 'small',
+  variant: 'check',
 })
 
 const emit = defineEmits<{
@@ -23,7 +25,7 @@ const handleChange = (event: Event) => {
 </script>
 
 <template>
-  <label class="cute-checkbox" :class="[`size-${size}`]">
+  <label class="cute-checkbox" :class="[`size-${size}`, `variant-${variant}`]">
     <input type="checkbox" :checked="checked" @change="handleChange" />
     <span class="checkmark"></span>
   </label>
@@ -49,54 +51,114 @@ const handleChange = (event: Event) => {
 .checkmark {
   position: relative;
   display: inline-block;
-  width: 18px;
-  height: 18px;
-  border: 2px solid #d9d9d9;
+  width: 1.913rem;
+  height: 1.913rem;
+  border: 0.2rem solid #d9d9d9;
   border-radius: 50%;
-  background-color: #fff;
+  background-color: transparent;
   transition: all 0.2s ease-in-out;
 }
 
+/* 对钩始终显示 - 未选中时为灰色 */
+.checkmark::after {
+  content: '';
+  position: absolute;
+  left: 0.584rem;
+  top: 0.266rem;
+  width: 0.425rem;
+  height: 0.85rem;
+  border: solid #d9d9d9;
+  border-width: 0 0.2rem 0.2rem 0;
+  transform: rotate(45deg);
+  transition: all 0.2s ease-in-out;
+}
+
+/* 鼠标悬停：灰色图案变绿色 */
 .cute-checkbox:hover .checkmark {
   border-color: var(--color-status-done);
 }
 
-/* Large size variant - must come before checked state */
-.cute-checkbox.size-large .checkmark {
-  width: 24px;
-  height: 24px;
+.cute-checkbox:hover .checkmark::after {
+  border-color: var(--color-status-done);
 }
 
-/* Checked state */
+/* Large size variant */
+.cute-checkbox.size-large .checkmark {
+  width: 2.55rem;
+  height: 2.55rem;
+}
+
+.cute-checkbox.size-large .checkmark::after {
+  left: 0.85rem;
+  top: 0.425rem;
+  width: 0.531rem;
+  height: 1.063rem;
+}
+
+/* 选中状态：确认为绿色 */
 .cute-checkbox input[type='checkbox']:checked ~ .checkmark {
-  background-color: var(--color-status-done);
   border-color: var(--color-status-done);
 }
 
 .cute-checkbox input[type='checkbox']:checked ~ .checkmark::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  border-color: var(--color-status-done);
 }
 
 /* Disabled state */
 .cute-checkbox input[type='checkbox']:disabled ~ .checkmark {
-  background-color: #f5f5f5;
   border-color: #d9d9d9;
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
-/* Large size with checked state - must come last for specificity */
-.cute-checkbox.size-large input[type='checkbox']:checked ~ .checkmark::after {
-  left: 7px;
-  top: 3px;
-  width: 5px;
-  height: 10px;
+.cute-checkbox input[type='checkbox']:disabled ~ .checkmark::after {
+  border-color: #d9d9d9;
+}
+
+/* ===============================================
+ * 星星变体样式
+ * =============================================== */
+
+/* 星星变体：使用星星符号代替对钩 */
+.cute-checkbox.variant-star .checkmark::after {
+  content: '★';
+  border: none;
+  transform: none;
+  color: #d9d9d9;
+  font-size: 1.2rem;
+  line-height: 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  height: auto;
+}
+
+/* 星星变体 Large size */
+.cute-checkbox.variant-star.size-large .checkmark::after {
+  font-size: 1.6rem;
+}
+
+/* 星星变体：鼠标悬停变蓝色 */
+.cute-checkbox.variant-star:hover .checkmark {
+  border-color: var(--color-primary, #4a90e2);
+}
+
+.cute-checkbox.variant-star:hover .checkmark::after {
+  color: var(--color-primary, #4a90e2);
+}
+
+/* 星星变体：选中状态为蓝色 */
+.cute-checkbox.variant-star input[type='checkbox']:checked ~ .checkmark {
+  border-color: var(--color-primary, #4a90e2);
+}
+
+.cute-checkbox.variant-star input[type='checkbox']:checked ~ .checkmark::after {
+  color: var(--color-primary, #4a90e2);
+}
+
+/* 星星变体：禁用状态 */
+.cute-checkbox.variant-star input[type='checkbox']:disabled ~ .checkmark::after {
+  color: #d9d9d9;
 }
 </style>
