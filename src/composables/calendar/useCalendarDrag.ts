@@ -28,6 +28,10 @@ export function useCalendarDrag(
   const currentDraggedTask = ref<TaskCard | null>(null)
   const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
 
+  // 节流控制
+  const lastUpdateTime = ref(0)
+  const UPDATE_THROTTLE = 16 // 约60fps
+
   const crossViewDrag = useCrossViewDrag()
   const dragTransfer = useDragTransfer()
   const areaStore = useAreaStore()
@@ -95,10 +99,12 @@ export function useCalendarDrag(
       event.dataTransfer.dropEffect = 'copy'
     }
 
-    // 更新预览和自动滚动
-    if (isDragging.value) {
+    // 节流更新预览，避免过于频繁的计算
+    const now = Date.now()
+    if (isDragging.value && now - lastUpdateTime.value > UPDATE_THROTTLE) {
       updatePreviewEvent(event)
       dependencies.handleAutoScroll(event, event.currentTarget as HTMLElement)
+      lastUpdateTime.value = now
     }
   }
 

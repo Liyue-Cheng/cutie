@@ -1243,7 +1243,9 @@ POST /api/tasks/{id}/completion
 ### 2.2. 核心业务逻辑 (Core Business Logic)
 
 完成任务，并根据 Cutie 的业务规则智能处理相关的日程和时间块：
-1. **当天日程**: 设置为已完成（`outcome = 'COMPLETED_ON_DAY'`）
+1. **当天日程**:
+   - 如果今天已有日程：设置为已完成（`outcome = 'COMPLETED_ON_DAY'`）
+   - 如果今天没有日程：创建一条新日程并设置为已完成（确保任务保留在今天的看板中）
 2. **未来日程**: 删除
 3. **时间块处理**（仅针对唯一关联且自动创建的时间块）:
    - 在过去：保留
@@ -1319,7 +1321,9 @@ POST /api/tasks/{id}/completion
 6.  检查任务是否已完成，如果是，返回 409 冲突。
 7.  设置任务为已完成（`TaskRepository::set_completed_in_tx`）。
 8.  处理日程:
-    - 更新当天日程为已完成（`TaskScheduleRepository::update_today_to_completed_in_tx`）
+    - 检查今天是否有日程（`TaskScheduleRepository::has_schedule_for_day_in_tx`）
+    - 如果有：更新当天日程为已完成（`TaskScheduleRepository::update_today_to_completed_in_tx`）
+    - 如果没有：创建今天的日程（`TaskScheduleRepository::create_in_tx`），然后更新为已完成
     - 删除未来日程（`TaskScheduleRepository::delete_future_schedules_in_tx`）
 9.  查询所有链接的时间块（`TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx`）。
 10. 对每个时间块，调用 `classify_time_block_action` 分类处理动作：
@@ -1342,20 +1346,23 @@ POST /api/tasks/{id}/completion
 
 - **任务不存在:** 返回 `404` 错误。
 - **任务已完成:** 返回 `409` 冲突（幂等性保护）。
+- **今天没有日程:** 自动创建一条日程并标记为已完成，确保任务保留在今天的看板中。
+- **今天已有日程:** 直接更新为已完成。
 - **时间块是手动创建的（标题与任务不一致）:** 保留，不删除也不截断。
 - **时间块关联多个任务:** 保留，不删除也不截断（避免影响其他任务）。
 - **时间块在过去:** 保留（记录已完成的工作）。
 - **时间块正在进行:** 截断到当前时间（记录部分努力）。
 - **时间块在未来:** 删除（因为任务已完成，不需要未来的时间安排）。
-- **无日程和时间块的任务:** 只更新 `completed_at` 字段。
+- **无日程和时间块的任务:** 创建今天的日程并标记为已完成，然后更新 `completed_at` 字段。
 - **幂等性:** 通过 `completed_at` 检查和 correlation_id 实现。
 
 ## 7. 预期副作用 (Expected Side Effects)
 
 - **数据库写入:**
-    - **`SELECT`:** 查询任务、链接的时间块、排他性检查。
+    - **`SELECT`:** 查询任务、链接的时间块、排他性检查、检查今天是否有日程。
     - **`UPDATE`:** 1条记录在 `tasks` 表（设置 `completed_at`）。
-    - **`UPDATE`:** 0-N 条记录在 `task_schedules` 表（当天设为完成）。
+    - **`INSERT`:** 0-1 条记录在 `task_schedules` 表（如果今天没有日程，创建一条）。
+    - **`UPDATE`:** 1 条记录在 `task_schedules` 表（今天的日程设为完成）。
     - **`DELETE`:** 0-N 条记录在 `task_schedules` 表（删除未来日程）。
     - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除或截断）。
     - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
