@@ -186,6 +186,7 @@ pub async fn handle(
 
 // ==================== 验证层 ====================
 mod validation {
+    use chrono::{DateTime, Utc};
     use super::*;
 
     pub fn validate_create_request(request: &CreateTimeBlockRequest) -> AppResult<()> {
@@ -198,7 +199,16 @@ mod validation {
             ));
         }
 
-        // 验证时间不在过去太远（可选，根据需求）
+        // 验证分时事件不能跨天
+        let is_all_day = request.is_all_day.unwrap_or(false);
+        if !is_all_day && !is_same_day(&request.start_time, &request.end_time) {
+            return Err(AppError::validation_error(
+                "time_range",
+                "分时事件不能跨天，请使用全天事件或将时间块拆分为多个",
+                "CROSS_DAY_TIMED_EVENT",
+            ));
+        }
+
         // 验证标题长度（如果有）
         if let Some(title) = &request.title {
             if title.len() > 255 {
@@ -211,6 +221,11 @@ mod validation {
         }
 
         Ok(())
+    }
+
+    /// 检查两个时间是否在同一天（UTC）
+    fn is_same_day(time1: &DateTime<Utc>, time2: &DateTime<Utc>) -> bool {
+        time1.date_naive() == time2.date_naive()
     }
 }
 

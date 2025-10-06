@@ -10,7 +10,10 @@ import { useTimeBlockStore } from '@/stores/timeblock'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 
-export function useCalendarHandlers(previewEvent: Ref<EventInput | null>) {
+export function useCalendarHandlers(
+  previewEvent: Ref<EventInput | null>,
+  currentDateRef: Ref<string | undefined>
+) {
   const timeBlockStore = useTimeBlockStore()
   const contextMenu = useContextMenu()
 
@@ -100,15 +103,24 @@ export function useCalendarHandlers(previewEvent: Ref<EventInput | null>) {
     let startTime = event.start?.toISOString()
     let endTime = event.end?.toISOString()
 
-    // ✅ 从全天拖到分时：设置为 1 小时
+    // ✅ 从全天拖到分时：设置为 1 小时，并截断到日界
     if (wasAllDay && isNowTimed && event.start) {
       const start = new Date(event.start)
-      const end = new Date(start.getTime() + 60 * 60 * 1000) // Add 1 hour
+      let end = new Date(start.getTime() + 60 * 60 * 1000) // Add 1 hour
+
+      // 截断：不得跨天
+      const dayEnd = new Date(start)
+      dayEnd.setHours(0, 0, 0, 0)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+      if (end.getTime() > dayEnd.getTime()) {
+        end = dayEnd
+      }
+
       startTime = start.toISOString()
       endTime = end.toISOString()
 
       console.log(
-        `[Calendar] Converting all-day event to 1-hour timed event: ${startTime} - ${endTime}`
+        `[Calendar] Converting all-day event to timed event (max 1 hour): ${startTime} - ${endTime}`
       )
     }
 
@@ -126,14 +138,37 @@ export function useCalendarHandlers(previewEvent: Ref<EventInput | null>) {
 
     // 统一截断：分时事件不得跨天（包括拖动/拉伸）
     if (!isNowAllDay && event.start && event.end) {
-      const start = new Date(event.start)
+      let start = new Date(event.start)
       let end = new Date(event.end)
-      const dayEnd = new Date(start)
-      dayEnd.setHours(0, 0, 0, 0)
-      dayEnd.setDate(dayEnd.getDate() + 1)
-      if (end.getTime() > dayEnd.getTime()) {
-        end = dayEnd
-        endTime = end.toISOString()
+
+      // 检查是否在同一天（UTC日期比较）
+      const startDay = start.toISOString().split('T')[0]
+      const endDay = end.toISOString().split('T')[0]
+
+      if (startDay !== endDay) {
+        // 跨天了：根据当前日历视图日期决定保留哪一天
+        const viewDate = currentDateRef.value || startDay // 默认保留start那天
+
+        if (viewDate === endDay) {
+          // 视图日期是end那天，截断start到end那天的开始
+          const dayStart = new Date(end)
+          dayStart.setHours(0, 0, 0, 0)
+          start = dayStart
+          startTime = start.toISOString()
+          console.log(
+            `[Calendar] Cross-day detected, keeping view date (${viewDate}), truncating start to ${startTime}`
+          )
+        } else {
+          // 视图日期是start那天（或默认），截断到start那天的末尾
+          const dayEnd = new Date(start)
+          dayEnd.setHours(0, 0, 0, 0)
+          dayEnd.setDate(dayEnd.getDate() + 1)
+          end = dayEnd
+          endTime = end.toISOString()
+          console.log(
+            `[Calendar] Cross-day detected, keeping view date (${viewDate}), truncating end to ${endTime}`
+          )
+        }
       }
     }
 

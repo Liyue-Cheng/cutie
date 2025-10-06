@@ -86,7 +86,7 @@ drag.initialize()
 const { calendarEvents } = useCalendarEvents(drag.previewEvent)
 
 // 事件处理器
-const handlers = useCalendarHandlers(drag.previewEvent)
+const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef)
 
 // 日历配置
 const { calendarOptions } = useCalendarOptions(calendarEvents, handlers)

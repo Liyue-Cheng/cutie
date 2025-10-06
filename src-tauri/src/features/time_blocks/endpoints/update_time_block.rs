@@ -257,6 +257,41 @@ mod validation {
 
         Ok(())
     }
+
+    /// 验证最终时间范围（包括跨天检测）
+    pub fn validate_final_time_range(
+        final_start_time: &chrono::DateTime<chrono::Utc>,
+        final_end_time: &chrono::DateTime<chrono::Utc>,
+        final_is_all_day: bool,
+    ) -> AppResult<()> {
+        // 基本验证：开始时间必须早于结束时间
+        if final_start_time >= final_end_time {
+            return Err(AppError::validation_error(
+                "time_range",
+                "开始时间必须早于结束时间",
+                "INVALID_TIME_RANGE",
+            ));
+        }
+
+        // 验证分时事件不能跨天
+        if !final_is_all_day && !is_same_day(final_start_time, final_end_time) {
+            return Err(AppError::validation_error(
+                "time_range",
+                "分时事件不能跨天，请使用全天事件或将时间块拆分为多个",
+                "CROSS_DAY_TIMED_EVENT",
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// 检查两个时间是否在同一天（UTC）
+    fn is_same_day(
+        time1: &chrono::DateTime<chrono::Utc>,
+        time2: &chrono::DateTime<chrono::Utc>,
+    ) -> bool {
+        time1.date_naive() == time2.date_naive()
+    }
 }
 
 // ==================== 业务逻辑层 ====================
@@ -284,14 +319,8 @@ mod logic {
         let final_end_time = request.end_time.unwrap_or(existing_block.end_time);
         let final_is_all_day = request.is_all_day.unwrap_or(existing_block.is_all_day);
 
-        // 5. 再次验证最终时间范围
-        if final_start_time >= final_end_time {
-            return Err(AppError::validation_error(
-                "time_range",
-                "开始时间必须早于结束时间",
-                "INVALID_TIME_RANGE",
-            ));
-        }
+        // 5. 验证最终时间范围（包括跨天检测）
+        validation::validate_final_time_range(&final_start_time, &final_end_time, final_is_all_day)?;
 
         // 6. 如果时间范围或全天状态发生变化，检查时间冲突（✅ 使用共享 ConflictChecker）
         if request.start_time.is_some() || request.end_time.is_some() || request.is_all_day.is_some() {
