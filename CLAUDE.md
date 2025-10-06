@@ -13,34 +13,40 @@ Cutie is a task management desktop application built with:
 
 ## Development Commands
 
+**⚠️ IMPORTANT: DO NOT START DEV SERVERS**
+- **NEVER run `pnpm dev`, `pnpm tauri dev`, or `cargo run`** - the user has HMR dev servers already running
+- Only run build, test, and lint commands
+- Package manager: **pnpm** (not npm or yarn)
+
 ### Frontend (Vue + Vite)
 ```bash
-npm run dev          # Start Vite dev server (port 1421)
-npm run build        # Build frontend (runs vue-tsc -b && vite build)
-npm run preview      # Preview production build
+pnpm build           # Build frontend (runs vue-tsc -b && vite build)
+pnpm preview         # Preview production build
+
+# ❌ DO NOT RUN: pnpm dev (dev server already running)
 ```
 
 ### Backend (Tauri + Rust)
 ```bash
-# Run full application (Tauri GUI + sidecar server)
-cargo run
-
-# Run sidecar server only (for backend development)
-cargo run -- --sidecar
-
 # Run tests
 cargo test
 
+# Check compilation
+cargo check
+
 # Database migrations (located in src-tauri/migrations/)
 # Migrations run automatically on app startup
+
+# ❌ DO NOT RUN: cargo run (dev server already running)
+# ❌ DO NOT RUN: pnpm tauri dev (dev server already running)
 ```
 
 ### Linting
 ```bash
 # Frontend
-npx eslint src/        # JavaScript/TypeScript linting
-npx prettier --check . # Code formatting check
-npx stylelint "**/*.vue" # Vue styles linting
+pnpm exec eslint src/        # JavaScript/TypeScript linting
+pnpm exec prettier --check . # Code formatting check
+pnpm exec stylelint "**/*.vue" # Vue styles linting
 
 # Backend
 cargo clippy           # Rust linting
@@ -253,10 +259,106 @@ eventSource.addEventListener('TaskUpdated', (event) => {
 
 ### Task States & Transitions
 
-- **Staging**: Unscheduled tasks (no schedule record)
-- **Planned**: Tasks with schedules (has `scheduled_date`)
-- **Completed**: Tasks with `completed_at` timestamp
-- **Incomplete**: Tasks without `completed_at`
+#### Task Status
+- **Completed**: `completed_at` field has value
+- **Incomplete**: `completed_at` field is NULL
+- **Archived**: `archived_at` field has value
+
+#### Valid Schedule (有效排期)
+**Definition**: A task has a schedule record with `scheduled_date` >= today
+- Past schedules don't count as "valid schedule" (only for historical records)
+- This determines if a task appears in staging vs. date-based views
+
+#### Schedule Outcome States
+Each schedule has an `outcome` field tracking the task's progress on that day:
+
+```
+PLANNED              # Task scheduled but not worked on yet
+    ↓ [click presence ★]
+PRESENCE_LOGGED      # Task actively worked on
+    ↓ [click complete ✓]
+COMPLETED_ON_DAY     # Task completed on this day
+    ↓ [click complete again]
+PRESENCE_LOGGED      # Reopen (back to in-progress)
+```
+
+**Valid Transitions**:
+- PLANNED → PRESENCE_LOGGED (click ★ presence button)
+- PLANNED → COMPLETED_ON_DAY (click ✓ complete button)
+- PRESENCE_LOGGED → PLANNED (click ★ again to cancel presence)
+- PRESENCE_LOGGED → COMPLETED_ON_DAY (click ✓ complete button)
+- COMPLETED_ON_DAY → PRESENCE_LOGGED (click ✓ again to reopen)
+
+**Note**: CARRIED_OVER is a reserved field, not currently used.
+
+### Kanban Filtering Rules
+
+#### Staging (暂存区)
+**Filter conditions**:
+- Task is incomplete (`completed_at` IS NULL)
+- Task is not archived (`archived_at` IS NULL)
+- Task has NO valid schedule (no schedule with `scheduled_date` >= today)
+
+**Mental model**: Inbox for unscheduled tasks
+
+#### Daily View (当日看板)
+**Filter conditions**:
+- Task is not archived (`archived_at` IS NULL)
+- Task has a schedule for today (`scheduled_date` = today)
+
+**Mental model**: Today's work dashboard
+**Key design**: Completed tasks still show in daily view (completion is today's outcome)
+
+#### Past Date View (过去看板)
+**Filter conditions**:
+- Task is not archived (`archived_at` IS NULL)
+- Task has a schedule for that past date (`scheduled_date` = specific past date)
+
+**Mental model**: Historical work log
+
+#### Future Date View (未来看板)
+**Filter conditions**:
+- Task is not archived (`archived_at` IS NULL)
+- Task has a schedule for that future date (`scheduled_date` = specific future date)
+
+**Mental model**: Future planning
+
+### Core Business Events
+
+#### Task Completion Event
+**Trigger**: Click complete button on incomplete task
+
+**Steps**:
+1. Set `tasks.completed_at` = current timestamp
+2. Complete all subtasks (`subtasks.is_completed` = true)
+3. Set today's schedule: `outcome = 'COMPLETED_ON_DAY'`
+4. Truncate ongoing time_block (set end_time to now)
+5. Delete all future schedules and time_blocks
+6. Move task to bottom of incomplete tasks section
+
+#### Task Reopen Event
+**Trigger**: Click complete button on completed task
+
+**Steps**:
+1. Set `tasks.completed_at` = NULL
+2. Set today's schedule: `outcome = 'PRESENCE_LOGGED'` (back from COMPLETED_ON_DAY)
+
+**Note**: Only modifies today's schedule, doesn't affect time_blocks
+
+#### Create Schedule Event
+**Trigger**: Drag task from staging to date view
+
+**Steps**:
+1. Create schedule with `scheduled_date` = target date
+2. If dragged to past date: auto-complete task (`completed_at` = that date, `outcome` = 'COMPLETED_ON_DAY')
+
+#### Return to Staging Event
+**Trigger**: Drag task from date view to staging
+
+**Steps**:
+1. Delete all schedules and time_blocks for today and future dates
+2. Preserve past schedules and time_blocks (including outcome values)
+3. If task is completed: auto-reopen (`completed_at` = NULL)
 
 ### View Metadata System
 
@@ -279,6 +381,8 @@ The app uses application-level write serialization to avoid SQLite lock contenti
 
 ## Important Notes
 
+- **⚠️ Dev Servers**: NEVER start dev servers (`pnpm dev`, `pnpm tauri dev`, `cargo run`) - user has HMR dev servers running
+- **Package Manager**: Use **pnpm** exclusively (not npm or yarn)
 - **Port Discovery**: Sidecar server uses dynamic port selection; frontend listens for `sidecar-port-discovered` event
 - **Migrations**: SQLite migrations are in `src-tauri/migrations/` and run automatically on startup
 - **Type Generation**: Rust structs with `#[derive(TS)]` generate TypeScript types (see `ts-rs` crate)

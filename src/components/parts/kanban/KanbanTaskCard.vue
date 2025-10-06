@@ -111,7 +111,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
       <div class="card-footer">
         <div class="main-checkbox-wrapper">
-          <!-- 完成按钮：过去日期时隐藏但保留空间 -->
+          <!-- 完成按钮：过去日期且后续有记录时不显示 -->
           <CuteCheckbox
             v-if="!isPastDate"
             class="main-checkbox"
@@ -120,7 +120,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             @update:checked="handleStatusChange"
             @click.stop
           ></CuteCheckbox>
-          <div v-else class="main-checkbox-placeholder"></div>
 
           <!-- 星星按钮：只在日期看板显示 -->
           <CuteCheckbox
@@ -213,12 +212,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   align-items: center;
   gap: 0.8rem;
   align-self: flex-start;
-}
-
-/* 完成按钮占位符（保持空间但不显示） */
-.main-checkbox-placeholder {
-  width: 2.55rem;
-  height: 2.55rem;
 }
 
 .star-checkbox {
