@@ -469,7 +469,7 @@ function handleClose() {
 .content-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 /* 第一栏：卡片标题栏 */
@@ -545,7 +545,7 @@ function handleClose() {
 .right-section {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .due-date-button {
@@ -592,7 +592,7 @@ function handleClose() {
 .title-row {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 .title-input {
@@ -672,7 +672,7 @@ function handleClose() {
 .subtasks-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .subtasks-header {
@@ -684,13 +684,13 @@ function handleClose() {
 .subtasks-list {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.4rem;
 }
 
 .subtask-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   padding: 0.4rem 0.6rem;
   border-radius: 0.4rem;
   transition: background-color 0.2s;
