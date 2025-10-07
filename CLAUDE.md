@@ -282,7 +282,6 @@ mod database {
 - `TimeBlockConflictChecker`: `check_in_tx()`
 
 #### Core Utilities (`shared/core/utils/`)
-- `sort_order_utils.rs`: LexoRank sorting - `generate_initial_sort_order()`, `get_rank_after()`, `get_rank_before()`, `get_mid_lexo_rank()`
 - `time_utils.rs`: Time handling utilities
 
 ### AppState Methods

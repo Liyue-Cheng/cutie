@@ -384,25 +384,26 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     console.log('[TimeBlockStore] Linking task', taskId, 'to block', blockId)
 
     try {
-      // TODO: 实现 API 调用
-      // const apiBaseUrl = await waitForApiReady()
-      // const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/tasks`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ task_id: taskId })
-      // })
-      // if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const apiBaseUrl = await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId }),
+      })
 
-      // // 重新获取该时间块以更新链接的任务列表
-      // const block = timeBlocks.value.get(blockId)
-      // if (block) {
-      //   const date = new Date(block.start_time).toISOString().split('T')[0]
-      //   await fetchTimeBlocksForDate(date)
-      // }
-      // return true
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Unknown error'}`)
+      }
 
-      console.log('[TimeBlockStore] linkTaskToBlock - API not implemented yet')
-      return false
+      const data = await response.json()
+      const updatedBlock: TimeBlockView = data.time_block
+
+      // 更新本地 store
+      addOrUpdateTimeBlock(updatedBlock)
+
+      console.log('[TimeBlockStore] ✅ Task linked successfully:', updatedBlock)
+      return true
     } catch (e) {
       error.value = `Failed to link task to block: ${e}`
       console.error('[TimeBlockStore] Error linking task to block:', e)

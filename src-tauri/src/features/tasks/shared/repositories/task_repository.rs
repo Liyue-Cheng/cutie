@@ -19,7 +19,7 @@ impl TaskRepository {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
-                   created_at, updated_at, is_deleted, source_info,
+                   created_at, updated_at, is_deleted, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM tasks
@@ -47,7 +47,7 @@ impl TaskRepository {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
-                   created_at, updated_at, is_deleted, source_info,
+                   created_at, updated_at, is_deleted, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM tasks
@@ -76,10 +76,10 @@ impl TaskRepository {
             INSERT INTO tasks (
                 id, title, glance_note, detail_note, estimated_duration, subtasks,
                 project_id, area_id, due_date, due_date_type, completed_at, archived_at,
-                created_at, updated_at, is_deleted, source_info,
+                created_at, updated_at, is_deleted, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -106,6 +106,7 @@ impl TaskRepository {
             .bind(task.created_at.to_rfc3339())
             .bind(task.updated_at.to_rfc3339())
             .bind(task.is_deleted)
+            .bind(task.deleted_at.map(|d| d.to_rfc3339()))
             .bind(
                 task.source_info
                     .as_ref()
@@ -234,9 +235,12 @@ impl TaskRepository {
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
     ) -> AppResult<()> {
-        let query = "UPDATE tasks SET is_deleted = true, updated_at = ? WHERE id = ?";
+        let now = Utc::now();
+        let query =
+            "UPDATE tasks SET is_deleted = true, deleted_at = ?, updated_at = ? WHERE id = ?";
         sqlx::query(query)
-            .bind(Utc::now().to_rfc3339())
+            .bind(now.to_rfc3339())
+            .bind(now.to_rfc3339())
             .bind(task_id.to_string())
             .execute(&mut **tx)
             .await
