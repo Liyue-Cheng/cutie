@@ -5,6 +5,8 @@ import type {
   UpdateTaskPayload,
   CompleteTaskResponse,
   ReopenTaskResponse,
+  ArchiveTaskResponse,
+  UnarchiveTaskResponse,
 } from './types'
 import type { createTaskCore } from './core'
 
@@ -313,6 +315,75 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
     }, `return task ${taskId} to staging`)
   }
 
+  /**
+   * 归档任务
+   * API: POST /tasks/:id/archive
+   */
+  async function archiveTask(id: string): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('archiveTask')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'archiveTask')
+
+        const data: ArchiveTaskResponse = await apiPost(
+          `/tasks/${id}/archive`,
+          undefined,
+          correlationId
+        )
+
+        correlationTracker.markHttpReceived(correlationId, 'archiveTask')
+
+        addOrUpdateTask(data.task)
+
+        console.log('[TaskStore] Archived task (HTTP):', data.task, 'correlation:', correlationId)
+        return data.task
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, `archive task ${id}`)
+  }
+
+  /**
+   * 取消归档任务
+   * API: POST /tasks/:id/unarchive
+   */
+  async function unarchiveTask(id: string): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('unarchiveTask')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'unarchiveTask')
+
+        const data: UnarchiveTaskResponse = await apiPost(
+          `/tasks/${id}/unarchive`,
+          undefined,
+          correlationId
+        )
+
+        correlationTracker.markHttpReceived(correlationId, 'unarchiveTask')
+
+        addOrUpdateTask(data.task)
+
+        console.log(
+          '[TaskStore] Unarchived task (HTTP):',
+          data.task,
+          'correlation:',
+          correlationId
+        )
+        return data.task
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, `unarchive task ${id}`)
+  }
+
   return {
     createTask,
     updateTask,
@@ -320,6 +391,8 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
     deleteTask,
     completeTask,
     reopenTask,
+    archiveTask,
+    unarchiveTask,
     addSchedule,
     updateSchedule,
     deleteSchedule,

@@ -48,6 +48,7 @@ export const useTaskStore = defineStore('task', () => {
     plannedTasks: core.plannedTasks, // ✅ 动态过滤
     incompleteTasks: core.incompleteTasks, // ✅ 动态过滤
     completedTasks: core.completedTasks,
+    archivedTasks: core.archivedTasks,
     scheduledTasks: core.scheduledTasks, // @deprecated
     getTaskById: core.getTaskById,
     getTasksByDate: core.getTasksByDate, // ✅ 日期看板专用
@@ -78,6 +79,8 @@ export const useTaskStore = defineStore('task', () => {
     deleteTask: crudOps.deleteTask,
     completeTask: crudOps.completeTask,
     reopenTask: crudOps.reopenTask,
+    archiveTask: crudOps.archiveTask,
+    unarchiveTask: crudOps.unarchiveTask,
 
     // 日程管理操作
     addSchedule: crudOps.addSchedule,

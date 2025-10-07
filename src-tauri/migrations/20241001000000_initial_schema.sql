@@ -64,6 +64,7 @@ CREATE TABLE tasks (
     due_date TEXT, -- UTC timestamp in RFC 3339 format
     due_date_type TEXT CHECK (due_date_type IN ('SOFT', 'HARD')),
     completed_at TEXT, -- UTC timestamp in RFC 3339 format
+    archived_at TEXT, -- UTC timestamp in RFC 3339 format
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
@@ -94,6 +95,7 @@ CREATE INDEX idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX idx_tasks_area_id ON tasks(area_id);
 CREATE INDEX idx_tasks_external_source_id ON tasks(external_source_id);
 CREATE INDEX idx_tasks_completed_at ON tasks(completed_at);
+CREATE INDEX idx_tasks_archived_at ON tasks(archived_at);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);
 
 -- 创建 time_blocks 表 (时间块表)

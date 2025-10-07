@@ -7,7 +7,20 @@
       "Bash(for:*)",
       "Bash(grep:*)",
       "Bash(done)",
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "Bash(git log --since=\"1 week ago\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"1 week ago\" --all --oneline --pretty=format:\"%s\")",
+      "Bash(git log --since=\"2025-09-28 00:00\" --until=\"2025-09-28 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-09-29 00:00\" --until=\"2025-09-29 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-09-30 00:00\" --until=\"2025-09-30 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-10-01 00:00\" --until=\"2025-10-01 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-10-02 00:00\" --until=\"2025-10-02 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-10-03 00:00\" --until=\"2025-10-03 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-10-04 00:00\" --until=\"2025-10-04 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"2025-10-05 00:00\" --until=\"2025-10-05 23:59\" --all --numstat --pretty=format:\"\")",
+      "Bash(cat notes/业务逻辑.md)",
+      "Bash(cargo check --manifest-path src-tauri/Cargo.toml)",
+      "Bash(cargo check --message-format=short)"
     ],
     "deny": [],
     "ask": []

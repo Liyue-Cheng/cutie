@@ -42,6 +42,7 @@ export interface TaskCard {
 
   // --- 核心状态 (已解耦) ---
   is_completed: boolean
+  is_archived: boolean
   schedule_status: ScheduleStatus
 
   // --- 详细信息 ---

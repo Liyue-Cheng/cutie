@@ -11,7 +11,7 @@ use crate::{
     entities::{Task, TaskDetailDto},
     features::tasks::shared::TaskAssembler,
     shared::{
-        core::{AppError, AppResult},
+        core::{AppError, AppResult, utils::time_utils},
         http::error_handler::success_response,
     },
     startup::AppState,
@@ -154,7 +154,7 @@ mod logic {
         // 4. ✅ 关键：根据实际 schedules 判断 schedule_status
         // staging 定义：今天和未来没有排期的任务，过去的排期不影响
         use chrono::Utc;
-        let today = Utc::now().date_naive();
+        let local_today = time_utils::extract_local_date_from_utc(Utc::now());
 
         let has_future_schedule = schedules
             .as_ref()
@@ -163,7 +163,7 @@ mod logic {
                     if let Ok(schedule_date) =
                         chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
                     {
-                        schedule_date >= today
+                        schedule_date >= local_today
                     } else {
                         false
                     }

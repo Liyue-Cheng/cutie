@@ -179,14 +179,14 @@ mod database {
 
     pub async fn find_all_incomplete_tasks(pool: &sqlx::SqlitePool) -> AppResult<Vec<Task>> {
         let query = r#"
-            SELECT 
-                id, title, glance_note, detail_note, estimated_duration, 
-                subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
+            SELECT
+                id, title, glance_note, detail_note, estimated_duration,
+                subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, is_deleted, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM tasks
-            WHERE is_deleted = false AND completed_at IS NULL
+            WHERE is_deleted = false AND completed_at IS NULL AND archived_at IS NULL
             ORDER BY created_at DESC
         "#;
 

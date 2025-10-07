@@ -176,14 +176,14 @@ mod database {
     pub async fn find_planned_tasks(pool: &sqlx::SqlitePool) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT DISTINCT
-                t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration, 
-                t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, t.completed_at, 
+                t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
+                t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, t.completed_at, t.archived_at,
                 t.created_at, t.updated_at, t.is_deleted, t.source_info,
                 t.external_source_id, t.external_source_provider, t.external_source_metadata,
                 t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date, t.recurrence_exclusions
             FROM tasks t
             INNER JOIN task_schedules ts ON t.id = ts.task_id
-            WHERE t.is_deleted = false AND t.completed_at IS NULL
+            WHERE t.is_deleted = false AND t.completed_at IS NULL AND t.archived_at IS NULL
             ORDER BY ts.scheduled_day ASC, t.created_at DESC
         "#;
 

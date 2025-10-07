@@ -93,6 +93,14 @@ export function createTaskCore() {
   })
 
   /**
+   * 已归档的任务
+   * ✅ 性能优化：复用 allTasksArray
+   */
+  const archivedTasks = computed(() => {
+    return allTasksArray.value.filter((task) => task.is_archived)
+  })
+
+  /**
    * 已安排的任务（包括已完成和未完成）
    * @deprecated 使用 plannedTasks（只含未完成）
    */
@@ -111,6 +119,7 @@ export function createTaskCore() {
    * 获取指定日期的任务列表（响应式）
    * ✅ 单一数据源：从 TaskStore 过滤，自动响应变化
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 过滤归档任务：归档的任务不会出现在日期看板
    */
   const getTasksByDate = computed(() => (date: string) => {
     const result = allTasksArray.value.filter((task) => {
@@ -118,6 +127,11 @@ export function createTaskCore() {
       // if (task.schedules && task.schedules.length > 0) {
       //   console.log('[getTasksByDate] Task:', task.id, 'schedules:', task.schedules)
       // }
+
+      // 排除归档的任务
+      if (task.is_archived) {
+        return false
+      }
 
       // 检查任务是否有该日期的 schedule
       const hasSchedule = task.schedules?.some((schedule) => schedule.scheduled_day === date)
@@ -205,6 +219,7 @@ export function createTaskCore() {
     plannedTasks,
     incompleteTasks,
     completedTasks,
+    archivedTasks,
     scheduledTasks,
     getTaskById,
     getTasksByDate,

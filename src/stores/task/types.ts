@@ -53,3 +53,17 @@ export interface DeleteTaskResponse {
 export interface ReopenTaskResponse {
   task: import('@/types/dtos').TaskCard
 }
+
+/**
+ * 归档任务的响应数据
+ */
+export interface ArchiveTaskResponse {
+  task: import('@/types/dtos').TaskCard
+}
+
+/**
+ * 取消归档任务的响应数据
+ */
+export interface UnarchiveTaskResponse {
+  task: import('@/types/dtos').TaskCard
+}

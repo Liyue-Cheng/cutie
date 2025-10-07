@@ -7,11 +7,19 @@ import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingColumn from '@/components/parts/kanban/StagingColumn.vue'
+import ArchiveColumn from '@/components/parts/kanban/ArchiveColumn.vue'
 import UnderConstruction from '@/components/parts/UnderConstruction.vue'
 import { useTaskStore } from '@/stores/task'
 
 // ==================== 视图类型 ====================
-type RightPaneView = 'calendar' | 'staging' | 'projects' | 'polling' | 'completed' | 'deleted'
+type RightPaneView =
+  | 'calendar'
+  | 'staging'
+  | 'projects'
+  | 'polling'
+  | 'completed'
+  | 'archive'
+  | 'deleted'
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
@@ -41,6 +49,7 @@ const viewConfig = {
   projects: { icon: 'FolderKanban', label: '项目' },
   polling: { icon: 'ListChecks', label: '轮询' },
   completed: { icon: 'CheckCheck', label: '已完成' },
+  archive: { icon: 'Archive', label: '归档' },
   deleted: { icon: 'Trash2', label: '最近删除' },
 } as const
 
@@ -92,6 +101,7 @@ function switchRightPaneView(view: RightPaneView) {
 
 // ==================== 调试功能 ====================
 const isDeletingAll = ref(false)
+const isLoadingAll = ref(false)
 
 async function handleDeleteAllTasks() {
   const confirmed = confirm('⚠️ 确定要删除所有任务吗？此操作不可撤销！')
@@ -129,6 +139,24 @@ async function handleDeleteAllTasks() {
     isDeletingAll.value = false
   }
 }
+
+async function handleLoadAllTasks() {
+  isLoadingAll.value = true
+  console.log('[HomeView] 🔄 Loading all tasks...')
+
+  try {
+    await taskStore.fetchAllTasks()
+    const taskCount = taskStore.allTasks.length
+    const archivedCount = taskStore.archivedTasks.length
+    console.log(`[HomeView] ✅ Loaded ${taskCount} tasks (${archivedCount} archived)`)
+    alert(`加载完成！总任务数：${taskCount}，归档任务：${archivedCount}`)
+  } catch (error) {
+    console.error('[HomeView] ❌ Error loading tasks:', error)
+    alert('加载任务失败')
+  } finally {
+    isLoadingAll.value = false
+  }
+}
 </script>
 
 <template>
@@ -139,14 +167,24 @@ async function handleDeleteAllTasks() {
           <div class="kanban-header">
             <h2>日程看板</h2>
             <span class="kanban-count">{{ kanbanCount }} 个看板</span>
-            <button
-              class="delete-all-btn"
-              :disabled="isDeletingAll || taskStore.allTasks.length === 0"
-              @click="handleDeleteAllTasks"
-              title="删除所有任务（调试用）"
-            >
-              {{ isDeletingAll ? '删除中...' : '🗑️ 删除全部' }}
-            </button>
+            <div class="debug-buttons">
+              <button
+                class="debug-btn load-btn"
+                :disabled="isLoadingAll"
+                @click="handleLoadAllTasks"
+                title="重新加载所有任务（调试用）"
+              >
+                {{ isLoadingAll ? '加载中...' : '🔄 加载全部' }}
+              </button>
+              <button
+                class="debug-btn delete-btn"
+                :disabled="isDeletingAll || taskStore.allTasks.length === 0"
+                @click="handleDeleteAllTasks"
+                title="删除所有任务（调试用）"
+              >
+                {{ isDeletingAll ? '删除中...' : '🗑️ 删除全部' }}
+              </button>
+            </div>
           </div>
         </template>
         <template #bottom>
@@ -204,6 +242,11 @@ async function handleDeleteAllTasks() {
             v-else-if="currentRightPaneView === 'completed'"
             title="已完成任务"
             description="查看已完成的任务历史"
+          />
+          <!-- 归档视图 -->
+          <ArchiveColumn
+            v-else-if="currentRightPaneView === 'archive'"
+            @open-editor="handleOpenEditor"
           />
           <UnderConstruction
             v-else-if="currentRightPaneView === 'deleted'"
@@ -388,11 +431,15 @@ async function handleDeleteAllTasks() {
 }
 
 /* ==================== 调试按钮 ==================== */
-.delete-all-btn {
+.debug-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.debug-btn {
   padding: 0.5rem 1rem;
   font-size: 1.3rem;
   font-weight: 500;
-  background-color: #ff4d4f;
   color: #fff;
   border: none;
   border-radius: 0.4rem;
@@ -401,21 +448,37 @@ async function handleDeleteAllTasks() {
   white-space: nowrap;
 }
 
-.delete-all-btn:disabled {
+.debug-btn:disabled {
   background-color: #ccc;
   color: #666;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.delete-all-btn:hover:not(:disabled) {
-  background-color: #d9363e;
+.debug-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgb(255 77 79 / 30%);
 }
 
-.delete-all-btn:active:not(:disabled) {
+.debug-btn:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.load-btn {
+  background-color: #4a90e2;
+}
+
+.load-btn:hover:not(:disabled) {
+  background-color: #357abd;
+  box-shadow: 0 2px 8px rgb(74 144 226 / 30%);
+}
+
+.delete-btn {
+  background-color: #ff4d4f;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #d9363e;
+  box-shadow: 0 2px 8px rgb(255 77 79 / 30%);
 }
 
 :deep(.top-row .cute-button) {

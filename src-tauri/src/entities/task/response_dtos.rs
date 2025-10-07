@@ -20,6 +20,7 @@ pub struct TaskCardDto {
 
     // --- 核心状态 (已解耦) ---
     pub is_completed: bool,
+    pub is_archived: bool,
     pub schedule_status: ScheduleStatus,
 
     // --- 详细信息 ---

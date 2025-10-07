@@ -95,26 +95,6 @@ const handleChange = (event: Event) => {
   height: 1.063rem;
 }
 
-/* 选中状态：确认为绿色 */
-.cute-checkbox input[type='checkbox']:checked ~ .checkmark {
-  border-color: var(--color-status-done);
-}
-
-.cute-checkbox input[type='checkbox']:checked ~ .checkmark::after {
-  border-color: var(--color-status-done);
-}
-
-/* Disabled state */
-.cute-checkbox input[type='checkbox']:disabled ~ .checkmark {
-  border-color: #d9d9d9;
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.cute-checkbox input[type='checkbox']:disabled ~ .checkmark::after {
-  border-color: #d9d9d9;
-}
-
 /* ===============================================
  * 星星变体样式
  * =============================================== */
@@ -123,7 +103,6 @@ const handleChange = (event: Event) => {
 .cute-checkbox.variant-star .checkmark::after {
   content: '★';
   border: none;
-  transform: none;
   color: #d9d9d9;
   font-size: 1.2rem;
   line-height: 1;
@@ -146,6 +125,30 @@ const handleChange = (event: Event) => {
 
 .cute-checkbox.variant-star:hover .checkmark::after {
   color: var(--color-primary, #4a90e2);
+}
+
+/* ===============================================
+ * 状态样式（放在最后以确保正确的特异性）
+ * =============================================== */
+
+/* 选中状态：确认为绿色 */
+.cute-checkbox input[type='checkbox']:checked ~ .checkmark {
+  border-color: var(--color-status-done);
+}
+
+.cute-checkbox input[type='checkbox']:checked ~ .checkmark::after {
+  border-color: var(--color-status-done);
+}
+
+/* Disabled state */
+.cute-checkbox input[type='checkbox']:disabled ~ .checkmark {
+  border-color: #d9d9d9;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cute-checkbox input[type='checkbox']:disabled ~ .checkmark::after {
+  border-color: #d9d9d9;
 }
 
 /* 星星变体：选中状态为蓝色 */

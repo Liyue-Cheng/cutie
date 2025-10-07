@@ -222,7 +222,7 @@ mod database {
     ) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT DISTINCT t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
-                   t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, t.completed_at,
+                   t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, t.completed_at, t.archived_at,
                    t.created_at, t.updated_at, t.is_deleted, t.source_info,
                    t.external_source_id, t.external_source_provider, t.external_source_metadata,
                    t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date, t.recurrence_exclusions
@@ -230,6 +230,7 @@ mod database {
             INNER JOIN task_schedules ts ON ts.task_id = t.id
             WHERE DATE(ts.scheduled_day) = DATE(?)
               AND t.is_deleted = false
+              AND t.archived_at IS NULL
             ORDER BY t.created_at DESC
         "#;
 

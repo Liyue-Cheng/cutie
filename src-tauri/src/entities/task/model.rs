@@ -80,6 +80,11 @@ pub struct Task {
     /// **不变量:** 此字段的值是判断任务是否完成的唯一依据。IS NOT NULL意味着已完成
     pub completed_at: Option<DateTime<Utc>>,
 
+    /// 归档时间 (可选)
+    ///
+    /// **后置条件:** 当为Some时，该任务被归档，不应在常规视图中显示
+    pub archived_at: Option<DateTime<Utc>>,
+
     /// 创建时间
     ///
     /// **不变量:** 创建后不可更改
@@ -135,6 +140,7 @@ impl Task {
             due_date: None,
             due_date_type: None,
             completed_at: None,
+            archived_at: None,
             created_at,
             updated_at: created_at,
             is_deleted: false,
@@ -165,6 +171,23 @@ impl Task {
         self.completed_at = None;
         self.updated_at = updated_at;
     }
+
+    /// 归档任务
+    pub fn archive(&mut self, archived_at: DateTime<Utc>) {
+        self.archived_at = Some(archived_at);
+        self.updated_at = archived_at;
+    }
+
+    /// 取消归档任务
+    pub fn unarchive(&mut self, updated_at: DateTime<Utc>) {
+        self.archived_at = None;
+        self.updated_at = updated_at;
+    }
+
+    /// 检查任务是否已归档
+    pub fn is_archived(&self) -> bool {
+        self.archived_at.is_some()
+    }
 }
 
 /// TaskRow - 数据库行映射结构
@@ -184,6 +207,7 @@ pub struct TaskRow {
     pub due_date: Option<DateTime<Utc>>,     // SQLx自动转换
     pub due_date_type: Option<String>,       // JSON
     pub completed_at: Option<DateTime<Utc>>, // SQLx自动转换
+    pub archived_at: Option<DateTime<Utc>>,  // SQLx自动转换
     pub created_at: DateTime<Utc>,           // SQLx自动转换
     pub updated_at: DateTime<Utc>,           // SQLx自动转换
     pub is_deleted: bool,
@@ -222,6 +246,7 @@ impl TryFrom<TaskRow> for Task {
                 .as_ref()
                 .and_then(|s| serde_json::from_str(s).ok()),
             completed_at: row.completed_at, // SQLx已经转换
+            archived_at: row.archived_at,   // SQLx已经转换
             created_at: row.created_at,     // SQLx已经转换
             updated_at: row.updated_at,     // SQLx已经转换
             is_deleted: row.is_deleted,

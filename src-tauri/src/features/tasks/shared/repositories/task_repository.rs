@@ -17,12 +17,12 @@ impl TaskRepository {
         task_id: Uuid,
     ) -> AppResult<Option<Task>> {
         let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
+            SELECT id, title, glance_note, detail_note, estimated_duration,
+                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
+            FROM tasks
             WHERE id = ? AND is_deleted = false
         "#;
 
@@ -45,12 +45,12 @@ impl TaskRepository {
     /// 非事务查询任务
     pub async fn find_by_id(pool: &SqlitePool, task_id: Uuid) -> AppResult<Option<Task>> {
         let query = r#"
-            SELECT id, title, glance_note, detail_note, estimated_duration, 
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, 
+            SELECT id, title, glance_note, detail_note, estimated_duration,
+                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks 
+            FROM tasks
             WHERE id = ? AND is_deleted = false
         "#;
 
@@ -75,11 +75,11 @@ impl TaskRepository {
         let query = r#"
             INSERT INTO tasks (
                 id, title, glance_note, detail_note, estimated_duration, subtasks,
-                project_id, area_id, due_date, due_date_type, completed_at,
+                project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, is_deleted, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -102,6 +102,7 @@ impl TaskRepository {
                     .map(|t| serde_json::to_string(t).unwrap()),
             )
             .bind(task.completed_at.map(|d| d.to_rfc3339()))
+            .bind(task.archived_at.map(|d| d.to_rfc3339()))
             .bind(task.created_at.to_rfc3339())
             .bind(task.updated_at.to_rfc3339())
             .bind(task.is_deleted)

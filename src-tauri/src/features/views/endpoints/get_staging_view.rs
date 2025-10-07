@@ -171,18 +171,19 @@ mod database {
     /// - 不存在于 task_schedules 表中
     pub async fn find_staging_tasks(pool: &sqlx::SqlitePool) -> AppResult<Vec<Task>> {
         let query = r#"
-            SELECT 
-                t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration, 
-                t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, 
-                t.completed_at, t.created_at, t.updated_at, t.is_deleted, t.source_info,
+            SELECT
+                t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
+                t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type,
+                t.completed_at, t.archived_at, t.created_at, t.updated_at, t.is_deleted, t.source_info,
                 t.external_source_id, t.external_source_provider, t.external_source_metadata,
-                t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date, 
+                t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date,
                 t.recurrence_exclusions
             FROM tasks t
             WHERE t.is_deleted = false
               AND t.completed_at IS NULL
+              AND t.archived_at IS NULL
               AND NOT EXISTS (
-                  SELECT 1 FROM task_schedules ts 
+                  SELECT 1 FROM task_schedules ts
                   WHERE ts.task_id = t.id
               )
             ORDER BY t.created_at DESC

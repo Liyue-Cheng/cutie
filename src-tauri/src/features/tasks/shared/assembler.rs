@@ -32,6 +32,7 @@ impl TaskAssembler {
             title: task.title.clone(),
             glance_note: task.glance_note.clone(),
             is_completed: task.is_completed(),
+            is_archived: task.is_archived(),
             schedule_status: ScheduleStatus::Staging, // 默认 Staging，需要后续判断
             subtasks: task.subtasks.as_ref().map(|subtasks| {
                 subtasks
@@ -335,6 +336,7 @@ mod tests {
             due_date: None,
             due_date_type: None,
             completed_at: None,
+            archived_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             is_deleted: false,

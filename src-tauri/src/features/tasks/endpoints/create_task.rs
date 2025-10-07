@@ -251,6 +251,7 @@ mod logic {
             due_date: request.due_date,
             due_date_type: request.due_date_type,
             completed_at: None,
+            archived_at: None,
             created_at: now,
             updated_at: now,
             is_deleted: false,

@@ -40,6 +40,12 @@ export function createEventHandlers(
 
       // 订阅任务删除事件
       subscriber.on('task.deleted', handleTaskDeletedEvent)
+
+      // 订阅任务归档事件
+      subscriber.on('task.archived', handleTaskArchivedEvent)
+
+      // 订阅任务取消归档事件
+      subscriber.on('task.unarchived', handleTaskUnarchivedEvent)
     })
   }
 
@@ -226,10 +232,106 @@ export function createEventHandlers(
     }
   }
 
+  /**
+   * 幂等事件处理器：任务归档
+   * ✅ 基于 correlation_id 去重，避免重复更新
+   */
+  async function handleTaskArchivedEvent(event: any) {
+    const task = event.payload.task
+    const correlationId = event.correlation_id
+
+    // ✅ 数据验证：确保任务数据完整
+    if (!task || !task.id || !task.title) {
+      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      return
+    }
+
+    // 记录 SSE 事件接收时间
+    if (correlationId) {
+      correlationTracker.markSseReceived(correlationId, 'archiveTask')
+    }
+
+    // 判断是否是自己触发的操作
+    const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
+
+    if (isOwnOperation) {
+      console.log(
+        '[TaskStore] Skipping duplicate task update (own operation):',
+        task.id,
+        'correlation:',
+        correlationId
+      )
+      // HTTP 响应已更新，跳过
+    } else {
+      console.log('[TaskStore] Handling task.archived event from other source:', task.id)
+      // 这是其他窗口/客户端触发的，完整更新
+      addOrUpdateTask(task)
+    }
+
+    // 记录完成
+    if (correlationId) {
+      correlationTracker.markCompleted(correlationId, 'archiveTask')
+    }
+
+    // 清理 correlation_id（如果有）
+    if (correlationId) {
+      correlationTracker.finishTracking(correlationId)
+    }
+  }
+
+  /**
+   * 幂等事件处理器：任务取消归档
+   * ✅ 基于 correlation_id 去重，避免重复更新
+   */
+  async function handleTaskUnarchivedEvent(event: any) {
+    const task = event.payload.task
+    const correlationId = event.correlation_id
+
+    // ✅ 数据验证：确保任务数据完整
+    if (!task || !task.id || !task.title) {
+      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      return
+    }
+
+    // 记录 SSE 事件接收时间
+    if (correlationId) {
+      correlationTracker.markSseReceived(correlationId, 'unarchiveTask')
+    }
+
+    // 判断是否是自己触发的操作
+    const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
+
+    if (isOwnOperation) {
+      console.log(
+        '[TaskStore] Skipping duplicate task update (own operation):',
+        task.id,
+        'correlation:',
+        correlationId
+      )
+      // HTTP 响应已更新，跳过
+    } else {
+      console.log('[TaskStore] Handling task.unarchived event from other source:', task.id)
+      // 这是其他窗口/客户端触发的，完整更新
+      addOrUpdateTask(task)
+    }
+
+    // 记录完成
+    if (correlationId) {
+      correlationTracker.markCompleted(correlationId, 'unarchiveTask')
+    }
+
+    // 清理 correlation_id（如果有）
+    if (correlationId) {
+      correlationTracker.finishTracking(correlationId)
+    }
+  }
+
   return {
     initEventSubscriptions,
     handleTaskCompletedEvent,
     handleTaskUpdatedEvent,
     handleTaskDeletedEvent,
+    handleTaskArchivedEvent,
+    handleTaskUnarchivedEvent,
   }
 }

@@ -92,10 +92,50 @@ export function useTaskOperations() {
     }
   }
 
+  /**
+   * 归档任务
+   * ✅ 新架构：任务归档后会自动从所有视图消失（动态过滤）
+   */
+  async function archiveTask(taskId: string): Promise<boolean> {
+    try {
+      const task = await taskStore.archiveTask(taskId)
+
+      if (!task) return false
+
+      console.log('[TaskOperations] Task archived successfully:', taskId)
+      // ✅ 无需任何额外处理，视图会自动更新
+      return true
+    } catch (error) {
+      console.error('[TaskOperations] Error archiving task:', error)
+      return false
+    }
+  }
+
+  /**
+   * 取消归档任务
+   * ✅ 新架构：任务取消归档后会自动出现在对应视图中（动态过滤）
+   */
+  async function unarchiveTask(taskId: string): Promise<boolean> {
+    try {
+      const task = await taskStore.unarchiveTask(taskId)
+
+      if (!task) return false
+
+      console.log('[TaskOperations] Task unarchived successfully:', taskId)
+      // ✅ 无需任何额外处理，视图会自动更新
+      return true
+    } catch (error) {
+      console.error('[TaskOperations] Error unarchiving task:', error)
+      return false
+    }
+  }
+
   return {
     completeTask,
     deleteTask,
     reopenTask,
     createTask,
+    archiveTask,
+    unarchiveTask,
   }
 }
