@@ -19,7 +19,7 @@ mod endpoints {
     pub mod create_from_task; // POST /time-blocks/from-task (拖动任务到日历)
     pub mod create_time_block; // POST /time-blocks (直接创建空时间块)
     pub mod delete_time_block; // DELETE /time-blocks/:id
-    pub mod link_task; // POST /time-blocks/:id/link-task (链接任务到时间块)
+    pub mod link_task; // POST /time-blocks/:id/link-task (将任务链接到已有时间块)
     pub mod list_time_blocks; // GET /time-blocks
     pub mod update_time_block; // PATCH /time-blocks/:id (更新时间块)
                                // 待实现的其他端点：
@@ -40,5 +40,6 @@ pub fn create_routes() -> Router<AppState> {
                 .patch(endpoints::update_time_block::handle),
         )
         .route("/:id/link-task", post(endpoints::link_task::handle))
-    // .route("/:id/tasks/:task_id", delete(endpoints::unlink_task::handle))
+    // 待实现：
+    // .route("/:id/unlink-task", delete(endpoints::unlink_task::handle))
 }

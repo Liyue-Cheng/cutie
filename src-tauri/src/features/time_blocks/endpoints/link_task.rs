@@ -1,4 +1,4 @@
-/// 将任务链接到时间块 API - 单文件组件
+/// 链接任务到时间块 API - 单文件组件
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
@@ -9,17 +9,17 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    entities::TimeBlockViewDto,
+    entities::TaskCardDto,
     features::{
         shared::TransactionHelper,
         tasks::shared::{
-            assemblers::TimeBlockAssembler,
-            repositories::{TaskRepository, TaskTimeBlockLinkRepository},
+            repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
+            TaskAssembler,
         },
         time_blocks::shared::repositories::TimeBlockRepository,
     },
     shared::{
-        core::{AppError, AppResult},
+        core::{utils::time_utils, AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
@@ -34,12 +34,13 @@ pub struct LinkTaskRequest {
 /// 链接任务到时间块的响应
 #[derive(Debug, Serialize)]
 pub struct LinkTaskResponse {
-    pub time_block: TimeBlockViewDto,
+    pub task: TaskCardDto,
+    pub time_block_id: Uuid,
 }
 
 // ==================== 文档层 ====================
 /*
-CABC for `link_task_to_time_block`
+CABC for `link_task`
 
 ## 1. 端点签名 (Endpoint Signature)
 
@@ -49,20 +50,23 @@ POST /api/time-blocks/{block_id}/link-task
 
 ### 2.1. 用户故事 / 场景 (User Story / Scenario)
 
-> 作为一个用户，我想要将任务拖动到日历上已有的时间片上，
-> 将任务链接到该时间片，而不是创建新的时间片。
+> 作为一个用户，我想要将一个任务与日历上已有的时间块关联起来，
+> 而不是创建新的时间块，这样我可以将多个任务安排到同一个时间段内。
 
 ### 2.2. 核心业务逻辑 (Core Business Logic)
 
-将指定任务链接到指定时间块。一个任务可以链接到多个时间块，
-一个时间块也可以链接多个任务。
+1. 验证时间块和任务都存在。
+2. 建立任务与时间块的链接关系。
+3. 如果任务在该天没有 schedule 记录，创建该天的日程记录。
+4. 返回更新后的完整 TaskCardDto（包含新的 schedules、时间块信息）。
+5. 发布 SSE 事件通知前端更新 UI。
 
 ## 3. 输入输出规范 (Request/Response Specification)
 
 ### 3.1. 请求 (Request)
 
 **路径参数:**
-- `block_id`: UUID - 时间块ID
+- `block_id`: UUID - 时间块的ID
 
 **请求体 (Request Body):** `application/json`
 
@@ -81,15 +85,28 @@ POST /api/time-blocks/{block_id}/link-task
 
 ```json
 {
-  "time_block": {
+  "task": {
     "id": "uuid",
-    "start_time": "2025-10-07T10:00:00Z",
-    "end_time": "2025-10-07T11:00:00Z",
-    "title": "任务标题",
-    "glance_note": "简要笔记",
-    "area": {...},
-    "linked_tasks": [...]
-  }
+    "title": "string",
+    "schedule_status": "scheduled",
+    "schedules": [
+      {
+        "scheduled_day": "2025-10-07",
+        "outcome": null,
+        "time_blocks": [
+          {
+            "id": "uuid",
+            "start_time": "2025-10-07T10:00:00Z",
+            "end_time": "2025-10-07T11:00:00Z",
+            "title": "任务标题",
+            "glance_note": null
+          }
+        ]
+      }
+    ],
+    // ... 其他 TaskCard 字段
+  },
+  "time_block_id": "uuid"
 }
 ```
 
@@ -98,59 +115,59 @@ POST /api/time-blocks/{block_id}/link-task
 ```json
 {
   "error_code": "NOT_FOUND",
-  "message": "时间块不存在"
-}
-```
-
-或
-
-```json
-{
-  "error_code": "NOT_FOUND",
-  "message": "任务不存在"
+  "message": "时间块不存在" 或 "任务不存在"
 }
 ```
 
 ## 4. 验证规则 (Validation Rules)
 
-- `block_id`: 必须是有效的 UUID，且时间块必须存在
-- `task_id`: 必须是有效的 UUID，且任务必须存在
+- `block_id`:
+    - **必须**存在于数据库中且未被软删除。
+    - 违反时返回错误码：`NOT_FOUND`
+- `task_id`:
+    - **必须**存在于数据库中且未被软删除。
+    - 违反时返回错误码：`NOT_FOUND`
 
 ## 5. 业务逻辑详解 (Business Logic Walkthrough)
 
-1.  验证请求体。
-2.  获取写入许可。
-3.  启动数据库事务。
-4.  验证时间块存在。
-5.  验证任务存在。
-6.  检查链接是否已存在。
-7.  如果不存在，创建链接。
-8.  查询更新后的完整时间块数据（包括所有链接的任务）。
-9.  写入领域事件到 outbox。
+1. 获取写入许可。
+2. 启动数据库事务。
+3. 验证时间块存在（`TimeBlockRepository::find_by_id_in_tx`）。
+4. 验证任务存在（`TaskRepository::find_by_id_in_tx`）。
+5. 检查链接是否已存在（幂等性）。
+6. 如果不存在，创建链接（`TaskTimeBlockLinkRepository::link_in_tx`）。
+7. 从时间块的 start_time 提取本地日期作为 scheduled_day。
+8. 检查该任务在该天是否有 schedule 记录。
+9. 如果没有，创建该天的 schedule 记录（`TaskScheduleRepository::create_in_tx`）。
 10. 提交事务。
-11. 返回更新后的时间块。
+11. 重新查询任务并组装完整的 TaskCardDto（包含 schedules、area 等）。
+12. 发布 SSE 事件 `time_blocks.linked`。
+13. 返回响应。
 
 ## 6. 边界情况 (Edge Cases)
 
 - **时间块不存在:** 返回 `404` 错误。
 - **任务不存在:** 返回 `404` 错误。
-- **链接已存在:** 不报错，视为幂等操作，返回成功。
+- **链接已存在:** 幂等，直接返回当前状态（不报错）。
+- **任务当天已有 schedule:** 不重复创建。
 - **幂等性:** 相同参数重复调用，结果一致。
 
 ## 7. 预期副作用 (Expected Side Effects)
 
 - **数据库写入:**
-    - **`INSERT`:** 0-1 条记录到 `task_time_block_links` 表（如果链接不存在）。
-    - **`INSERT`:** 1条记录到 `event_outbox` 表（领域事件）。
+    - **`INSERT`:** 0-1 条记录到 `task_time_block_links` 表（若不存在）。
+    - **`INSERT`:** 0-1 条记录到 `task_schedules` 表（若该天无 schedule）。
+    - **`INSERT`:** 1 条记录到 `event_outbox` 表（领域事件）。
     - **(事务):** 所有数据库写操作包含在一个数据库事务内。
 - **写入许可:**
-    - 获取应用级写入许可。
+    - 获取应用级写入许可，确保 SQLite 写操作串行执行。
 - **SSE 事件:**
-    - 发送 `time_block.task_linked` 事件，包含：
-        - 更新后的时间块（`TimeBlockViewDto`）
-        - 链接的任务ID
+    - 发送 `time_blocks.linked` 事件，包含：
+        - `time_block_id`: 时间块ID
+        - `linked_task_id`: 被链接的任务ID
+        - `affected_task_ids`: 受影响的任务ID列表（包含被链接的任务）
 - **日志记录:**
-    - 成功时，记录链接信息。
+    - 成功时，记录链接的 task_id 和 block_id。
     - 失败时，记录详细错误信息。
 
 *（无其他已知副作用）*
@@ -181,71 +198,132 @@ mod logic {
         correlation_id: Option<String>,
     ) -> AppResult<LinkTaskResponse> {
         let task_id = request.task_id;
+        let now = app_state.clock().now_utc();
 
-        // ✅ 获取写入许可
+        // ✅ 获取写入许可，确保写操作串行执行
         let _permit = app_state.acquire_write_permit().await;
 
         // 1. 开启事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
-        // 2. 验证时间块存在（find_by_id_in_tx 找不到会返回错误）
-        let _block = TimeBlockRepository::find_by_id_in_tx(&mut tx, block_id).await?;
+        // 2. 验证时间块存在
+        let time_block = TimeBlockRepository::find_by_id_in_tx(&mut tx, block_id).await?;
 
-        // 3. 验证任务存在（find_by_id_in_tx 找不到会返回错误）
+        // 3. 验证任务存在
         let _task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
 
-        // 4. 检查链接是否已存在
-        let exists = database::link_exists_in_tx(&mut tx, task_id, block_id).await?;
+        // 4. 检查链接是否已存在（幂等性）
+        let link_exists = database::check_link_exists_in_tx(&mut tx, task_id, block_id).await?;
 
         // 5. 如果不存在，创建链接
-        if !exists {
+        if !link_exists {
             TaskTimeBlockLinkRepository::link_in_tx(&mut tx, task_id, block_id).await?;
-            tracing::info!("Linked task {} to time block {}", task_id, block_id);
+            tracing::info!(
+                "Created link between task {} and time block {}",
+                task_id,
+                block_id
+            );
         } else {
             tracing::info!(
-                "Link already exists: task {} -> block {}",
+                "Link already exists between task {} and time block {}",
                 task_id,
                 block_id
             );
         }
 
-        // 6. 查询更新后的完整时间块数据
-        let time_block = TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &[block_id]).await?;
-        let time_block = time_block
-            .into_iter()
-            .next()
-            .ok_or_else(|| AppError::not_found("TimeBlock", block_id.to_string()))?;
+        // 6. 从时间块的 start_time 提取本地日期，并转换为 UTC midnight
+        let local_date = time_utils::extract_local_date_from_utc(time_block.start_time);
+        let scheduled_day = time_utils::local_date_to_utc_midnight(local_date);
 
-        // 7. 写入领域事件到 outbox
+        // 7. 检查该任务在该天是否有 schedule 记录
+        let has_schedule =
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, scheduled_day)
+                .await?;
+
+        // 8. 如果没有，创建该天的 schedule 记录
+        if !has_schedule {
+            TaskScheduleRepository::create_in_tx(&mut tx, task_id, scheduled_day).await?;
+            tracing::info!(
+                "Created schedule for task {} on day {}",
+                task_id,
+                scheduled_day
+            );
+        }
+
+        // 9. 提交事务
+        TransactionHelper::commit(tx).await?;
+
+        // 10. 重新查询任务并组装完整的 TaskCardDto
+        let pool = app_state.db_pool();
+        let task = TaskRepository::find_by_id(pool, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
+
+        let mut task_card = TaskAssembler::task_to_card_basic(&task);
+
+        // ✅ 填充 schedules 字段（必须在 SSE 之前）
+        task_card.schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
+
+        // 根据 schedules 设置正确的 schedule_status
+        let local_today = time_utils::extract_local_date_from_utc(now);
+        let has_future_schedule = task_card
+            .schedules
+            .as_ref()
+            .map(|schedules| {
+                schedules.iter().any(|s| {
+                    if let Ok(schedule_date) =
+                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                    {
+                        schedule_date >= local_today
+                    } else {
+                        false
+                    }
+                })
+            })
+            .unwrap_or(false);
+
+        task_card.schedule_status = if has_future_schedule {
+            crate::entities::ScheduleStatus::Scheduled
+        } else {
+            crate::entities::ScheduleStatus::Staging
+        };
+
+        // 11. 发布 SSE 事件
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
+
+        let mut outbox_tx = TransactionHelper::begin(app_state.db_pool()).await?;
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
         let payload = serde_json::json!({
-            "time_block": time_block,
-            "task_id": task_id,
+            "time_block_id": block_id,
+            "linked_task_id": task_id,
+            "affected_task_ids": vec![task_id],
         });
 
         let mut event = DomainEvent::new(
-            "time_block.task_linked",
+            "time_blocks.linked",
             "TimeBlock",
             block_id.to_string(),
             payload,
-        );
+        )
+        .with_aggregate_version(now.timestamp_millis());
 
+        // 关联 correlation_id（用于前端去重和请求追踪）
         if let Some(cid) = correlation_id {
             event = event.with_correlation_id(cid);
         }
 
-        outbox_repo.append_in_tx(&mut tx, &event).await?;
+        outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
+        TransactionHelper::commit(outbox_tx).await?;
 
-        // 8. 提交事务
-        TransactionHelper::commit(tx).await?;
-
-        // 9. 返回结果
-        Ok(LinkTaskResponse { time_block })
+        // 12. 返回结果
+        Ok(LinkTaskResponse {
+            task: task_card,
+            time_block_id: block_id,
+        })
     }
 }
 
@@ -254,8 +332,8 @@ mod database {
     use super::*;
     use sqlx::{Sqlite, Transaction};
 
-    /// 检查链接是否存在
-    pub async fn link_exists_in_tx(
+    /// 检查链接是否已存在
+    pub async fn check_link_exists_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
         block_id: Uuid,

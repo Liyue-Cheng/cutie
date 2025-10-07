@@ -441,29 +441,4 @@ onMounted(async () => {
 .calendar-container.zoom-3x .fc .fc-timegrid-slot {
   height: 4.5rem !important; /* 10分钟槽 = 4.5rem，1小时 = 27rem */
 }
-
-/* ===============================================
- * 10. 拖动到时间块的悬停效果
- * =============================================== */
-
-/* 拖动悬停时时间块变暗 */
-.fc-event.drag-hover-link {
-  filter: brightness(0.7) !important;
-  transition: filter 0.15s ease-in-out !important;
-  position: relative !important;
-}
-
-/* 拖动悬停时显示锁链图标 */
-.fc-event.drag-hover-link::after {
-  content: '🔗';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 2rem;
-  opacity: 0.9;
-  pointer-events: none;
-  z-index: 10;
-  text-shadow: 0 0 4px rgb(0 0 0 / 50%);
-}
 </style>
