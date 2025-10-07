@@ -97,47 +97,60 @@ impl TaskAssembler {
         // 3. 为每个日程查询时间片
         let mut schedule_dtos = Vec::new();
 
+        // 2.5 查询该任务的所有时间块（不按日期过滤，后面在代码中按本地日期分组）
+        let all_blocks_query = r#"
+            SELECT tb.id, tb.title, tb.glance_note, tb.start_time, tb.end_time
+            FROM time_blocks tb
+            INNER JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
+            WHERE ttbl.task_id = ?
+              AND tb.is_deleted = false
+            ORDER BY tb.start_time ASC
+        "#;
+
+        let all_block_rows: Vec<(
+            String,
+            Option<String>,
+            Option<String>,
+            DateTime<Utc>,
+            DateTime<Utc>,
+        )> = sqlx::query_as(all_blocks_query)
+            .bind(task_id.to_string())
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        // 将时间块按本地日期分组
+        use crate::shared::core::utils::time_utils;
+        let mut blocks_by_date: std::collections::HashMap<
+            chrono::NaiveDate,
+            Vec<TimeBlockSummary>,
+        > = std::collections::HashMap::new();
+
+        for (id_str, title, glance_note, start_time, end_time) in all_block_rows {
+            let id =
+                UuidType::parse_str(&id_str).map_err(|e| AppError::StringError(e.to_string()))?;
+            let local_date = time_utils::extract_local_date_from_utc(start_time);
+
+            blocks_by_date
+                .entry(local_date)
+                .or_insert_with(Vec::new)
+                .push(TimeBlockSummary {
+                    id,
+                    start_time,
+                    end_time,
+                    title,
+                    glance_note,
+                });
+        }
+
         for schedule in schedules {
             let scheduled_day_str = schedule.scheduled_day.format("%Y-%m-%d").to_string();
 
-            // 查询该日期的时间片
-            let blocks_query = r#"
-                SELECT tb.id, tb.title, tb.glance_note, tb.start_time, tb.end_time
-                FROM time_blocks tb
-                INNER JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
-                WHERE ttbl.task_id = ?
-                  AND DATE(tb.start_time) = DATE(?)
-                  AND tb.is_deleted = false
-                ORDER BY tb.start_time ASC
-            "#;
-
-            let block_rows: Vec<(
-                String,
-                Option<String>,
-                Option<String>,
-                DateTime<Utc>,
-                DateTime<Utc>,
-            )> = sqlx::query_as(blocks_query)
-                .bind(task_id.to_string())
-                .bind(schedule.scheduled_day.to_rfc3339())
-                .fetch_all(&mut **tx)
-                .await
-                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-
-            let time_blocks: Vec<TimeBlockSummary> = block_rows
-                .into_iter()
-                .map(|(id_str, title, glance_note, start_time, end_time)| {
-                    let id = UuidType::parse_str(&id_str)
-                        .map_err(|e| AppError::StringError(e.to_string()))?;
-                    Ok(TimeBlockSummary {
-                        id,
-                        start_time,
-                        end_time,
-                        title,
-                        glance_note,
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?;
+            // 获取该日期的时间块（使用本地日期匹配）
+            let time_blocks = blocks_by_date
+                .get(&schedule.scheduled_day.date_naive())
+                .cloned()
+                .unwrap_or_default();
 
             // 转换 Outcome 为 DailyOutcome
             let outcome = match schedule.outcome {
@@ -200,47 +213,60 @@ impl TaskAssembler {
         // 3. 为每个日程查询时间片
         let mut schedule_dtos = Vec::new();
 
+        // 2.5 查询该任务的所有时间块（不按日期过滤，后面在代码中按本地日期分组）
+        let all_blocks_query = r#"
+            SELECT tb.id, tb.title, tb.glance_note, tb.start_time, tb.end_time
+            FROM time_blocks tb
+            INNER JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
+            WHERE ttbl.task_id = ?
+              AND tb.is_deleted = false
+            ORDER BY tb.start_time ASC
+        "#;
+
+        let all_block_rows: Vec<(
+            String,
+            Option<String>,
+            Option<String>,
+            DateTime<Utc>,
+            DateTime<Utc>,
+        )> = sqlx::query_as(all_blocks_query)
+            .bind(task_id.to_string())
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        // 将时间块按本地日期分组
+        use crate::shared::core::utils::time_utils;
+        let mut blocks_by_date: std::collections::HashMap<
+            chrono::NaiveDate,
+            Vec<TimeBlockSummary>,
+        > = std::collections::HashMap::new();
+
+        for (id_str, title, glance_note, start_time, end_time) in all_block_rows {
+            let id =
+                UuidType::parse_str(&id_str).map_err(|e| AppError::StringError(e.to_string()))?;
+            let local_date = time_utils::extract_local_date_from_utc(start_time);
+
+            blocks_by_date
+                .entry(local_date)
+                .or_insert_with(Vec::new)
+                .push(TimeBlockSummary {
+                    id,
+                    start_time,
+                    end_time,
+                    title,
+                    glance_note,
+                });
+        }
+
         for schedule in schedules {
             let scheduled_day_str = schedule.scheduled_day.format("%Y-%m-%d").to_string();
 
-            // 查询该日期的时间片
-            let blocks_query = r#"
-                SELECT tb.id, tb.title, tb.glance_note, tb.start_time, tb.end_time
-                FROM time_blocks tb
-                INNER JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
-                WHERE ttbl.task_id = ?
-                  AND DATE(tb.start_time) = DATE(?)
-                  AND tb.is_deleted = false
-                ORDER BY tb.start_time ASC
-            "#;
-
-            let block_rows: Vec<(
-                String,
-                Option<String>,
-                Option<String>,
-                DateTime<Utc>,
-                DateTime<Utc>,
-            )> = sqlx::query_as(blocks_query)
-                .bind(task_id.to_string())
-                .bind(schedule.scheduled_day.to_rfc3339())
-                .fetch_all(pool)
-                .await
-                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
-
-            let time_blocks: Vec<TimeBlockSummary> = block_rows
-                .into_iter()
-                .map(|(id_str, title, glance_note, start_time, end_time)| {
-                    let id = UuidType::parse_str(&id_str)
-                        .map_err(|e| AppError::StringError(e.to_string()))?;
-                    Ok(TimeBlockSummary {
-                        id,
-                        start_time,
-                        end_time,
-                        title,
-                        glance_note,
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?;
+            // 获取该日期的时间块（使用本地日期匹配）
+            let time_blocks = blocks_by_date
+                .get(&schedule.scheduled_day.date_naive())
+                .cloned()
+                .unwrap_or_default();
 
             // 转换 Outcome 为 DailyOutcome
             let outcome = match schedule.outcome {

@@ -47,10 +47,13 @@ const isDateKanban = computed(() => {
   return props.viewMetadata?.type === 'date'
 })
 
-// ✅ 获取当日日期 (YYYY-MM-DD)
+// ✅ 获取当日日期 (YYYY-MM-DD) - 使用本地时区
 const todayDate = computed(() => {
   const today = new Date()
-  return today.toISOString().split('T')[0]
+  const year = today.getFullYear()
+  const month = (today.getMonth() + 1).toString().padStart(2, '0')
+  const day = today.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
 })
 
 // ✅ 判断当前看板的日期类型
@@ -204,6 +207,36 @@ function handleMouseLeave() {
   justToggledPresence.value = false
 }
 
+// ✅ 获取今天的时间块（按开始时间排序）
+const todayTimeBlocks = computed(() => {
+  if (!props.task.schedules) return []
+
+  const today = todayDate.value
+  const todaySchedule = props.task.schedules.find((s) => s.scheduled_day === today)
+
+  if (!todaySchedule || !todaySchedule.time_blocks) {
+    return []
+  }
+
+  // 按开始时间排序
+  return [...todaySchedule.time_blocks].sort((a, b) => {
+    return a.start_time.localeCompare(b.start_time)
+  })
+})
+
+// ✅ 判断今天是否有时间块
+const hasTodayTimeBlocks = computed(() => {
+  return todayTimeBlocks.value.length > 0
+})
+
+// ✅ 格式化时间块的开始时间（HH:mm）
+function formatTimeBlockStart(isoString: string): string {
+  const date = new Date(isoString)
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 // ✅ 格式化时间显示
 const formattedDuration = computed(() => {
   if (props.task.estimated_duration === null || props.task.estimated_duration === 0) {
@@ -263,8 +296,38 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     @mouseleave="handleMouseLeave"
   >
     <div class="main-content">
-      <!-- 第一行：标题 + 预期时间 -->
-      <div class="card-header">
+      <!-- 时间指示器栏（有时间块时显示） -->
+      <div
+        v-if="hasTodayTimeBlocks"
+        class="time-indicator-bar"
+        :style="{ backgroundColor: area?.color || '#ccc' }"
+      >
+        <div class="time-tags">
+          <span v-for="block in todayTimeBlocks.slice(0, 5)" :key="block.id" class="time-tag">
+            {{ formatTimeBlockStart(block.start_time) }}
+          </span>
+          <span v-if="todayTimeBlocks.length > 5" class="time-tag-more">...</span>
+        </div>
+
+        <!-- 预期时间显示 -->
+        <div class="estimated-duration-wrapper">
+          <button class="estimated-duration" @click="toggleTimePicker">
+            {{ formattedDuration }}
+          </button>
+
+          <!-- 时间选择器弹窗 -->
+          <div v-if="showTimePicker" class="time-picker-popup">
+            <TimeDurationPicker
+              :model-value="task.estimated_duration"
+              @update:model-value="updateEstimatedDuration"
+              @close="showTimePicker = false"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- 第一行：标题 + 预期时间（无时间块时显示） -->
+      <div v-if="!hasTodayTimeBlocks" class="card-header">
         <span class="title">{{ task.title }}</span>
 
         <!-- 预期时间显示 -->
@@ -282,6 +345,11 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             />
           </div>
         </div>
+      </div>
+
+      <!-- 标题行（有时间块时显示） -->
+      <div v-if="hasTodayTimeBlocks" class="card-title-row">
+        <span class="title">{{ task.title }}</span>
       </div>
 
       <div v-if="task.glance_note" class="notes-section">
@@ -393,6 +461,46 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   gap: 0.4rem;
 }
 
+/* 时间指示器栏 */
+.time-indicator-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  margin: -1.2rem -1.2rem 0.8rem;
+  border-radius: 0.4rem 0.4rem 0 0;
+}
+
+.time-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.time-tag {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+}
+
+.time-tag-more {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+}
+
+/* 有时间块时的标题行 */
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+}
+
 /* 第一行：标题 + 预期时间 */
 .card-header {
   display: flex;
@@ -470,6 +578,19 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 .estimated-duration:hover {
   background-color: var(--color-bg-hover, #e0e0e0);
   color: var(--color-text-primary);
+}
+
+/* 时间指示器栏中的预期时间按钮 */
+.time-indicator-bar .estimated-duration {
+  background-color: rgb(255 255 255 / 30%);
+  color: #fff;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+}
+
+.time-indicator-bar .estimated-duration:hover {
+  background-color: rgb(255 255 255 / 45%);
+  color: #fff;
 }
 
 .time-picker-popup {
