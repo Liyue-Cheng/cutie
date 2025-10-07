@@ -51,9 +51,9 @@ const handleChange = (event: Event) => {
 .checkmark {
   position: relative;
   display: inline-block;
-  width: 1.913rem;
-  height: 1.913rem;
-  border: 0.2rem solid #d9d9d9;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 0.15rem solid #d9d9d9;
   border-radius: 50%;
   background-color: transparent;
   transition: all 0.2s ease-in-out;
@@ -63,12 +63,12 @@ const handleChange = (event: Event) => {
 .checkmark::after {
   content: '';
   position: absolute;
-  left: 0.584rem;
-  top: 0.266rem;
-  width: 0.425rem;
-  height: 0.85rem;
+  left: 0.5rem;
+  top: 0.22rem;
+  width: 0.35rem;
+  height: 0.7rem;
   border: solid #d9d9d9;
-  border-width: 0 0.2rem 0.2rem 0;
+  border-width: 0 0.15rem 0.15rem 0;
   transform: rotate(45deg);
   transition: all 0.2s ease-in-out;
 }
@@ -84,15 +84,15 @@ const handleChange = (event: Event) => {
 
 /* Large size variant */
 .cute-checkbox.size-large .checkmark {
-  width: 2.55rem;
-  height: 2.55rem;
+  width: 2.1rem;
+  height: 2.1rem;
 }
 
 .cute-checkbox.size-large .checkmark::after {
-  left: 0.85rem;
-  top: 0.425rem;
-  width: 0.531rem;
-  height: 1.063rem;
+  left: 0.7rem;
+  top: 0.35rem;
+  width: 0.44rem;
+  height: 0.88rem;
 }
 
 /* ===============================================
@@ -115,7 +115,7 @@ const handleChange = (event: Event) => {
 
 /* 星星变体 Large size */
 .cute-checkbox.variant-star.size-large .checkmark::after {
-  font-size: 1.6rem;
+  font-size: 1.3rem;
 }
 
 /* 星星变体：鼠标悬停变蓝色 */

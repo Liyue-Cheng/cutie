@@ -295,8 +295,21 @@ export function useCalendarDrag(
           return
         }
 
-        // 创建一个默认1小时的时间块，并在日界处截断
-        let endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+        // 根据任务的 estimated_duration 计算时间块长度
+        // 如果是 tiny（0 或 null），使用 15 分钟
+        const task = currentDraggedTask.value
+        let durationMinutes = 60 // 默认1小时
+        if (task) {
+          const estimatedDuration = task.estimated_duration
+          if (estimatedDuration === null || estimatedDuration === 0) {
+            durationMinutes = 15 // tiny 任务使用 15 分钟
+          } else {
+            durationMinutes = estimatedDuration
+          }
+        }
+
+        // 创建时间块，并在日界处截断
+        let endTime = new Date(dropTime.getTime() + durationMinutes * 60 * 1000)
         const dayEnd = new Date(dropTime)
         dayEnd.setHours(0, 0, 0, 0)
         dayEnd.setDate(dayEnd.getDate() + 1)

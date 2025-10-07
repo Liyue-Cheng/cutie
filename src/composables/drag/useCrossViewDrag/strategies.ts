@@ -292,6 +292,15 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
     console.log('    - start_time:', calendarConfig.startTime)
     console.log('    - end_time:', calendarConfig.endTime)
 
+    // 如果任务是 tiny（estimated_duration 为 0 或 null），先更新为 15 分钟
+    const estimatedDuration = context.task.estimated_duration
+    if (estimatedDuration === null || estimatedDuration === 0) {
+      console.log('  ⏱️ Task is tiny, updating estimated_duration to 15 minutes')
+      await taskStore.updateTask(context.task.id, { estimated_duration: 15 } as any)
+      // 更新本地任务对象，以便后续使用
+      context.task.estimated_duration = 15
+    }
+
     // 🔍 检查点5：即将调用 timeBlockStore
     console.log('[CHK-5] About to call timeBlockStore.createTimeBlockFromTask')
 

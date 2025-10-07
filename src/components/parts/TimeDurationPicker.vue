@@ -24,9 +24,8 @@ const emit = defineEmits<{
 }>()
 
 // 预设时间选项（分钟）
+// 注意：小于15分钟的任务都算作tiny（以0存储）
 const timeOptions = [
-  { label: '5 min', value: 5 },
-  { label: '10 min', value: 10 },
   { label: '15 min', value: 15 },
   { label: '20 min', value: 20 },
   { label: '25 min', value: 25 },
