@@ -12,8 +12,7 @@ use crate::{
     entities::{TimeBlockViewDto, UpdateTimeBlockRequest},
     features::{
         tasks::shared::{
-            assemblers::LinkedTaskAssembler,
-            repositories::TaskTimeBlockLinkRepository,
+            assemblers::LinkedTaskAssembler, repositories::TaskTimeBlockLinkRepository,
         },
         time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
     },
@@ -381,12 +380,8 @@ mod logic {
                 "affected_task_ids": affected_task_ids,
             });
 
-            let event = DomainEvent::new(
-                "time_blocks.updated",
-                "TimeBlock",
-                id.to_string(),
-                payload,
-            );
+            let event =
+                DomainEvent::new("time_blocks.updated", "TimeBlock", id.to_string(), payload);
 
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }

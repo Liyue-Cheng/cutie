@@ -297,16 +297,17 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   >
     <div class="main-content">
       <!-- 时间指示器栏（有时间块时显示） -->
-      <div
-        v-if="hasTodayTimeBlocks"
-        class="time-indicator-bar"
-        :style="{ backgroundColor: area?.color || '#ccc' }"
-      >
+      <div v-if="hasTodayTimeBlocks" class="time-indicator-bar">
         <div class="time-tags">
-          <span v-for="block in todayTimeBlocks.slice(0, 5)" :key="block.id" class="time-tag">
+          <span
+            v-for="block in todayTimeBlocks.slice(0, 2)"
+            :key="block.id"
+            class="time-tag"
+            :style="{ backgroundColor: area?.color || '#ccc' }"
+          >
             {{ formatTimeBlockStart(block.start_time) }}
           </span>
-          <span v-if="todayTimeBlocks.length > 5" class="time-tag-more">...</span>
+          <span v-if="todayTimeBlocks.length > 2" class="time-tag-more">+{{ todayTimeBlocks.length - 2 }}</span>
         </div>
 
         <!-- 预期时间显示 -->
@@ -467,32 +468,39 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.6rem 1rem;
-  margin: -1.2rem -1.2rem 0.8rem;
-  border-radius: 0.4rem 0.4rem 0 0;
+  padding: 0.6rem 0;
+  margin-bottom: 0.8rem;
 }
 
 .time-tags {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex: 1;
   overflow: hidden;
 }
 
 .time-tag {
-  font-size: 1.2rem;
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  font-size: 1.1rem;
   font-weight: 500;
   color: #fff;
   white-space: nowrap;
+  border-radius: 0.8rem;
   text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
 }
 
 .time-tag-more {
-  font-size: 1.2rem;
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  font-size: 1.1rem;
   font-weight: 500;
-  color: #fff;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  color: #666;
+  white-space: nowrap;
+  border-radius: 0.8rem;
+  background-color: #f0f0f0;
 }
 
 /* 有时间块时的标题行 */
@@ -582,15 +590,14 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
 /* 时间指示器栏中的预期时间按钮 */
 .time-indicator-bar .estimated-duration {
-  background-color: rgb(255 255 255 / 30%);
-  color: #fff;
+  background-color: #f5f5f5;
+  color: #666;
   font-weight: 500;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
 }
 
 .time-indicator-bar .estimated-duration:hover {
-  background-color: rgb(255 255 255 / 45%);
-  color: #fff;
+  background-color: #e8e8e8;
+  color: #333;
 }
 
 .time-picker-popup {
