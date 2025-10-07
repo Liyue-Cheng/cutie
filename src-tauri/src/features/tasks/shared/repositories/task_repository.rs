@@ -161,6 +161,12 @@ impl TaskRepository {
         if request.area_id.is_some() {
             set_clauses.push("area_id = ?");
         }
+        if request.due_date.is_some() {
+            set_clauses.push("due_date = ?");
+        }
+        if request.due_date_type.is_some() {
+            set_clauses.push("due_date_type = ?");
+        }
 
         if set_clauses.is_empty() {
             return Ok(());
@@ -198,6 +204,17 @@ impl TaskRepository {
         }
         if let Some(area_id) = &request.area_id {
             let bind_val: Option<String> = area_id.map(|id| id.to_string());
+            q = q.bind(bind_val);
+        }
+        if let Some(due_date) = &request.due_date {
+            let bind_val: Option<String> = due_date.as_ref().map(|d| d.to_rfc3339());
+            q = q.bind(bind_val);
+        }
+        if let Some(due_date_type) = &request.due_date_type {
+            let bind_val: Option<String> = due_date_type.as_ref().map(|t| match t {
+                crate::entities::DueDateType::Soft => "SOFT".to_string(),
+                crate::entities::DueDateType::Hard => "HARD".to_string(),
+            });
             q = q.bind(bind_val);
         }
 

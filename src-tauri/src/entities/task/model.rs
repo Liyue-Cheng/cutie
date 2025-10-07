@@ -241,10 +241,11 @@ impl TryFrom<TaskRow> for Task {
                 .and_then(|s| Uuid::parse_str(s).ok()),
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
             due_date: row.due_date, // SQLx已经转换
-            due_date_type: row
-                .due_date_type
-                .as_ref()
-                .and_then(|s| serde_json::from_str(s).ok()),
+            due_date_type: row.due_date_type.as_ref().and_then(|s| match s.as_str() {
+                "SOFT" => Some(DueDateType::Soft),
+                "HARD" => Some(DueDateType::Hard),
+                _ => None,
+            }),
             completed_at: row.completed_at, // SQLx已经转换
             archived_at: row.archived_at,   // SQLx已经转换
             created_at: row.created_at,     // SQLx已经转换
