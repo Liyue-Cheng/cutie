@@ -37,6 +37,7 @@ const showDueDatePicker = ref(false)
 const draggingSubtaskId = ref<string | null>(null)
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
+const mouseDownOnOverlay = ref(false)
 
 const task = computed(() => {
   return props.taskId ? taskStore.getTaskById(props.taskId) : null
@@ -258,14 +259,30 @@ async function handleDrop(event: DragEvent, targetSubtaskId: string) {
   draggingSubtaskId.value = null
 }
 
+function handleOverlayMouseDown() {
+  mouseDownOnOverlay.value = true
+}
+
+function handleOverlayClick() {
+  // 只有在 overlay 上按下鼠标时才关闭
+  if (mouseDownOnOverlay.value) {
+    emit('close')
+  }
+  mouseDownOnOverlay.value = false
+}
+
+function handleCardMouseDown() {
+  mouseDownOnOverlay.value = false
+}
+
 function handleClose() {
   emit('close')
 }
 </script>
 
 <template>
-  <div class="modal-overlay" @click="handleClose">
-    <CuteCard class="editor-card" @click.stop>
+  <div class="modal-overlay" @mousedown="handleOverlayMouseDown" @click="handleOverlayClick">
+    <CuteCard class="editor-card" @mousedown="handleCardMouseDown" @click.stop>
       <div v-if="task" class="content-wrapper">
         <!-- 第一栏：卡片标题栏 -->
         <div class="card-header-row">
