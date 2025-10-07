@@ -8,6 +8,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingColumn from '@/components/parts/kanban/StagingColumn.vue'
 import ArchiveColumn from '@/components/parts/kanban/ArchiveColumn.vue'
+import UpcomingColumn from '@/components/parts/kanban/UpcomingColumn.vue'
 import UnderConstruction from '@/components/parts/UnderConstruction.vue'
 import { useTaskStore } from '@/stores/task'
 
@@ -15,6 +16,7 @@ import { useTaskStore } from '@/stores/task'
 type RightPaneView =
   | 'calendar'
   | 'staging'
+  | 'upcoming'
   | 'projects'
   | 'polling'
   | 'completed'
@@ -46,6 +48,7 @@ const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
 const viewConfig = {
   calendar: { icon: 'Calendar', label: '日历' },
   staging: { icon: 'Theater', label: 'Staging' },
+  upcoming: { icon: 'Clock', label: '即将到期' },
   projects: { icon: 'FolderKanban', label: '项目' },
   polling: { icon: 'ListChecks', label: '轮询' },
   completed: { icon: 'CheckCheck', label: '已完成' },
@@ -225,6 +228,11 @@ async function handleLoadAllTasks() {
           <!-- Staging 视图 -->
           <StagingColumn
             v-else-if="currentRightPaneView === 'staging'"
+            @open-editor="handleOpenEditor"
+          />
+          <!-- Upcoming 视图 -->
+          <UpcomingColumn
+            v-else-if="currentRightPaneView === 'upcoming'"
             @open-editor="handleOpenEditor"
           />
           <!-- 其他视图（开发中） -->
