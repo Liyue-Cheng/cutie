@@ -48,7 +48,7 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
     // 计算时间（从0:00到24:00，共24小时）
     const totalMinutes = percentage * 24 * 60
     const hours = Math.floor(totalMinutes / 60)
-    const minutes = Math.floor((totalMinutes % 60) / 10) * 10 // 10分钟间隔对齐
+    const minutes = Math.floor((totalMinutes % 60) / 5) * 5 // 5分钟间隔对齐
 
     const dropTime = new Date(currentDate)
     dropTime.setHours(hours, minutes, 0, 0)

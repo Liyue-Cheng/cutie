@@ -175,10 +175,26 @@ export function useCalendarDrag(
       }
     } else {
       // 分时预览：使用拖拽位置计算时间
-      const dropTime = dependencies.getTimeFromDropPosition(event, event.currentTarget as HTMLElement)
+      const dropTime = dependencies.getTimeFromDropPosition(
+        event,
+        event.currentTarget as HTMLElement
+      )
 
       if (dropTime) {
-        let endTime = new Date(dropTime.getTime() + 60 * 60 * 1000)
+        // 根据任务的 estimated_duration 计算预览时间块长度
+        // 如果是 tiny（0 或 null），使用 15 分钟
+        const task = currentDraggedTask.value
+        let durationMinutes = 60 // 默认1小时
+        if (task) {
+          const estimatedDuration = task.estimated_duration
+          if (estimatedDuration === null || estimatedDuration === 0) {
+            durationMinutes = 15 // tiny 任务使用 15 分钟
+          } else {
+            durationMinutes = estimatedDuration
+          }
+        }
+
+        let endTime = new Date(dropTime.getTime() + durationMinutes * 60 * 1000)
 
         // 截断到当日 24:00，禁止跨天预览
         const dayEnd = new Date(dropTime)
@@ -287,7 +303,10 @@ export function useCalendarDrag(
         }
       } else {
         // 分时事件：获取拖拽位置对应的时间
-        const dropTime = dependencies.getTimeFromDropPosition(event, event.currentTarget as HTMLElement)
+        const dropTime = dependencies.getTimeFromDropPosition(
+          event,
+          event.currentTarget as HTMLElement
+        )
 
         if (!dropTime) {
           clearPreviewEvent()

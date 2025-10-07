@@ -203,7 +203,6 @@ onMounted(async () => {
     console.error('[CuteCalendar] Failed to fetch initial time blocks:', error)
   }
 })
-
 </script>
 
 <style>

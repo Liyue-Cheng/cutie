@@ -30,8 +30,8 @@ export function useCalendarOptions(
     },
     slotMinTime: '00:00:00', // 从0:00开始显示
     slotMaxTime: '24:00:00', // 到24:00结束
-    slotDuration: '00:10:00', // 10分钟时间槽
-    snapDuration: '00:10:00', // 10分钟对齐精度
+    slotDuration: '00:05:00', // 5分钟时间槽
+    snapDuration: '00:05:00', // 5分钟对齐精度
     nowIndicator: true, // 显示当前时间指示器
     height: '100%',
     weekends: true,
