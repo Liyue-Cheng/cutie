@@ -229,6 +229,22 @@ const hasTodayTimeBlocks = computed(() => {
   return todayTimeBlocks.value.length > 0
 })
 
+// ✅ 计算今天时间片的总时长（分钟）
+const todayTimeBlocksTotalDuration = computed(() => {
+  if (!hasTodayTimeBlocks.value) return 0
+
+  let totalMinutes = 0
+  for (const block of todayTimeBlocks.value) {
+    const start = new Date(block.start_time)
+    const end = new Date(block.end_time)
+    const durationMs = end.getTime() - start.getTime()
+    const durationMinutes = Math.round(durationMs / (1000 * 60))
+    totalMinutes += durationMinutes
+  }
+
+  return totalMinutes
+})
+
 // ✅ 格式化时间块的开始时间（HH:mm）
 function formatTimeBlockStart(isoString: string): string {
   const date = new Date(isoString)
@@ -237,8 +253,27 @@ function formatTimeBlockStart(isoString: string): string {
   return `${hours}:${minutes}`
 }
 
-// ✅ 格式化时间显示
+// ✅ 格式化时间显示（根据是否有时间片显示不同内容）
 const formattedDuration = computed(() => {
+  // 如果有今天的时间片，显示时间片总和
+  if (hasTodayTimeBlocks.value) {
+    const minutes = todayTimeBlocksTotalDuration.value
+
+    if (minutes === 0) return 'tiny'
+
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+
+    if (hours > 0 && mins > 0) {
+      return `${hours}:${mins.toString().padStart(2, '0')}`
+    } else if (hours > 0) {
+      return `${hours}:00`
+    } else {
+      return `${mins} min`
+    }
+  }
+
+  // 没有时间片时，显示预期时间
   if (props.task.estimated_duration === null || props.task.estimated_duration === 0) {
     return 'tiny'
   }
@@ -312,20 +347,11 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
           >
         </div>
 
-        <!-- 预期时间显示 -->
+        <!-- 时间片总和显示（不可点击） -->
         <div class="estimated-duration-wrapper">
-          <button class="estimated-duration" @click="toggleTimePicker">
+          <span class="estimated-duration readonly">
             {{ formattedDuration }}
-          </button>
-
-          <!-- 时间选择器弹窗 -->
-          <div v-if="showTimePicker" class="time-picker-popup">
-            <TimeDurationPicker
-              :model-value="task.estimated_duration"
-              @update:model-value="updateEstimatedDuration"
-              @close="showTimePicker = false"
-            />
-          </div>
+          </span>
         </div>
       </div>
 
