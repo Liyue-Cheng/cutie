@@ -281,7 +281,11 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="modal-overlay" @mousedown="handleOverlayMouseDown" @click="handleOverlayClick">
+  <div
+    class="modal-overlay"
+    @mousedown.self="handleOverlayMouseDown"
+    @click.self="handleOverlayClick"
+  >
     <CuteCard class="editor-card" @mousedown="handleCardMouseDown" @click.stop>
       <div v-if="task" class="content-wrapper">
         <!-- 第一栏：卡片标题栏 -->
