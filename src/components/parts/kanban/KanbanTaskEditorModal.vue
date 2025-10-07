@@ -592,14 +592,17 @@ function handleClose() {
   background: transparent;
   border: none;
   outline: none;
-  resize: vertical;
+  resize: none;
   padding: 1rem;
   border-radius: 0.4rem;
-  transition: background-color 0.2s;
+}
+
+.note-textarea:hover {
+  background: transparent;
 }
 
 .note-textarea:focus {
-  background-color: var(--color-background-soft, #f9f9f9);
+  background: transparent;
 }
 
 .note-textarea::placeholder {
