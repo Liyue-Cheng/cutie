@@ -48,6 +48,25 @@ const selectedArea = computed(() => {
   return selectedAreaId.value ? areaStore.getAreaById(selectedAreaId.value) : null
 })
 
+// 获取今天的日期（用于在场状态判断）
+const todayDate = computed(() => {
+  const now = new Date()
+  return now.toISOString().split('T')[0] // YYYY-MM-DD
+})
+
+// 获取今天的 schedule outcome
+const currentScheduleOutcome = computed(() => {
+  if (!task.value?.schedules || !todayDate.value) return null
+
+  const todaySchedule = task.value.schedules.find((s) => s.scheduled_day === todayDate.value)
+  return todaySchedule?.outcome || null
+})
+
+// 今天是否已记录在场
+const isPresenceLogged = computed(() => {
+  return currentScheduleOutcome.value === 'presence_logged'
+})
+
 // 当弹窗打开时，获取任务详情
 onMounted(async () => {
   if (props.taskId) {
@@ -87,8 +106,12 @@ async function handleCompleteChange(isChecked: boolean) {
 }
 
 async function handlePresenceToggle(isChecked: boolean) {
-  // TODO: 实现在场切换逻辑
-  console.log('Presence toggled:', isChecked)
+  if (!props.taskId || !todayDate.value) return
+
+  // 使用新的勾选状态来决定 outcome
+  const newOutcome = isChecked ? 'presence_logged' : undefined
+
+  await taskStore.updateSchedule(props.taskId, todayDate.value, { outcome: newOutcome })
 }
 
 async function updateTitle() {
@@ -274,7 +297,7 @@ function handleClose() {
             @update:checked="handleCompleteChange"
           />
           <CuteCheckbox
-            :checked="false"
+            :checked="isPresenceLogged"
             size="large"
             variant="star"
             @update:checked="handlePresenceToggle"
