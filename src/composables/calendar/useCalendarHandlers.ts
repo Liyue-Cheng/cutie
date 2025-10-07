@@ -5,14 +5,21 @@
  */
 
 import { type Ref } from 'vue'
-import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
+import type {
+  EventInput,
+  EventChangeArg,
+  DateSelectArg,
+  EventMountArg,
+  EventClickArg,
+} from '@fullcalendar/core'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
-  currentDateRef: Ref<string | undefined>
+  currentDateRef: Ref<string | undefined>,
+  selectedTimeBlockId: Ref<string | null>
 ) {
   const timeBlockStore = useTimeBlockStore()
   const contextMenu = useContextMenu()
@@ -210,9 +217,23 @@ export function useCalendarHandlers(
     })
   }
 
+  /**
+   * 处理事件点击 - 显示时间块详情面板
+   */
+  function handleEventClick(clickInfo: EventClickArg) {
+    const eventId = clickInfo.event.id
+    // 不处理预览事件和创建中事件
+    if (eventId === 'preview-event' || eventId === 'temp-creating') {
+      return
+    }
+    console.log('[CuteCalendar] Event clicked:', eventId)
+    selectedTimeBlockId.value = eventId
+  }
+
   return {
     handleDateSelect,
     handleEventChange,
     handleEventContextMenu,
+    handleEventClick,
   }
 }

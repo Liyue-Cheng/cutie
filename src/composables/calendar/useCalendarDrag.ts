@@ -27,6 +27,7 @@ export function useCalendarDrag(
   const isDragging = ref(false)
   const currentDraggedTask = ref<TaskCard | null>(null)
   const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
+  const hoveredEventId = ref<string | null>(null) // 悬浮在已有事件上时的事件ID
 
   // 节流控制
   const lastUpdateTime = ref(0)
@@ -131,6 +132,35 @@ export function useCalendarDrag(
     const target =
       (event.target as HTMLElement) ||
       (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
+    
+    // ✅ 检查是否悬浮在已有事件上
+    const fcEvent = target?.closest('.fc-event') as HTMLElement | null
+    if (fcEvent) {
+      // 获取事件ID
+      const eventEl = fcEvent as any
+      if (eventEl?.fcSeg?.eventRange?.def?.publicId) {
+        const eventId = eventEl.fcSeg.eventRange.def.publicId
+        // 不是预览事件才设置
+        if (eventId !== 'preview-event') {
+          hoveredEventId.value = eventId
+          // 清除预览，不显示预览块
+          previewEvent.value = null
+          // 添加视觉反馈class
+          fcEvent.classList.add('hover-link-target')
+          return
+        }
+      }
+    } else {
+      // 清除悬浮状态
+      if (hoveredEventId.value) {
+        const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
+        if (prevHoveredEl) {
+          prevHoveredEl.classList.remove('hover-link-target')
+        }
+        hoveredEventId.value = null
+      }
+    }
+    
     const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
     const isAllDayArea = !!dayCell
 
@@ -242,6 +272,14 @@ export function useCalendarDrag(
   function clearPreviewEvent() {
     previewEvent.value = null
     isDragging.value = false
+    // 清除悬浮状态
+    if (hoveredEventId.value) {
+      const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
+      if (prevHoveredEl) {
+        prevHoveredEl.classList.remove('hover-link-target')
+      }
+      hoveredEventId.value = null
+    }
     // 清理缓存
     dependencies.clearCache()
     // 停止自动滚动
@@ -268,6 +306,46 @@ export function useCalendarDrag(
     isProcessingDrop.value = true
 
     try {
+      // ✅ 检查是否拖到已有事件上（链接任务到时间块）
+      if (hoveredEventId.value && currentDraggedTask.value) {
+        console.log('[CuteCalendar] Linking task to existing time block:', hoveredEventId.value)
+        
+        try {
+          // 调用链接API
+          const response = await fetch(`http://127.0.0.1:3538/api/time-blocks/${hoveredEventId.value}/link-task`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              task_id: currentDraggedTask.value.id,
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            console.error('[CuteCalendar] Failed to link task:', errorData)
+            alert('链接任务失败：' + (errorData.message || '未知错误'))
+          } else {
+            const result = await response.json()
+            console.log('[CuteCalendar] Successfully linked task:', result)
+            // 刷新任务数据会通过SSE事件自动触发
+          }
+        } catch (error) {
+          console.error('[CuteCalendar] Error linking task:', error)
+          alert('链接任务时发生错误')
+        } finally {
+          // 清理状态
+          clearPreviewEvent()
+          const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
+          if (prevHoveredEl) {
+            prevHoveredEl.classList.remove('hover-link-target')
+          }
+          hoveredEventId.value = null
+          isProcessingDrop.value = false
+        }
+        return
+      }
       // ✅ 检查是否拖到全天区域
       const target =
         (event.target as HTMLElement) ||

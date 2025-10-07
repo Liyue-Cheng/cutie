@@ -7,7 +7,13 @@
 import { reactive, type ComputedRef } from 'vue'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import type { EventInput, EventChangeArg, DateSelectArg, EventMountArg } from '@fullcalendar/core'
+import type {
+  EventInput,
+  EventChangeArg,
+  DateSelectArg,
+  EventMountArg,
+  EventClickArg,
+} from '@fullcalendar/core'
 
 export function useCalendarOptions(
   calendarEvents: ComputedRef<EventInput[]>,
@@ -15,6 +21,7 @@ export function useCalendarOptions(
     handleDateSelect: (selectInfo: DateSelectArg) => Promise<void>
     handleEventChange: (changeInfo: EventChangeArg) => Promise<void>
     handleEventContextMenu: (info: EventMountArg) => void
+    handleEventClick: (clickInfo: EventClickArg) => void
   }
 ) {
   const calendarOptions = reactive({
@@ -43,6 +50,7 @@ export function useCalendarOptions(
     select: handlers.handleDateSelect,
     eventChange: handlers.handleEventChange,
     eventDidMount: handlers.handleEventContextMenu,
+    eventClick: handlers.handleEventClick,
   })
 
   return {

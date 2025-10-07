@@ -55,6 +55,9 @@ export function createEventHandlers(
 
       // 订阅时间块截断事件
       subscriber.on('time_blocks.truncated', handleTimeBlocksTruncatedEvent)
+
+      // 订阅时间块链接事件
+      subscriber.on('time_blocks.linked', handleTimeBlocksLinkedEvent)
     })
   }
 
@@ -404,6 +407,29 @@ export function createEventHandlers(
     }
   }
 
+  /**
+   * 处理时间块链接事件
+   * 任务链接到时间块时，需要刷新相关任务的数据
+   */
+  async function handleTimeBlocksLinkedEvent(event: any) {
+    const payload = event.payload
+    const taskIds = payload?.affected_task_ids || []
+
+    console.log('[TaskStore] Handling time_blocks.linked event, affected tasks:', taskIds)
+
+    // 重新获取受影响的任务数据
+    for (const taskId of taskIds) {
+      try {
+        await crudOps.fetchTaskDetail(taskId)
+      } catch (error) {
+        console.error(
+          `[TaskStore] Failed to refresh task ${taskId} after time block link:`,
+          error
+        )
+      }
+    }
+  }
+
   return {
     initEventSubscriptions,
     handleTaskCompletedEvent,
@@ -414,5 +440,6 @@ export function createEventHandlers(
     handleTimeBlocksDeletedEvent,
     handleTimeBlocksUpdatedEvent,
     handleTimeBlocksTruncatedEvent,
+    handleTimeBlocksLinkedEvent,
   }
 }

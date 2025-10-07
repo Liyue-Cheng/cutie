@@ -30,6 +30,13 @@
         height: `${decorativeLineHeight}px`,
       }"
     ></div>
+
+    <!-- 时间块详情面板 -->
+    <TimeBlockDetailPanel
+      v-if="selectedTimeBlockId"
+      :time-block-id="selectedTimeBlockId"
+      @close="selectedTimeBlockId = null"
+    />
   </div>
 </template>
 
@@ -44,6 +51,7 @@ import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
 import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
 import { useCalendarDrag } from '@/composables/calendar/useCalendarDrag'
+import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
 
@@ -60,6 +68,9 @@ const calendarInstanceKey = computed(() => `calendar-${currentZoom.value}`)
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
 const currentDateRef = computed(() => props.currentDate)
+
+// 选中的时间块ID（用于显示详情面板）
+const selectedTimeBlockId = ref<string | null>(null)
 
 // ==================== Composables ====================
 // 自动滚动
@@ -86,7 +97,7 @@ drag.initialize()
 const { calendarEvents } = useCalendarEvents(drag.previewEvent)
 
 // 事件处理器
-const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef)
+const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
 
 // 日历配置
 const { calendarOptions } = useCalendarOptions(calendarEvents, handlers)
@@ -440,5 +451,25 @@ onMounted(async () => {
 /* 3x 缩放 - 每小时约 3倍 */
 .calendar-container.zoom-3x .fc .fc-timegrid-slot {
   height: 4.5rem !important; /* 10分钟槽 = 4.5rem，1小时 = 27rem */
+}
+
+/* ===============================================
+ * 10. 拖拽悬浮在已有事件上的视觉反馈
+ * =============================================== */
+.fc-event.hover-link-target {
+  opacity: 0.7 !important;
+  box-shadow: 0 0 0 2px #4a90e2 inset !important;
+  position: relative !important;
+}
+
+.fc-event.hover-link-target::after {
+  content: '🔗';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  pointer-events: none;
+  z-index: 100;
 }
 </style>
