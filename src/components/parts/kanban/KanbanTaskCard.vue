@@ -307,7 +307,9 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
           >
             {{ formatTimeBlockStart(block.start_time) }}
           </span>
-          <span v-if="todayTimeBlocks.length > 2" class="time-tag-more">+{{ todayTimeBlocks.length - 2 }}</span>
+          <span v-if="todayTimeBlocks.length > 2" class="time-tag-more"
+            >+{{ todayTimeBlocks.length - 2 }}</span
+          >
         </div>
 
         <!-- 预期时间显示 -->
@@ -468,8 +470,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.6rem 0;
-  margin-bottom: 0.8rem;
+  padding: 0.3rem 0;
 }
 
 .time-tags {
