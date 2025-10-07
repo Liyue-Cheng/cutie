@@ -53,6 +53,9 @@ export interface TaskCard {
     sort_order: string
   }> | null
 
+  // --- 时间估算 ---
+  estimated_duration: number | null // 预期时长（分钟），null 表示未设置
+
   // --- 上下文与聚合信息 ---
   area_id: string | null // ✅ 前端通过 area_id 从 area store 获取完整信息
 

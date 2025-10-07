@@ -55,7 +55,6 @@ Views 模块提供聚合视图，用于不同的任务列表展示。
 2. 为每个任务：
    - 组装基础 TaskCard
    - 查询 task_schedules 判断 schedule_status
-   - 查询 orderings 获取 sort_order
    - 查询 areas 获取区域信息
 3. 按 created_at DESC 排序
 4. 返回数组
@@ -244,7 +243,7 @@ Views 模块提供聚合视图，用于不同的任务列表展示。
 ### 7. 数据访问详情
 
 - SELECT: 1次（NOT EXISTS 子查询）
-- SELECT: N次（orderings, areas）
+- SELECT: N次（areas）
 - 只读操作
 
 ### 8. 预期副作用

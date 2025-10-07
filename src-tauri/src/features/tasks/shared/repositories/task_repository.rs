@@ -152,6 +152,9 @@ impl TaskRepository {
         if request.detail_note.is_some() {
             set_clauses.push("detail_note = ?");
         }
+        if request.estimated_duration.is_some() {
+            set_clauses.push("estimated_duration = ?");
+        }
         if request.subtasks.is_some() {
             set_clauses.push("subtasks = ?");
         }
@@ -179,6 +182,9 @@ impl TaskRepository {
         }
         if let Some(detail_note) = &request.detail_note {
             q = q.bind(detail_note.clone());
+        }
+        if let Some(estimated_duration) = &request.estimated_duration {
+            q = q.bind(estimated_duration.clone());
         }
         if let Some(subtasks) = &request.subtasks {
             let value: Option<String> = match subtasks {

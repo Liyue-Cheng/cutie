@@ -95,11 +95,10 @@
 5. 构造 Task 实体
 6. 插入 tasks 表
 7. 使用 LexoRank 计算 sort_order
-8. 插入 orderings 表（context: MISC/staging）
-9. 提交事务
-10. 查询 Area 信息（如果有）
-11. 组装 TaskCardDto
-12. 返回 201
+8. 提交事务
+9. 查询 Area 信息（如果有）
+10. 组装 TaskCardDto
+11. 返回 201
 
 ### 6. 边界情况
 
@@ -111,12 +110,11 @@
 - SELECT: 1次（查询最大 sort_order）
 - SELECT: 0-1次（查询 Area）
 - INSERT: 1条到 tasks
-- INSERT: 1条到 orderings
 - 事务: 所有写操作在事务中
 
 ### 8. 预期副作用
 
-- 数据库写入: tasks + orderings 各1条
+- 数据库写入: tasks 表1条
 - 日志: INFO "Task created"
 - 前端: 任务出现在 Staging 列
 

@@ -25,6 +25,7 @@ export interface UpdateTaskPayload {
   due_date?: string | null
   due_date_type?: 'soft' | 'hard' | null
   project_id?: string | null
+  estimated_duration?: number | null
   subtasks?: Array<{
     id?: string
     title: string

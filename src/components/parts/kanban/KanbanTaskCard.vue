@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import { useTaskStore } from '@/stores/task'
@@ -10,6 +10,8 @@ import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import AreaTag from '@/components/parts/AreaTag.vue'
+import TimeDurationPicker from '@/components/parts/TimeDurationPicker.vue'
 
 const props = defineProps<{
   task: TaskCard
@@ -26,6 +28,12 @@ const emit = defineEmits<{
 
 const contextMenu = useContextMenu()
 
+// ✅ 防误触状态：刚点击过在场按钮
+const justToggledPresence = ref(false)
+
+// ✅ 时间选择器状态
+const showTimePicker = ref(false)
+
 // 使用任务的subtasks字段替代checkpoints
 const subtasks = computed(() => props.task.subtasks || [])
 
@@ -39,16 +47,113 @@ const isDateKanban = computed(() => {
   return props.viewMetadata?.type === 'date'
 })
 
-// ✅ 判断是否为过去的日期
-const isPastDate = computed(() => {
-  if (!isDateKanban.value || !props.viewMetadata?.config) return false
+// ✅ 获取当日日期 (YYYY-MM-DD)
+const todayDate = computed(() => {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
+})
+
+// ✅ 判断当前看板的日期类型
+const kanbanDateType = computed(() => {
+  if (!isDateKanban.value || !props.viewMetadata?.config) return null
 
   const config = props.viewMetadata.config as DateViewConfig
-  const kanbanDate = new Date(config.date + 'T00:00:00')
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const kanbanDate = config.date
+  const today = todayDate.value
 
-  return kanbanDate < today
+  if (!today) return null
+
+  if (kanbanDate === today) return 'today'
+  if (kanbanDate < today) return 'past'
+  if (kanbanDate > today) return 'future'
+  return null
+})
+
+// ✅ 判断该日期之后是否有排期记录
+const hasScheduleAfterDate = computed(() => {
+  if (!isDateKanban.value || !props.viewMetadata?.config) return false
+  if (!props.task.schedules) return false
+
+  const config = props.viewMetadata.config as DateViewConfig
+  const kanbanDate = config.date
+
+  // 检查是否有任何排期在当前看板日期之后
+  return props.task.schedules.some((schedule) => schedule.scheduled_day > kanbanDate)
+})
+
+// ✅ 完成按钮显示逻辑
+const shouldShowCompleteButton = computed(() => {
+  if (!isDateKanban.value) {
+    // 非日期看板（如暂存区）：始终显示完成按钮
+    return true
+  }
+
+  const dateType = kanbanDateType.value
+  if (dateType === 'today' || dateType === 'future') {
+    // 今日看板或未来看板：显示
+    return true
+  }
+
+  if (dateType === 'past') {
+    // 过去看板：条件显示 - 只有该天之后无其他排期时才显示
+    return !hasScheduleAfterDate.value
+  }
+
+  return false
+})
+
+// ✅ 在场按钮显示逻辑
+const shouldShowPresenceButton = computed(() => {
+  if (!isDateKanban.value) {
+    // 非日期看板：不显示在场按钮
+    return false
+  }
+
+  // 已完成任务：不显示在场按钮
+  if (props.task.is_completed) {
+    return false
+  }
+
+  const dateType = kanbanDateType.value
+  if (dateType === 'future') {
+    // 未来看板：不显示在场按钮
+    return false
+  }
+
+  if (dateType === 'today' || dateType === 'past') {
+    // 今日看板或过去看板：显示（任务未完成时）
+    return true
+  }
+
+  return false
+})
+
+// ✅ 获取当前日期的 schedule outcome
+const currentScheduleOutcome = computed(() => {
+  if (!isDateKanban.value || !props.viewMetadata?.config) return null
+  if (!props.task.schedules) return null
+
+  const config = props.viewMetadata.config as DateViewConfig
+  const kanbanDate = config.date
+
+  const schedule = props.task.schedules.find((s) => s.scheduled_day === kanbanDate)
+  return schedule?.outcome || null
+})
+
+// ✅ 在场按钮的选中状态
+const isPresenceLogged = computed(() => {
+  return currentScheduleOutcome.value === 'presence_logged'
+})
+
+// ✅ 按钮布局模式
+// 默认模式：完成按钮始终显示，在场按钮悬浮显示
+// 在场激活模式：在场按钮始终显示，完成按钮悬浮显示
+const buttonLayoutMode = computed(() => {
+  // 如果在场按钮被选中，切换到"在场激活模式"
+  if (isPresenceLogged.value && shouldShowPresenceButton.value) {
+    return 'presence-active'
+  }
+  return 'default'
 })
 
 function showContextMenu(event: MouseEvent) {
@@ -64,6 +169,75 @@ async function handleStatusChange(isChecked: boolean) {
   } else {
     // ✅ 重新打开任务
     await taskOps.reopenTask(props.task.id)
+  }
+}
+
+async function handlePresenceToggle(newCheckedValue: boolean) {
+  if (!isDateKanban.value || !props.viewMetadata?.config) return
+
+  const config = props.viewMetadata.config as DateViewConfig
+  const kanbanDate = config.date
+
+  try {
+    // 根据新的选中状态设置 outcome
+    // checked = true: 在场 (PRESENCE_LOGGED)
+    // checked = false: 仅计划 (PLANNED)
+    const newOutcome = newCheckedValue ? 'PRESENCE_LOGGED' : 'PLANNED'
+    console.log(
+      `[KanbanTaskCard] Toggle presence for task ${props.task.id} on ${kanbanDate}: ${newOutcome} (checked=${newCheckedValue})`
+    )
+
+    // ✅ 标记刚点击过在场按钮，防止完成按钮立即出现在同一位置
+    justToggledPresence.value = true
+
+    // 调用后端 API 更新 schedule 的 outcome
+    await taskStore.updateSchedule(props.task.id, kanbanDate, { outcome: newOutcome })
+
+    console.log('[KanbanTaskCard] Presence toggled successfully')
+  } catch (error) {
+    console.error('[KanbanTaskCard] Error toggling presence:', error)
+  }
+}
+
+// ✅ 鼠标离开卡片时重置防误触状态
+function handleMouseLeave() {
+  justToggledPresence.value = false
+}
+
+// ✅ 格式化时间显示
+const formattedDuration = computed(() => {
+  if (props.task.estimated_duration === null || props.task.estimated_duration === 0) {
+    return 'tiny'
+  }
+
+  const minutes = props.task.estimated_duration
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+
+  if (hours > 0 && mins > 0) {
+    return `${hours}:${mins.toString().padStart(2, '0')}`
+  } else if (hours > 0) {
+    return `${hours}:00`
+  } else {
+    return `${mins} min`
+  }
+})
+
+// ✅ 切换时间选择器显示
+function toggleTimePicker(event: Event) {
+  event.stopPropagation()
+  showTimePicker.value = !showTimePicker.value
+}
+
+// ✅ 更新预期时间
+async function updateEstimatedDuration(duration: number | null) {
+  try {
+    await taskStore.updateTask(props.task.id, {
+      estimated_duration: duration,
+    } as any)
+    showTimePicker.value = false
+  } catch (error) {
+    console.error('[KanbanTaskCard] Error updating estimated duration:', error)
   }
 }
 
@@ -86,9 +260,29 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     :data-completed="task.is_completed"
     @click="emit('openEditor')"
     @contextmenu="showContextMenu"
+    @mouseleave="handleMouseLeave"
   >
     <div class="main-content">
-      <span class="title">{{ task.title }}</span>
+      <!-- 第一行：标题 + 预期时间 -->
+      <div class="card-header">
+        <span class="title">{{ task.title }}</span>
+
+        <!-- 预期时间显示 -->
+        <div class="estimated-duration-wrapper">
+          <button class="estimated-duration" @click="toggleTimePicker">
+            {{ formattedDuration }}
+          </button>
+
+          <!-- 时间选择器弹窗 -->
+          <div v-if="showTimePicker" class="time-picker-popup">
+            <TimeDurationPicker
+              :model-value="task.estimated_duration"
+              @update:model-value="updateEstimatedDuration"
+              @close="showTimePicker = false"
+            />
+          </div>
+        </div>
+      </div>
 
       <div v-if="task.glance_note" class="notes-section">
         <CuteIcon name="CornerDownRight" :size="14" />
@@ -109,29 +303,65 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
         </div>
       </div>
 
+      <!-- 第二行：完成/在场按钮 + Area标签 -->
       <div class="card-footer">
-        <div class="main-checkbox-wrapper">
-          <!-- 完成按钮：过去日期且后续有记录时不显示 -->
-          <CuteCheckbox
-            v-if="!isPastDate"
-            class="main-checkbox"
-            :checked="task.is_completed"
-            size="large"
-            @update:checked="handleStatusChange"
-            @click.stop
-          ></CuteCheckbox>
+        <div
+          class="main-checkbox-wrapper"
+          :class="{ 'presence-active-mode': buttonLayoutMode === 'presence-active' }"
+        >
+          <!-- 默认模式：完成按钮在左，在场按钮在右（悬浮） -->
+          <template v-if="buttonLayoutMode === 'default'">
+            <!-- 完成按钮：始终显示（左边） -->
+            <CuteCheckbox
+              v-if="shouldShowCompleteButton"
+              class="main-checkbox always-visible"
+              :checked="task.is_completed"
+              size="large"
+              @update:checked="handleStatusChange"
+              @click.stop
+            ></CuteCheckbox>
 
-          <!-- 星星按钮：只在日期看板显示 -->
-          <CuteCheckbox
-            v-if="isDateKanban"
-            class="star-checkbox"
-            variant="star"
-            size="large"
-            :checked="false"
-            @click.stop
-          ></CuteCheckbox>
+            <!-- 占位符：过去日期且后续有记录时保留空间 -->
+            <div v-else-if="kanbanDateType === 'past'" class="main-checkbox-placeholder"></div>
+
+            <!-- 在场按钮：悬浮显示（右边） -->
+            <CuteCheckbox
+              v-if="shouldShowPresenceButton"
+              class="star-checkbox hover-visible"
+              variant="star"
+              size="large"
+              :checked="isPresenceLogged"
+              @update:checked="handlePresenceToggle"
+              @click.stop
+            ></CuteCheckbox>
+          </template>
+
+          <!-- 在场激活模式：在场按钮在左，完成按钮在右（悬浮） -->
+          <template v-else-if="buttonLayoutMode === 'presence-active'">
+            <!-- 在场按钮：始终显示（左边） -->
+            <CuteCheckbox
+              v-if="shouldShowPresenceButton"
+              class="star-checkbox always-visible"
+              variant="star"
+              size="large"
+              :checked="isPresenceLogged"
+              @update:checked="handlePresenceToggle"
+              @click.stop
+            ></CuteCheckbox>
+
+            <!-- 完成按钮：悬浮显示（右边），但刚点击在场按钮后暂时不显示 -->
+            <CuteCheckbox
+              v-if="shouldShowCompleteButton && !justToggledPresence"
+              class="main-checkbox hover-visible"
+              :checked="task.is_completed"
+              size="large"
+              @update:checked="handleStatusChange"
+              @click.stop
+            ></CuteCheckbox>
+          </template>
         </div>
-        <div v-if="area" class="area-tag" :style="{ color: area.color }">#{{ area.name }}</div>
+
+        <AreaTag v-if="area" :name="area.name" :color="area.color" size="normal" />
       </div>
     </div>
   </CuteCard>
@@ -163,10 +393,20 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   gap: 0.4rem;
 }
 
+/* 第一行：标题 + 预期时间 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
 .title {
+  flex: 1;
   font-size: 1.5rem;
   font-weight: 500;
   color: var(--color-text-primary);
+  line-height: 1.4;
 }
 
 .notes-section {
@@ -200,11 +440,44 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   color: var(--color-text-primary);
 }
 
+/* 第二行：完成/在场按钮 + Area标签 */
 .card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 1rem;
   margin-top: 0.5rem;
+}
+
+.estimated-duration-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.estimated-duration {
+  padding: 0.4rem 0.8rem;
+  background-color: var(--color-bg-secondary, #f5f5f5);
+  border: none;
+  border-radius: 0.4rem;
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.estimated-duration:hover {
+  background-color: var(--color-bg-hover, #e0e0e0);
+  color: var(--color-text-primary);
+}
+
+.time-picker-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.4rem;
+  z-index: 1000;
 }
 
 .main-checkbox-wrapper {
@@ -214,20 +487,34 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   align-self: flex-start;
 }
 
-.star-checkbox {
+.main-checkbox-placeholder {
+  width: 2.4rem;
+  height: 2.4rem;
+
+  /* 保留占位空间，避免布局跳动 */
+}
+
+/* ✅ 按钮显示模式 */
+
+/* 始终显示的按钮 */
+.always-visible {
+  opacity: 1;
+}
+
+/* 悬浮时显示的按钮 */
+.hover-visible {
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
 }
 
-.task-card:hover .star-checkbox {
+/* 卡片悬浮时，悬浮按钮变为可见 */
+.task-card:hover .hover-visible {
   opacity: 1;
 }
 
-.area-tag {
-  font-size: 1.2rem;
-  font-weight: 500;
-  align-self: flex-start;
-  margin-top: 0.5rem;
+/* Area 标签位置调整 */
+.card-footer :deep(.area-tag) {
+  flex-shrink: 0;
 }
 
 /* 只有主复选框被选中时，主标题才划线 */

@@ -60,7 +60,6 @@
 
 - 查询 `tasks` 表中所有 `is_deleted = false` 且 `completed_at IS NULL` 的任务
 - 排除已在 `task_schedules` 表中有记录的任务
-- 从 `orderings` 表获取 `sort_order`（context_type = 'MISC', context_id = 'staging'）
 - 从 `areas` 表获取区域信息
 - 使用 `TaskAssembler::task_to_card_full()` 组装
 
@@ -108,8 +107,7 @@
 1. 验证 `title` 不为空且长度 ≤ 255
 2. 生成 UUID 和时间戳
 3. 插入 `tasks` 表
-4. 在 `orderings` 表创建记录（context_type = 'MISC', context_id = 'staging'）
-5. 使用 `TaskAssembler::task_to_card_basic()` 组装返回
+4. 使用 `TaskAssembler::task_to_card_basic()` 组装返回
 
 ---
 

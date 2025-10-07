@@ -26,6 +26,9 @@ pub struct TaskCardDto {
     // --- 详细信息 ---
     pub subtasks: Option<Vec<SubtaskDto>>,
 
+    // --- 时间估算 ---
+    pub estimated_duration: Option<i32>, // 预期时长（分钟），null 表示未设置
+
     // --- 上下文与聚合信息 ---
     pub area_id: Option<Uuid>, // ✅ 前端通过 area_id 从 area store 获取完整信息
     pub project_id: Option<Uuid>,
