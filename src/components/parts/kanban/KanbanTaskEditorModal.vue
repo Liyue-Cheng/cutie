@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { useTaskStore } from '@/stores/task'
+import { useAreaStore } from '@/stores/area'
 import { useTaskOperations } from '@/composables/useTaskOperations'
 import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
-import CuteButton from '@/components/parts/CuteButton.vue'
-import AreaSelector from '@/components/parts/AreaSelector.vue'
+import AreaTag from '@/components/parts/AreaTag.vue'
 
 interface Subtask {
   id: string
@@ -19,15 +19,22 @@ const props = defineProps<{
   taskId: string | null
 }>()
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
 const taskStore = useTaskStore()
+const areaStore = useAreaStore()
 const taskOps = useTaskOperations()
 
+// 本地编辑状态
+const titleInput = ref('')
 const glanceNote = ref('')
 const detailNote = ref('')
 const selectedAreaId = ref<string | null>(null)
 const newSubtaskTitle = ref('')
+const isTitleEditing = ref(false)
+const showAreaSelector = ref(false)
+const showDueDatePicker = ref(false)
+const draggingSubtaskId = ref<string | null>(null)
 
 const task = computed(() => {
   return props.taskId ? taskStore.getTaskById(props.taskId) : null
@@ -37,12 +44,16 @@ const subtasks = computed(() => {
   return task.value?.subtasks || []
 })
 
+const selectedArea = computed(() => {
+  return selectedAreaId.value ? areaStore.getAreaById(selectedAreaId.value) : null
+})
+
 // 当弹窗打开时，获取任务详情
 onMounted(async () => {
   if (props.taskId) {
     const detail = (await taskStore.fetchTaskDetail(props.taskId)) as TaskDetail | null
     if (detail) {
-      // TaskDetail 包含完整的 note 信息
+      titleInput.value = detail.title
       glanceNote.value = detail.glance_note || ''
       detailNote.value = detail.detail_note || ''
       selectedAreaId.value = detail.area_id || null
@@ -56,6 +67,7 @@ watch(
     if (newTaskId) {
       const detail = (await taskStore.fetchTaskDetail(newTaskId)) as TaskDetail | null
       if (detail) {
+        titleInput.value = detail.title
         glanceNote.value = detail.glance_note || ''
         detailNote.value = detail.detail_note || ''
         selectedAreaId.value = detail.area_id || null
@@ -64,16 +76,27 @@ watch(
   }
 )
 
-async function handleStatusChange(isChecked: boolean) {
+async function handleCompleteChange(isChecked: boolean) {
   if (!props.taskId) return
 
   if (isChecked) {
-    // ✅ 使用 TaskOperations 完成任务
     await taskOps.completeTask(props.taskId)
   } else {
-    // ✅ 使用 TaskOperations 重新打开任务
     await taskOps.reopenTask(props.taskId)
   }
+}
+
+async function handlePresenceToggle(isChecked: boolean) {
+  // TODO: 实现在场切换逻辑
+  console.log('Presence toggled:', isChecked)
+}
+
+async function updateTitle() {
+  if (!props.taskId || !task.value || titleInput.value === task.value.title) return
+  await taskStore.updateTask(props.taskId, {
+    title: titleInput.value,
+  })
+  isTitleEditing.value = false
 }
 
 async function updateGlanceNote() {
@@ -90,11 +113,13 @@ async function updateDetailNote() {
   })
 }
 
-async function updateArea() {
+async function updateArea(areaId: string | null) {
   if (!props.taskId || !task.value) return
+  selectedAreaId.value = areaId
   await taskStore.updateTask(props.taskId, {
-    area_id: selectedAreaId.value,
+    area_id: areaId,
   })
+  showAreaSelector.value = false
 }
 
 async function handleAddSubtask() {
@@ -127,83 +152,216 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtasks: updatedSubtasks,
   })
 }
+
+async function handleDeleteSubtask(subtaskId: string) {
+  if (!props.taskId) return
+
+  const updatedSubtasks = subtasks.value.filter((subtask) => subtask.id !== subtaskId)
+
+  await taskStore.updateTask(props.taskId, {
+    subtasks: updatedSubtasks,
+  })
+}
+
+function handleDragStart(subtaskId: string) {
+  draggingSubtaskId.value = subtaskId
+}
+
+function handleDragEnd() {
+  draggingSubtaskId.value = null
+}
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault()
+}
+
+async function handleDrop(event: DragEvent, targetSubtaskId: string) {
+  event.preventDefault()
+
+  if (!props.taskId || !draggingSubtaskId.value) return
+  if (draggingSubtaskId.value === targetSubtaskId) return
+
+  const currentSubtasks = [...subtasks.value]
+  const dragIndex = currentSubtasks.findIndex((s) => s.id === draggingSubtaskId.value)
+  const dropIndex = currentSubtasks.findIndex((s) => s.id === targetSubtaskId)
+
+  if (dragIndex === -1 || dropIndex === -1) return
+
+  // 移除被拖动的项
+  const draggedItems = currentSubtasks.splice(dragIndex, 1)
+  const draggedItem = draggedItems[0]
+
+  if (!draggedItem) return
+
+  // 插入到新位置
+  currentSubtasks.splice(dropIndex, 0, draggedItem)
+
+  // 更新sort_order
+  const updatedSubtasks = currentSubtasks.map((subtask, index) => ({
+    ...subtask,
+    sort_order: `subtask_${Date.now()}_${index}`,
+  }))
+
+  await taskStore.updateTask(props.taskId, {
+    subtasks: updatedSubtasks,
+  })
+
+  draggingSubtaskId.value = null
+}
+
+function handleClose() {
+  emit('close')
+}
 </script>
 
 <template>
-  <div class="modal-overlay" @click="$emit('close')">
+  <div class="modal-overlay" @click="handleClose">
     <CuteCard class="editor-card" @click.stop>
       <div v-if="task" class="content-wrapper">
-        <div class="header-section">
+        <!-- 第一栏：卡片标题栏 -->
+        <div class="card-header-row">
+          <div class="left-section">
+            <!-- 区域标签 -->
+            <div class="area-tag-wrapper" @click="showAreaSelector = !showAreaSelector">
+              <AreaTag
+                v-if="selectedArea"
+                :name="selectedArea.name"
+                :color="selectedArea.color"
+                size="normal"
+              />
+              <div v-else class="no-area-placeholder">
+                <span class="hash-symbol">#</span>
+                <span>无区域</span>
+              </div>
+            </div>
+
+            <!-- 简易区域选择器 -->
+            <div v-if="showAreaSelector" class="area-selector-dropdown">
+              <div
+                v-for="area in Array.from(areaStore.areas.values())"
+                :key="area.id"
+                class="area-option"
+                @click="updateArea(area.id)"
+              >
+                <AreaTag :name="area.name" :color="area.color" size="small" />
+              </div>
+              <div class="area-option" @click="updateArea(null)">
+                <span class="no-area-text">清除区域</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="right-section">
+            <!-- 截止日期选择器 -->
+            <button class="due-date-button" @click="showDueDatePicker = !showDueDatePicker">
+              <span v-if="task.due_date">{{
+                new Date(task.due_date.date).toLocaleDateString()
+              }}</span>
+              <span v-else class="placeholder">设置截止日期</span>
+            </button>
+
+            <!-- × 按钮 -->
+            <button class="close-button" @click="handleClose">×</button>
+          </div>
+        </div>
+
+        <!-- 第二栏：任务标题栏 -->
+        <div class="title-row">
           <CuteCheckbox
             :checked="task.is_completed"
             size="large"
-            @update:checked="handleStatusChange"
-          ></CuteCheckbox>
-          <span class="title">{{ task.title }}</span>
-        </div>
-
-        <div class="separator"></div>
-
-        <div class="notes-section">
-          <label class="notes-label">快览笔记 (Glance Note)</label>
+            variant="check"
+            @update:checked="handleCompleteChange"
+          />
+          <CuteCheckbox
+            :checked="false"
+            size="large"
+            variant="star"
+            @update:checked="handlePresenceToggle"
+          />
           <input
-            v-model="glanceNote"
-            type="text"
-            class="glance-note-input"
-            placeholder="简短笔记（卡片上显示）..."
-            @blur="updateGlanceNote"
+            v-model="titleInput"
+            class="title-input"
+            :class="{ completed: task.is_completed }"
+            @blur="updateTitle"
+            @keydown.enter="updateTitle"
           />
         </div>
 
-        <div class="separator"></div>
-
-        <div class="notes-section">
-          <label class="notes-label">详细笔记 (Detail Note)</label>
+        <!-- 第三栏：Glance Note 区域 -->
+        <div class="note-area glance-note-area">
+          <div
+            v-if="!glanceNote && !isTitleEditing"
+            class="note-placeholder"
+            @click="isTitleEditing = true"
+          >
+            快速概览笔记...
+          </div>
           <textarea
-            v-model="detailNote"
-            class="detail-note-input"
-            placeholder="详细笔记（仅在编辑器中）..."
-            @blur="updateDetailNote"
+            v-model="glanceNote"
+            class="note-textarea"
+            placeholder="快速概览笔记..."
+            rows="2"
+            @blur="updateGlanceNote"
           ></textarea>
         </div>
 
+        <!-- 分割线 -->
         <div class="separator"></div>
 
-        <div class="area-section">
-          <label class="notes-label">区域 (Area)</label>
-          <AreaSelector v-model="selectedAreaId" @blur="updateArea" />
-        </div>
-
-        <div class="separator"></div>
-
+        <!-- 第四栏：子任务编辑区 -->
         <div class="subtasks-section">
-          <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item">
-            <CuteCheckbox
-              :checked="subtask.is_completed"
-              @update:checked="
-                (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
-              "
-            />
-            <span class="subtask-title">{{ subtask.title }}</span>
+          <div class="subtasks-header">子任务</div>
+          <div class="subtasks-list">
+            <div
+              v-for="subtask in subtasks"
+              :key="subtask.id"
+              class="subtask-item"
+              :class="{ dragging: draggingSubtaskId === subtask.id }"
+              draggable="true"
+              @dragstart="handleDragStart(subtask.id)"
+              @dragend="handleDragEnd"
+              @dragover="handleDragOver"
+              @drop="handleDrop($event, subtask.id)"
+            >
+              <div class="drag-handle">⋮⋮</div>
+              <CuteCheckbox
+                :checked="subtask.is_completed"
+                size="small"
+                @update:checked="
+                  (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
+                "
+              />
+              <span class="subtask-title" :class="{ completed: subtask.is_completed }">
+                {{ subtask.title }}
+              </span>
+              <button class="delete-button" @click="handleDeleteSubtask(subtask.id)">×</button>
+            </div>
           </div>
           <div class="add-subtask-form">
             <input
               v-model="newSubtaskTitle"
               class="add-subtask-input"
-              placeholder="Add subtask..."
-              @keyup.enter="handleAddSubtask"
+              placeholder="添加子任务..."
+              @keydown.enter="handleAddSubtask"
             />
-            <CuteButton @click="handleAddSubtask">Add Subtask</CuteButton>
           </div>
         </div>
 
+        <!-- 分割线 -->
         <div class="separator"></div>
 
-        <!-- 调试信息 -->
-        <details class="debug-info">
-          <summary class="debug-summary">🔍 调试数据（完整 TaskCard 结构）</summary>
-          <pre class="debug-content">{{ JSON.stringify(task, null, 2) }}</pre>
-        </details>
+        <!-- 第五栏：细节笔记区 -->
+        <div class="note-area detail-note-area">
+          <div v-if="!detailNote" class="note-placeholder">详细笔记...</div>
+          <textarea
+            v-model="detailNote"
+            class="note-textarea"
+            placeholder="详细笔记..."
+            rows="4"
+            @blur="updateDetailNote"
+          ></textarea>
+        </div>
       </div>
     </CuteCard>
   </div>
@@ -224,175 +382,324 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 }
 
 .editor-card {
-  width: 60rem;
-  min-height: 40rem;
+  width: 70rem;
+  max-width: 90vw;
+  max-height: 90vh;
   padding: 2.5rem;
   border: 1px solid var(--color-border-default);
   background-color: var(--color-card-available);
   border-radius: 0.8rem;
+  overflow-y: auto;
 }
 
 .content-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 2rem;
 }
 
-.header-section {
+/* 第一栏：卡片标题栏 */
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--color-separator);
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.area-tag-wrapper {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.area-tag-wrapper:hover {
+  opacity: 0.7;
+}
+
+.area-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  background: var(--color-card-available);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  z-index: 100;
+  min-width: 20rem;
+  max-height: 30rem;
+  overflow-y: auto;
+}
+
+.area-option {
+  padding: 0.8rem 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.area-option:hover {
+  background-color: var(--color-background-soft, #f9f9f9);
+}
+
+.no-area-text {
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary);
+}
+
+.no-area-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary);
+  padding: 0.4rem 0.8rem;
+  border: 1px dashed var(--color-border-default);
+  border-radius: 0.4rem;
+}
+
+.no-area-placeholder .hash-symbol {
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.right-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.due-date-button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1.3rem;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.due-date-button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.due-date-button .placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.close-button {
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: var(--color-text-primary);
+}
+
+/* 第二栏：任务标题栏 */
+.title-row {
   display: flex;
   align-items: center;
   gap: 1.5rem;
 }
 
-.title {
+.title-input {
+  flex: 1;
   font-size: 2.4rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  flex-grow: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.2s;
 }
 
-/* stylelint-disable-next-line selector-class-pattern */
-.editor-card:has(.n-checkbox--checked) .title {
+.title-input:focus {
+  border-bottom-color: var(--color-primary);
+}
+
+.title-input.completed {
   text-decoration: line-through;
   color: var(--color-text-secondary);
 }
 
+/* 笔记区域 */
+.note-area {
+  position: relative;
+  min-height: 4rem;
+}
+
+.note-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.5rem;
+  color: var(--color-text-tertiary);
+  cursor: text;
+  pointer-events: none;
+}
+
+.note-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: vertical;
+  padding: 1rem;
+  border-radius: 0.4rem;
+  transition: background-color 0.2s;
+}
+
+.note-textarea:focus {
+  background-color: var(--color-background-soft, #f9f9f9);
+}
+
+.note-textarea::placeholder {
+  color: transparent;
+}
+
+/* 分割线 */
 .separator {
   height: 1px;
   background-color: var(--color-separator);
-  margin: 2rem 0;
 }
 
-.notes-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.notes-label {
-  font-size: 1.3rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
-.glance-note-input {
-  width: 100%;
-  padding: 0.8rem;
-  font-family: inherit;
-  font-size: 1.5rem;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  background-color: var(--color-background-secondary);
-  color: var(--color-text-primary);
-}
-
-.glance-note-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #4a90e2);
-}
-
-.detail-note-input {
-  width: 100%;
-  min-height: 120px;
-  padding: 1rem;
-  font-family: inherit;
-  font-size: 1.5rem;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  background-color: var(--color-background-secondary);
-  color: var(--color-text-primary);
-  resize: vertical;
-}
-
-.detail-note-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #4a90e2);
-}
-
+/* 第四栏：子任务区 */
 .subtasks-section {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
+.subtasks-header {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.subtasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
 .subtask-item {
   display: flex;
   align-items: center;
   gap: 1rem;
+  padding: 0.8rem;
+  border-radius: 0.4rem;
+  transition: background-color 0.2s;
+  cursor: move;
+}
+
+.subtask-item:hover {
+  background-color: var(--color-background-soft, #f9f9f9);
+}
+
+.subtask-item.dragging {
+  opacity: 0.5;
+  background-color: var(--color-background-hover, #e8e8e8);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--color-text-tertiary);
+  font-size: 1.4rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .subtask-title {
+  flex: 1;
   font-size: 1.6rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
-/* stylelint-disable-next-line selector-class-pattern */
-.subtask-item:has(.n-checkbox--checked) .subtask-title {
+.subtask-title.completed {
   text-decoration: line-through;
   color: var(--color-text-tertiary);
 }
 
-.add-subtask-form {
+.delete-button {
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    color 0.2s;
+}
+
+.delete-button:hover {
+  color: var(--color-danger, #ff4d4f);
+}
+
+.subtask-item:hover .delete-button {
+  opacity: 1;
+}
+
+.add-subtask-form {
+  margin-top: 0.5rem;
 }
 
 .add-subtask-input {
-  flex-grow: 1;
+  width: 100%;
   padding: 1rem;
-  font-size: 1.6rem;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  background-color: var(--color-background-primary);
-}
-
-/* 调试信息样式 */
-.debug-info {
-  margin-top: 1rem;
-}
-
-.debug-summary {
-  font-size: 1.3rem;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  user-select: none;
-  padding: 0.8rem;
-  background-color: var(--color-background-soft, #f9f9f9);
-  border-radius: 6px;
+  font-size: 1.5rem;
+  border: 1px dashed var(--color-border-default);
+  border-radius: 0.4rem;
+  background-color: transparent;
+  color: var(--color-text-primary);
   transition: all 0.2s;
 }
 
-.debug-summary:hover {
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-hover, #e8e8e8);
-}
-
-.debug-content {
-  font-family: Consolas, Monaco, 'Courier New', monospace;
-  font-size: 1.2rem;
-  line-height: 1.6;
-  color: var(--color-text-secondary);
+.add-subtask-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--color-primary);
   background-color: var(--color-background-soft, #f9f9f9);
-  padding: 1.5rem;
-  border-radius: 6px;
-  margin-top: 1rem;
-  overflow: auto;
-  max-height: 400px;
-  border: 1px solid var(--color-border-default);
 }
 
-.debug-content::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.debug-content::-webkit-scrollbar-thumb {
-  background: var(--color-border-hover);
-  border-radius: 4px;
-}
-
-.debug-content::-webkit-scrollbar-track {
-  background: transparent;
+.add-subtask-input::placeholder {
+  color: var(--color-text-tertiary);
 }
 </style>
