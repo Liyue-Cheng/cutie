@@ -396,15 +396,20 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
       <!-- 截止时间显示 -->
       <div v-if="task.due_date" class="due-date-section">
+        <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
         <CuteIcon
+          v-if="task.due_date.type === 'HARD'"
           name="Flag"
           :size="14"
-          :color="task.due_date.type === 'HARD' ? '#f44336' : '#999'"
+          :color="task.due_date.is_overdue ? '#f44336' : '#999'"
         />
+        <!-- 软截止：使用波浪号 -->
+        <span v-else class="soft-deadline-icon">~</span>
+        
         <span
           class="due-date-text"
           :class="{
-            overdue: task.due_date.is_overdue,
+            overdue: task.due_date.is_overdue && task.due_date.type === 'HARD',
             'hard-deadline': task.due_date.type === 'HARD',
           }"
         >
@@ -596,6 +601,13 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.soft-deadline-icon {
+  font-size: 1.6rem;
+  color: #999;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .due-date-text {
