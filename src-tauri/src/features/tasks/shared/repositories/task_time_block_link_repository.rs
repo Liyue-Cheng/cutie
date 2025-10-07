@@ -124,4 +124,24 @@ impl TaskTimeBlockLinkRepository {
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))
     }
+
+    /// 查询时间块关联的所有任务ID
+    pub async fn get_task_ids_for_block_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        block_id: Uuid,
+    ) -> AppResult<Vec<Uuid>> {
+        let query = "SELECT task_id FROM task_time_block_links WHERE time_block_id = ?";
+        let task_id_strings: Vec<String> = sqlx::query_scalar(query)
+            .bind(block_id.to_string())
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        let task_ids: Result<Vec<Uuid>, _> = task_id_strings
+            .into_iter()
+            .map(|s| Uuid::parse_str(&s))
+            .collect();
+
+        task_ids.map_err(|e| AppError::StringError(e.to_string()))
+    }
 }

@@ -46,6 +46,15 @@ export function createEventHandlers(
 
       // 订阅任务取消归档事件
       subscriber.on('task.unarchived', handleTaskUnarchivedEvent)
+
+      // 订阅时间块删除事件
+      subscriber.on('time_blocks.deleted', handleTimeBlocksDeletedEvent)
+
+      // 订阅时间块更新事件
+      subscriber.on('time_blocks.updated', handleTimeBlocksUpdatedEvent)
+
+      // 订阅时间块截断事件
+      subscriber.on('time_blocks.truncated', handleTimeBlocksTruncatedEvent)
     })
   }
 
@@ -326,6 +335,72 @@ export function createEventHandlers(
     }
   }
 
+  /**
+   * 处理时间块删除事件
+   * 时间块被删除时，需要刷新相关任务的数据
+   */
+  async function handleTimeBlocksDeletedEvent(event: any) {
+    const payload = event.payload
+    const taskIds = payload?.affected_task_ids || []
+
+    console.log('[TaskStore] Handling time_blocks.deleted event, affected tasks:', taskIds)
+
+    // 重新获取受影响的任务数据
+    for (const taskId of taskIds) {
+      try {
+        await crudOps.fetchTaskDetail(taskId)
+      } catch (error) {
+        console.error(
+          `[TaskStore] Failed to refresh task ${taskId} after time block deletion:`,
+          error
+        )
+      }
+    }
+  }
+
+  /**
+   * 处理时间块更新事件
+   * 时间块被更新（移动时间）时，需要刷新相关任务的数据
+   */
+  async function handleTimeBlocksUpdatedEvent(event: any) {
+    const payload = event.payload
+    const taskIds = payload?.affected_task_ids || []
+
+    console.log('[TaskStore] Handling time_blocks.updated event, affected tasks:', taskIds)
+
+    // 重新获取受影响的任务数据
+    for (const taskId of taskIds) {
+      try {
+        await crudOps.fetchTaskDetail(taskId)
+      } catch (error) {
+        console.error(`[TaskStore] Failed to refresh task ${taskId} after time block update:`, error)
+      }
+    }
+  }
+
+  /**
+   * 处理时间块截断事件
+   * 时间块被截断时，需要刷新相关任务的数据
+   */
+  async function handleTimeBlocksTruncatedEvent(event: any) {
+    const payload = event.payload
+    const taskIds = payload?.affected_task_ids || []
+
+    console.log('[TaskStore] Handling time_blocks.truncated event, affected tasks:', taskIds)
+
+    // 重新获取受影响的任务数据
+    for (const taskId of taskIds) {
+      try {
+        await crudOps.fetchTaskDetail(taskId)
+      } catch (error) {
+        console.error(
+          `[TaskStore] Failed to refresh task ${taskId} after time block truncation:`,
+          error
+        )
+      }
+    }
+  }
+
   return {
     initEventSubscriptions,
     handleTaskCompletedEvent,
@@ -333,5 +408,8 @@ export function createEventHandlers(
     handleTaskDeletedEvent,
     handleTaskArchivedEvent,
     handleTaskUnarchivedEvent,
+    handleTimeBlocksDeletedEvent,
+    handleTimeBlocksUpdatedEvent,
+    handleTimeBlocksTruncatedEvent,
   }
 }

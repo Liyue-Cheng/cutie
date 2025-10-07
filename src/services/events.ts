@@ -64,6 +64,10 @@ export class EventSubscriber {
       this.handleEvent('time_blocks.deleted', e.data)
     })
 
+    this.eventSource.addEventListener('time_blocks.updated', (e: MessageEvent) => {
+      this.handleEvent('time_blocks.updated', e.data)
+    })
+
     this.eventSource.addEventListener('time_blocks.truncated', (e: MessageEvent) => {
       this.handleEvent('time_blocks.truncated', e.data)
     })

@@ -148,13 +148,41 @@ mod logic {
             return Err(AppError::not_found("TimeBlock", block_id.to_string()));
         }
 
+        // 1.5 查询受影响的任务ID（在删除链接之前）
+        let affected_task_ids =
+            TaskTimeBlockLinkRepository::get_task_ids_for_block_in_tx(&mut tx, block_id).await?;
+
         // 2. 软删除时间块（✅ 使用共享 Repository）
         TimeBlockRepository::soft_delete_in_tx(&mut tx, block_id).await?;
 
         // 3. 删除任务链接（但保留 task_schedules！）（✅ 使用共享 Repository）
         TaskTimeBlockLinkRepository::delete_all_for_block_in_tx(&mut tx, block_id).await?;
 
-        // 4. 提交事务
+        // 4. 写入事件到 outbox（在事务内）
+        if !affected_task_ids.is_empty() {
+            use crate::shared::events::{
+                models::DomainEvent,
+                outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+            };
+
+            let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+
+            let payload = serde_json::json!({
+                "time_block_id": block_id,
+                "affected_task_ids": affected_task_ids,
+            });
+
+            let event = DomainEvent::new(
+                "time_blocks.deleted",
+                "TimeBlock",
+                block_id.to_string(),
+                payload,
+            );
+
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 5. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),

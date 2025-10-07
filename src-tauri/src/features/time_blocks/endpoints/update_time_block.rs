@@ -11,7 +11,10 @@ use uuid::Uuid;
 use crate::{
     entities::{TimeBlockViewDto, UpdateTimeBlockRequest},
     features::{
-        tasks::shared::assemblers::LinkedTaskAssembler,
+        tasks::shared::{
+            assemblers::LinkedTaskAssembler,
+            repositories::TaskTimeBlockLinkRepository,
+        },
         time_blocks::shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
     },
     shared::{
@@ -323,10 +326,17 @@ mod logic {
         let final_is_all_day = request.is_all_day.unwrap_or(existing_block.is_all_day);
 
         // 5. 验证最终时间范围（包括跨天检测）
-        validation::validate_final_time_range(&final_start_time, &final_end_time, final_is_all_day)?;
+        validation::validate_final_time_range(
+            &final_start_time,
+            &final_end_time,
+            final_is_all_day,
+        )?;
 
         // 6. 如果时间范围或全天状态发生变化，检查时间冲突（✅ 使用共享 ConflictChecker）
-        if request.start_time.is_some() || request.end_time.is_some() || request.is_all_day.is_some() {
+        if request.start_time.is_some()
+            || request.end_time.is_some()
+            || request.is_all_day.is_some()
+        {
             let has_conflict = TimeBlockConflictChecker::check_in_tx(
                 &mut tx,
                 &final_start_time,
@@ -343,23 +353,55 @@ mod logic {
             }
         }
 
-        // 7. 获取当前时间戳
+        // 7. 查询受影响的任务ID（如果时间发生变化）
+        let should_publish_event = request.start_time.is_some() || request.end_time.is_some();
+        let affected_task_ids = if should_publish_event {
+            TaskTimeBlockLinkRepository::get_task_ids_for_block_in_tx(&mut tx, id).await?
+        } else {
+            Vec::new()
+        };
+
+        // 8. 获取当前时间戳
         let now = app_state.clock().now_utc();
 
-        // 8. 更新时间块（✅ 使用共享 Repository）
+        // 9. 更新时间块（✅ 使用共享 Repository）
         TimeBlockRepository::update_in_tx(&mut tx, id, &request, now).await?;
 
-        // 9. 提交事务
+        // 10. 写入事件到 outbox（在事务内，仅当时间变化且有关联任务时）
+        if should_publish_event && !affected_task_ids.is_empty() {
+            use crate::shared::events::{
+                models::DomainEvent,
+                outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+            };
+
+            let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+
+            let payload = serde_json::json!({
+                "time_block_id": id,
+                "affected_task_ids": affected_task_ids,
+            });
+
+            let event = DomainEvent::new(
+                "time_blocks.updated",
+                "TimeBlock",
+                id.to_string(),
+                payload,
+            );
+
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
+        }
+
+        // 11. 提交事务
         tx.commit().await.map_err(|e| {
             AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
 
-        // 10. 重新查询时间块以获取最新数据（✅ 使用共享 Repository）
+        // 12. 重新查询时间块以获取最新数据（✅ 使用共享 Repository）
         let updated_block = TimeBlockRepository::find_by_id(app_state.db_pool(), id).await?;
 
-        // 11. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 updated_block 获取）
+        // 13. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 updated_block 获取）
         let mut time_block_view = TimeBlockViewDto {
             id: updated_block.id,
             start_time: updated_block.start_time,
@@ -373,7 +415,7 @@ mod logic {
             is_recurring: updated_block.recurrence_rule.is_some(),
         };
 
-        // 12. 获取关联的任务摘要（✅ 使用共享 Assembler）
+        // 14. 获取关联的任务摘要（✅ 使用共享 Assembler）
         time_block_view.linked_tasks =
             LinkedTaskAssembler::get_for_time_block(app_state.db_pool(), id).await?;
 
