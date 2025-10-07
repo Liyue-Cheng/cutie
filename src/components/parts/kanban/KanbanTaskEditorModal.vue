@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useTaskOperations } from '@/composables/useTaskOperations'
@@ -35,6 +35,8 @@ const isTitleEditing = ref(false)
 const showAreaSelector = ref(false)
 const showDueDatePicker = ref(false)
 const draggingSubtaskId = ref<string | null>(null)
+const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
+const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 
 const task = computed(() => {
   return props.taskId ? taskStore.getTaskById(props.taskId) : null
@@ -67,6 +69,22 @@ const isPresenceLogged = computed(() => {
   return currentScheduleOutcome.value === 'presence_logged'
 })
 
+// 自动调整 textarea 高度
+function autoResizeTextarea(textarea: HTMLTextAreaElement) {
+  textarea.style.height = 'auto'
+  textarea.style.height = textarea.scrollHeight + 'px'
+}
+
+// 初始化所有 textarea 的高度
+function initTextareaHeights() {
+  if (glanceNoteTextarea.value) {
+    autoResizeTextarea(glanceNoteTextarea.value)
+  }
+  if (detailNoteTextarea.value) {
+    autoResizeTextarea(detailNoteTextarea.value)
+  }
+}
+
 // 当弹窗打开时，获取任务详情
 onMounted(async () => {
   if (props.taskId) {
@@ -76,6 +94,10 @@ onMounted(async () => {
       glanceNote.value = detail.glance_note || ''
       detailNote.value = detail.detail_note || ''
       selectedAreaId.value = detail.area_id || null
+
+      // 等待 DOM 更新后调整 textarea 高度
+      await nextTick()
+      initTextareaHeights()
     }
   }
 })
@@ -90,6 +112,10 @@ watch(
         glanceNote.value = detail.glance_note || ''
         detailNote.value = detail.detail_note || ''
         selectedAreaId.value = detail.area_id || null
+
+        // 等待 DOM 更新后调整 textarea 高度
+        await nextTick()
+        initTextareaHeights()
       }
     }
   }
@@ -321,10 +347,12 @@ function handleClose() {
             快速概览笔记...
           </div>
           <textarea
+            ref="glanceNoteTextarea"
             v-model="glanceNote"
             class="note-textarea"
             placeholder="快速概览笔记..."
-            rows="2"
+            rows="1"
+            @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
             @blur="updateGlanceNote"
           ></textarea>
         </div>
@@ -378,10 +406,12 @@ function handleClose() {
         <div class="note-area detail-note-area">
           <div v-if="!detailNote" class="note-placeholder">详细笔记...</div>
           <textarea
+            ref="detailNoteTextarea"
             v-model="detailNote"
             class="note-textarea"
             placeholder="详细笔记..."
-            rows="4"
+            rows="1"
+            @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
             @blur="updateDetailNote"
           ></textarea>
         </div>
@@ -407,12 +437,10 @@ function handleClose() {
 .editor-card {
   width: 70rem;
   max-width: 90vw;
-  max-height: 90vh;
   padding: 2.5rem;
   border: 1px solid var(--color-border-default);
   background-color: var(--color-card-available);
   border-radius: 0.8rem;
-  overflow-y: auto;
 }
 
 .content-wrapper {
@@ -595,6 +623,8 @@ function handleClose() {
   resize: none;
   padding: 1rem;
   border-radius: 0.4rem;
+  overflow: hidden;
+  min-height: 2rem;
 }
 
 .note-textarea:hover {
