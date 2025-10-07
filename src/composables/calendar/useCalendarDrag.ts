@@ -270,7 +270,7 @@ export function useCalendarDrag(
       const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
       const isAllDayArea = !!dayCell
 
-      let calendarView: ViewMetadata
+      let calendarView: ViewMetadata | null = null
 
       if (isAllDayArea) {
         console.log('[CuteCalendar] isAllDayArea=true')
@@ -370,6 +370,14 @@ export function useCalendarDrag(
             label: `${dropTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
           }
         }
+      }
+
+      // 若意外未生成视图，安全返回
+      if (!calendarView) {
+        console.error('[Calendar] ❌ Missing calendarView before drop handling')
+        clearPreviewEvent()
+        isProcessingDrop.value = false
+        return
       }
 
       // 🔍 检查点5：确认策略调用
