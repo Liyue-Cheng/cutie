@@ -95,7 +95,7 @@ PUT /api/view-preferences
   "error_code": "VALIDATION_FAILED",
   "message": "输入验证失败",
   "details": [
-    { "field": "sorted_task_ids", "code": "TASK_IDS_EMPTY", "message": "任务ID列表不能为空" }
+    { "field": "context_key", "code": "CONTEXT_KEY_EMPTY", "message": "Context key 不能为空" }
   ]
 }
 ```
@@ -106,8 +106,7 @@ PUT /api/view-preferences
     - **必须**存在且为非空字符串(trim后)。
     - 违反时返回错误码: `CONTEXT_KEY_EMPTY`
 - `sorted_task_ids`:
-    - **必须**存在且为非空数组。
-    - 违反时返回错误码: `TASK_IDS_EMPTY`
+    - **允许**为空数组（看板可能为空，例如删除了所有任务）。
     - 注意: 允许包含重复的任务ID(不做唯一性校验)
     - 注意: 不验证任务ID是否真实存在于数据库中(前端负责保证数据有效性)
 
@@ -115,7 +114,6 @@ PUT /api/view-preferences
 
 1.  验证请求体:
     - 检查 `context_key` 是否为空(trim后)。
-    - 检查 `sorted_task_ids` 数组是否为空。
 2.  通过 `Clock` 服务获取当前时间 `now`。
 3.  构建 `ViewPreference` 领域实体:
     - 设置 `context_key` 为请求中的值。
@@ -133,7 +131,7 @@ PUT /api/view-preferences
 ## 6. 边界情况 (Edge Cases)
 
 - **context_key 为空字符串或仅包含空格:** 返回 `422` 错误,错误码 `CONTEXT_KEY_EMPTY`。
-- **sorted_task_ids 为空数组:** 返回 `422` 错误,错误码 `TASK_IDS_EMPTY`。
+- **sorted_task_ids 为空数组:** 允许（看板可能为空，例如删除了所有任务）。
 - **sorted_task_ids 包含重复的任务ID:** 允许,不做去重处理(保留原始顺序)。
 - **sorted_task_ids 包含不存在的任务ID:** 允许,不做验证(前端负责过滤)。
 - **重复调用相同的 context_key:** UPSERT 逻辑,每次更新 `sorted_task_ids` 和 `updated_at`。
@@ -184,13 +182,7 @@ mod logic {
             ));
         }
 
-        if payload.sorted_task_ids.is_empty() {
-            return Err(AppError::validation_error(
-                "sorted_task_ids",
-                "任务ID列表不能为空",
-                "TASK_IDS_EMPTY",
-            ));
-        }
+        // ✅ 允许空的任务列表（看板可能为空，例如删除了所有任务）
 
         let pool = app_state.db_pool();
         let now = app_state.clock().now_utc();
