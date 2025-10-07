@@ -24,8 +24,9 @@ const emit = defineEmits<{
 }>()
 
 // 预设时间选项（分钟）
-// 注意：小于15分钟的任务都算作tiny（以0存储）
+// 注意：tiny表示0分钟（小于15分钟的任务）
 const timeOptions = [
+  { label: 'tiny', value: 0 },
   { label: '15 min', value: 15 },
   { label: '20 min', value: 20 },
   { label: '25 min', value: 25 },
@@ -82,7 +83,7 @@ function clearDuration() {
         v-for="option in timeOptions"
         :key="option.value"
         class="time-option"
-        :class="{ active: modelValue === option.value }"
+        :class="{ active: option.value === 0 ? (modelValue === 0 || modelValue === null) : modelValue === option.value }"
         @click="selectDuration(option.value)"
       >
         {{ option.label }}
