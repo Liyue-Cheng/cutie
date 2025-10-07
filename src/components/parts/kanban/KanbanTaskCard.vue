@@ -405,7 +405,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
         />
         <!-- 软截止：使用波浪号 -->
         <span v-else class="soft-deadline-icon">~</span>
-        
+
         <span
           class="due-date-text"
           :class="{
@@ -616,13 +616,10 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   font-weight: 500;
 }
 
-.due-date-text.hard-deadline {
+/* 只有硬截止且逾期时才显示红色 */
+.due-date-text.overdue.hard-deadline {
   color: #f44336;
-}
-
-.due-date-text.overdue {
   font-weight: 600;
-  text-decoration: underline;
 }
 
 .subtasks-section {
