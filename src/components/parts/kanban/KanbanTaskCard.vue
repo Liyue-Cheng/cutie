@@ -253,6 +253,14 @@ function formatTimeBlockStart(isoString: string): string {
   return `${hours}:${minutes}`
 }
 
+// ✅ 格式化截止日期
+function formatDueDate(isoString: string): string {
+  const date = new Date(isoString)
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${month}/${day}`
+}
+
 // ✅ 格式化时间显示（根据是否有时间片显示不同内容）
 const formattedDuration = computed(() => {
   // 如果有今天的时间片，显示时间片总和
@@ -384,6 +392,24 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
       <div v-if="task.glance_note" class="notes-section">
         <CuteIcon name="CornerDownRight" :size="14" />
         <span class="note-text">{{ task.glance_note }}</span>
+      </div>
+
+      <!-- 截止时间显示 -->
+      <div v-if="task.due_date" class="due-date-section">
+        <CuteIcon 
+          name="Flag" 
+          :size="14" 
+          :color="task.due_date.type === 'hard' ? '#f44336' : '#999'"
+        />
+        <span 
+          class="due-date-text"
+          :class="{ 
+            'overdue': task.due_date.is_overdue,
+            'hard-deadline': task.due_date.type === 'hard'
+          }"
+        >
+          {{ formatDueDate(task.due_date.date) }}
+        </span>
       </div>
 
       <div v-if="subtasks.length > 0" class="subtasks-section">
@@ -563,6 +589,28 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 截止时间区 */
+.due-date-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.due-date-text {
+  font-size: 1.3rem;
+  color: #999;
+  font-weight: 500;
+}
+
+.due-date-text.hard-deadline {
+  color: #f44336;
+}
+
+.due-date-text.overdue {
+  font-weight: 600;
+  text-decoration: underline;
 }
 
 .subtasks-section {
