@@ -470,7 +470,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.3rem 0;
 }
 
 .time-tags {
