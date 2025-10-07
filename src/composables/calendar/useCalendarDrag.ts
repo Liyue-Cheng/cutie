@@ -129,6 +129,8 @@ export function useCalendarDrag(
    * 更新预览事件
    */
   function updatePreviewEvent(event: DragEvent) {
+    console.log('[DEBUG-PREVIEW] 🔍 updatePreviewEvent called')
+
     // ✅ 检查是否拖到全日区域
     const target =
       (event.target as HTMLElement) ||
@@ -136,24 +138,35 @@ export function useCalendarDrag(
 
     // ✅ 检查是否悬浮在已有事件上
     const fcEvent = target?.closest('.fc-event') as HTMLElement | null
+    console.log('[DEBUG-PREVIEW] fcEvent found:', !!fcEvent, fcEvent?.className)
+
     if (fcEvent) {
       // 获取事件ID
       const eventEl = fcEvent as any
       if (eventEl?.fcSeg?.eventRange?.def?.publicId) {
         const eventId = eventEl.fcSeg.eventRange.def.publicId
+        console.log('[DEBUG-PREVIEW] Event ID detected:', eventId)
+
         // 不是预览事件才设置
         if (eventId !== 'preview-event') {
+          console.log('[DEBUG-PREVIEW] ✅ Hovering on real event, CLEARING preview')
           hoveredEventId.value = eventId
           // 清除预览，不显示预览块
+          const wasPreview = previewEvent.value !== null
           previewEvent.value = null
-          // 添加视觉反馈class
+          console.log('[DEBUG-PREVIEW] Preview cleared (was showing:', wasPreview, ')')
+          // ✅ 添加简化的视觉反馈（仅链子图标）
           fcEvent.classList.add('hover-link-target')
           return
+        } else {
+          console.log('[DEBUG-PREVIEW] ⚠️ Hovering on preview-event itself, ignoring')
         }
       }
     } else {
+      console.log('[DEBUG-PREVIEW] No fcEvent found, checking if need to clear hover state')
       // 清除悬浮状态
       if (hoveredEventId.value) {
+        console.log('[DEBUG-PREVIEW] Clearing hover state for:', hoveredEventId.value)
         const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
         if (prevHoveredEl) {
           prevHoveredEl.classList.remove('hover-link-target')
@@ -194,6 +207,7 @@ export function useCalendarDrag(
         : null
       const previewColor = area?.color || '#9ca3af'
 
+      console.log('[DEBUG-PREVIEW] 📅 Creating ALL-DAY preview')
       previewEvent.value = {
         id: 'preview-event',
         title: previewTitle,
@@ -204,12 +218,14 @@ export function useCalendarDrag(
         classNames: ['preview-event'],
         display: 'block',
       }
+      console.log('[DEBUG-PREVIEW] ✅ All-day preview created:', previewEvent.value)
     } else {
       // 分时预览：使用拖拽位置计算时间
       const dropTime = dependencies.getTimeFromDropPosition(
         event,
         event.currentTarget as HTMLElement
       )
+      console.log('[DEBUG-PREVIEW] dropTime calculated:', dropTime)
 
       if (dropTime) {
         // 根据任务的 estimated_duration 计算预览时间块长度

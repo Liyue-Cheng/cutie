@@ -455,14 +455,8 @@ onMounted(async () => {
 }
 
 /* ===============================================
- * 10. 拖拽悬浮在已有事件上的视觉反馈
+ * 10. 拖拽悬浮在已有事件上的视觉反馈（简化版：仅显示链子图标）
  * =============================================== */
-.fc-event.hover-link-target {
-  opacity: 0.7 !important;
-  box-shadow: 0 0 0 2px #4a90e2 inset !important;
-  position: relative !important;
-}
-
 .fc-event.hover-link-target::after {
   content: '🔗';
   position: absolute;
@@ -471,6 +465,5 @@ onMounted(async () => {
   transform: translate(-50%, -50%);
   font-size: 2rem;
   pointer-events: none;
-  z-index: 100;
 }
 </style>
