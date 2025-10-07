@@ -4,6 +4,81 @@
 
 ---
 
+## 2025-10-07: 硬编码端口导致 API 连接失败
+
+### 问题: 拖拽链接功能无法连接后端
+
+**现象：**
+
+- 拖动任务到已有时间块时，浏览器报错 `net::ERR_CONNECTION_REFUSED`
+- 控制台显示请求地址为 `http://127.0.0.1:3538/api/...`
+- 其他 API 调用都正常工作
+
+**根本原因：**
+
+- 在 `useCalendarDrag.ts` 中硬编码了端口号 `3538`
+- Tauri 的 sidecar 使用动态端口，每次启动可能不同
+- 其他代码都使用 `apiBaseUrl` 动态获取正确端口
+- 只有这个新功能硬编码了错误的端口
+
+**错误代码：**
+
+```typescript
+// ❌ 错误：硬编码端口
+const response = await fetch(
+  `http://127.0.0.1:3538/api/time-blocks/${eventIdToLink}/link-task`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task_id: currentDraggedTask.value.id }),
+  }
+)
+```
+
+**解决方案：**
+
+```typescript
+// ✅ 正确：使用动态端口
+import { apiBaseUrl } from '@/composables/useApiConfig'
+
+const response = await fetch(
+  `${apiBaseUrl.value}/time-blocks/${eventIdToLink}/link-task`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task_id: currentDraggedTask.value.id }),
+  }
+)
+```
+
+**经验教训：**
+
+> **永远不要硬编码 API 端口！** 在 Tauri 项目中，sidecar 服务器使用动态端口以避免端口冲突。所有 API 调用都必须使用 `apiBaseUrl` 或 `useApiConfig()` 获取正确的端口。
+
+**检查清单：**
+
+在编写新的 API 调用时，务必检查：
+
+- [ ] 是否导入了 `apiBaseUrl` 或 `useApiConfig`
+- [ ] 是否使用 `apiBaseUrl.value` 构建 URL
+- [ ] 是否有任何硬编码的端口号（3030、3538 等）
+- [ ] 是否使用了 `http://127.0.0.1:${port}` 这种拼接方式
+
+**相关代码：**
+
+- `src/composables/useApiConfig.ts` - 端口发现和管理
+- `src/stores/*.ts` - 所有 Store 都使用 `apiBaseUrl`
+- `src/composables/calendar/useCalendarDrag.ts` - 修复示例
+
+**架构原则：**
+
+- Tauri sidecar 启动时监听随机可用端口
+- 前端通过 Tauri event `sidecar-port-discovered` 获取端口
+- `useApiConfig` 提供响应式的 `apiBaseUrl` 供全局使用
+- 所有 HTTP 请求都必须使用这个动态 URL
+
+---
+
 ## 2025-10-07: 归档功能实现中的两个关键问题
 
 ### 问题 1: 前端过滤遗漏导致 UI 不一致

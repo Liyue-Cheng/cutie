@@ -257,6 +257,7 @@ onMounted(async () => {
   background-color: #bceaee !important;
   color: #fff !important;
   border-color: #357abd !important;
+  pointer-events: none !important; /* 允许命中检测到下方的真实事件，避免阻挡 */
 }
 
 /* 创建中事件样式 */

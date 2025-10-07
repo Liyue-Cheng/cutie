@@ -422,10 +422,7 @@ export function createEventHandlers(
       try {
         await crudOps.fetchTaskDetail(taskId)
       } catch (error) {
-        console.error(
-          `[TaskStore] Failed to refresh task ${taskId} after time block link:`,
-          error
-        )
+        console.error(`[TaskStore] Failed to refresh task ${taskId} after time block link:`, error)
       }
     }
   }

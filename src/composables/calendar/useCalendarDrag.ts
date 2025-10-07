@@ -12,6 +12,7 @@ import type { ViewMetadata, CalendarViewConfig } from '@/types/drag'
 import { useCrossViewDrag, useDragTransfer } from '@/composables/drag'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
+import { apiBaseUrl } from '@/composables/useApiConfig'
 
 export function useCalendarDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -132,7 +133,7 @@ export function useCalendarDrag(
     const target =
       (event.target as HTMLElement) ||
       (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
-    
+
     // ✅ 检查是否悬浮在已有事件上
     const fcEvent = target?.closest('.fc-event') as HTMLElement | null
     if (fcEvent) {
@@ -160,7 +161,7 @@ export function useCalendarDrag(
         hoveredEventId.value = null
       }
     }
-    
+
     const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
     const isAllDayArea = !!dayCell
 
@@ -306,21 +307,45 @@ export function useCalendarDrag(
     isProcessingDrop.value = true
 
     try {
+      // ✅ 优先：在 drop 时直接命中检测，找到鼠标下的事件（避免只在顶部小区域触发）
+      const target =
+        (event.target as HTMLElement) ||
+        (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
+      const fcEvent = target?.closest('.fc-event') as HTMLElement | null
+
+      // 从命中的 DOM 解析事件ID
+      let eventIdToLink: string | null = null
+      if (fcEvent) {
+        const eventEl = fcEvent as any
+        const publicId = eventEl?.fcSeg?.eventRange?.def?.publicId
+        if (publicId && publicId !== 'preview-event' && publicId !== 'temp-creating') {
+          eventIdToLink = publicId
+        }
+      }
+
+      // 回退：使用 hover 记录到的事件ID
+      if (!eventIdToLink && hoveredEventId.value) {
+        eventIdToLink = hoveredEventId.value
+      }
+
       // ✅ 检查是否拖到已有事件上（链接任务到时间块）
-      if (hoveredEventId.value && currentDraggedTask.value) {
-        console.log('[CuteCalendar] Linking task to existing time block:', hoveredEventId.value)
-        
+      if (eventIdToLink && currentDraggedTask.value) {
+        console.log('[CuteCalendar] Linking task to existing time block:', eventIdToLink)
+
         try {
-          // 调用链接API
-          const response = await fetch(`http://127.0.0.1:3538/api/time-blocks/${hoveredEventId.value}/link-task`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              task_id: currentDraggedTask.value.id,
-            }),
-          })
+          // 调用链接API（使用动态端口）
+          const response = await fetch(
+            `${apiBaseUrl.value}/time-blocks/${eventIdToLink}/link-task`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                task_id: currentDraggedTask.value.id,
+              }),
+            }
+          )
 
           if (!response.ok) {
             const errorData = await response.json()
@@ -346,10 +371,7 @@ export function useCalendarDrag(
         }
         return
       }
-      // ✅ 检查是否拖到全天区域
-      const target =
-        (event.target as HTMLElement) ||
-        (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
+      // ✅ 检查是否拖到全天区域（复用上面的 target 变量）
       const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
       const isAllDayArea = !!dayCell
 
