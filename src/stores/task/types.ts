@@ -9,7 +9,7 @@ export interface CreateTaskPayload {
   detail_note?: string | null
   area_id?: string | null
   due_date?: string | null
-  due_date_type?: 'soft' | 'hard' | null
+  due_date_type?: 'SOFT' | 'HARD' | null
   project_id?: string | null
   subtasks?: Array<{
     title: string
@@ -23,7 +23,7 @@ export interface UpdateTaskPayload {
   detail_note?: string | null
   area_id?: string | null
   due_date?: string | null
-  due_date_type?: 'soft' | 'hard' | null
+  due_date_type?: 'SOFT' | 'HARD' | null
   project_id?: string | null
   estimated_duration?: number | null
   subtasks?: Array<{

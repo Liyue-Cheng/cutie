@@ -396,16 +396,16 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
       <!-- 截止时间显示 -->
       <div v-if="task.due_date" class="due-date-section">
-        <CuteIcon 
-          name="Flag" 
-          :size="14" 
-          :color="task.due_date.type === 'hard' ? '#f44336' : '#999'"
+        <CuteIcon
+          name="Flag"
+          :size="14"
+          :color="task.due_date.type === 'HARD' ? '#f44336' : '#999'"
         />
-        <span 
+        <span
           class="due-date-text"
-          :class="{ 
-            'overdue': task.due_date.is_overdue,
-            'hard-deadline': task.due_date.type === 'hard'
+          :class="{
+            overdue: task.due_date.is_overdue,
+            'hard-deadline': task.due_date.type === 'HARD',
           }"
         >
           {{ formatDueDate(task.due_date.date) }}

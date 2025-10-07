@@ -34,6 +34,8 @@ const newSubtaskTitle = ref('')
 const isTitleEditing = ref(false)
 const showAreaSelector = ref(false)
 const showDueDatePicker = ref(false)
+const dueDateInput = ref('') // YYYY-MM-DD format
+const dueDateType = ref<'SOFT' | 'HARD'>('SOFT')
 const draggingSubtaskId = ref<string | null>(null)
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
@@ -96,6 +98,16 @@ onMounted(async () => {
       detailNote.value = detail.detail_note || ''
       selectedAreaId.value = detail.area_id || null
 
+      // 初始化截止日期
+      if (detail.due_date) {
+        const datePart = detail.due_date.date.split('T')[0]
+        dueDateInput.value = datePart || ''
+        dueDateType.value = detail.due_date.type
+      } else {
+        dueDateInput.value = ''
+        dueDateType.value = 'SOFT'
+      }
+
       // 等待 DOM 更新后调整 textarea 高度
       await nextTick()
       initTextareaHeights()
@@ -113,6 +125,16 @@ watch(
         glanceNote.value = detail.glance_note || ''
         detailNote.value = detail.detail_note || ''
         selectedAreaId.value = detail.area_id || null
+
+        // 初始化截止日期
+        if (detail.due_date) {
+          const datePart = detail.due_date.date.split('T')[0]
+          dueDateInput.value = datePart || ''
+          dueDateType.value = detail.due_date.type
+        } else {
+          dueDateInput.value = ''
+          dueDateType.value = 'SOFT'
+        }
 
         // 等待 DOM 更新后调整 textarea 高度
         await nextTick()
@@ -170,6 +192,38 @@ async function updateArea(areaId: string | null) {
     area_id: areaId,
   })
   showAreaSelector.value = false
+}
+
+// 保存截止日期
+async function saveDueDate() {
+  if (!props.taskId || !task.value || !dueDateInput.value) return
+
+  // 将本地日期转为 UTC 时间戳（当天的开始时间）
+  const localDate = new Date(dueDateInput.value + 'T00:00:00')
+  const utcDate = new Date(
+    Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate(), 0, 0, 0, 0)
+  )
+
+  await taskStore.updateTask(props.taskId, {
+    due_date: utcDate.toISOString(),
+    due_date_type: dueDateType.value,
+  })
+
+  showDueDatePicker.value = false
+}
+
+// 清除截止日期
+async function clearDueDate() {
+  if (!props.taskId || !task.value) return
+
+  await taskStore.updateTask(props.taskId, {
+    due_date: null,
+    due_date_type: null,
+  })
+
+  dueDateInput.value = ''
+  dueDateType.value = 'SOFT'
+  showDueDatePicker.value = false
 }
 
 async function handleAddSubtask() {
@@ -323,12 +377,56 @@ function handleClose() {
 
           <div class="right-section">
             <!-- 截止日期选择器 -->
-            <button class="due-date-button" @click="showDueDatePicker = !showDueDatePicker">
-              <span v-if="task.due_date">{{
-                new Date(task.due_date.date).toLocaleDateString()
-              }}</span>
-              <span v-else class="placeholder">设置截止日期</span>
-            </button>
+            <div class="due-date-wrapper">
+              <button class="due-date-button" @click="showDueDatePicker = !showDueDatePicker">
+                <span v-if="task.due_date">{{
+                  new Date(task.due_date.date).toLocaleDateString()
+                }}</span>
+                <span v-else class="placeholder">设置截止日期</span>
+              </button>
+
+              <!-- 截止日期选择器弹窗 -->
+              <div v-if="showDueDatePicker" class="due-date-picker-popup" @click.stop>
+                <div class="picker-section">
+                  <label class="picker-label">日期</label>
+                  <input type="date" v-model="dueDateInput" class="date-input" />
+                </div>
+
+                <div class="picker-section">
+                  <label class="picker-label">类型</label>
+                  <div class="deadline-type-buttons">
+                    <button
+                      class="type-button"
+                      :class="{ active: dueDateType === 'SOFT' }"
+                      @click="dueDateType = 'SOFT'"
+                    >
+                      软截止
+                    </button>
+                    <button
+                      class="type-button"
+                      :class="{ active: dueDateType === 'HARD' }"
+                      @click="dueDateType = 'HARD'"
+                    >
+                      硬截止
+                    </button>
+                  </div>
+                </div>
+
+                <div class="picker-actions">
+                  <button class="action-button save-button" @click="saveDueDate">保存</button>
+                  <button
+                    v-if="task.due_date"
+                    class="action-button clear-button"
+                    @click="clearDueDate"
+                  >
+                    清除
+                  </button>
+                  <button class="action-button cancel-button" @click="showDueDatePicker = false">
+                    取消
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <!-- × 按钮 -->
             <button class="close-button" @click="handleClose">×</button>
@@ -548,6 +646,10 @@ function handleClose() {
   gap: 0.5rem;
 }
 
+.due-date-wrapper {
+  position: relative;
+}
+
 .due-date-button {
   padding: 0.6rem 1.2rem;
   font-size: 1.3rem;
@@ -566,6 +668,114 @@ function handleClose() {
 
 .due-date-button .placeholder {
   color: var(--color-text-tertiary);
+}
+
+/* 截止日期选择器弹窗 */
+.due-date-picker-popup {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: 26rem;
+  background: white;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 15%);
+  padding: 1.5rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.picker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.picker-label {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.date-input {
+  padding: 0.6rem 1rem;
+  font-size: 1.3rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  color: var(--color-text-primary);
+}
+
+.deadline-type-buttons {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.type-button {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  font-size: 1.3rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.type-button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.type-button.active {
+  background-color: var(--color-primary, #1976d2);
+  color: white;
+  border-color: var(--color-primary, #1976d2);
+}
+
+.picker-actions {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.action-button {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  font-size: 1.3rem;
+  border: none;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.save-button {
+  background-color: var(--color-primary, #1976d2);
+  color: white;
+}
+
+.save-button:hover {
+  background-color: var(--color-primary-dark, #1565c0);
+}
+
+.clear-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.clear-button:hover {
+  background-color: #d32f2f;
+}
+
+.cancel-button {
+  background-color: #e0e0e0;
+  color: var(--color-text-primary);
+}
+
+.cancel-button:hover {
+  background-color: #bdbdbd;
 }
 
 .close-button {

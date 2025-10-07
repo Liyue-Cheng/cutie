@@ -19,7 +19,7 @@ export type ScheduleStatus = 'scheduled' | 'staging'
 /**
  * 截止日期类型
  */
-export type DueDateType = 'soft' | 'hard'
+export type DueDateType = 'SOFT' | 'HARD'
 
 /**
  * 当日结局类型
