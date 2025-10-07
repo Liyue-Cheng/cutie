@@ -437,10 +437,12 @@ function handleClose() {
 .editor-card {
   width: 70rem;
   max-width: 90vw;
+  max-height: 90vh;
   padding: 2.5rem;
   border: 1px solid var(--color-border-default);
   background-color: var(--color-card-available);
   border-radius: 0.8rem;
+  overflow-y: auto;
 }
 
 .content-wrapper {
@@ -668,7 +670,7 @@ function handleClose() {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.8rem;
+  padding: 0.4rem 0.6rem;
   border-radius: 0.4rem;
   transition: background-color 0.2s;
   cursor: move;
