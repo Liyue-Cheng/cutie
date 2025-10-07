@@ -51,8 +51,7 @@ export function useCalendarHandlers(
           const start = new Date(selectInfo.start)
           let end = new Date(selectInfo.end)
           const dayEnd = new Date(start)
-          dayEnd.setHours(0, 0, 0, 0)
-          dayEnd.setDate(dayEnd.getDate() + 1)
+          dayEnd.setHours(23, 59, 59, 999) // 截断到当天最后一刻
           if (end.getTime() > dayEnd.getTime()) {
             end = dayEnd
           }
@@ -108,10 +107,9 @@ export function useCalendarHandlers(
       const start = new Date(event.start)
       let end = new Date(start.getTime() + 60 * 60 * 1000) // Add 1 hour
 
-      // 截断：不得跨天
+      // 截断：不得跨天（使用当天最后一刻）
       const dayEnd = new Date(start)
-      dayEnd.setHours(0, 0, 0, 0)
-      dayEnd.setDate(dayEnd.getDate() + 1)
+      dayEnd.setHours(23, 59, 59, 999)
       if (end.getTime() > dayEnd.getTime()) {
         end = dayEnd
       }
@@ -141,32 +139,38 @@ export function useCalendarHandlers(
       let start = new Date(event.start)
       let end = new Date(event.end)
 
-      // 检查是否在同一天（UTC日期比较）
-      const startDay = start.toISOString().split('T')[0]
-      const endDay = end.toISOString().split('T')[0]
+      // 使用本地日期比较（避免 UTC 偏移导致误判）
+      const toLocalYMD = (d: Date) => {
+        const y = d.getFullYear()
+        const m = `${d.getMonth() + 1}`.padStart(2, '0')
+        const da = `${d.getDate()}`.padStart(2, '0')
+        return `${y}-${m}-${da}`
+      }
 
-      if (startDay !== endDay) {
-        // 跨天了：根据当前日历视图日期决定保留哪一天
-        const viewDate = currentDateRef.value || startDay // 默认保留start那天
+      const startLocalDay = toLocalYMD(start)
+      const endLocalDay = toLocalYMD(end)
 
-        if (viewDate === endDay) {
-          // 视图日期是end那天，截断start到end那天的开始
+      if (startLocalDay !== endLocalDay) {
+        // 跨天了：根据“当前日历视图日期”（本地）决定保留哪一天
+        const viewLocalDate = currentDateRef.value || startLocalDay
+
+        if (viewLocalDate === endLocalDay) {
+          // 视图日期是结束那天：将开始截断到该天的本地 00:00
           const dayStart = new Date(end)
           dayStart.setHours(0, 0, 0, 0)
           start = dayStart
           startTime = start.toISOString()
           console.log(
-            `[Calendar] Cross-day detected, keeping view date (${viewDate}), truncating start to ${startTime}`
+            `[Calendar] Cross-day detected, keep ${viewLocalDate}, truncate start -> ${startTime}`
           )
         } else {
-          // 视图日期是start那天（或默认），截断到start那天的末尾
+          // 默认：视图日期为开始那天：将结束截断到开始那天的 23:59:59.999
           const dayEnd = new Date(start)
-          dayEnd.setHours(0, 0, 0, 0)
-          dayEnd.setDate(dayEnd.getDate() + 1)
+          dayEnd.setHours(23, 59, 59, 999)
           end = dayEnd
           endTime = end.toISOString()
           console.log(
-            `[Calendar] Cross-day detected, keeping view date (${viewDate}), truncating end to ${endTime}`
+            `[Calendar] Cross-day detected, keep ${viewLocalDate}, truncate end -> ${endTime}`
           )
         }
       }

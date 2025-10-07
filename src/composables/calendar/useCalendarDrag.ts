@@ -194,19 +194,24 @@ export function useCalendarDrag(
           }
         }
 
-        let endTime = new Date(dropTime.getTime() + durationMinutes * 60 * 1000)
+        const durationMs = durationMinutes * 60 * 1000
+        let endTime = new Date(dropTime.getTime() + durationMs)
 
-        // 截断到当日 24:00，禁止跨天预览
-        const dayEnd = new Date(dropTime)
-        dayEnd.setHours(0, 0, 0, 0)
-        dayEnd.setDate(dayEnd.getDate() + 1)
+        // 截断到“当前日历视图”的当日 24:00，禁止跨天预览（保留“当前视图日期”的部分）
+        let dayStart = new Date(dropTime)
+        if (calendarRef.value) {
+          const api = calendarRef.value.getApi()
+          const baseDate = api.getDate()
+          dayStart = new Date(baseDate)
+        }
+        dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(dayStart)
+        dayEnd.setHours(23, 59, 59, 999) // 当天最后一刻
         let startTimeForPreview = dropTime
         if (endTime.getTime() > dayEnd.getTime()) {
           endTime = dayEnd
-          const startCandidate = new Date(endTime.getTime() - durationMinutes * 60 * 1000)
-          if (startCandidate.getDate() === dropTime.getDate()) {
-            startTimeForPreview = startCandidate
-          }
+          const adjustedStartMs = Math.max(dayStart.getTime(), endTime.getTime() - durationMs)
+          startTimeForPreview = new Date(adjustedStartMs)
         }
 
         const previewTitle = currentDraggedTask.value?.title || '任务'
@@ -332,28 +337,32 @@ export function useCalendarDrag(
           }
         }
 
-        // 创建时间块，并在日界处截断
-        let endTime = new Date(dropTime.getTime() + durationMinutes * 60 * 1000)
-        const dayEnd = new Date(dropTime)
-        dayEnd.setHours(0, 0, 0, 0)
-        dayEnd.setDate(dayEnd.getDate() + 1)
+        // 创建时间块，并在“当前日历视图”的日界处截断（保留“当前视图日期”的部分）
+        const durationMsDrop = durationMinutes * 60 * 1000
+        let endTime = new Date(dropTime.getTime() + durationMsDrop)
+        let dayStart = new Date(dropTime)
+        if (calendarRef.value) {
+          const api = calendarRef.value.getApi()
+          const baseDate = api.getDate()
+          dayStart = new Date(baseDate)
+        }
+        dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(dayStart)
+        dayEnd.setHours(23, 59, 59, 999) // 当天最后一刻
         if (endTime.getTime() > dayEnd.getTime()) {
-          // 如果超过当日末尾，则将结束时间钉在日末，开始时间为日末 - 时长
+          // 如果超过当日末尾，则将结束时间钉在日末，开始时间为 max(日始, 日末 - 时长)
           endTime = dayEnd
-          const startCandidate = new Date(endTime.getTime() - durationMinutes * 60 * 1000)
-          // 防止负越界（理论上不会小于当日0点，这里保底）
-          if (startCandidate.getDate() === dropTime.getDate()) {
-            // 用更贴合的开始时间代替原 dropTime（视觉更自然，不会触顶回跳）
-            calendarView = {
-              type: 'calendar',
-              id: `calendar-${startCandidate.toISOString()}`,
-              config: {
-                startTime: startCandidate.toISOString(),
-                endTime: endTime.toISOString(),
-                isAllDay: false,
-              } as CalendarViewConfig,
-              label: `${startCandidate.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
-            }
+          const adjustedStartMs = Math.max(dayStart.getTime(), endTime.getTime() - durationMsDrop)
+          const adjustedStart = new Date(adjustedStartMs)
+          calendarView = {
+            type: 'calendar',
+            id: `calendar-${adjustedStart.toISOString()}`,
+            config: {
+              startTime: adjustedStart.toISOString(),
+              endTime: endTime.toISOString(),
+              isAllDay: false,
+            } as CalendarViewConfig,
+            label: `${adjustedStart.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
           }
         }
 
