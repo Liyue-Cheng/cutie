@@ -100,11 +100,6 @@ pub struct Task {
     /// **后置条件:** 逻辑删除标记。当为true时，该任务对用户不可见
     pub is_deleted: bool,
 
-    /// 删除时间 (可选)
-    ///
-    /// **后置条件:** 精确记录任务被删除的时间，用于回收站功能
-    pub deleted_at: Option<DateTime<Utc>>,
-
     /// 来源信息 (可选)
     pub source_info: Option<SourceInfo>,
 
@@ -149,7 +144,6 @@ impl Task {
             created_at,
             updated_at: created_at,
             is_deleted: false,
-            deleted_at: None,
             source_info: None,
             external_source_id: None,
             external_source_provider: None,
@@ -217,7 +211,6 @@ pub struct TaskRow {
     pub created_at: DateTime<Utc>,           // SQLx自动转换
     pub updated_at: DateTime<Utc>,           // SQLx自动转换
     pub is_deleted: bool,
-    pub deleted_at: Option<DateTime<Utc>>,   // SQLx自动转换
     pub source_info: Option<String>, // JSON
     pub external_source_id: Option<String>,
     pub external_source_provider: Option<String>,
@@ -258,7 +251,6 @@ impl TryFrom<TaskRow> for Task {
             created_at: row.created_at,     // SQLx已经转换
             updated_at: row.updated_at,     // SQLx已经转换
             is_deleted: row.is_deleted,
-            deleted_at: row.deleted_at,     // SQLx已经转换
             source_info: row
                 .source_info
                 .as_ref()

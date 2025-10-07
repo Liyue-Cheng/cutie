@@ -168,19 +168,5 @@ pub struct ProjectSummary {
     pub name: String,
 }
 
-/// 回收站项目 DTO
-///
-/// 对应前端: src/types/dtos.ts 中的 TrashItem
-/// 用途: 在回收站视图中显示已删除的任务
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TrashItemDto {
-    pub id: Uuid,
-    pub title: String,
-    pub glance_note: Option<String>,
-    pub deleted_at: DateTime<Utc>,
-    pub resource_type: String, // "task"
-    pub area_id: Option<Uuid>,
-}
-
 // 注意：从 Task 实体转换为 TaskCardDto/TaskDetailDto 的逻辑
 // 应该在 features/tasks/shared/assembler.rs 中实现

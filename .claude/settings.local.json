@@ -22,7 +22,8 @@
       "Bash(cargo check --manifest-path src-tauri/Cargo.toml)",
       "Bash(cargo check --message-format=short)",
       "Bash(git log --since=\"10 days ago\" --numstat --pretty=format:\"\")",
-      "Bash(awk '{if (NF==3) {add+=$1; del+=$2; files[$3]++}} END {print \"\"\"\"新增行数:\"\"\"\", add; print \"\"\"\"删除行数:\"\"\"\", del; print \"\"\"\"净变化:\"\"\"\", add-del; print \"\"\"\"编辑文件数:\"\"\"\", length(files)}')"
+      "Bash(awk '{if (NF==3) {add+=$1; del+=$2; files[$3]++}} END {print \"\"\"\"新增行数:\"\"\"\", add; print \"\"\"\"删除行数:\"\"\"\", del; print \"\"\"\"净变化:\"\"\"\", add-del; print \"\"\"\"编辑文件数:\"\"\"\", length(files)}')",
+      "Bash(cargo check)"
     ],
     "deny": [],
     "ask": []

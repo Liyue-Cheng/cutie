@@ -96,33 +96,6 @@ const decorativeLinePosition = decorativeLine.position
 const decorativeLineTop = decorativeLine.top
 const decorativeLineHeight = decorativeLine.height
 
-// ==================== 悬停时间片样式处理 ====================
-// 监听悬停时间片ID的变化，动态添加/移除 CSS 类
-watch(
-  () => drag.hoveringTimeBlockId.value,
-  (newBlockId, oldBlockId) => {
-    // 移除旧的悬停样式
-    if (oldBlockId) {
-      const oldElements = document.querySelectorAll(
-        `.fc-event[data-event-id="${oldBlockId}"], .fc-event[aria-labelledby="fc-event-title-${oldBlockId}"]`
-      )
-      oldElements.forEach((el) => {
-        el.classList.remove('hovering-for-link')
-      })
-    }
-
-    // 添加新的悬停样式
-    if (newBlockId) {
-      const newElements = document.querySelectorAll(
-        `.fc-event[data-event-id="${newBlockId}"], .fc-event[aria-labelledby="fc-event-title-${newBlockId}"]`
-      )
-      newElements.forEach((el) => {
-        el.classList.add('hovering-for-link')
-      })
-    }
-  }
-)
-
 // ==================== 日期显示 ====================
 // 格式化日期显示
 const formattedDate = computed(() => {
@@ -470,39 +443,27 @@ onMounted(async () => {
 }
 
 /* ===============================================
- * 10. 悬停链接样式 - 拖动任务到已有时间片上
+ * 10. 拖动到时间块的悬停效果
  * =============================================== */
 
-/* 悬停时间片变暗 */
-.fc-event.hovering-for-link {
+/* 拖动悬停时时间块变暗 */
+.fc-event.drag-hover-link {
   filter: brightness(0.7) !important;
-  transition: filter 0.2s ease !important;
+  transition: filter 0.15s ease-in-out !important;
   position: relative !important;
 }
 
-/* 锁链图标 */
-.fc-event.hovering-for-link::before {
+/* 拖动悬停时显示锁链图标 */
+.fc-event.drag-hover-link::after {
   content: '🔗';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 2rem;
-  z-index: 100;
+  opacity: 0.9;
   pointer-events: none;
-  animation: link-icon-pulse 1s ease-in-out infinite;
-}
-
-@keyframes link-icon-pulse {
-  0%,
-  100% {
-    opacity: 0.8;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1);
-  }
+  z-index: 10;
+  text-shadow: 0 0 4px rgb(0 0 0 / 50%);
 }
 </style>

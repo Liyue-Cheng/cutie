@@ -376,7 +376,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
   /**
    * 将任务链接到时间块
-   * API: POST /time-blocks/:id/tasks
+   * API: POST /time-blocks/:id/link-task
    */
   async function linkTaskToBlock(blockId: string, taskId: string): Promise<boolean> {
     isLoading.value = true
@@ -385,7 +385,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     try {
       const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/link`, {
+      const response = await fetch(`${apiBaseUrl}/time-blocks/${blockId}/link-task`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: taskId }),
@@ -393,17 +393,40 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Unknown error'}`)
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
       }
 
-      const data = await response.json()
-      const updatedBlock: TimeBlockView = data.time_block
+      const result = await response.json()
+      const updatedBlock: TimeBlockView = result.data.time_block
 
-      // 更新本地 store
+      // 更新 store 中的时间块
       addOrUpdateTimeBlock(updatedBlock)
 
-      console.log('[TimeBlockStore] ✅ Task linked successfully:', updatedBlock)
+      console.log('[TimeBlockStore] Successfully linked task to block:', updatedBlock)
       return true
+    } catch (e) {
+      error.value = `Failed to link task to block: ${e}`
+      console.error('[TimeBlockStore] Error linking task:', e)
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * @deprecated 旧的占位符注释
+   * 将任务链接到时间块（旧代码）
+   *
+      // // 重新获取该时间块以更新链接的任务列表
+      // const block = timeBlocks.value.get(blockId)
+      // if (block) {
+      //   const date = new Date(block.start_time).toISOString().split('T')[0]
+      //   await fetchTimeBlocksForDate(date)
+      // }
+      // return true
+
+      console.log('[TimeBlockStore] linkTaskToBlock - API not implemented yet')
+      return false
     } catch (e) {
       error.value = `Failed to link task to block: ${e}`
       console.error('[TimeBlockStore] Error linking task to block:', e)

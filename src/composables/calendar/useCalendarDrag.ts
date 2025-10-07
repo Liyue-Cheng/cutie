@@ -28,7 +28,7 @@ export function useCalendarDrag(
   const isDragging = ref(false)
   const currentDraggedTask = ref<TaskCard | null>(null)
   const isProcessingDrop = ref(false) // 标志：正在处理 drop 操作
-  const hoveringTimeBlockId = ref<string | null>(null) // 当前悬停的时间片 ID
+  const hoveredTimeBlockId = ref<string | null>(null) // 当前悬停的时间块 ID
 
   // 节流控制
   const lastUpdateTime = ref(0)
@@ -102,6 +102,31 @@ export function useCalendarDrag(
       event.dataTransfer.dropEffect = 'copy'
     }
 
+    // ✅ 检测是否悬浮在已有时间块上
+    const target = event.target as HTMLElement
+    const timeBlockElement = target.closest('.fc-event') as HTMLElement | null
+    
+    if (timeBlockElement) {
+      // 悬浮在时间块上：获取时间块 ID
+      const timeBlockId = getTimeBlockIdFromElement(timeBlockElement)
+      if (timeBlockId) {
+        hoveredTimeBlockId.value = timeBlockId
+        // 不显示预览事件
+        previewEvent.value = null
+        // 为时间块添加悬停样式（通过 CSS 类）
+        timeBlockElement.classList.add('drag-hover-link')
+        console.log('[Calendar] Hovering over time block:', timeBlockId)
+        return
+      }
+    } else {
+      // 移除之前悬停的时间块样式
+      if (hoveredTimeBlockId.value) {
+        const prevElement = document.querySelector(`[data-time-block-id="${hoveredTimeBlockId.value}"]`)
+        prevElement?.classList.remove('drag-hover-link')
+        hoveredTimeBlockId.value = null
+      }
+    }
+
     // 节流更新预览，避免过于频繁的计算
     const now = Date.now()
     if (isDragging.value && now - lastUpdateTime.value > UPDATE_THROTTLE) {
@@ -109,6 +134,31 @@ export function useCalendarDrag(
       dependencies.handleAutoScroll(event, event.currentTarget as HTMLElement)
       lastUpdateTime.value = now
     }
+  }
+
+  /**
+   * 从 FullCalendar 事件元素中获取时间块 ID
+   */
+  function getTimeBlockIdFromElement(element: HTMLElement): string | null {
+    // 简化方案：直接从 FullCalendar API 遍历所有事件，找到对应的元素
+    if (!calendarRef.value) return null
+    
+    const calendarApi = calendarRef.value.getApi()
+    const events = calendarApi.getEvents()
+    
+    // 遍历所有事件，通过 DOM 元素引用判断
+    for (const event of events) {
+      if (event.id && event.id !== 'preview-event' && event.id !== 'creating-event') {
+        // FullCalendar 的 Event 对象可能没有直接的 DOM 引用，我们需要手动查找
+        // 通过检查元素是否包含事件标题来判断
+        const titleEl = element.querySelector('.fc-event-title')
+        if (titleEl && titleEl.textContent === event.title) {
+          return event.id
+        }
+      }
+    }
+    
+    return null
   }
 
   /**
@@ -130,30 +180,10 @@ export function useCalendarDrag(
    * 更新预览事件
    */
   function updatePreviewEvent(event: DragEvent) {
-    // ✅ 检查是否悬停在已有的时间片上
+    // ✅ 检查是否拖到全日区域
     const target =
       (event.target as HTMLElement) ||
       (document.elementFromPoint(event.clientX, event.clientY) as HTMLElement)
-    
-    // 检查是否悬停在已有事件上
-    const fcEvent = target?.closest('.fc-event') as HTMLElement | null
-    if (fcEvent) {
-      // 获取时间片 ID（从 data-event-id 或 aria-labelledby 属性）
-      const eventId = fcEvent.getAttribute('data-event-id') || 
-                      fcEvent.getAttribute('aria-labelledby')?.replace('fc-event-title-', '')
-      
-      if (eventId && eventId !== 'preview-event') {
-        // 悬停在已有时间片上，不显示预览
-        hoveringTimeBlockId.value = eventId
-        previewEvent.value = null
-        return
-      }
-    }
-    
-    // 清除悬停状态
-    hoveringTimeBlockId.value = null
-    
-    // ✅ 检查是否拖到全日区域
     const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
     const isAllDayArea = !!dayCell
 
@@ -264,8 +294,14 @@ export function useCalendarDrag(
    */
   function clearPreviewEvent() {
     previewEvent.value = null
-    hoveringTimeBlockId.value = null
     isDragging.value = false
+    // 清理悬停状态
+    if (hoveredTimeBlockId.value) {
+      document.querySelectorAll('.drag-hover-link').forEach((el) => {
+        el.classList.remove('drag-hover-link')
+      })
+      hoveredTimeBlockId.value = null
+    }
     // 清理缓存
     dependencies.clearCache()
     // 停止自动滚动
@@ -292,27 +328,37 @@ export function useCalendarDrag(
     isProcessingDrop.value = true
 
     try {
-      // ✅ 检查是否 drop 在已有时间片上（链接逻辑）
-      if (hoveringTimeBlockId.value && currentDraggedTask.value) {
-        console.log('[CuteCalendar] Linking task to time block:', {
-          taskId: currentDraggedTask.value.id,
-          blockId: hoveringTimeBlockId.value,
-        })
+      // ✅ 优先检查：是否拖到已有时间块上（链接模式）
+      if (hoveredTimeBlockId.value && currentDraggedTask.value) {
+        console.log(
+          '[Calendar] 🔗 Linking task',
+          currentDraggedTask.value.id,
+          'to time block',
+          hoveredTimeBlockId.value
+        )
         
-        try {
-          await timeBlockStore.linkTaskToBlock(
-            hoveringTimeBlockId.value,
-            currentDraggedTask.value.id
-          )
-          console.log('[CuteCalendar] ✅ Task linked successfully')
-        } catch (error) {
-          console.error('[CuteCalendar] Failed to link task:', error)
-        } finally {
-          clearPreviewEvent()
-          isProcessingDrop.value = false
+        const success = await timeBlockStore.linkTaskToBlock(
+          hoveredTimeBlockId.value,
+          currentDraggedTask.value.id
+        )
+
+        if (success) {
+          console.log('[Calendar] ✅ Task linked successfully')
+        } else {
+          console.error('[Calendar] ❌ Failed to link task')
         }
+
+        // 清理状态
+        clearPreviewEvent()
+        hoveredTimeBlockId.value = null
+        // 移除所有悬停样式
+        document.querySelectorAll('.drag-hover-link').forEach((el) => {
+          el.classList.remove('drag-hover-link')
+        })
+        isProcessingDrop.value = false
         return
       }
+
       // ✅ 检查是否拖到全天区域
       const target =
         (event.target as HTMLElement) ||
@@ -514,7 +560,6 @@ export function useCalendarDrag(
   return {
     previewEvent,
     isDragging,
-    hoveringTimeBlockId,
     handleDragEnter,
     handleDragOver,
     handleDragLeave,
