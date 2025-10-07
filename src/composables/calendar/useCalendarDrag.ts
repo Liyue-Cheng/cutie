@@ -200,8 +200,13 @@ export function useCalendarDrag(
         const dayEnd = new Date(dropTime)
         dayEnd.setHours(0, 0, 0, 0)
         dayEnd.setDate(dayEnd.getDate() + 1)
+        let startTimeForPreview = dropTime
         if (endTime.getTime() > dayEnd.getTime()) {
           endTime = dayEnd
+          const startCandidate = new Date(endTime.getTime() - durationMinutes * 60 * 1000)
+          if (startCandidate.getDate() === dropTime.getDate()) {
+            startTimeForPreview = startCandidate
+          }
         }
 
         const previewTitle = currentDraggedTask.value?.title || '任务'
@@ -213,7 +218,7 @@ export function useCalendarDrag(
         previewEvent.value = {
           id: 'preview-event',
           title: previewTitle,
-          start: dropTime.toISOString(),
+          start: startTimeForPreview.toISOString(),
           end: endTime.toISOString(),
           allDay: false, // ✅ 分时预览
           color: previewColor,
@@ -333,18 +338,37 @@ export function useCalendarDrag(
         dayEnd.setHours(0, 0, 0, 0)
         dayEnd.setDate(dayEnd.getDate() + 1)
         if (endTime.getTime() > dayEnd.getTime()) {
+          // 如果超过当日末尾，则将结束时间钉在日末，开始时间为日末 - 时长
           endTime = dayEnd
+          const startCandidate = new Date(endTime.getTime() - durationMinutes * 60 * 1000)
+          // 防止负越界（理论上不会小于当日0点，这里保底）
+          if (startCandidate.getDate() === dropTime.getDate()) {
+            // 用更贴合的开始时间代替原 dropTime（视觉更自然，不会触顶回跳）
+            calendarView = {
+              type: 'calendar',
+              id: `calendar-${startCandidate.toISOString()}`,
+              config: {
+                startTime: startCandidate.toISOString(),
+                endTime: endTime.toISOString(),
+                isAllDay: false,
+              } as CalendarViewConfig,
+              label: `${startCandidate.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
+            }
+          }
         }
 
-        calendarView = {
-          type: 'calendar',
-          id: `calendar-${dropTime.toISOString()}`,
-          config: {
-            startTime: dropTime.toISOString(),
-            endTime: endTime.toISOString(),
-            isAllDay: false, // ✅ 标记为分时事件
-          } as CalendarViewConfig,
-          label: `${dropTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
+        // 如果上面未因越界而重置 calendarView，则按原始 dropTime 生成
+        if (!calendarView) {
+          calendarView = {
+            type: 'calendar',
+            id: `calendar-${dropTime.toISOString()}`,
+            config: {
+              startTime: dropTime.toISOString(),
+              endTime: endTime.toISOString(),
+              isAllDay: false, // ✅ 标记为分时事件
+            } as CalendarViewConfig,
+            label: `${dropTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`,
+          }
         }
       }
 
