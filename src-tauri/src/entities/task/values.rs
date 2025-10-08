@@ -18,6 +18,12 @@ pub struct Subtask {
 }
 
 /// 来源信息结构
+///
+/// source_type 命名规范：
+/// - native::manual - 手动创建
+/// - native::from_task - 从任务拖拽创建
+/// - external::google - Google 日历导入
+/// - external::outlook - Outlook 日历导入
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../src/types/generated/")]
 pub struct SourceInfo {
@@ -27,4 +33,6 @@ pub struct SourceInfo {
     pub description: Option<String>,
     /// 来源URL
     pub url: Option<String>,
+    /// 创建来源任务ID (仅当 source_type = "native::from_task" 时)
+    pub created_by_task_id: Option<Uuid>,
 }

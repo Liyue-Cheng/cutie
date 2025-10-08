@@ -186,8 +186,8 @@ pub async fn handle(
 
 // ==================== 验证层 ====================
 mod validation {
-    use chrono::{DateTime, Utc};
     use super::*;
+    use chrono::{DateTime, Utc};
 
     pub fn validate_create_request(request: &CreateTimeBlockRequest) -> AppResult<()> {
         // 验证时间范围
@@ -282,7 +282,12 @@ mod logic {
             created_at: now,
             updated_at: now,
             is_deleted: false,
-            source_info: None,
+            source_info: Some(crate::entities::SourceInfo {
+                source_type: "native::manual".to_string(),
+                description: None,
+                url: None,
+                created_by_task_id: None,
+            }),
             external_source_id: None,
             external_source_provider: None,
             external_source_metadata: None,

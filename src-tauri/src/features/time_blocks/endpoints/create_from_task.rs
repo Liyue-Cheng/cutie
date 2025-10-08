@@ -324,7 +324,12 @@ mod logic {
             created_at: now,
             updated_at: now,
             is_deleted: false,
-            source_info: None,
+            source_info: Some(crate::entities::SourceInfo {
+                source_type: "native::from_task".to_string(),
+                description: None,
+                url: None,
+                created_by_task_id: Some(request.task_id),
+            }),
             external_source_id: None,
             external_source_provider: None,
             external_source_metadata: None,

@@ -189,7 +189,6 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         let task_card = TaskAssembler::task_to_card_basic(&task);
-        let task_title = task.title.clone();
 
         // 3. 找到该任务链接的所有时间块（✅ 使用共享 Repository）
         let linked_blocks =
@@ -205,11 +204,12 @@ mod logic {
         // 6. 检查并标记需要删除的孤儿时间块，但先不删除（需要先查询完整数据）
         let mut blocks_to_delete = Vec::new();
         for block in linked_blocks {
-            let should_delete = should_delete_orphan_block(&block, &task_title, &mut tx).await?;
+            let should_delete = should_delete_orphan_block(&block, &mut tx).await?;
             if should_delete {
                 tracing::info!(
-                    "Will delete orphan time block {} after deleting task {}",
+                    "Will delete orphan time block {} (source_type={:?}) after deleting task {}",
                     block.id,
+                    block.source_info.as_ref().map(|s| &s.source_type),
                     task_id
                 );
                 blocks_to_delete.push(block);
@@ -264,9 +264,17 @@ mod logic {
     }
 
     /// 判断是否应该删除孤儿时间块
+    ///
+    /// 删除规则：
+    /// 1. 时间块没有其他任务链接（孤儿）
+    /// 2. 时间块的 source_type == "native::from_task"（从任务拖拽创建）
+    ///
+    /// 保留规则：
+    /// - native::manual：手动创建的时间块
+    /// - external::*：外部导入的时间块
+    /// - 无 source_info：旧数据（向后兼容，默认保留）
     async fn should_delete_orphan_block(
         block: &TimeBlock,
-        deleted_task_title: &str,
         tx: &mut Transaction<'_, Sqlite>,
     ) -> AppResult<bool> {
         // 1. 检查时间块是否还有其他任务（✅ 使用共享 Repository）
@@ -276,14 +284,14 @@ mod logic {
             return Ok(false); // 还有其他任务，不删除
         }
 
-        // 2. 判断是否自动创建的（title 与任务相同）
-        if let Some(block_title) = &block.title {
-            if block_title == deleted_task_title {
-                return Ok(true); // 孤儿 + 自动创建 = 删除
+        // 2. 基于 source_info 判断是否应删除
+        if let Some(source_info) = &block.source_info {
+            if source_info.source_type == "native::from_task" {
+                return Ok(true); // 孤儿 + 从任务创建 = 删除
             }
         }
 
-        // 3. 用户手动创建的空时间块，保留
+        // 3. 默认保留（手动创建、外部导入、或无来源信息的旧数据）
         Ok(false)
     }
 }
