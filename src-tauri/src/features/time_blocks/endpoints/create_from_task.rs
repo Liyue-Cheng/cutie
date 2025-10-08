@@ -402,6 +402,34 @@ mod logic {
         updated_task.schedules =
             TaskAssembler::assemble_schedules(app_state.db_pool(), request.task_id).await?;
 
+        // 13. 发送 SSE 事件（通知其他视图时间块已创建）
+        use crate::shared::events::{
+            models::DomainEvent,
+            outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+        };
+        use crate::features::shared::TransactionHelper;
+
+        let mut outbox_tx = TransactionHelper::begin(app_state.db_pool()).await?;
+        let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+
+        let payload = serde_json::json!({
+            "time_block_id": block_id,
+            "task_id": request.task_id,
+            "time_block": time_block_view,
+            "updated_task": updated_task,
+        });
+
+        let event = DomainEvent::new(
+            "time_blocks.created",
+            "TimeBlock",
+            block_id.to_string(),
+            payload,
+        )
+        .with_aggregate_version(now.timestamp_millis());
+
+        outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
+        TransactionHelper::commit(outbox_tx).await?;
+
         Ok(CreateFromTaskResponse {
             time_block: time_block_view,
             updated_task,

@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TimeBlockView } from '@/types/dtos'
 import { waitForApiReady } from '@/composables/useApiConfig'
+import { getEventSubscriber } from '@/services/events'
 
 /**
  * TimeBlock Store
@@ -493,6 +494,121 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     }
   }
 
+  // ============================================================
+  // SSE EVENT HANDLERS - 监听后端事件并自动更新State
+  // ============================================================
+
+  /**
+   * 初始化SSE事件订阅
+   */
+  function initEventSubscriptions() {
+    const subscriber = getEventSubscriber()
+    if (!subscriber) {
+      console.error('[TimeBlockStore] EventSubscriber not initialized yet')
+      return
+    }
+
+    // 订阅时间块创建事件
+    subscriber.on('time_blocks.created', handleTimeBlockCreatedEvent)
+
+    // 订阅时间块更新事件
+    subscriber.on('time_blocks.updated', handleTimeBlockUpdatedEvent)
+
+    // 订阅时间块删除事件
+    subscriber.on('time_blocks.deleted', handleTimeBlockDeletedEvent)
+
+    // 订阅时间块链接事件
+    subscriber.on('time_blocks.linked', handleTimeBlockLinkedEvent)
+
+    console.log('[TimeBlockStore] SSE event subscriptions initialized')
+  }
+
+  /**
+   * 处理时间块创建事件
+   */
+  async function handleTimeBlockCreatedEvent(event: any) {
+    const timeBlockId = event.payload?.time_block_id
+    if (!timeBlockId) return
+
+    console.log('[TimeBlockStore] Handling time_blocks.created event:', timeBlockId)
+
+    // 重新获取该时间块的完整数据
+    try {
+      const port = await waitForApiReady()
+      const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+      if (response.ok) {
+        const blocks: TimeBlockView[] = await response.json()
+        const block = blocks[0]
+        if (block) {
+          addOrUpdateTimeBlock(block)
+        }
+      }
+    } catch (error) {
+      console.error(`[TimeBlockStore] Failed to fetch time block ${timeBlockId}:`, error)
+    }
+  }
+
+  /**
+   * 处理时间块更新事件
+   */
+  async function handleTimeBlockUpdatedEvent(event: any) {
+    const timeBlockId = event.payload?.time_block_id
+    if (!timeBlockId) return
+
+    console.log('[TimeBlockStore] Handling time_blocks.updated event:', timeBlockId)
+
+    // 重新获取该时间块的完整数据
+    try {
+      const port = await waitForApiReady()
+      const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+      if (response.ok) {
+        const blocks: TimeBlockView[] = await response.json()
+        const block = blocks[0]
+        if (block) {
+          addOrUpdateTimeBlock(block)
+        }
+      }
+    } catch (error) {
+      console.error(`[TimeBlockStore] Failed to fetch time block ${timeBlockId}:`, error)
+    }
+  }
+
+  /**
+   * 处理时间块删除事件
+   */
+  function handleTimeBlockDeletedEvent(event: any) {
+    const timeBlockId = event.payload?.time_block_id
+    if (!timeBlockId) return
+
+    console.log('[TimeBlockStore] Handling time_blocks.deleted event:', timeBlockId)
+    removeTimeBlock(timeBlockId)
+  }
+
+  /**
+   * 处理时间块链接事件（链接任务后，时间块可能继承了任务的area）
+   */
+  async function handleTimeBlockLinkedEvent(event: any) {
+    const timeBlockId = event.payload?.time_block_id
+    if (!timeBlockId) return
+
+    console.log('[TimeBlockStore] Handling time_blocks.linked event:', timeBlockId)
+
+    // 重新获取该时间块的完整数据（包括更新的area）
+    try {
+      const port = await waitForApiReady()
+      const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+      if (response.ok) {
+        const blocks: TimeBlockView[] = await response.json()
+        const block = blocks[0]
+        if (block) {
+          addOrUpdateTimeBlock(block)
+        }
+      }
+    } catch (error) {
+      console.error(`[TimeBlockStore] Failed to fetch time block ${timeBlockId}:`, error)
+    }
+  }
+
   return {
     // State
     timeBlocks,
@@ -522,5 +638,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // Event handlers
     handleTimeBlockSideEffects,
+
+    // Initialization
+    initEventSubscriptions,
   }
 })

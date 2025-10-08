@@ -88,10 +88,13 @@ async function initializeEventSubscriptions(port: number) {
 
     // 初始化各个 Store 的事件订阅
     const { useTaskStore } = await import('@/stores/task')
+    const { useTimeBlockStore } = await import('@/stores/timeblock')
 
     const taskStore = useTaskStore()
+    const timeBlockStore = useTimeBlockStore()
 
     taskStore.initEventSubscriptions()
+    timeBlockStore.initEventSubscriptions()
     console.log('🔔 [API Config] Store event subscriptions initialized')
   } catch (error) {
     console.error('❌ [API Config] Failed to initialize event subscriptions:', error)
