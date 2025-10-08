@@ -1,0 +1,1735 @@
+# Cutie 完整功能开发手册
+
+> 从零到完成一个新功能的完整指南，整合所有开发规范、公共资源列表和经验教训
+
+**版本**: 1.0
+**最后更新**: 2025-10-08
+
+---
+
+## 📋 目录
+
+1. [开发前必读](#开发前必读)
+2. [后端开发完整流程](#后端开发完整流程)
+3. [前端开发完整流程](#前端开发完整流程)
+4. [公共资源完整清单](#公共资源完整清单)
+5. [数据结构修改影响分析](#数据结构修改影响分析)
+6. [关键经验教训](#关键经验教训)
+7. [开发检查清单](#开发检查清单)
+8. [常见问题与调试](#常见问题与调试)
+
+---
+
+## 开发前必读
+
+### 核心原则
+
+1. **文档驱动开发**: 代码实现必须与 CABC 文档完全一致
+2. **数据真实性**: 后端返回的数据必须反映数据库真实状态,不能依赖默认值
+3. **SSE 一致性**: SSE 事件和 HTTP 响应必须返回完全相同的数据
+4. **Schema 优先**: 编写任何 SQL 前必须先查看数据库 Schema
+5. **复用优先**: 使用共享资源,禁止重复实现已有功能
+
+### 必须查看的文档
+
+开发新功能前,按顺序阅读:
+
+1. **Schema 定义**: `src-tauri/migrations/20241001000000_initial_schema.sql`
+2. **共享资源清单**: 本文档 [公共资源完整清单](#公共资源完整清单)
+3. **业务逻辑规范**: `notes/业务逻辑.md`
+4. **SFC 开发规范**: `references/SFC_SPEC.md`
+5. **数据结构耦合**: `references/DATA_SCHEMA_COUPLING.md`
+6. **开发经验教训**: `ai-doc/LESSONS_LEARNED.md`
+
+---
+
+## 后端开发完整流程
+
+### Step 1: 设计阶段
+
+#### 1.1 查看数据库 Schema
+
+**⚠️ 最重要的第一步!**
+
+```bash
+# 查看 Schema
+cat src-tauri/migrations/20241001000000_initial_schema.sql
+
+# 确认:
+# - 表名 (所有表名都是复数: tasks, areas, time_blocks, orderings 等)
+# - 字段名和类型
+# - 约束条件
+# - 索引设计
+```
+
+**常见错误**:
+```rust
+// ❌ 错误: 猜测表名
+SELECT * FROM ordering WHERE ...
+
+// ✅ 正确: 查看 schema 确认
+SELECT * FROM orderings WHERE ...  // 表名是 orderings
+```
+
+#### 1.2 检查共享资源清单
+
+**必须先查看** [公共资源完整清单](#公共资源完整清单),避免重复实现!
+
+检查项:
+- [ ] 需要的 Repository 是否已存在?
+- [ ] 需要的 Assembler 是否已存在?
+- [ ] 需要的工具函数是否已存在?
+
+如果存在,直接使用;如果不存在,在 SFC 的 `database` 模块中实现。
+
+**⚠️ 禁止修改共享资源!** 在开发新功能时,不要修改 `features/shared` 或 `features/xxx/shared` 中的代码。
+
+#### 1.3 参考类似功能
+
+根据复杂度选择参考:
+- 简单 CRUD → 参考 `features/areas/endpoints/create_area.rs`
+- 复杂业务逻辑 → 参考 `features/tasks/endpoints/complete_task.rs`
+- 跨实体操作 → 参考 `features/time_blocks/endpoints/create_from_task.rs`
+
+---
+
+### Step 2: 创建实体层
+
+#### 2.1 创建实体 Model
+
+**文件**: `src-tauri/src/entities/xxx/model.rs`
+
+```rust
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+use uuid::Uuid;
+
+/// 领域实体 (业务层使用)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Entity {
+    pub id: Uuid,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub is_deleted: bool,
+}
+
+/// 数据库行映射 (sqlx 使用)
+#[derive(Debug, FromRow)]
+pub struct EntityRow {
+    pub id: String,          // ⚠️ 数据库中是 TEXT
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub is_deleted: bool,
+}
+
+/// 从数据库行转换为领域实体
+impl TryFrom<EntityRow> for Entity {
+    type Error = uuid::Error;
+
+    fn try_from(row: EntityRow) -> Result<Self, Self::Error> {
+        Ok(Entity {
+            id: Uuid::parse_str(&row.id)?,
+            name: row.name,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            is_deleted: row.is_deleted,
+        })
+    }
+}
+```
+
+#### 2.2 创建 Request DTOs
+
+**文件**: `src-tauri/src/entities/xxx/request_dtos.rs`
+
+```rust
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct CreateEntityRequest {
+    pub name: String,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct UpdateEntityRequest {
+    pub name: Option<String>,
+    pub color: Option<String>,
+}
+```
+
+#### 2.3 创建 Response DTOs
+
+**文件**: `src-tauri/src/entities/xxx/response_dtos.rs`
+
+```rust
+use chrono::{DateTime, Utc};
+use serde::Serialize;
+use uuid::Uuid;
+
+#[derive(Debug, Serialize)]
+pub struct EntityDto {
+    pub id: Uuid,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+```
+
+#### 2.4 导出模块
+
+**文件**: `src-tauri/src/entities/xxx/mod.rs`
+
+```rust
+pub mod model;
+pub mod request_dtos;
+pub mod response_dtos;
+
+pub use model::*;
+pub use request_dtos::*;
+pub use response_dtos::*;
+```
+
+**文件**: `src-tauri/src/entities/mod.rs`
+
+```rust
+pub mod xxx;  // ← 添加
+```
+
+---
+
+### Step 3: 创建端点 (SFC 模式)
+
+#### 3.1 SFC 文件结构
+
+**文件**: `src-tauri/src/features/xxx/endpoints/create_xxx.rs`
+
+```rust
+/// 创建 XXX - 单文件组件
+///
+/// ⚠️ 开发前必读:
+/// 1. 查看 Schema: migrations/xxx.sql
+/// 2. 查看共享资源清单: COMPLETE_FEATURE_DEVELOPMENT_GUIDE.md
+/// 3. 使用已有的 Repository/Assembler,禁止重复实现
+
+// ==================== CABC 文档 ====================
+/*
+CABC for `create_xxx`
+
+## 1. 端点签名
+POST /api/xxx
+
+## 2. 预期行为简介
+
+### 2.1 用户故事
+> 作为用户,我想要创建一个新的XXX,以便...
+
+### 2.2 核心业务逻辑
+[详细描述业务逻辑]
+
+## 3. 输入输出规范
+
+### 3.1 请求 (Request)
+{
+  "name": "string (required)"
+}
+
+### 3.2 响应 (Responses)
+**201 Created:**
+{
+  "id": "uuid",
+  "name": "string",
+  ...
+}
+
+## 4. 验证规则
+- name: 必须,非空,长度 <= 255
+
+## 5. 业务逻辑详解
+1. 验证输入
+2. 开启事务
+3. 生成 UUID 和时间戳
+4. 插入数据库
+5. 提交事务
+6. 返回结果
+
+## 6. 边界情况
+- name 为空: 返回 422
+- name 重复: 返回 409 (如果有唯一约束)
+
+## 7. 预期副作用
+### 数据库操作:
+- INSERT: 1条记录到 xxx 表
+- 事务边界: begin() → commit()
+
+### SSE 事件:
+- xxx.created
+
+## 8. 契约
+### 前置条件:
+- request.name 不为空
+
+### 后置条件:
+- 数据库中存在新记录
+- 返回完整的 EntityDto
+
+### 不变量:
+- id 和 created_at 一旦创建永不改变
+*/
+
+// ==================== 依赖引入 ====================
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+    Json,
+};
+use serde::Deserialize;
+
+use crate::{
+    entities::xxx::{Entity, EntityDto, CreateEntityRequest},
+    features::shared::TransactionHelper,
+    shared::{
+        core::error::{AppError, AppResult},
+        http::responses::created_response,
+    },
+    startup::AppState,
+};
+
+// ==================== HTTP 处理器 ====================
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Json(request): Json<CreateEntityRequest>,
+) -> Response {
+    match logic::execute(&app_state, request).await {
+        Ok(dto) => created_response(dto).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+// ==================== 验证层 ====================
+mod validation {
+    use super::*;
+
+    pub fn validate_request(request: &CreateEntityRequest) -> AppResult<()> {
+        let mut errors = Vec::new();
+
+        // 验证 name
+        if request.name.trim().is_empty() {
+            errors.push("name cannot be empty");
+        }
+
+        if request.name.len() > 255 {
+            errors.push("name too long");
+        }
+
+        if !errors.is_empty() {
+            return Err(AppError::ValidationFailed(errors.join(", ")));
+        }
+
+        Ok(())
+    }
+}
+
+// ==================== 业务逻辑层 ====================
+mod logic {
+    use super::*;
+
+    pub async fn execute(
+        app_state: &AppState,
+        request: CreateEntityRequest,
+    ) -> AppResult<EntityDto> {
+        // 1. 验证
+        validation::validate_request(&request)?;
+
+        // 2. 获取依赖
+        let id = app_state.id_generator().new_uuid();  // ✅ 正确方法名
+        let now = app_state.clock().now_utc();         // ✅ 正确方法名
+
+        // 3. 开启事务
+        let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+
+        // 4. 创建实体
+        let entity = Entity {
+            id,
+            name: request.name,
+            created_at: now,
+            updated_at: now,
+            is_deleted: false,
+        };
+
+        // 5. 插入数据库
+        database::insert_in_tx(&mut tx, &entity).await?;
+
+        // 6. 提交事务
+        TransactionHelper::commit(tx).await?;
+
+        // 7. 组装 DTO
+        let dto = EntityDto {
+            id: entity.id,
+            name: entity.name,
+            created_at: entity.created_at,
+            updated_at: entity.updated_at,
+        };
+
+        // 8. (可选) 发送 SSE 事件
+        // let mut outbox_tx = TransactionHelper::begin(app_state.db_pool()).await?;
+        // ... emit event ...
+        // TransactionHelper::commit(outbox_tx).await?;
+
+        Ok(dto)
+    }
+}
+
+// ==================== 数据访问层 ====================
+mod database {
+    use super::*;
+    use sqlx::Transaction;
+    use sqlx::Sqlite;
+
+    pub async fn insert_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        entity: &Entity,
+    ) -> AppResult<()> {
+        let query = r#"
+            INSERT INTO xxx_table (id, name, created_at, updated_at, is_deleted)
+            VALUES (?, ?, ?, ?, ?)
+        "#;
+
+        sqlx::query(query)
+            .bind(entity.id.to_string())
+            .bind(&entity.name)
+            .bind(entity.created_at)
+            .bind(entity.updated_at)
+            .bind(entity.is_deleted)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        Ok(())
+    }
+}
+```
+
+#### 3.2 关键检查项
+
+**依赖注入 ✅**:
+```rust
+// ✅ 正确
+let id = app_state.id_generator().new_uuid();
+let now = app_state.clock().now_utc();
+let pool = app_state.db_pool();
+
+// ❌ 错误 (方法名不存在)
+let id = app_state.id_generator().generate();
+let now = app_state.clock().now();
+```
+
+**事务管理 ✅**:
+```rust
+// ✅ 使用 TransactionHelper
+use crate::features::shared::TransactionHelper;
+
+let mut tx = TransactionHelper::begin(pool).await?;
+// ... 业务逻辑 ...
+TransactionHelper::commit(tx).await?;
+```
+
+**使用共享资源 ✅**:
+```rust
+// ✅ 正确: 使用已有的 Repository
+use crate::features::tasks::shared::repositories::TaskRepository;
+
+let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
+
+// ❌ 错误: 重复实现查询
+mod database {
+    pub async fn find_task(...) { ... }  // TaskRepository 已经提供了!
+}
+```
+
+---
+
+### Step 4: SSE 事件处理 (如果需要)
+
+#### 4.1 SSE 数据一致性原则 🚨
+
+**关键原则**: SSE 事件和 HTTP 响应必须返回完全相同的数据!
+
+**❌ 错误模式**: 在填充完整数据前发送 SSE
+
+```rust
+// ❌ 错误
+let mut tx = TransactionHelper::begin(pool).await?;
+database::update_something(&mut tx, task_id).await?;
+
+// 组装基础数据 (使用默认值)
+let mut task_card = TaskAssembler::task_to_card_basic(&task);
+// task_card.schedules = None (默认值,未填充)
+
+// ❌ 在事务内写入 SSE (数据不完整!)
+let event = DomainEvent::new("task.updated", "task", task_id, json!({
+    "task": task_card,  // schedules = None ❌
+}));
+outbox_repo.append_in_tx(&mut tx, &event).await?;
+
+TransactionHelper::commit(tx).await?;
+
+// 之后才填充完整数据
+task_card.schedules = assemble_schedules(pool, task_id).await?;
+
+// 返回 HTTP (数据完整)
+Ok(Response { task: task_card })  // schedules = Some([...]) ✅
+```
+
+**✅ 正确模式**: 先填充完整数据,再发送 SSE
+
+```rust
+// ✅ 正确
+// 1. 业务事务: 只处理核心数据修改
+let mut tx = TransactionHelper::begin(pool).await?;
+database::update_something(&mut tx, task_id).await?;
+let mut task_card = TaskAssembler::task_to_card_basic(&task);
+TransactionHelper::commit(tx).await?;
+
+// 2. ⚠️ 填充所有完整数据 (在 SSE 之前!)
+task_card.schedules = assemble_schedules(pool, task_id).await?;
+task_card.area = get_area_summary(pool, area_id).await?;
+// ... 填充所有需要的关联数据
+
+// 3. ✅ 写入 SSE (在新事务中,数据完整)
+let mut outbox_tx = TransactionHelper::begin(pool).await?;
+let event = DomainEvent::new("task.updated", "task", task_id, json!({
+    "task": task_card,  // schedules = Some([...]) ✅
+}));
+outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
+TransactionHelper::commit(outbox_tx).await?;
+
+// 4. ✅ 返回 HTTP (与 SSE 数据一致)
+Ok(Response { task: task_card })
+```
+
+#### 4.2 SSE 开发检查清单
+
+- [ ] ✅ 业务事务提交后,是否填充了所有关联数据?
+- [ ] ✅ SSE 事件载荷中的数据是否完整?
+- [ ] ✅ SSE 推送的数据与 HTTP 响应是否一致?
+- [ ] ✅ 是否使用了独立的 outbox 事务?
+- [ ] ✅ `schedules` 字段是否已填充?
+- [ ] ✅ `area` 字段是否已填充?
+
+---
+
+### Step 5: 注册路由
+
+#### 5.1 Feature 路由
+
+**文件**: `src-tauri/src/features/xxx/mod.rs`
+
+```rust
+use axum::{routing::{get, post, patch, delete}, Router};
+use crate::startup::AppState;
+
+pub mod endpoints {
+    pub mod create_xxx;
+    pub mod list_xxx;
+    pub mod update_xxx;
+    pub mod delete_xxx;
+}
+
+pub fn create_routes() -> Router<AppState> {
+    Router::new()
+        .route("/",
+            get(endpoints::list_xxx::handle)
+                .post(endpoints::create_xxx::handle)
+        )
+        .route("/:id",
+            get(endpoints::get_xxx::handle)
+                .patch(endpoints::update_xxx::handle)
+                .delete(endpoints::delete_xxx::handle)
+        )
+}
+```
+
+#### 5.2 全局路由
+
+**文件**: `src-tauri/src/features/mod.rs`
+
+```rust
+pub mod xxx;  // ← 添加
+
+pub fn create_api_router() -> Router<AppState> {
+    Router::new()
+        .nest("/xxx", xxx::create_routes())  // ← 添加
+        // ... 其他路由
+}
+```
+
+---
+
+### Step 6: 编写 API 文档
+
+**文件**: `src-tauri/src/features/xxx/API_SPEC.md`
+
+参考其他功能的 API_SPEC.md,包含:
+- 功能概述
+- 端点清单
+- 每个端点的完整 CABC 文档
+
+**注意**: CABC 文档应该先写在端点文件的注释中,然后可以使用 `doc-composer` 工具自动生成 API 文档。
+
+---
+
+## 前端开发完整流程
+
+### Step 1: 创建 DTO 类型
+
+**文件**: `src/types/dtos.ts`
+
+```typescript
+export interface Entity {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+```
+
+---
+
+### Step 2: 创建 Pinia Store
+
+#### 2.1 Store 模块化结构
+
+**推荐模式** (参考 `stores/task/`):
+
+```
+stores/xxx/
+├── index.ts           # Store 组合
+├── core.ts            # State & Getters
+├── crud-operations.ts # Create/Update/Delete
+├── view-operations.ts # Fetch/Query
+└── event-handlers.ts  # SSE 订阅
+```
+
+#### 2.2 Core (State & Getters)
+
+**文件**: `src/stores/xxx/core.ts`
+
+```typescript
+import { ref, computed } from 'vue'
+
+// ==================== State ====================
+export const entities = ref(new Map<string, Entity>())
+
+// ==================== Getters ====================
+export const allEntities = computed(() =>
+  Array.from(entities.value.values())
+)
+
+export const getEntityById = computed(() => (id: string) =>
+  entities.value.get(id)
+)
+
+// ==================== Mutations ====================
+export function addOrUpdateEntity(entity: Entity) {
+  const newMap = new Map(entities.value)
+  newMap.set(entity.id, entity)
+  entities.value = newMap  // ✅ 创建新对象触发响应式
+}
+
+export function removeEntity(id: string) {
+  const newMap = new Map(entities.value)
+  newMap.delete(id)
+  entities.value = newMap
+}
+
+export function clearAll() {
+  entities.value = new Map()
+}
+```
+
+#### 2.3 CRUD Operations
+
+**文件**: `src/stores/xxx/crud-operations.ts`
+
+```typescript
+import { apiBaseUrl } from '@/composables/useApiConfig'
+import { addOrUpdateEntity, removeEntity } from './core'
+
+export async function createEntity(payload: CreateEntityPayload): Promise<Entity> {
+  const response = await fetch(`${apiBaseUrl.value}/xxx`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to create entity')
+  }
+
+  const entity: Entity = await response.json()  // ⚠️ 直接解析,不要提取 .data
+  addOrUpdateEntity(entity)
+  return entity
+}
+
+export async function updateEntity(
+  id: string,
+  payload: UpdateEntityPayload
+): Promise<Entity> {
+  const response = await fetch(`${apiBaseUrl.value}/xxx/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to update entity')
+  }
+
+  const entity: Entity = await response.json()
+  addOrUpdateEntity(entity)
+  return entity
+}
+
+export async function deleteEntity(id: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl.value}/xxx/${id}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to delete entity')
+  }
+
+  removeEntity(id)
+}
+```
+
+#### 2.4 View Operations
+
+**文件**: `src/stores/xxx/view-operations.ts`
+
+```typescript
+import { apiBaseUrl } from '@/composables/useApiConfig'
+import { addOrUpdateEntity, clearAll } from './core'
+
+export async function fetchAllEntities(): Promise<void> {
+  const response = await fetch(`${apiBaseUrl.value}/xxx`)
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch entities')
+  }
+
+  const entities: Entity[] = await response.json()  // ⚠️ 直接解析数组
+
+  clearAll()
+  entities.forEach(addOrUpdateEntity)
+}
+```
+
+#### 2.5 SSE Event Handlers
+
+**文件**: `src/stores/xxx/event-handlers.ts`
+
+```typescript
+import { getEventSubscriber } from '@/services/events'
+import { addOrUpdateEntity, removeEntity } from './core'
+
+export function initEventSubscriptions() {
+  const subscriber = getEventSubscriber()
+  if (!subscriber) return
+
+  subscriber.on('xxx.created', handleEntityCreatedEvent)
+  subscriber.on('xxx.updated', handleEntityUpdatedEvent)
+  subscriber.on('xxx.deleted', handleEntityDeletedEvent)
+}
+
+function handleEntityCreatedEvent(event: any) {
+  const entity = event.payload?.entity
+  if (entity) {
+    addOrUpdateEntity(entity)
+  }
+}
+
+function handleEntityUpdatedEvent(event: any) {
+  const entity = event.payload?.entity
+  if (entity) {
+    addOrUpdateEntity(entity)
+  }
+}
+
+function handleEntityDeletedEvent(event: any) {
+  const entityId = event.payload?.entity_id
+  if (entityId) {
+    removeEntity(entityId)
+  }
+}
+```
+
+#### 2.6 Store 组合
+
+**文件**: `src/stores/xxx/index.ts`
+
+```typescript
+import { defineStore } from 'pinia'
+import * as core from './core'
+import * as crud from './crud-operations'
+import * as view from './view-operations'
+import * as events from './event-handlers'
+
+export const useEntityStore = defineStore('entity', () => {
+  return {
+    // State & Getters
+    entities: core.entities,
+    allEntities: core.allEntities,
+    getEntityById: core.getEntityById,
+
+    // CRUD Actions
+    createEntity: crud.createEntity,
+    updateEntity: crud.updateEntity,
+    deleteEntity: crud.deleteEntity,
+
+    // View Actions
+    fetchAllEntities: view.fetchAllEntities,
+
+    // SSE
+    initEventSubscriptions: events.initEventSubscriptions,
+  }
+})
+```
+
+#### 2.7 初始化 SSE 订阅
+
+**文件**: `src/composables/useApiConfig.ts`
+
+```typescript
+// 在 API 准备就绪后初始化所有 SSE 订阅
+import { useEntityStore } from '@/stores/xxx'
+
+const entityStore = useEntityStore()
+entityStore.initEventSubscriptions()  // ← 添加
+```
+
+---
+
+### Step 3: 注册 SSE 事件监听器
+
+**文件**: `src/services/events.ts`
+
+```typescript
+// 在 EventSource 中添加新的事件监听器
+this.eventSource.addEventListener('xxx.created', (e: MessageEvent) => {
+  this.handleEvent('xxx.created', e.data)
+})
+
+this.eventSource.addEventListener('xxx.updated', (e: MessageEvent) => {
+  this.handleEvent('xxx.updated', e.data)
+})
+
+this.eventSource.addEventListener('xxx.deleted', (e: MessageEvent) => {
+  this.handleEvent('xxx.deleted', e.data)
+})
+```
+
+---
+
+### Step 4: 创建 UI 组件
+
+#### 4.1 列表/管理组件
+
+**文件**: `src/components/parts/EntityManager.vue`
+
+```vue
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useEntityStore } from '@/stores/xxx'
+
+const entityStore = useEntityStore()
+
+onMounted(async () => {
+  await entityStore.fetchAllEntities()
+})
+
+async function handleCreate(name: string) {
+  await entityStore.createEntity({ name })
+}
+
+async function handleUpdate(id: string, name: string) {
+  await entityStore.updateEntity(id, { name })
+}
+
+async function handleDelete(id: string) {
+  await entityStore.deleteEntity(id)
+}
+</script>
+
+<template>
+  <div>
+    <ul>
+      <li v-for="entity in entityStore.allEntities" :key="entity.id">
+        {{ entity.name }}
+        <button @click="handleDelete(entity.id)">Delete</button>
+      </li>
+    </ul>
+  </div>
+</template>
+```
+
+---
+
+### Step 5: 添加路由
+
+**文件**: `src/router/index.ts`
+
+```typescript
+{
+  path: '/xxx',
+  name: 'xxx',
+  component: () => import('../views/XxxView.vue'),
+}
+```
+
+---
+
+## 公共资源完整清单
+
+### 后端共享资源
+
+#### 1. 跨功能共享 (`features/shared`)
+
+##### 📦 Repositories
+
+**`AreaRepository`** (`features/shared/repositories/area_repository.rs`)
+```rust
+// 获取单个 Area 摘要
+pub async fn get_summary(
+    executor: impl sqlx::Executor<'_, Database = Sqlite>,
+    area_id: Uuid,
+) -> AppResult<Option<AreaSummary>>
+
+// 批量获取 Area 摘要
+pub async fn get_summaries_batch(
+    executor: impl sqlx::Executor<'_, Database = Sqlite>,
+    area_ids: &[Uuid],
+) -> AppResult<Vec<AreaSummary>>
+```
+
+##### 🔧 Utilities
+
+**`TransactionHelper`** (`features/shared/transaction.rs`)
+```rust
+// 开始事务 (统一错误处理)
+pub async fn begin(pool: &SqlitePool) -> AppResult<Transaction<'_, Sqlite>>
+
+// 提交事务 (统一错误处理)
+pub async fn commit(tx: Transaction<'_, Sqlite>) -> AppResult<()>
+```
+
+**使用示例**:
+```rust
+use crate::features::shared::{repositories::AreaRepository, TransactionHelper};
+
+let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
+// ... 业务逻辑 ...
+TransactionHelper::commit(tx).await?;
+```
+
+---
+
+#### 2. Tasks 模块共享 (`features/tasks/shared`)
+
+##### 📦 Repositories
+
+**`TaskRepository`** (`repositories/task_repository.rs`)
+```rust
+// 在事务中查询任务
+pub async fn find_by_id_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+) -> AppResult<Option<Task>>
+
+// 非事务查询任务
+pub async fn find_by_id(
+    pool: &SqlitePool,
+    task_id: Uuid,
+) -> AppResult<Option<Task>>
+
+// 插入任务
+pub async fn insert_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task: &Task,
+) -> AppResult<()>
+
+// 更新任务
+pub async fn update_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    request: &UpdateTaskRequest,
+) -> AppResult<Task>
+
+// 软删除任务
+pub async fn soft_delete_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+) -> AppResult<()>
+
+// 设置任务为已完成
+pub async fn set_completed_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    completed_at: DateTime<Utc>,
+) -> AppResult<()>
+
+// 重新打开任务
+pub async fn set_reopened_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    updated_at: DateTime<Utc>,
+) -> AppResult<()>
+```
+
+**`TaskScheduleRepository`** (`repositories/task_schedule_repository.rs`)
+```rust
+// 检查任务是否有日程
+pub async fn has_any_schedule(
+    executor: impl sqlx::Executor<'_, Database = Sqlite>,
+    task_id: Uuid,
+) -> AppResult<bool>
+
+// 检查某天是否有日程
+pub async fn has_schedule_for_day_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    scheduled_day: NaiveDate,
+) -> AppResult<bool>
+
+// 创建日程记录
+pub async fn create_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    scheduled_day: NaiveDate,
+) -> AppResult<()>
+
+// 更新当天日程为已完成
+pub async fn update_today_to_completed_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    now: DateTime<Utc>,
+) -> AppResult<()>
+
+// 删除未来日程
+pub async fn delete_future_schedules_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    now: DateTime<Utc>,
+) -> AppResult<()>
+
+// 删除任务的所有日程
+pub async fn delete_all_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+) -> AppResult<()>
+
+// 获取任务的所有日程记录
+pub async fn get_all_for_task(
+    pool: &SqlitePool,
+    task_id: Uuid,
+) -> AppResult<Vec<TaskSchedule>>
+```
+
+**`TaskTimeBlockLinkRepository`** (`repositories/task_time_block_link_repository.rs`)
+```rust
+// 创建任务到时间块的链接
+pub async fn link_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+    block_id: Uuid,
+) -> AppResult<()>
+
+// 删除任务的所有链接
+pub async fn delete_all_for_task_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+) -> AppResult<()>
+
+// 删除时间块的所有链接
+pub async fn delete_all_for_block_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+) -> AppResult<()>
+
+// 查询任务链接的所有时间块
+pub async fn find_linked_time_blocks_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: Uuid,
+) -> AppResult<Vec<TimeBlock>>
+
+// 检查时间块是否独占链接某任务
+pub async fn is_exclusive_link_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+    task_id: Uuid,
+) -> AppResult<bool>
+
+// 统计时间块剩余链接任务数
+pub async fn count_remaining_tasks_in_block_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+) -> AppResult<i64>
+```
+
+##### 🏗️ Assemblers
+
+**`TaskAssembler`** (`shared/assembler.rs`)
+```rust
+// 从 Task 实体创建基础 TaskCardDto
+pub fn task_to_card_basic(task: &Task) -> TaskCardDto
+
+// 创建完整 TaskCardDto
+pub fn task_to_card_full(
+    task: &Task,
+    schedule_status: ScheduleStatus,
+    area: Option<AreaSummary>,
+    schedule_info: Option<ScheduleInfo>,
+) -> TaskCardDto
+
+// 创建基础 TaskDetailDto
+pub fn task_to_detail_basic(task: &Task) -> TaskDetailDto
+```
+
+**`LinkedTaskAssembler`** (`shared/assemblers/linked_task_assembler.rs`)
+```rust
+// 批量获取任务摘要
+pub async fn get_summaries_batch(
+    executor: impl sqlx::Executor<'_, Database = Sqlite>,
+    task_ids: &[Uuid],
+) -> AppResult<Vec<LinkedTaskSummary>>
+
+// 获取时间块关联的任务摘要
+pub async fn get_for_time_block(
+    executor: impl sqlx::Executor<'_, Database = Sqlite>,
+    block_id: Uuid,
+) -> AppResult<Vec<LinkedTaskSummary>>
+```
+
+**`TimeBlockAssembler`** (`shared/assemblers/time_block_assembler.rs`)
+```rust
+// 查询并组装完整的 TimeBlockViewDto (用于事件载荷)
+pub async fn assemble_for_event_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    time_block_ids: &[Uuid],
+) -> AppResult<Vec<TimeBlockViewDto>>
+
+// 从 TimeBlock 实体组装视图 (非事务版本)
+pub async fn assemble_view(
+    block: &TimeBlock,
+    pool: &SqlitePool,
+) -> AppResult<TimeBlockViewDto>
+```
+
+---
+
+#### 3. TimeBlocks 模块共享 (`features/time_blocks/shared`)
+
+##### 📦 Repositories
+
+**`TimeBlockRepository`** (`repositories/time_block_repository.rs`)
+```rust
+// 在事务中查询时间块
+pub async fn find_by_id_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+) -> AppResult<Option<TimeBlock>>
+
+// 非事务查询时间块
+pub async fn find_by_id(
+    pool: &SqlitePool,
+    block_id: Uuid,
+) -> AppResult<Option<TimeBlock>>
+
+// 插入时间块
+pub async fn insert_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block: &TimeBlock,
+) -> AppResult<()>
+
+// 更新时间块
+pub async fn update_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+    request: &UpdateTimeBlockRequest,
+    updated_at: DateTime<Utc>,
+) -> AppResult<TimeBlock>
+
+// 软删除时间块
+pub async fn soft_delete_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+) -> AppResult<()>
+
+// 截断时间块到指定时间
+pub async fn truncate_to_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+    end_time: DateTime<Utc>,
+) -> AppResult<()>
+
+// 查询时间范围内的时间块
+pub async fn find_in_range(
+    pool: &SqlitePool,
+    start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
+) -> AppResult<Vec<TimeBlock>>
+
+// 检查时间块是否存在
+pub async fn exists_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    block_id: Uuid,
+) -> AppResult<bool>
+```
+
+##### 🔍 Utilities
+
+**`TimeBlockConflictChecker`** (`shared/conflict_checker.rs`)
+```rust
+// 检查时间冲突
+pub async fn check_in_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
+    exclude_id: Option<Uuid>,
+) -> AppResult<()>
+```
+
+---
+
+#### 4. Views 模块共享 (`features/views/shared`)
+
+##### 🏗️ Assemblers
+
+**`ViewTaskCardAssembler`** (`shared/task_card_assembler.rs`)
+```rust
+// 为 Task 组装完整 TaskCard (包括 area、schedule_status)
+pub async fn assemble_full(
+    task: &Task,
+    pool: &SqlitePool,
+) -> AppResult<TaskCardDto>
+
+// 批量组装 TaskCards
+pub async fn assemble_batch(
+    tasks: &[Task],
+    pool: &SqlitePool,
+) -> AppResult<Vec<TaskCardDto>>
+
+// 组装 TaskCard 并明确设置 schedule_status
+pub async fn assemble_with_status(
+    task: &Task,
+    pool: &SqlitePool,
+    status: ScheduleStatus,
+) -> AppResult<TaskCardDto>
+```
+
+---
+
+#### 5. 通用工具 (`shared/core/utils`)
+
+##### 排序算法 (LexoRank)
+
+**`sort_order_utils.rs`**
+```rust
+use crate::shared::core::utils::{
+    generate_initial_sort_order,  // 生成初始排序字符串
+    get_rank_after,                // 在指定位置之后
+    get_rank_before,               // 在指定位置之前
+    get_mid_lexo_rank,             // 在两个位置之间
+};
+
+// ✅ 正确使用
+let sort_order = get_rank_after(&max)?;
+
+// ❌ 错误: 自行实现排序算法
+let mut chars: Vec<char> = max.chars().collect();
+*last_char = ((*last_char as u8) + 1) as char;  // 不符合 LexoRank 规范
+```
+
+##### 时间工具
+
+**`time_utils.rs`**
+```rust
+use crate::shared::core::utils::time_utils;
+
+// 时间处理相关工具函数
+```
+
+---
+
+### 前端共享资源
+
+#### API 配置
+
+**`src/composables/useApiConfig.ts`**
+```typescript
+import { apiBaseUrl, waitForApiReady } from '@/composables/useApiConfig'
+
+// ✅ 正确: 使用动态端口
+const response = await fetch(`${apiBaseUrl.value}/tasks`)
+
+// ❌ 错误: 硬编码端口
+const response = await fetch('http://127.0.0.1:3538/api/tasks')
+```
+
+#### SSE 服务
+
+**`src/services/events.ts`**
+```typescript
+import { getEventSubscriber } from '@/services/events'
+
+// 在 Store 中订阅事件
+const subscriber = getEventSubscriber()
+if (subscriber) {
+  subscriber.on('task.created', handleTaskCreatedEvent)
+}
+```
+
+---
+
+## 数据结构修改影响分析
+
+### 修改 Schema 的完整影响链
+
+当你修改数据库 Schema 时,需要同步更新以下所有层次:
+
+```
+数据库 Schema (SQLite)
+    ↓
+后端实体 (Rust entities)
+    ↓
+后端请求 DTO (Request DTOs)
+    ↓
+后端响应 DTO (Response DTOs)
+    ↓
+Assembler (实体到 DTO 的转换)
+    ↓
+Repository (数据库读写逻辑)
+    ↓
+端点处理 (API endpoints)
+    ↓
+前端类型定义 (TypeScript types)
+    ↓
+Pinia Store (状态管理)
+    ↓
+Vue 组件 (UI)
+```
+
+### 添加字段检查清单
+
+**后端 (必须全部完成)**:
+
+- [ ] **Schema**: 在 `migrations/xxx.sql` 添加字段
+- [ ] **Entity**: 更新 `entities/xxx/model.rs` 的 `Entity` struct
+- [ ] **EntityRow**: 更新 `entities/xxx/model.rs` 的 `XxxRow` struct
+- [ ] **TryFrom**: 更新 `TryFrom<XxxRow>` 实现
+- [ ] **Request DTO**: 更新 `entities/xxx/request_dtos.rs`
+- [ ] **Response DTO**: 更新 `entities/xxx/response_dtos.rs`
+- [ ] **Assembler**: 更新装配器的转换逻辑
+- [ ] **Repository**: 更新所有 SQL SELECT/INSERT/UPDATE 语句
+- [ ] **⚠️ 跨功能检查**: 搜索是否有其他模块也使用该 DTO
+
+**前端 (必须全部完成)**:
+
+- [ ] **DTO**: 更新 `src/types/dtos.ts`
+- [ ] **Store**: 更新 Payload 类型
+- [ ] **UI**: 更新组件显示和编辑逻辑
+
+### 跨功能依赖检查
+
+**重要**: 某些实体/DTO 可能被多个功能模块使用!
+
+**查找跨功能依赖**:
+```bash
+# 查找所有组装该 DTO 的位置
+grep -rn "TimeBlockViewDto {" src-tauri/src/features
+
+# 查找所有查询该表的 SQL
+grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features
+```
+
+**示例: TimeBlock 的跨功能依赖**
+
+- **主功能**: `features/time_blocks/`
+- **跨功能装配器**: `features/tasks/shared/assemblers/time_block_assembler.rs`
+- **跨功能 Repository**: `features/tasks/shared/repositories/task_time_block_link_repository.rs`
+
+修改 TimeBlock 实体时,必须同时更新所有这些位置!
+
+---
+
+## 关键经验教训
+
+### 1. 永远不要硬编码 API 端口 (2025-10-07)
+
+**问题**: 拖拽链接功能无法连接后端
+
+**原因**: 硬编码了端口号,但 Tauri sidecar 使用动态端口
+
+**错误代码**:
+```typescript
+// ❌ 错误: 硬编码端口
+const response = await fetch(
+  `http://127.0.0.1:3538/api/time-blocks/${id}/link-task`,
+  { ... }
+)
+```
+
+**正确代码**:
+```typescript
+// ✅ 正确: 使用动态端口
+import { apiBaseUrl } from '@/composables/useApiConfig'
+
+const response = await fetch(
+  `${apiBaseUrl.value}/time-blocks/${id}/link-task`,
+  { ... }
+)
+```
+
+---
+
+### 2. 前后端枚举格式不一致导致状态不更新 (2025-10-07)
+
+**问题**: 点击在场按钮后,按钮不会变色
+
+**原因**: 后端输入输出使用不同的枚举格式
+
+后端有两个枚举:
+- **输入**: `Outcome` (UPPERCASE: `PLANNED`, `PRESENCE_LOGGED`)
+- **输出**: `DailyOutcome` (snake_case: `planned`, `presence_logged`)
+
+**解决方案**:
+```typescript
+// ✅ 正确: 接收时使用 snake_case (来自 DTO)
+const isPresenceLogged = computed(() => {
+  return currentScheduleOutcome.value === 'presence_logged'
+})
+
+// ✅ 正确: 发送时使用 UPPERCASE (API 输入)
+const newOutcome = newCheckedValue ? 'PRESENCE_LOGGED' : 'PLANNED'
+await taskStore.updateSchedule(taskId, date, { outcome: newOutcome })
+```
+
+---
+
+### 3. 新增字段时必须打通完整数据流 (2025-10-07)
+
+**问题**: 预期时间字段显示 "NaNmin" 且无法持久化
+
+**原因**: 虽然数据库有字段,但 DTO 和 Assembler 缺少映射
+
+**数据流断点**:
+```
+数据库 (tasks.estimated_duration)
+    ↓ ✅ Task 实体有字段
+    ↓ ❌ TaskCardDto 缺少字段 ← 第一个断点
+    ↓ ❌ Assembler 未映射 ← 第二个断点
+    ↓ ✅ 前端 DTO 有字段
+    ↓ ✅ UI 显示 (但收到 undefined,显示 NaN)
+    ↓ ❌ Update 端点未处理 ← 第三个断点
+    ✗ 无法写回数据库
+```
+
+**解决方案**: 完整的数据流检查清单 (见上一章)
+
+---
+
+### 4. SSE 事件链的 7 层问题叠加 (2025-10-08)
+
+**问题**: 链接任务到时间块后,时间块不继承 area,卡片不显示时间指示器
+
+**7 层问题**:
+
+1. **业务逻辑缺陷**: 基于 title 判断孤儿时间块,而非 source_type
+2. **Store 缺失 SSE**: TimeBlockStore 完全没有事件订阅代码
+3. **端点无 SSE**: create_from_task 端点没有发送 SSE 事件
+4. **EventSource 未注册**: events.ts 没有 addEventListener
+5. **未更新 area_id**: link_task 没有继承任务的 area_id
+6. **SSE Payload 不完整**: 只含 ID,无完整数据
+7. **API 不存在**: 前端调用不存在的 `/api/time-blocks?ids=X`
+
+**核心教训**:
+
+> SSE 实时更新功能像一条完整的链条,从后端发送 → 网络传输 → EventSource 接收 → Store 处理 → UI 更新,任何一环断裂都会导致功能失效。新增功能时必须验证整条链路的完整性。
+
+**SSE 事件链完整性检查清单**:
+
+**后端 (Rust)**:
+- [ ] 端点发送 SSE 事件 (EventOutbox)
+- [ ] SSE payload 包含完整数据,不只是 ID
+- [ ] 事件类型命名一致 (如 time_blocks.linked)
+
+**中间层 (events.ts)**:
+- [ ] EventSource.addEventListener 注册了该事件类型
+- [ ] handleEvent 正确解析和分发
+
+**前端 Store**:
+- [ ] Store 实现了 initEventSubscriptions
+- [ ] Store 订阅了所有相关事件
+- [ ] Event handler 正确处理数据
+- [ ] useApiConfig.ts 中调用了 initEventSubscriptions
+
+**测试验证**:
+- [ ] 控制台可以看到 SSE 事件日志
+- [ ] Store handler 被正确调用
+- [ ] UI 实时更新,无需手动刷新
+
+---
+
+### 5. 孤儿时间块删除逻辑的业务缺陷 (2025-10-08)
+
+**错误设计**: 基于 `time_block.title == deleted_task.title` 判断是否删除
+
+**Bug 场景**:
+```
+1. 任务 A 创建时间块 K (title="任务A")
+2. 链接任务 B 到时间块 K
+3. 删除任务 A → K 保留 (还有任务 B) ✅
+4. 删除任务 B → K 保留 (title "任务A" ≠ "任务B") ❌
+   结果: 孤儿时间块!
+```
+
+**正确方案**: 使用命名空间化的 `source_info.source_type`
+
+```rust
+pub struct SourceInfo {
+    pub source_type: String,        // "native::from_task" | "native::manual" | "external::*"
+    pub created_by_task_id: Option<Uuid>,
+}
+
+// 删除时判断
+if source_info.source_type == "native::from_task" {
+    return Ok(true);  // 孤儿 + 自动创建 = 删除
+}
+Ok(false)  // 其他来源一律保留
+```
+
+**教训**:
+- ❌ 不要使用易变的业务数据 (如标题) 作为逻辑判断依据
+- ✅ 使用明确的元数据 (source_type) 标记来源和意图
+- ✅ 采用命名空间化设计,便于未来扩展
+
+---
+
+## 开发检查清单
+
+### 后端开发检查清单
+
+**开发前**:
+- [ ] 查看数据库 Schema (`migrations/xxx.sql`)
+- [ ] 查看共享资源清单,确认可复用的 Repository/Assembler
+- [ ] 选择参考实现 (Area/Task/TimeBlock)
+
+**实体层**:
+- [ ] 创建 Entity struct
+- [ ] 创建 EntityRow struct
+- [ ] 实现 TryFrom<EntityRow>
+- [ ] 创建 Request DTOs
+- [ ] 创建 Response DTOs
+- [ ] 导出模块
+
+**端点层 (SFC)**:
+- [ ] 编写完整的 CABC 文档
+- [ ] 实现 HTTP Handler
+- [ ] 实现 Validation (如需要)
+- [ ] 实现 Business Logic
+- [ ] 实现 Database Access
+- [ ] 使用正确的 trait 方法 (`new_uuid()`, `now_utc()`)
+- [ ] 使用 TransactionHelper
+- [ ] 复用共享资源,不重复实现
+- [ ] 查询实际状态,不依赖默认值
+- [ ] 填充完整数据后才写入 SSE
+- [ ] SSE 和 HTTP 返回相同数据
+
+**路由注册**:
+- [ ] 在 feature 的 mod.rs 中注册端点
+- [ ] 在 features/mod.rs 中注册 feature
+
+**文档**:
+- [ ] 编写 API_SPEC.md
+
+**测试**:
+- [ ] 运行 `cargo check`
+- [ ] 运行 `cargo clippy`
+- [ ] 测试 API (curl/Postman)
+- [ ] 测试 SSE 事件
+- [ ] 测试完整数据流
+
+---
+
+### 前端开发检查清单
+
+**类型层**:
+- [ ] 在 `src/types/dtos.ts` 添加 interface
+
+**Store 层**:
+- [ ] 创建 core.ts (State & Getters)
+- [ ] 创建 crud-operations.ts
+- [ ] 创建 view-operations.ts
+- [ ] 创建 event-handlers.ts
+- [ ] 在 index.ts 组合所有模块
+- [ ] 在 useApiConfig.ts 初始化 SSE 订阅
+
+**SSE 层**:
+- [ ] 在 events.ts 注册 addEventListener
+
+**UI 层**:
+- [ ] 创建管理/列表组件
+- [ ] 创建编辑/详情组件
+- [ ] 添加路由
+- [ ] 添加导航链接
+
+**测试**:
+- [ ] 检查 linter 错误
+- [ ] 测试 CRUD 操作
+- [ ] 测试 SSE 实时更新
+- [ ] 测试完整工作流
+
+---
+
+### 数据结构修改检查清单
+
+**当你添加/修改字段时,必须检查**:
+
+**后端**:
+- [ ] Schema: migrations/xxx.sql
+- [ ] Entity: entities/xxx/model.rs (Entity + EntityRow + TryFrom)
+- [ ] Request DTO: entities/xxx/request_dtos.rs
+- [ ] Response DTO: entities/xxx/response_dtos.rs
+- [ ] Assembler: features/xxx/shared/assembler.rs
+- [ ] Repository: 所有 SELECT/INSERT/UPDATE SQL
+- [ ] 跨功能装配器: `grep -rn "XxxDto {" src-tauri/src/features`
+- [ ] 跨功能 Repository: `grep -rn "SELECT.*FROM xxx" src-tauri/src/features`
+
+**前端**:
+- [ ] DTO: src/types/dtos.ts
+- [ ] Store: src/stores/xxx.ts
+- [ ] UI: 显示和编辑逻辑
+
+---
+
+## 常见问题与调试
+
+### Q1: 我应该从哪个文件开始看代码?
+
+**A**: 按照这个顺序:
+
+1. `migrations/xxx.sql` - 理解数据结构
+2. `entities/task/model.rs` - 理解实体
+3. `features/tasks/endpoints/create_task.rs` - 理解端点 (SFC 模式)
+4. `src/types/dtos.ts` - 理解前端数据
+5. `src/stores/task.ts` - 理解状态管理
+6. `src/components/parts/kanban/KanbanTaskCard.vue` - 理解 UI
+
+---
+
+### Q2: 如何确保数据一致性?
+
+**A**: 遵循这些原则:
+
+1. **后端返回真实状态**: 查询 DB,不用默认值
+2. **后端返回完整数据**: 包含受影响的关联对象
+3. **先填充后发送**: SSE 之前填充所有关联数据
+4. **前端直接解析**: 不要尝试从 `result.data` 提取
+5. **前端创建新对象**: `new Map(...)` 触发响应式
+
+---
+
+### Q3: 如何调试响应式更新问题?
+
+**A**: 检查链路:
+
+1. **API 返回了什么?** (Network tab)
+2. **Store 更新了吗?** (`console.log` 或 Vue DevTools)
+3. **Getter 重新计算了吗?** (添加 `console.log`)
+4. **Computed 触发了吗?** (添加 `console.log`)
+
+---
+
+### Q4: 如何调试 SSE 问题?
+
+**A**: 按顺序检查:
+
+1. **后端是否发送?** 查看后端日志、数据库 event_outbox 表
+2. **网络传输?** 浏览器 DevTools → Network → EventStream
+3. **EventSource 接收?** 查看 `addEventListener` 是否注册
+4. **Store 订阅?** `initEventSubscriptions` 是否调用
+5. **Handler 执行?** 添加 `console.log` 确认被调用
+6. **数据处理?** 验证 payload 结构和内容
+
+---
+
+### Q5: 遇到编译错误怎么办?
+
+**A**: 常见编译错误:
+
+**错误 1**: `no column found for name: xxx`
+- **原因**: 忘记在 SQL SELECT 中添加新字段
+- **解决**: 更新所有查询该表的 SQL
+
+**错误 2**: `missing field 'xxx' in initializer`
+- **原因**: Assembler 或 DTO 初始化缺少字段
+- **解决**: 更新装配器和所有 DTO 初始化
+
+**错误 3**: `method not found in IdGenerator`
+- **原因**: 使用了错误的方法名
+- **解决**: 使用 `new_uuid()` 而非 `generate()`
+
+---
+
+### Q6: 如何找到重复的代码?
+
+**A**: 使用以下命令:
+
+```bash
+# 查找所有组装 DTO 的位置
+grep -rn "TaskCardDto {" src-tauri/src/features
+
+# 查找所有查询某表的 SQL
+grep -rn "SELECT.*FROM tasks" src-tauri/src
+
+# 查找所有 SSE 发送点
+grep -rn "DomainEvent::new" src-tauri/src
+```
+
+---
+
+## 总结
+
+### 开发新功能的核心步骤
+
+1. **查看 Schema** - 理解数据结构
+2. **查看共享资源** - 避免重复实现
+3. **参考类似功能** - 复用模式
+4. **遵循 SFC 规范** - 统一代码结构
+5. **填充完整数据** - 确保数据真实性
+6. **SSE 一致性** - 与 HTTP 返回相同数据
+7. **完整测试** - 端到端验证
+
+### 记住这些原则
+
+- ✅ **Schema 优先**: 先看数据库,不要猜测
+- ✅ **复用优先**: 使用共享资源,不要重复
+- ✅ **数据真实**: 查询实际状态,不用默认值
+- ✅ **SSE 一致**: 先填充数据,再发送事件
+- ✅ **文档驱动**: 代码必须与 CABC 文档一致
+
+### 遇到问题时
+
+1. 查文档 (本手册、SFC_SPEC、LESSONS_LEARNED)
+2. 看代码 (参考类似功能)
+3. 检查清单 (确保没有遗漏步骤)
+4. 查 Schema (确认数据库结构)
+5. 调试数据流 (使用 console.log 和 DevTools)
+
+---
+
+**记住: Cutie 的架构是经过深思熟虑的,遵循规范可以避免 90% 的问题!** 📚✨

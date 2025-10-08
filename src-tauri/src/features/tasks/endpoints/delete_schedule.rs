@@ -20,7 +20,7 @@ use crate::{
     },
     features::time_blocks::shared::repositories::TimeBlockRepository,
     shared::{
-        core::{AppError, AppResult, utils::time_utils},
+        core::{utils::time_utils, AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
@@ -287,16 +287,22 @@ mod logic {
         use chrono::Utc;
         let local_today = time_utils::extract_local_date_from_utc(Utc::now());
 
-        let has_future_schedule = task_card.schedules.as_ref().map(|schedules| {
-            schedules.iter().any(|s| {
-                if let Ok(schedule_date) = chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d") {
-                    schedule_date >= local_today
-                } else {
-                    false
-                }
+        let has_future_schedule = task_card
+            .schedules
+            .as_ref()
+            .map(|schedules| {
+                schedules.iter().any(|s| {
+                    if let Ok(schedule_date) =
+                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                    {
+                        schedule_date >= local_today
+                    } else {
+                        false
+                    }
+                })
             })
-        }).unwrap_or(false);
-        
+            .unwrap_or(false);
+
         task_card.schedule_status = if has_future_schedule {
             ScheduleStatus::Scheduled
         } else {

@@ -60,6 +60,22 @@ export class EventSubscriber {
       this.handleEvent('task.deleted', e.data)
     })
 
+    this.eventSource.addEventListener('task.trashed', (e: MessageEvent) => {
+      this.handleEvent('task.trashed', e.data)
+    })
+
+    this.eventSource.addEventListener('task.restored', (e: MessageEvent) => {
+      this.handleEvent('task.restored', e.data)
+    })
+
+    this.eventSource.addEventListener('task.permanently_deleted', (e: MessageEvent) => {
+      this.handleEvent('task.permanently_deleted', e.data)
+    })
+
+    this.eventSource.addEventListener('trash.emptied', (e: MessageEvent) => {
+      this.handleEvent('trash.emptied', e.data)
+    })
+
     this.eventSource.addEventListener('time_blocks.created', (e: MessageEvent) => {
       this.handleEvent('time_blocks.created', e.data)
     })

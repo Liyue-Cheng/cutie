@@ -93,7 +93,7 @@ mod database {
             SELECT id, name, title_template, glance_note_template, detail_note_template,
                    estimated_duration_template, subtasks_template, area_id,
                    created_at, updated_at, is_deleted
-            FROM templates WHERE id = ? AND is_deleted = false
+            FROM templates WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(template_id.to_string())

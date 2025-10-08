@@ -118,7 +118,7 @@ mod database {
             INNER JOIN task_schedules ts ON t.id = ts.task_id
             LEFT JOIN ordering o ON t.id = o.task_id AND o.context_type = 'DAILY_KANBAN' AND o.context_id = ?
             WHERE ts.scheduled_day >= ? AND ts.scheduled_day < ?
-            AND t.is_deleted = false
+            AND t.deleted_at IS NULL
             ORDER BY COALESCE(o.sort_order, 'z')
             "#,
         )

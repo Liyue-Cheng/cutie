@@ -249,7 +249,7 @@ impl TaskRepository for SqlxTaskRepository {
                 updated_at = ?, source_info = ?, external_source_id = ?, external_source_provider = ?,
                 external_source_metadata = ?, recurrence_rule = ?, recurrence_parent_id = ?,
                 recurrence_original_date = ?, recurrence_exclusions = ?
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#
         )
         .bind(&params.1).bind(&params.2).bind(&params.3).bind(&params.4).bind(&params.5)
@@ -282,7 +282,7 @@ impl TaskRepository for SqlxTaskRepository {
         completion_time: DateTime<Utc>,
     ) -> Result<Task, DbError> {
         let result = sqlx::query(
-            "UPDATE tasks SET completed_at = ?, updated_at = ? WHERE id = ? AND is_deleted = FALSE",
+            "UPDATE tasks SET completed_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(completion_time.to_rfc3339())
         .bind(Utc::now().to_rfc3339())
@@ -300,7 +300,7 @@ impl TaskRepository for SqlxTaskRepository {
                 } else {
                     // 重新查询更新后的任务（在事务内）
                     let query_result =
-                        sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+                        sqlx::query("SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL")
                             .bind(task_id.to_string())
                             .fetch_optional(&mut **tx)
                             .await
@@ -321,7 +321,7 @@ impl TaskRepository for SqlxTaskRepository {
 
     async fn reopen(&self, tx: &mut Transaction<'_>, task_id: Uuid) -> Result<Task, DbError> {
         let result = sqlx::query(
-            "UPDATE tasks SET completed_at = NULL, updated_at = ? WHERE id = ? AND is_deleted = FALSE"
+            "UPDATE tasks SET completed_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(Utc::now().to_rfc3339())
         .bind(task_id.to_string())
@@ -338,7 +338,7 @@ impl TaskRepository for SqlxTaskRepository {
                 } else {
                     // 重新查询更新后的任务（在事务内）
                     let query_result =
-                        sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+                        sqlx::query("SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL")
                             .bind(task_id.to_string())
                             .fetch_optional(&mut **tx)
                             .await
@@ -358,7 +358,7 @@ impl TaskRepository for SqlxTaskRepository {
     }
 
     async fn find_by_id(&self, task_id: Uuid) -> Result<Option<Task>, DbError> {
-        let result = sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL")
             .bind(task_id.to_string())
             .fetch_optional(&self.pool)
             .await;
@@ -381,7 +381,7 @@ impl TaskRepository for SqlxTaskRepository {
         let placeholders = vec!["?"; task_ids.len()].join(",");
 
         let query = format!(
-            "SELECT * FROM tasks WHERE id IN ({}) AND is_deleted = FALSE ORDER BY updated_at DESC",
+            "SELECT * FROM tasks WHERE id IN ({}) AND deleted_at IS NULL ORDER BY updated_at DESC",
             placeholders
         );
 
@@ -407,7 +407,7 @@ impl TaskRepository for SqlxTaskRepository {
             r#"
             SELECT t.* FROM tasks t
             LEFT JOIN task_schedules ts ON t.id = ts.task_id
-            WHERE t.is_deleted = FALSE 
+            WHERE t.deleted_at IS NULL 
             AND ts.task_id IS NULL
             ORDER BY t.updated_at DESC
             "#,
@@ -427,7 +427,7 @@ impl TaskRepository for SqlxTaskRepository {
 
     async fn find_by_project_id(&self, project_id: Uuid) -> Result<Vec<Task>, DbError> {
         let result = sqlx::query(
-            "SELECT * FROM tasks WHERE project_id = ? AND is_deleted = FALSE ORDER BY updated_at DESC"
+            "SELECT * FROM tasks WHERE project_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC"
         )
         .bind(project_id.to_string())
         .fetch_all(&self.pool)
@@ -445,7 +445,7 @@ impl TaskRepository for SqlxTaskRepository {
 
     async fn find_by_area_id(&self, area_id: Uuid) -> Result<Vec<Task>, DbError> {
         let result = sqlx::query(
-            "SELECT * FROM tasks WHERE area_id = ? AND is_deleted = FALSE ORDER BY updated_at DESC",
+            "SELECT * FROM tasks WHERE area_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
         )
         .bind(area_id.to_string())
         .fetch_all(&self.pool)
@@ -470,7 +470,7 @@ impl TaskRepository for SqlxTaskRepository {
         let offset = offset.unwrap_or(0);
 
         let result = sqlx::query(
-            "SELECT * FROM tasks WHERE completed_at IS NOT NULL AND is_deleted = FALSE ORDER BY completed_at DESC LIMIT ? OFFSET ?"
+            "SELECT * FROM tasks WHERE completed_at IS NOT NULL AND deleted_at IS NULL ORDER BY completed_at DESC LIMIT ? OFFSET ?"
         )
         .bind(limit)
         .bind(offset)
@@ -502,7 +502,7 @@ impl TaskRepository for SqlxTaskRepository {
 
     async fn restore(&self, tx: &mut Transaction<'_>, task_id: Uuid) -> Result<Task, DbError> {
         let result =
-            sqlx::query("UPDATE tasks SET is_deleted = FALSE, updated_at = ? WHERE id = ?")
+            sqlx::query("UPDATE tasks SET deleted_at IS NULL, updated_at = ? WHERE id = ?")
                 .bind(Utc::now().to_rfc3339())
                 .bind(task_id.to_string())
                 .execute(&mut **tx)
@@ -546,7 +546,7 @@ impl TaskRepository for SqlxTaskRepository {
             r#"
             SELECT * FROM tasks 
             WHERE (title LIKE ? OR glance_note LIKE ? OR detail_note LIKE ?) 
-            AND is_deleted = FALSE 
+            AND deleted_at IS NULL 
             ORDER BY 
                 CASE 
                     WHEN title LIKE ? THEN 1
@@ -586,7 +586,7 @@ impl TaskRepository for SqlxTaskRepository {
                 COUNT(CASE WHEN completed_at IS NULL AND EXISTS(SELECT 1 FROM task_schedules ts WHERE ts.task_id = tasks.id) THEN 1 END) as scheduled,
                 COUNT(CASE WHEN completed_at IS NULL AND NOT EXISTS(SELECT 1 FROM task_schedules ts WHERE ts.task_id = tasks.id) THEN 1 END) as unscheduled
             FROM tasks 
-            WHERE is_deleted = FALSE
+            WHERE deleted_at IS NULL
             "#
         )
         .fetch_one(&self.pool)

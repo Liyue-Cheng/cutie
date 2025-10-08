@@ -67,7 +67,7 @@ CREATE TABLE tasks (
     archived_at TEXT, -- UTC timestamp in RFC 3339 format
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TEXT, -- UTC timestamp in RFC 3339 format (NULL = not deleted)
     source_info TEXT, -- JSON
     external_source_id TEXT,
     external_source_provider TEXT,
@@ -90,7 +90,7 @@ CREATE TABLE tasks (
 
 -- 为 tasks 表创建索引
 CREATE INDEX idx_tasks_updated_at ON tasks(updated_at);
-CREATE INDEX idx_tasks_is_deleted ON tasks(is_deleted);
+CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at);
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX idx_tasks_area_id ON tasks(area_id);
 CREATE INDEX idx_tasks_external_source_id ON tasks(external_source_id);

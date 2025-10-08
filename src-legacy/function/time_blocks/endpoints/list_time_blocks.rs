@@ -117,7 +117,7 @@ mod database {
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM time_blocks
             WHERE start_time >= ? AND start_time < ?
-            AND is_deleted = false
+            AND deleted_at IS NULL
             ORDER BY start_time ASC
             "#,
         )

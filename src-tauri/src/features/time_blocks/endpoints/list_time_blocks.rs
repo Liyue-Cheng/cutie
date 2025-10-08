@@ -130,7 +130,7 @@ GET /api/time-blocks?start_date={start_date}&end_date={end_date}
     - 如果解析失败，将对应参数设为 `None`
 2.  调用 `TimeBlockRepository::find_in_range` 查询时间块：
     - 传入 `start_time` 和 `end_time`（可能为 `None`）
-    - 查询所有未删除的时间块（`is_deleted = false`）
+    - 查询所有未删除的时间块（`deleted_at IS NULL`）
     - 根据时间范围过滤结果
 3.  对每个时间块，调用 `assemble_time_block_view` 组装视图模型：
     - 创建 `TimeBlockViewDto` 基础对象

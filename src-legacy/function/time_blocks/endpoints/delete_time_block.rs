@@ -98,7 +98,7 @@ mod database {
                    area_id, created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM time_blocks WHERE id = ? AND is_deleted = false
+            FROM time_blocks WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(block_id.to_string())

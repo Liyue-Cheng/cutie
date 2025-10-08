@@ -140,7 +140,7 @@ mod database {
         block_id: Uuid,
     ) -> AppResult<bool> {
         let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM time_blocks WHERE id = ? AND is_deleted = false",
+            "SELECT COUNT(*) FROM time_blocks WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(block_id.to_string())
         .fetch_one(&mut **tx)
@@ -155,7 +155,7 @@ mod database {
         task_id: Uuid,
     ) -> AppResult<bool> {
         let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM tasks WHERE id = ? AND is_deleted = false",
+            "SELECT COUNT(*) FROM tasks WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(task_id.to_string())
         .fetch_one(&mut **tx)

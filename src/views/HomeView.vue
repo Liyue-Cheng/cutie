@@ -10,6 +10,7 @@ import StagingColumn from '@/components/parts/kanban/StagingColumn.vue'
 import ArchiveColumn from '@/components/parts/kanban/ArchiveColumn.vue'
 import UpcomingColumn from '@/components/parts/kanban/UpcomingColumn.vue'
 import UnderConstruction from '@/components/parts/UnderConstruction.vue'
+import TrashView from '@/views/TrashView.vue'
 import { useTaskStore } from '@/stores/task'
 
 // ==================== 视图类型 ====================
@@ -256,11 +257,8 @@ async function handleLoadAllTasks() {
             v-else-if="currentRightPaneView === 'archive'"
             @open-editor="handleOpenEditor"
           />
-          <UnderConstruction
-            v-else-if="currentRightPaneView === 'deleted'"
-            title="最近删除"
-            description="查看和恢复最近删除的任务"
-          />
+          <!-- 回收站视图 -->
+          <TrashView v-else-if="currentRightPaneView === 'deleted'" />
         </template>
       </TwoRowLayout>
     </div>

@@ -193,7 +193,7 @@ impl TaskRepository for SqliteTaskRepository {
                 completed_at = ?, updated_at = ?, source_info = ?, external_source_id = ?,
                 external_source_provider = ?, external_source_metadata = ?, recurrence_rule = ?,
                 recurrence_parent_id = ?, recurrence_original_date = ?, recurrence_exclusions = ?
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(&task.title)
@@ -266,7 +266,7 @@ impl TaskRepository for SqliteTaskRepository {
             UPDATE tasks SET 
                 completed_at = ?, 
                 updated_at = ? 
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(completion_time.to_rfc3339())
@@ -299,7 +299,7 @@ impl TaskRepository for SqliteTaskRepository {
             UPDATE tasks SET 
                 completed_at = NULL, 
                 updated_at = ? 
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(now.to_rfc3339())
@@ -326,7 +326,7 @@ impl TaskRepository for SqliteTaskRepository {
 
     // --- 读操作 ---
     async fn find_by_id(&self, task_id: Uuid) -> AppResult<Option<Task>> {
-        let row = sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+        let row = sqlx::query("SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL")
             .bind(task_id.to_string())
             .fetch_optional(&self.pool)
             .await
@@ -342,7 +342,7 @@ impl TaskRepository for SqliteTaskRepository {
     }
 
     async fn find_by_id_in_tx(&self, tx: &mut Transaction<'_, Sqlite>, task_id: Uuid) -> AppResult<Option<Task>> {
-        let row = sqlx::query("SELECT * FROM tasks WHERE id = ? AND is_deleted = FALSE")
+        let row = sqlx::query("SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL")
             .bind(task_id.to_string())
             .fetch_optional(&mut **tx)
             .await
@@ -364,7 +364,7 @@ impl TaskRepository for SqliteTaskRepository {
 
         let placeholders = task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let query = format!(
-            "SELECT * FROM tasks WHERE id IN ({}) AND is_deleted = FALSE ORDER BY created_at DESC",
+            "SELECT * FROM tasks WHERE id IN ({}) AND deleted_at IS NULL ORDER BY created_at DESC",
             placeholders
         );
 
@@ -392,7 +392,7 @@ impl TaskRepository for SqliteTaskRepository {
             r#"
             SELECT t.* FROM tasks t
             LEFT JOIN task_schedule ts ON t.id = ts.task_id
-            WHERE t.is_deleted = FALSE 
+            WHERE t.deleted_at IS NULL 
               AND t.completed_at IS NULL
               AND ts.task_id IS NULL
             ORDER BY t.created_at DESC
@@ -412,7 +412,7 @@ impl TaskRepository for SqliteTaskRepository {
     }
 
     async fn exists(&self, task_id: Uuid) -> AppResult<bool> {
-        let row = sqlx::query("SELECT 1 FROM tasks WHERE id = ? AND is_deleted = FALSE")
+        let row = sqlx::query("SELECT 1 FROM tasks WHERE id = ? AND deleted_at IS NULL")
             .bind(task_id.to_string())
             .fetch_optional(&self.pool)
             .await

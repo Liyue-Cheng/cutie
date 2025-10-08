@@ -171,4 +171,3 @@ mod database {
         Ok(())
     }
 }
-

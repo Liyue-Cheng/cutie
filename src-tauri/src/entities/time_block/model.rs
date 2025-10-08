@@ -1,7 +1,6 @@
 /// TimeBlock核心模型
 ///
 /// 从shared/core/models/time_block.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -44,7 +43,7 @@ pub struct TimeBlock {
 
     /// 是否为全天事件
     ///
-    /// **语义:** 
+    /// **语义:**
     /// - true: 全天事件，在日历全日槽位显示，不与其他事件冲突
     /// - false: 分时事件，在时间网格中显示，与其他分时事件检测冲突
     pub is_all_day: bool,
@@ -99,20 +98,20 @@ pub struct TimeBlockRow {
     pub glance_note: Option<String>,
     pub detail_note: Option<String>,
     pub start_time: DateTime<Utc>, // SQLx自动转换
-    pub end_time: DateTime<Utc>, // SQLx自动转换
+    pub end_time: DateTime<Utc>,   // SQLx自动转换
     pub is_all_day: bool,
     pub area_id: Option<String>,
     pub created_at: DateTime<Utc>, // SQLx自动转换
     pub updated_at: DateTime<Utc>, // SQLx自动转换
     pub is_deleted: bool,
-    pub source_info: Option<String>,          // JSON
+    pub source_info: Option<String>, // JSON
     pub external_source_id: Option<String>,
     pub external_source_provider: Option<String>,
     pub external_source_metadata: Option<String>, // JSON
     pub recurrence_rule: Option<String>,
     pub recurrence_parent_id: Option<String>,
     pub recurrence_original_date: Option<DateTime<Utc>>, // SQLx自动转换
-    pub recurrence_exclusions: Option<String>, // JSON
+    pub recurrence_exclusions: Option<String>,           // JSON
 }
 
 impl TryFrom<TimeBlockRow> for TimeBlock {
@@ -125,7 +124,7 @@ impl TryFrom<TimeBlockRow> for TimeBlock {
             glance_note: row.glance_note,
             detail_note: row.detail_note,
             start_time: row.start_time, // SQLx已经转换
-            end_time: row.end_time, // SQLx已经转换
+            end_time: row.end_time,     // SQLx已经转换
             is_all_day: row.is_all_day,
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
             created_at: row.created_at, // SQLx已经转换

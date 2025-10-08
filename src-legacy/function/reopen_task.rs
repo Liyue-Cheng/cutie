@@ -109,7 +109,7 @@ mod database {
     ) -> AppResult<Option<Task>> {
         let row = sqlx::query_as::<_, TaskRow>(
             r#"
-            SELECT * FROM tasks WHERE id = ? AND is_deleted = false
+            SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(task_id.to_string())

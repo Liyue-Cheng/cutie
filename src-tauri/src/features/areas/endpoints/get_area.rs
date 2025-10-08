@@ -150,12 +150,12 @@ mod database {
 
         match row {
             Some(r) => {
-                let area = Area::try_from(r)
-                    .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))?;
+                let area = Area::try_from(r).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })?;
                 Ok(Some(area))
             }
             None => Ok(None),
         }
     }
 }
-

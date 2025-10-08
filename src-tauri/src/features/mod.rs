@@ -17,6 +17,7 @@ pub mod shared;
 pub mod areas;
 pub mod tasks;
 pub mod time_blocks;
+pub mod trash;
 pub mod view_preferences;
 pub mod views;
 // 其他功能模块（待迁移）
@@ -34,6 +35,7 @@ pub fn create_api_router() -> Router<AppState> {
         .nest("/areas", areas::create_routes())
         .nest("/tasks", tasks::create_routes())
         .nest("/time-blocks", time_blocks::create_routes())
+        .nest("/trash", trash::create_routes())
         .nest("/view-preferences", view_preferences::create_routes())
         .nest("/views", views::create_routes())
         .route("/events/stream", get(sse::handle))

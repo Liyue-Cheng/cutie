@@ -76,7 +76,7 @@ mod database {
         let row = sqlx::query_as::<_, AreaRow>(
             r#"
             SELECT id, name, color, parent_area_id, created_at, updated_at, is_deleted
-            FROM areas WHERE id = ? AND is_deleted = false
+            FROM areas WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(area_id.to_string())
@@ -94,7 +94,7 @@ mod database {
         area_id: Uuid,
     ) -> AppResult<i64> {
         let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM tasks WHERE area_id = ? AND is_deleted = false",
+            "SELECT COUNT(*) FROM tasks WHERE area_id = ? AND deleted_at IS NULL",
         )
         .bind(area_id.to_string())
         .fetch_one(&mut **tx)
@@ -109,7 +109,7 @@ mod database {
         area_id: Uuid,
     ) -> AppResult<i64> {
         let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM projects WHERE area_id = ? AND is_deleted = false",
+            "SELECT COUNT(*) FROM projects WHERE area_id = ? AND deleted_at IS NULL",
         )
         .bind(area_id.to_string())
         .fetch_one(&mut **tx)

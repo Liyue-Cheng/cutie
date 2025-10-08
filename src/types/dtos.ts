@@ -43,6 +43,8 @@ export interface TaskCard {
   // --- 核心状态 (已解耦) ---
   is_completed: boolean
   is_archived: boolean
+  is_deleted: boolean
+  deleted_at: string | null // ISO 8601 UTC 字符串，null 表示未删除
   schedule_status: ScheduleStatus
 
   // --- 详细信息 ---

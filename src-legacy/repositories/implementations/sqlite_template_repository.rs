@@ -111,7 +111,7 @@ impl TemplateRepository for SqliteTemplateRepository {
             UPDATE templates SET 
                 name = ?, title_template = ?, glance_note_template = ?, detail_note_template = ?,
                 estimated_duration_template = ?, subtasks_template = ?, area_id = ?, updated_at = ?
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(&template.name)
@@ -148,7 +148,7 @@ impl TemplateRepository for SqliteTemplateRepository {
             UPDATE templates SET 
                 is_deleted = TRUE, 
                 updated_at = ? 
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(now.to_rfc3339())
@@ -169,7 +169,7 @@ impl TemplateRepository for SqliteTemplateRepository {
 
     // --- 读操作 ---
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Template>> {
-        let row = sqlx::query("SELECT * FROM templates WHERE id = ? AND is_deleted = FALSE")
+        let row = sqlx::query("SELECT * FROM templates WHERE id = ? AND deleted_at IS NULL")
             .bind(id.to_string())
             .fetch_optional(&self.pool)
             .await
@@ -185,7 +185,7 @@ impl TemplateRepository for SqliteTemplateRepository {
     }
 
     async fn find_all(&self) -> AppResult<Vec<Template>> {
-        let rows = sqlx::query("SELECT * FROM templates WHERE is_deleted = FALSE ORDER BY name ASC")
+        let rows = sqlx::query("SELECT * FROM templates WHERE deleted_at IS NULL ORDER BY name ASC")
             .fetch_all(&self.pool)
             .await
             .map_err(DbError::ConnectionError)?;

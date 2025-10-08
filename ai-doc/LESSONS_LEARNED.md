@@ -25,14 +25,11 @@
 
 ```typescript
 // ❌ 错误：硬编码端口
-const response = await fetch(
-  `http://127.0.0.1:3538/api/time-blocks/${eventIdToLink}/link-task`,
-  {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ task_id: currentDraggedTask.value.id }),
-  }
-)
+const response = await fetch(`http://127.0.0.1:3538/api/time-blocks/${eventIdToLink}/link-task`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ task_id: currentDraggedTask.value.id }),
+})
 ```
 
 **解决方案：**
@@ -41,14 +38,11 @@ const response = await fetch(
 // ✅ 正确：使用动态端口
 import { apiBaseUrl } from '@/composables/useApiConfig'
 
-const response = await fetch(
-  `${apiBaseUrl.value}/time-blocks/${eventIdToLink}/link-task`,
-  {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ task_id: currentDraggedTask.value.id }),
-  }
-)
+const response = await fetch(`${apiBaseUrl.value}/time-blocks/${eventIdToLink}/link-task`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ task_id: currentDraggedTask.value.id }),
+})
 ```
 
 **经验教训：**
@@ -549,12 +543,7 @@ if let Some(estimated_duration) = &request.estimated_duration {
 
 ```vue
 <!-- ❌ 错误：硬编码状态 -->
-<CuteCheckbox
-  :checked="false"
-  size="large"
-  variant="star"
-  @update:checked="handlePresenceToggle"
-/>
+<CuteCheckbox :checked="false" size="large" variant="star" @update:checked="handlePresenceToggle" />
 ```
 
 同时，`handlePresenceToggle` 函数只是一个空的 `console.log`，没有真正调用 API。
@@ -843,3 +832,1124 @@ function handleCardMouseDown() {
 1. **优先使用事件参数**：`@update:checked="fn"` 的参数比读取当前状态更可靠
 2. **事件修饰符**：熟练使用 `.stop`、`.self`、`.prevent` 等修饰符
 3. **事件冒泡**：理解冒泡机制，在需要时使用 `.self` 或 `.stop` 阻止
+
+---
+
+## 2025-10-08: 孤儿时间块删除逻辑的致命缺陷与 SSE 事件链完整性问题
+
+### 问题群：实时更新功能完全失效
+
+**现象：**
+
+1. 链接任务到时间块后，时间块不继承任务的 area（颜色不变）
+2. 链接任务后，任务卡片不显示时间指示器
+3. 拖拽任务到日历后，卡片只闪一下就消失
+4. 所有情况都需要手动刷新才能看到正确结果
+
+**用户报告：**
+
+> "任务那边修好了，但是时间片还没有修好，拖动连接到时间片之后，还是要刷新"
+
+### 根本原因分析（7层问题叠加）
+
+#### 问题1：孤儿时间块删除逻辑的业务缺陷
+
+**错误设计：** 基于 `time_block.title == deleted_task.title` 判断是否删除
+
+**Bug 场景：**
+
+```
+1. 任务 A 创建时间块 K (title="任务A")
+2. 链接任务 B 到时间块 K
+3. 删除任务 A → K 保留（还有任务 B）✅
+4. 删除任务 B → K 保留（title "任务A" ≠ "任务B"）❌
+   结果：孤儿时间块！
+```
+
+**另一个问题：**
+
+```
+手动创建"会议"时间块 K
+链接任务 A
+删除任务 A → 如果恰好 task.title == "会议"，则会误删！❌
+```
+
+**根本缺陷：** 标题是易变的、不可靠的，不能作为业务逻辑判断依据
+
+**解决方案：** 使用命名空间化的 `source_info.source_type`
+
+```rust
+// SourceInfo 扩展
+pub struct SourceInfo {
+    pub source_type: String,        // "native::from_task" | "native::manual" | "external::*"
+    pub created_by_task_id: Option<Uuid>,  // 记录创建来源
+}
+
+// 创建时设置
+// create_from_task: source_type = "native::from_task"
+// create_time_block: source_type = "native::manual"
+
+// 删除时判断
+if source_info.source_type == "native::from_task" {
+    return Ok(true);  // 孤儿 + 自动创建 = 删除
+}
+Ok(false)  // 其他来源（manual、external::*）一律保留
+```
+
+**经验教训：**
+
+- ❌ 不要使用易变的业务数据（如标题）作为逻辑判断依据
+- ✅ 使用明确的元数据（source_type）标记来源和意图
+- ✅ 设计时考虑边界情况和多任务链接场景
+- ✅ 采用命名空间化设计，便于未来扩展（external::google, external::outlook）
+
+#### 问题2：TimeBlockStore 完全缺失 SSE 订阅
+
+**错误：** `timeblock.ts` 没有任何事件订阅代码
+
+```typescript
+// ❌ timeblock.ts 中完全没有这些代码：
+// import { getEventSubscriber } from '@/services/events'
+// function initEventSubscriptions() { ... }
+// subscriber.on('time_blocks.created', ...)
+// subscriber.on('time_blocks.linked', ...)
+```
+
+**后果：**
+
+- 后端发送 SSE 事件 ✅
+- EventSource 接收事件 ✅
+- Store 完全不知道发生了什么 ❌
+- UI 永远不更新 ❌
+
+**解决方案：** 完整实现 Store 的 SSE 订阅
+
+```typescript
+function initEventSubscriptions() {
+  const subscriber = getEventSubscriber()
+  if (!subscriber) return
+
+  subscriber.on('time_blocks.created', handleTimeBlockCreatedEvent)
+  subscriber.on('time_blocks.updated', handleTimeBlockUpdatedEvent)
+  subscriber.on('time_blocks.deleted', handleTimeBlockDeletedEvent)
+  subscriber.on('time_blocks.linked', handleTimeBlockLinkedEvent)
+}
+
+// 在 useApiConfig.ts 中初始化
+timeBlockStore.initEventSubscriptions()
+```
+
+#### 问题3：create_from_task 端点无 SSE 事件
+
+**错误：** 端点只返回 HTTP 响应，没有发送 SSE 事件
+
+```rust
+// ❌ 只有这行
+Ok(CreateFromTaskResponse {
+    time_block: time_block_view,
+    updated_task,
+})
+
+// ❌ 缺少整个事件发布逻辑
+```
+
+**后果：**
+
+- 拖拽操作的发起者看到结果（HTTP 响应）✅
+- 其他视图（Kanban、其他日期）不知道发生了什么 ❌
+- 必须手动刷新才能看到 ❌
+
+**解决方案：** 添加 SSE 事件发布
+
+```rust
+// 13. 发送 SSE 事件
+let payload = serde_json::json!({
+    "time_block_id": block_id,
+    "task_id": request.task_id,
+    "time_block": time_block_view,
+    "updated_task": updated_task,
+});
+
+let event = DomainEvent::new(
+    "time_blocks.created",
+    "TimeBlock",
+    block_id.to_string(),
+    payload,
+);
+
+outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
+```
+
+#### 问题4：EventSubscriber 未注册事件监听器
+
+**错误：** `events.ts` 中没有 `addEventListener`
+
+```typescript
+// ❌ events.ts 中完全没有这两行：
+// this.eventSource.addEventListener('time_blocks.created', ...)
+// this.eventSource.addEventListener('time_blocks.linked', ...)
+```
+
+**SSE 事件链断裂：**
+
+```
+Backend → SSE Stream → EventSource ❌ 事件被丢弃
+                                   ↓
+                          Store handler 永远不会被调用
+```
+
+**调试过程：**
+
+用户提供 SSE 响应：
+
+```json
+{"event_type":"time_blocks.linked","payload":{...}}
+```
+
+证明后端发送成功，但前端没有反应。检查后发现 EventSource 根本没有监听这个事件类型！
+
+**解决方案：**
+
+```typescript
+// src/services/events.ts
+this.eventSource.addEventListener('time_blocks.created', (e: MessageEvent) => {
+  this.handleEvent('time_blocks.created', e.data)
+})
+
+this.eventSource.addEventListener('time_blocks.linked', (e: MessageEvent) => {
+  this.handleEvent('time_blocks.linked', e.data)
+})
+```
+
+#### 问题5：link_task 未更新时间块 area_id
+
+**错误：** 只创建链接，不更新时间块属性
+
+```rust
+// ❌ 只有这行
+TaskTimeBlockLinkRepository::link_in_tx(&mut tx, task_id, block_id).await?;
+
+// ❌ 没有更新 time_block.area_id
+```
+
+**时间块颜色决定逻辑：**
+
+```typescript
+// useCalendarEvents.ts
+const area = timeBlock.area_id ? areaStore.getAreaById(timeBlock.area_id) : null
+if (area) {
+  color = area.color // ← 颜色由 area_id 决定
+}
+```
+
+**后果：**
+
+- 时间块没有 area_id → 无法获取 area → 颜色保持默认灰色 ❌
+
+**解决方案：** 继承任务的 area_id
+
+```rust
+// 5.5. 如果时间块没有 area，则继承任务的 area
+let should_update_area = time_block.area_id.is_none() && task.area_id.is_some();
+if should_update_area {
+    let update_request = UpdateTimeBlockRequest {
+        area_id: Some(task.area_id),
+        ..Default::default()
+    };
+    TimeBlockRepository::update_in_tx(&mut tx, block_id, &update_request, now).await?;
+}
+```
+
+#### 问题6：SSE Payload 只含 ID，无完整数据
+
+**错误：** 事件载荷只包含 ID
+
+```rust
+// ❌ 只有 ID
+let payload = serde_json::json!({
+    "time_block_id": block_id,
+    "linked_task_id": task_id,
+    "affected_task_ids": vec![task_id],
+});
+```
+
+**前端尝试获取数据：**
+
+```typescript
+// ❌ 前端试图通过 ID 查询
+const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+```
+
+**问题：** 后端 API 不支持 `ids` 参数！只支持 `start_date` 和 `end_date`
+
+**解决方案：** 在 SSE payload 中包含完整数据
+
+```rust
+// ✅ 包含完整的 time_block 数据
+let time_block_view = TimeBlockViewDto {
+    id: updated_time_block.id,
+    area_id: updated_time_block.area_id,  // ← 包含更新后的 area_id
+    // ... 所有字段
+};
+
+let payload = serde_json::json!({
+    "time_block_id": block_id,
+    "time_block": time_block_view,  // ← 完整数据
+});
+```
+
+```typescript
+// ✅ 前端直接使用
+function handleTimeBlockLinkedEvent(event: any) {
+  const timeBlock = event.payload?.time_block
+  if (timeBlock) {
+    addOrUpdateTimeBlock(timeBlock) // 不需要 API 调用
+  }
+}
+```
+
+#### 问题7：前端调用不存在的 API
+
+**错误：** 尝试调用 `/api/time-blocks?ids=X`
+
+```typescript
+// ❌ 这个 API 不存在
+const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+```
+
+**实际 API：**
+
+```rust
+// ✅ 实际只支持这个
+GET /api/time-blocks?start_date=...&end_date=...
+```
+
+**根本问题：** 前后端 API 契约不一致
+
+**解决方案：**
+
+1. 方案 A：SSE payload 包含完整数据（已采用）✅
+2. 方案 B：添加 `GET /api/time-blocks/:id` 端点
+3. 方案 C：支持 `ids` 批量查询参数
+
+### 完整的问题链和修复流程
+
+```
+业务逻辑缺陷（标题判断）
+    ↓
+SSE 订阅缺失（Store 层）
+    ↓
+SSE 事件缺失（create_from_task）
+    ↓
+EventSource 未注册监听器
+    ↓
+时间块未继承 area_id
+    ↓
+SSE payload 数据不完整
+    ↓
+API 调用失败（不存在的端点）
+    ↓
+所有实时更新功能失效 ❌
+```
+
+**修复后的完整流程：**
+
+```
+用户拖动任务到时间块
+    ↓
+Backend: 创建链接 + 更新 area_id
+    ↓
+Backend: 发送 time_blocks.linked SSE（包含完整数据）
+    ↓
+EventSource: addEventListener 接收事件
+    ↓
+EventSubscriber: handleEvent 解析 JSON
+    ↓
+TimeBlockStore: handleTimeBlockLinkedEvent
+    ↓
+Store: addOrUpdateTimeBlock(payload.time_block)
+    ↓
+Calendar: 响应式更新，颜色正确 ✅
+```
+
+### 关键经验教训
+
+#### 1. 业务逻辑设计原则
+
+- ❌ **不要依赖易变数据**：标题、描述等用户可编辑的字段
+- ✅ **使用明确的元数据**：source_type、created_by、flags 等
+- ✅ **考虑边界情况**：多对多关系、删除顺序、并发操作
+- ✅ **命名空间化设计**：`native::`, `external::` 便于扩展
+
+#### 2. SSE 事件链完整性检查清单
+
+实现新功能时，必须检查以下**所有环节**：
+
+**后端（Rust）：**
+
+```
+[ ] 端点发送 SSE 事件（EventOutbox）
+[ ] SSE payload 包含**完整数据**，不只是 ID
+[ ] 事件类型命名一致（如 time_blocks.linked）
+```
+
+**中间层（events.ts）：**
+
+```
+[ ] EventSource.addEventListener 注册了该事件类型
+[ ] handleEvent 正确解析和分发
+```
+
+**前端 Store：**
+
+```
+[ ] Store 实现了 initEventSubscriptions
+[ ] Store 订阅了所有相关事件
+[ ] Event handler 正确处理数据
+[ ] useApiConfig.ts 中调用了 initEventSubscriptions
+```
+
+**测试验证：**
+
+```
+[ ] 控制台可以看到 SSE 事件日志
+[ ] Store handler 被正确调用
+[ ] UI 实时更新，无需手动刷新
+```
+
+#### 3. SSE Payload 设计原则
+
+**❌ 错误（只发 ID）：**
+
+```json
+{
+  "entity_id": "uuid",
+  "affected_ids": ["uuid1", "uuid2"]
+}
+```
+
+**问题：**
+
+- 前端需要额外 API 调用
+- 增加延迟
+- API 可能不支持
+- 竞态条件（数据可能还没写入）
+
+**✅ 正确（发完整数据）：**
+
+```json
+{
+  "entity_id": "uuid",
+  "entity": {
+    "id": "uuid",
+    "all_fields": "...",
+    "computed_fields": "..."
+  },
+  "affected_ids": ["uuid1"],
+  "side_effects": {
+    "updated_entities": [...]
+  }
+}
+```
+
+**优势：**
+
+- 前端直接使用，无需额外请求
+- 零延迟
+- 避免 API 不匹配问题
+- 数据完整性保证（事务后发送）
+
+#### 4. 调试 SSE 问题的步骤
+
+1. **检查后端是否发送**：查看后端日志、数据库 event_outbox 表
+2. **检查网络传输**：浏览器 DevTools → Network → EventStream
+3. **检查 EventSource 接收**：查看 `addEventListener` 是否注册
+4. **检查 Store 订阅**：`initEventSubscriptions` 是否调用
+5. **检查 Handler 执行**：添加 console.log 确认被调用
+6. **检查数据处理**：验证 payload 结构和内容
+
+**本次调试关键点：**
+
+用户提供 SSE 响应证明后端发送成功 → 快速定位到 EventSource 未注册监听器
+
+#### 5. 跨模块状态同步策略
+
+**问题：** 时间块属性（如 area_id）变化时，多个 Store 需要同步
+
+**方案：**
+
+**A. SSE 事件广播（已采用）：**
+
+```
+Backend 更新 time_block.area_id
+    ↓
+发送 time_blocks.updated SSE（包含完整数据）
+    ↓
+TimeBlockStore 接收并更新
+    ↓
+TaskStore 监听同一事件（如果需要）
+```
+
+**优势：**
+
+- 解耦
+- 实时
+- 可靠
+
+**B. Store 间直接调用：**
+
+```typescript
+// ❌ 不推荐
+timeBlockStore.updateTimeBlock(...)
+taskStore.updateRelatedTasks(...)  // 紧耦合
+```
+
+**C. Pinia subscriptions：**
+
+```typescript
+// ❌ 复杂且难以追踪
+watch(() => timeBlockStore.timeBlocks, ...)
+```
+
+#### 6. 数据继承和传播规则
+
+**场景：** 链接两个实体时，哪些属性应该继承？
+
+**设计原则：**
+
+1. **优先级判断：**
+
+   ```rust
+   // ✅ 只在目标没有时才继承
+   if target.area_id.is_none() && source.area_id.is_some() {
+       target.area_id = source.area_id;
+   }
+   ```
+
+2. **单向继承：**
+
+   ```
+   Task → TimeBlock  ✅ 任务的属性传递给时间块
+   TimeBlock → Task  ❌ 时间块不影响任务属性
+   ```
+
+3. **显式记录：**
+   ```rust
+   tracing::info!(
+       "Updated time block {} area_id to {:?} (inherited from task)",
+       block_id, task.area_id
+   );
+   ```
+
+### 防范措施和检查清单
+
+#### 新增 SSE 事件时必须：
+
+```
+Backend:
+[ ] 创建端点时同时添加 SSE 发布代码
+[ ] Payload 包含完整数据，不仅仅是 ID
+[ ] 在 API_SPEC.md 中记录事件类型和 payload 结构
+
+Frontend (events.ts):
+[ ] 添加 addEventListener
+[ ] 测试事件能否被接收
+
+Frontend (Store):
+[ ] 实现 handler function
+[ ] 在 initEventSubscriptions 中订阅
+[ ] 添加 console.log 用于调试
+[ ] 在 useApiConfig.ts 中初始化
+
+测试:
+[ ] 手动触发操作
+[ ] 检查控制台是否有事件日志
+[ ] 验证 UI 是否实时更新
+[ ] 打开多个浏览器标签，验证跨标签同步
+```
+
+#### 删除/更新逻辑实现时必须：
+
+```
+[ ] 考虑多对多关系（不止一个关联实体）
+[ ] 考虑删除顺序（A删除后B还存在的情况）
+[ ] 使用稳定的元数据做判断（source_type, flags）
+[ ] 避免使用易变数据（title, description）
+[ ] 编写边界情况测试用例
+[ ] 记录业务规则到 CABC 文档
+```
+
+### 总结
+
+这次 bug 修复涉及**7层问题叠加**，从业务逻辑设计到 SSE 事件链的每一个环节都有问题。这反映了：
+
+1. **系统复杂性管理的重要性**：实时更新功能涉及多个层次，任何一环出错都会导致整体失效
+2. **完整性检查的必要性**：新增功能时必须检查完整的数据流路径
+3. **调试技巧的价值**：用户提供的 SSE 响应帮助快速定位问题
+4. **设计原则的重要性**：使用稳定的元数据、包含完整数据的 payload、单一职责的事件
+
+**核心教训：**
+
+> SSE 实时更新功能像一条完整的链条，从后端发送 → 网络传输 → EventSource 接收 → Store 处理 → UI 更新，任何一环断裂都会导致功能失效。新增功能时必须验证整条链路的完整性。
+
+> 业务逻辑判断应该基于稳定的、明确的元数据（如 source_type），而不是易变的业务数据（如 title）。
+
+**修复成果：**
+
+✅ 所有实时更新功能正常工作
+✅ 时间块正确继承任务属性
+✅ 无需手动刷新
+✅ 跨标签同步正常
+✅ 孤儿时间块正确清理
+
+---
+
+## 2025-10-08: 回收站功能实现 - deleted_at 字段与 SSE 事件数据一致性
+
+### 问题：回收站显示"删除于未知时间"
+
+**现象：**
+
+- 删除任务后，任务进入回收站 ✅
+- 但显示"删除于未知时间" ❌
+- 前端收到的 `deleted_at` 字段为 `null`
+
+**根本原因：**
+
+在 `delete_task.rs` 端点中，数据组装的时机错误：
+
+```rust
+// ❌ 错误：在软删除之前组装
+let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
+let task_card = TaskAssembler::task_to_card_basic(&task);  // ← task.deleted_at 还是 None
+
+let now = app_state.clock().now_utc();
+TaskRepository::soft_delete_in_tx(&mut tx, task_id, now).await?;  // ← 数据库更新了
+
+// SSE 事件
+let payload = serde_json::json!({
+    "task": task_card,  // ← deleted_at = None ❌
+    "deleted_at": now.to_rfc3339(),  // ← 重复字段，但 task_card 内部还是 None
+});
+```
+
+**问题分析：**
+
+1. **时序问题**：先组装 DTO，后更新数据库
+2. **数据不一致**：
+   - `task_card.deleted_at = None`（从旧的 task 实体组装）
+   - `payload.deleted_at = now`（手动添加的字段）
+3. **前端解析**：前端读取 `event.payload.task.deleted_at`，得到 `null`
+
+**解决方案：**
+
+在软删除**之后**组装 DTO，或手动设置字段：
+
+```rust
+// ✅ 正确：在软删除之后组装
+let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
+
+let now = app_state.clock().now_utc();
+TaskRepository::soft_delete_in_tx(&mut tx, task_id, now).await?;
+
+// 组装 task_card 并手动设置 deleted_at
+let mut task_card = TaskAssembler::task_to_card_basic(&task);
+task_card.deleted_at = Some(now);  // ← 手动设置
+task_card.is_deleted = true;
+
+// SSE 事件
+let payload = serde_json::json!({
+    "task": task_card,  // ← deleted_at = Some(now) ✅
+    "deleted_at": now.to_rfc3339(),
+});
+```
+
+**经验教训：**
+
+> **SSE 事件数据必须反映数据库的最终状态**：
+>
+> 1. **数据组装时机**：
+>    - ❌ 在数据库更新之前组装 → 数据不一致
+>    - ✅ 在数据库更新之后组装 → 数据一致
+>    - ✅ 或者手动设置变更的字段
+> 2. **状态字段的特殊性**：
+>    - `deleted_at`、`completed_at`、`archived_at` 等状态字段
+>    - 在状态转换时才被设置
+>    - 不能从"转换前"的实体中读取
+> 3. **HTTP 响应与 SSE 一致性**：
+>    - HTTP 响应和 SSE payload 必须包含相同的数据
+>    - 不要在 payload 中添加"额外的"顶层字段（如单独的 `deleted_at`）
+>    - 所有数据应该在 DTO 对象内部
+> 4. **验证方法**：
+>    - 检查 SSE payload 的 JSON 结构
+>    - 确认前端读取的字段路径正确
+>    - 使用 console.log 打印实际接收的数据
+> 5. **类似场景**：
+>    - `complete_task` → 设置 `completed_at`
+>    - `archive_task` → 设置 `archived_at`
+>    - `restore_task` → 清除 `deleted_at`
+>    - 所有这些端点都要注意数据组装时机
+
+**防范措施：**
+
+在实现状态转换端点时，遵循以下模式：
+
+```rust
+// 1. 查询原始数据
+let entity = Repository::find_by_id_in_tx(&mut tx, id).await?;
+
+// 2. 执行状态转换
+let now = app_state.clock().now_utc();
+Repository::update_state_in_tx(&mut tx, id, now).await?;
+
+// 3. 组装 DTO（在状态转换之后）
+let mut dto = Assembler::entity_to_dto(&entity);
+dto.state_field = Some(now);  // ← 手动设置新状态
+dto.is_state = true;
+
+// 4. 发送 SSE 事件（使用更新后的 DTO）
+let payload = serde_json::json!({ "entity": dto });
+```
+
+**相关代码：**
+
+- `src-tauri/src/features/tasks/endpoints/delete_task.rs` - 修复示例
+- `src-tauri/src/features/tasks/endpoints/restore_task.rs` - 恢复逻辑
+- `src-tauri/src/features/tasks/endpoints/complete_task.rs` - 类似场景
+- `src-tauri/src/features/tasks/shared/assembler.rs` - DTO 组装
+
+**架构原则：**
+
+- **SSE First**：SSE 事件的数据质量直接影响实时更新体验
+- **数据完整性**：状态转换后的数据必须完整且一致
+- **时序正确性**：先改数据，后组装 DTO，再发事件
+
+---
+
+## 2025-10-08: 前后端响应格式不一致导致 undefined 数据
+
+### 问题：回收站操作返回 undefined
+
+**现象：**
+
+1. 清空回收站后显示"删除了 undefined 个任务"
+2. 恢复任务可能失败
+3. 前端无法正确读取后端返回的数据
+
+**用户报告的实际响应：**
+
+```json
+{
+  "data": {
+    "deleted_count": 0
+  },
+  "timestamp": "2025-10-08T02:26:38.187841100Z",
+  "request_id": null
+}
+```
+
+**根本原因：**
+
+后端使用 `success_response()` 包装器，它会将所有响应包装在 `data` 字段中，但前端代码没有正确解包：
+
+```typescript
+// ❌ 错误：直接解析顶层
+const data: { deleted_count: number } = await response.json()
+return data.deleted_count // undefined！因为实际结构是 result.data.deleted_count
+```
+
+**问题分析：**
+
+1. **后端包装器**：`success_response()` 自动添加 `data` 包装层
+2. **前端假设**：前端代码假设响应直接是业务数据
+3. **类型不匹配**：TypeScript 类型定义与实际结构不符
+4. **系统性问题**：所有使用 `success_response()` 的端点都有这个问题
+
+**影响范围：**
+
+回收站功能的所有 API 调用：
+
+- `GET /api/trash` - 获取回收站列表
+- `POST /api/trash/empty` - 清空回收站
+- `PATCH /api/tasks/:id/restore` - 恢复任务
+- `DELETE /api/tasks/:id/permanently` - 彻底删除任务
+
+**解决方案：**
+
+修正所有前端响应解析代码，正确解包 `data` 字段：
+
+#### 1. 清空回收站
+
+```typescript
+// ❌ 错误
+const data: { deleted_count: number } = await response.json()
+return data.deleted_count
+
+// ✅ 正确
+const result: { data: { deleted_count: number } } = await response.json()
+return result.data.deleted_count
+```
+
+#### 2. 获取回收站列表
+
+```typescript
+// ❌ 错误
+const data: { tasks: TaskCard[]; total: number } = await response.json()
+setTrashedTasks(data.tasks)
+
+// ✅ 正确
+const result: { data: { tasks: TaskCard[]; total: number } } = await response.json()
+setTrashedTasks(result.data.tasks)
+```
+
+#### 3. 恢复任务
+
+```typescript
+// ❌ 错误
+const task: TaskCard = await response.json()
+return task
+
+// ✅ 正确
+const result: { data: TaskCard } = await response.json()
+return result.data
+```
+
+**经验教训：**
+
+> **前后端响应格式必须明确约定并严格遵守**：
+>
+> 1. **后端包装器的影响**：
+>    - `success_response()` → 返回 `{ data: T, timestamp, request_id }`
+>    - `created_response()` → 返回 `{ data: T, timestamp, request_id }`
+>    - 直接返回 JSON → 返回 `T`
+> 2. **前端解析规则**：
+>    - 检查后端使用的响应包装器
+>    - 使用正确的类型定义：`{ data: T }` 而不是 `T`
+>    - 访问 `result.data` 而不是 `result`
+> 3. **类型安全的局限性**：
+>    - TypeScript 类型定义可以骗过编译器
+>    - 错误的类型定义 + 错误的访问路径 = 运行时 `undefined`
+>    - 必须通过实际测试验证数据流
+> 4. **调试方法**：
+>    - 检查实际的 HTTP 响应（DevTools Network）
+>    - 打印 `response.json()` 的完整结果
+>    - 不要猜测数据结构，要验证
+> 5. **系统性排查**：
+>    - 发现一个问题后，检查所有类似的代码
+>    - 使用 grep 搜索相同的模式
+>    - 批量修复，避免遗漏
+
+**防范措施：**
+
+#### 1. 建立统一的响应解析工具
+
+```typescript
+// src/utils/api.ts
+export async function parseSuccessResponse<T>(response: Response): Promise<T> {
+  const result: { data: T } = await response.json()
+  return result.data
+}
+
+// 使用
+const deletedCount = await parseSuccessResponse<{ deleted_count: number }>(response)
+return deletedCount.deleted_count
+```
+
+#### 2. 后端响应格式文档
+
+在 API 文档中明确标注响应格式：
+
+````rust
+/// **响应格式：**
+/// ```json
+/// {
+///   "data": {
+///     "deleted_count": 0
+///   },
+///   "timestamp": "2025-10-08T02:26:38Z",
+///   "request_id": null
+/// }
+/// ```
+````
+
+#### 3. 前端类型定义
+
+创建标准的响应类型：
+
+```typescript
+// src/types/api.ts
+export interface SuccessResponse<T> {
+  data: T
+  timestamp: string
+  request_id: string | null
+}
+
+// 使用
+const result: SuccessResponse<{ deleted_count: number }> = await response.json()
+return result.data.deleted_count
+```
+
+#### 4. 检查清单
+
+新增 API 调用时必须检查：
+
+```
+[ ] 确认后端使用的响应包装器（success_response/created_response/直接返回）
+[ ] 使用正确的类型定义（SuccessResponse<T> vs T）
+[ ] 正确访问数据（result.data vs result）
+[ ] 实际测试验证数据能正确读取
+[ ] 检查是否有其他类似的 API 调用需要修复
+```
+
+**相关代码：**
+
+- `src/stores/trash/view-operations.ts` - 修复示例
+- `src/stores/trash/crud-operations.ts` - 修复示例
+- `src-tauri/src/shared/http/error_handler.rs` - 响应包装器定义
+- `src-tauri/src/features/trash/endpoints/*.rs` - 后端端点
+
+**架构建议：**
+
+1. **统一响应格式**：所有端点使用相同的包装器
+2. **前端工具函数**：封装响应解析逻辑
+3. **类型安全**：使用泛型类型确保编译时检查
+4. **文档先行**：API 文档中明确标注响应格式
+
+**核心教训：**
+
+> 不要用 workaround（如 `?? 0`）掩盖问题！`undefined` 的出现一定有根本原因，必须追查到底并从源头修复。类型定义可以骗过编译器，但骗不过运行时。
+
+---
+
+## 2025-10-08: JavaScript Falsy 值陷阱导致功能失效
+
+### 问题：清空回收站功能完全不生效
+
+**现象：**
+
+1. 点击"清空回收站"按钮
+2. 提示"已清空回收站，删除了 0 个任务"
+3. 但回收站中的任务仍然存在
+4. 后端返回 `deleted_count: 0`
+
+**调试过程：**
+
+1. 检查后端逻辑 → 发现时间过滤逻辑正确
+2. 添加日志 → 发现后端收到的 `older_than_days = 30` 而不是 `0`
+3. 检查前端代码 → 发现使用了 `||` 运算符
+
+**根本原因：**
+
+前端使用了 `||` 运算符设置默认值，但 `0` 是 JavaScript 的 falsy 值：
+
+```typescript
+// ❌ 错误：0 是 falsy 值
+older_than_days: options?.olderThanDays || 30
+// 当 olderThanDays = 0 时：0 || 30 → 30 ❌
+
+// ✅ 正确：使用 ?? 运算符
+older_than_days: options?.olderThanDays ?? 30
+// 当 olderThanDays = 0 时：0 ?? 30 → 0 ✅
+```
+
+**问题分析：**
+
+1. **JavaScript Falsy 值**：
+   - `||` 运算符：左侧为 falsy（`0`, `""`, `false`, `null`, `undefined`, `NaN`）时返回右侧
+   - `??` 运算符（空值合并）：左侧为 `null` 或 `undefined` 时才返回右侧
+
+2. **数据流错误**：
+
+   ```
+   前端调用：emptyTrash({ olderThanDays: 0 })
+       ↓
+   前端发送：{ older_than_days: 0 || 30 } = { older_than_days: 30 }
+       ↓
+   后端接收：older_than_days = 30
+       ↓
+   后端逻辑：cutoff_time = now - 30天
+       ↓
+   结果：只删除 30 天前的任务（没有任务符合条件）
+       ↓
+   返回：deleted_count = 0
+   ```
+
+3. **业务语义丢失**：
+   - 用户意图：`0` 表示"删除所有任务，不限制天数"
+   - 实际效果：`0` 被转换为 `30`，变成"删除 30 天前的任务"
+   - 完全违背了用户意图
+
+**解决方案：**
+
+使用 `??` 运算符替代 `||` 运算符：
+
+```typescript
+// src/stores/trash/view-operations.ts
+
+export async function emptyTrash(options?: {
+  olderThanDays?: number
+  limit?: number
+}): Promise<number> {
+  const response = await fetch(`${apiBaseUrl.value}/trash/empty`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      older_than_days: options?.olderThanDays ?? 30, // ✅ 使用 ??
+      limit: options?.limit ?? 100, // ✅ 使用 ??
+    }),
+  })
+  // ...
+}
+```
+
+**行为对比：**
+
+| 输入值      | `\|\|` 运算符 | `??` 运算符 | 正确性    |
+| ----------- | ------------- | ----------- | --------- |
+| `0`         | `30` ❌       | `0` ✅      | `??` 正确 |
+| `undefined` | `30` ✅       | `30` ✅     | 都正确    |
+| `null`      | `30` ✅       | `30` ✅     | 都正确    |
+| `""`        | `30` ❌       | `""` ✅     | `??` 正确 |
+| `false`     | `30` ❌       | `false` ✅  | `??` 正确 |
+
+**经验教训：**
+
+> **设置默认值时，必须区分"无值"和"有效的零值"**：
+>
+> 1. **运算符选择**：
+>    - `||` 运算符：用于布尔逻辑，不适合设置默认值
+>    - `??` 运算符：专门用于空值合并，只处理 `null` 和 `undefined`
+>    - **规则**：设置默认值时，永远使用 `??` 而不是 `||`
+> 2. **零值的业务意义**：
+>    - `0` 可能是有效的业务值（如"删除所有"、"无限制"、"立即执行"）
+>    - `""` 可能是有效的业务值（如"清空字段"、"无标题"）
+>    - `false` 可能是有效的业务值（如"禁用"、"关闭"）
+>    - 这些值不应该被当作"缺失"而使用默认值
+> 3. **类型安全的局限**：
+>    - TypeScript 无法检测 `||` 和 `??` 的语义差异
+>    - 两者都能通过类型检查
+>    - 只有运行时才能发现问题
+> 4. **调试技巧**：
+>    - 添加日志打印实际发送的请求体
+>    - 对比前端发送和后端接收的值
+>    - 检查所有使用 `||` 设置默认值的地方
+> 5. **系统性排查**：
+>    - 搜索代码中所有 `|| 数字` 的模式
+>    - 检查是否应该改为 `?? 数字`
+>    - 特别注意参数、配置、选项等场景
+
+**防范措施：**
+
+#### 1. ESLint 规则
+
+配置 ESLint 规则，警告可疑的 `||` 用法：
+
+```json
+{
+  "rules": {
+    "prefer-nullish-coalescing": [
+      "warn",
+      {
+        "ignoreTernaryTests": false,
+        "ignoreConditionalTests": false
+      }
+    ]
+  }
+}
+```
+
+#### 2. 代码审查清单
+
+设置默认值时必须检查：
+
+```
+[ ] 是否使用了 || 运算符？
+[ ] 左侧的值是否可能为 0、""、false？
+[ ] 这些值是否有业务意义？
+[ ] 是否应该改为 ?? 运算符？
+```
+
+#### 3. 明确的类型定义
+
+使用类型定义明确"可选"和"可为零"的区别：
+
+```typescript
+// ✅ 明确：undefined 表示未提供，0 是有效值
+interface Options {
+  olderThanDays?: number // undefined = 使用默认值，0 = 删除所有
+  limit?: number // undefined = 使用默认值，0 = 无限制
+}
+
+// 使用时
+const value = options?.olderThanDays ?? 30 // 只有 undefined 才用 30
+```
+
+#### 4. 单元测试覆盖边界值
+
+```typescript
+describe('emptyTrash', () => {
+  it('should delete all tasks when olderThanDays is 0', async () => {
+    const result = await emptyTrash({ olderThanDays: 0 })
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({ older_than_days: 0, limit: 100 }),
+      })
+    )
+  })
+
+  it('should use default value when olderThanDays is undefined', async () => {
+    const result = await emptyTrash({})
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({ older_than_days: 30, limit: 100 }),
+      })
+    )
+  })
+})
+```
+
+**相关代码：**
+
+- `src/stores/trash/view-operations.ts` - 修复示例
+- `src/views/TrashView.vue` - 调用处
+
+**常见的 Falsy 陷阱场景：**
+
+1. **数字默认值**：
+
+   ```typescript
+   // ❌ 错误
+   const count = input || 10 // input=0 时返回 10
+   // ✅ 正确
+   const count = input ?? 10 // input=0 时返回 0
+   ```
+
+2. **字符串默认值**：
+
+   ```typescript
+   // ❌ 错误
+   const name = input || 'default' // input="" 时返回 'default'
+   // ✅ 正确
+   const name = input ?? 'default' // input="" 时返回 ""
+   ```
+
+3. **布尔默认值**：
+   ```typescript
+   // ❌ 错误
+   const enabled = input || true // input=false 时返回 true
+   // ✅ 正确
+   const enabled = input ?? true // input=false 时返回 false
+   ```
+
+**核心教训：**
+
+> **`||` 是逻辑运算符，不是默认值运算符！** 在 JavaScript/TypeScript 中设置默认值时，永远使用 `??` 而不是 `||`。`0`、`""`、`false` 都是有效的业务值，不应该被当作"缺失"。
+
+**架构建议：**
+
+1. **团队规范**：在代码规范中明确禁止使用 `||` 设置默认值
+2. **自动化检查**：配置 ESLint 规则自动检测
+3. **代码审查**：重点审查参数处理、配置读取等场景
+4. **文档说明**：在 API 文档中明确说明零值的业务含义

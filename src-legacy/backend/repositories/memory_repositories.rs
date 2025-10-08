@@ -219,7 +219,7 @@ impl TaskRepository for MemoryTaskRepository {
         let mut tasks = self.tasks.write().await;
 
         if let Some(task) = tasks.get_mut(&task_id) {
-            task.is_deleted = false;
+            task.deleted_at IS NULL;
             task.updated_at = Utc::now();
             Ok(task.clone())
         } else {

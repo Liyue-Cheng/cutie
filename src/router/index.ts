@@ -28,6 +28,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/DailyShutdownView.vue'),
       },
       {
+        path: 'trash',
+        name: 'trash',
+        component: () => import('../views/TrashView.vue'),
+      },
+      {
         path: 'area-test',
         name: 'area-test',
         component: () => import('../views/AreaTestView.vue'),

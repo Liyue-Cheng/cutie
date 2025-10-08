@@ -82,7 +82,7 @@ mod database {
                    created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM tasks WHERE id = ? AND is_deleted = false
+            FROM tasks WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(task_id.to_string())

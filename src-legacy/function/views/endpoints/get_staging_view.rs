@@ -150,7 +150,7 @@ mod database {
             LEFT JOIN task_schedules ts ON t.id = ts.task_id
             LEFT JOIN ordering o ON t.id = o.task_id AND o.context_type = ? AND o.context_id = ?
             WHERE ts.id IS NULL
-            AND t.is_deleted = false
+            AND t.deleted_at IS NULL
             {}
             ORDER BY COALESCE(o.sort_order, 'z')
             "#,

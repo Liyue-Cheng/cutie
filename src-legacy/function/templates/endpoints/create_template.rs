@@ -223,7 +223,7 @@ mod database {
         area_id: Uuid,
     ) -> AppResult<bool> {
         let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM areas WHERE id = ? AND is_deleted = false")
+            sqlx::query_scalar("SELECT COUNT(*) FROM areas WHERE id = ? AND deleted_at IS NULL")
                 .bind(area_id.to_string())
                 .fetch_one(&mut **tx)
                 .await

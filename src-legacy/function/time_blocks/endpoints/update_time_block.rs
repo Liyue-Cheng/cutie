@@ -240,7 +240,7 @@ mod database {
                    area_id, created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
-            FROM time_blocks WHERE id = ? AND is_deleted = false
+            FROM time_blocks WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(block_id.to_string())
@@ -258,7 +258,7 @@ mod database {
         area_id: Uuid,
     ) -> AppResult<bool> {
         let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM areas WHERE id = ? AND is_deleted = false")
+            sqlx::query_scalar("SELECT COUNT(*) FROM areas WHERE id = ? AND deleted_at IS NULL")
                 .bind(area_id.to_string())
                 .fetch_one(&mut **tx)
                 .await
@@ -293,7 +293,7 @@ mod database {
             UPDATE time_blocks SET
                 title = ?, glance_note = ?, detail_note = ?,
                 start_time = ?, end_time = ?, area_id = ?, updated_at = ?
-            WHERE id = ? AND is_deleted = false
+            WHERE id = ? AND deleted_at IS NULL
             RETURNING id, title, glance_note, detail_note, start_time, end_time,
                       area_id, created_at, updated_at, is_deleted, source_info,
                       external_source_id, external_source_provider, external_source_metadata,

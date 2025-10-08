@@ -146,7 +146,7 @@ impl TemplateRepository for SqlxTemplateRepository {
             UPDATE templates SET 
                 name = ?, title_template = ?, glance_note_template = ?, detail_note_template = ?,
                 estimated_duration_template = ?, subtasks_template = ?, area_id = ?, updated_at = ?
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(&params.1)
@@ -177,7 +177,7 @@ impl TemplateRepository for SqlxTemplateRepository {
     }
 
     async fn find_by_id(&self, template_id: Uuid) -> Result<Option<Template>, DbError> {
-        let result = sqlx::query("SELECT * FROM templates WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("SELECT * FROM templates WHERE id = ? AND deleted_at IS NULL")
             .bind(template_id.to_string())
             .fetch_optional(&self.pool)
             .await;
@@ -193,7 +193,7 @@ impl TemplateRepository for SqlxTemplateRepository {
 
     async fn find_all(&self) -> Result<Vec<Template>, DbError> {
         let result =
-            sqlx::query("SELECT * FROM templates WHERE is_deleted = FALSE ORDER BY name ASC")
+            sqlx::query("SELECT * FROM templates WHERE deleted_at IS NULL ORDER BY name ASC")
                 .fetch_all(&self.pool)
                 .await;
 
@@ -211,7 +211,7 @@ impl TemplateRepository for SqlxTemplateRepository {
         let search_pattern = format!("%{}%", name_query);
 
         let result = sqlx::query(
-            "SELECT * FROM templates WHERE name LIKE ? AND is_deleted = FALSE ORDER BY name ASC",
+            "SELECT * FROM templates WHERE name LIKE ? AND deleted_at IS NULL ORDER BY name ASC",
         )
         .bind(&search_pattern)
         .fetch_all(&self.pool)
@@ -229,7 +229,7 @@ impl TemplateRepository for SqlxTemplateRepository {
 
     async fn find_by_area_id(&self, area_id: Uuid) -> Result<Vec<Template>, DbError> {
         let result = sqlx::query(
-            "SELECT * FROM templates WHERE area_id = ? AND is_deleted = FALSE ORDER BY name ASC",
+            "SELECT * FROM templates WHERE area_id = ? AND deleted_at IS NULL ORDER BY name ASC",
         )
         .bind(area_id.to_string())
         .fetch_all(&self.pool)
@@ -255,7 +255,7 @@ impl TemplateRepository for SqlxTemplateRepository {
             r#"
             SELECT * FROM templates 
             WHERE (title_template LIKE ? OR glance_note_template LIKE ? OR detail_note_template LIKE ?)
-            AND is_deleted = FALSE 
+            AND deleted_at IS NULL 
             ORDER BY name ASC
             "#
         )
@@ -297,7 +297,7 @@ impl TemplateRepository for SqlxTemplateRepository {
         template_id: Uuid,
     ) -> Result<Template, DbError> {
         let result =
-            sqlx::query("UPDATE templates SET is_deleted = FALSE, updated_at = ? WHERE id = ?")
+            sqlx::query("UPDATE templates SET deleted_at IS NULL, updated_at = ? WHERE id = ?")
                 .bind(Utc::now().to_rfc3339())
                 .bind(template_id.to_string())
                 .execute(&mut **tx)
@@ -377,12 +377,12 @@ impl TemplateRepository for SqlxTemplateRepository {
         exclude_id: Option<Uuid>,
     ) -> Result<bool, DbError> {
         let query = if let Some(exclude_id) = exclude_id {
-            sqlx::query("SELECT COUNT(*) as count FROM templates WHERE name = ? AND id != ? AND is_deleted = FALSE")
+            sqlx::query("SELECT COUNT(*) as count FROM templates WHERE name = ? AND id != ? AND deleted_at IS NULL")
                 .bind(name)
                 .bind(exclude_id.to_string())
         } else {
             sqlx::query(
-                "SELECT COUNT(*) as count FROM templates WHERE name = ? AND is_deleted = FALSE",
+                "SELECT COUNT(*) as count FROM templates WHERE name = ? AND deleted_at IS NULL",
             )
             .bind(name)
         };
@@ -448,7 +448,7 @@ impl TemplateRepository for SqlxTemplateRepository {
             let placeholders = vec!["?"; ids.len()].join(",");
 
             let query = format!(
-                "SELECT * FROM templates WHERE id IN ({}) AND is_deleted = FALSE ORDER BY name ASC",
+                "SELECT * FROM templates WHERE id IN ({}) AND deleted_at IS NULL ORDER BY name ASC",
                 placeholders
             );
 
@@ -459,7 +459,7 @@ impl TemplateRepository for SqlxTemplateRepository {
 
             query_builder.fetch_all(&self.pool).await
         } else {
-            sqlx::query("SELECT * FROM templates WHERE is_deleted = FALSE ORDER BY name ASC")
+            sqlx::query("SELECT * FROM templates WHERE deleted_at IS NULL ORDER BY name ASC")
                 .fetch_all(&self.pool)
                 .await
         };
@@ -479,7 +479,7 @@ impl TemplateRepository for SqlxTemplateRepository {
             r#"
             SELECT 
                 COUNT(*) as total,
-                COUNT(CASE WHEN is_deleted = FALSE THEN 1 END) as active,
+                COUNT(CASE WHEN deleted_at IS NULL THEN 1 END) as active,
                 COUNT(CASE WHEN is_deleted = TRUE THEN 1 END) as deleted
             FROM templates
             "#,

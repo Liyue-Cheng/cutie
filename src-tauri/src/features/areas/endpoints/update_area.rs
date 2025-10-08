@@ -183,7 +183,11 @@ mod logic {
         // 2. 验证
         if let Some(name) = &request.name {
             if name.trim().is_empty() {
-                return Err(AppError::validation_error("name", "名称不能为空", "NAME_EMPTY"));
+                return Err(AppError::validation_error(
+                    "name",
+                    "名称不能为空",
+                    "NAME_EMPTY",
+                ));
             }
         }
         if let Some(color) = &request.color {
@@ -284,7 +288,10 @@ mod database {
         Ok(())
     }
 
-    pub async fn find_area_by_id(pool: &sqlx::SqlitePool, area_id: Uuid) -> AppResult<Option<Area>> {
+    pub async fn find_area_by_id(
+        pool: &sqlx::SqlitePool,
+        area_id: Uuid,
+    ) -> AppResult<Option<Area>> {
         let query = r#"
             SELECT id, name, color, parent_area_id, created_at, updated_at, is_deleted
             FROM areas
@@ -301,12 +308,12 @@ mod database {
 
         match row {
             Some(r) => {
-                let area = Area::try_from(r)
-                    .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))?;
+                let area = Area::try_from(r).map_err(|e| {
+                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                })?;
                 Ok(Some(area))
             }
             None => Ok(None),
         }
     }
 }
-

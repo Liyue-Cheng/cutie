@@ -181,7 +181,7 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
                 area_id = ?, updated_at = ?, source_info = ?, external_source_id = ?,
                 external_source_provider = ?, external_source_metadata = ?, recurrence_rule = ?,
                 recurrence_parent_id = ?, recurrence_original_date = ?, recurrence_exclusions = ?
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(&time_block.title)
@@ -240,7 +240,7 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
             UPDATE time_blocks SET 
                 is_deleted = TRUE, 
                 updated_at = ? 
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#,
         )
         .bind(now.to_rfc3339())
@@ -261,7 +261,7 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
 
     // --- 读操作 ---
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<TimeBlock>> {
-        let row = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND is_deleted = FALSE")
+        let row = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND deleted_at IS NULL")
             .bind(id.to_string())
             .fetch_optional(&self.pool)
             .await
@@ -278,7 +278,7 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
 
     async fn find_all(&self) -> AppResult<Vec<TimeBlock>> {
         let rows = sqlx::query(
-            "SELECT * FROM time_blocks WHERE is_deleted = FALSE ORDER BY start_time ASC",
+            "SELECT * FROM time_blocks WHERE deleted_at IS NULL ORDER BY start_time ASC",
         )
         .fetch_all(&self.pool)
         .await

@@ -180,7 +180,7 @@ POST /api/time-blocks/from-task
     - 设置 `start_time`, `end_time`
     - 设置 `area_id`（继承任务的 area）
     - 设置 `created_at = now`, `updated_at = now`
-    - 设置 `is_deleted = false`
+    - 设置 `deleted_at IS NULL`
 9.  调用 `TimeBlockRepository::insert_in_tx` 持久化时间块。
 10. 调用 `TaskTimeBlockLinkRepository::link_in_tx` 建立任务与时间块的链接。
 11. 计算日程日期：

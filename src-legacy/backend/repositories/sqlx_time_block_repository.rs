@@ -158,7 +158,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
                 updated_at = ?, source_info = ?, external_source_id = ?, external_source_provider = ?,
                 external_source_metadata = ?, recurrence_rule = ?, recurrence_parent_id = ?,
                 recurrence_original_date = ?, recurrence_exclusions = ?
-            WHERE id = ? AND is_deleted = FALSE
+            WHERE id = ? AND deleted_at IS NULL
             "#
         )
         .bind(&params.1).bind(&params.2).bind(&params.3).bind(&params.4).bind(&params.5)
@@ -184,7 +184,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
     }
 
     async fn find_by_id(&self, time_block_id: Uuid) -> Result<Option<TimeBlock>, DbError> {
-        let result = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND deleted_at IS NULL")
             .bind(time_block_id.to_string())
             .fetch_optional(&self.pool)
             .await;
@@ -200,7 +200,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
         let result = sqlx::query(
             r#"
             SELECT * FROM time_blocks 
-            WHERE is_deleted = FALSE 
+            WHERE deleted_at IS NULL 
             AND start_time < ? AND end_time > ?
             ORDER BY start_time ASC
             "#
@@ -228,7 +228,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
         let result = sqlx::query(
             r#"
             SELECT * FROM time_blocks 
-            WHERE is_deleted = FALSE 
+            WHERE deleted_at IS NULL 
             AND start_time >= ? AND start_time < ?
             ORDER BY start_time ASC
             "#
@@ -253,7 +253,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
         let result = sqlx::query(
             r#"
             SELECT * FROM time_blocks 
-            WHERE is_deleted = FALSE 
+            WHERE deleted_at IS NULL 
             AND start_time >= ? AND start_time <= ?
             ORDER BY start_time ASC
             "#
@@ -275,7 +275,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
     }
 
     async fn find_by_area_id(&self, area_id: Uuid) -> Result<Vec<TimeBlock>, DbError> {
-        let result = sqlx::query("SELECT * FROM time_blocks WHERE area_id = ? AND is_deleted = FALSE ORDER BY start_time DESC")
+        let result = sqlx::query("SELECT * FROM time_blocks WHERE area_id = ? AND deleted_at IS NULL ORDER BY start_time DESC")
             .bind(area_id.to_string())
             .fetch_all(&self.pool)
             .await;
@@ -296,7 +296,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
             r#"
             SELECT tb.* FROM time_blocks tb
             INNER JOIN task_time_block_links ttbl ON tb.id = ttbl.time_block_id
-            WHERE ttbl.task_id = ? AND tb.is_deleted = FALSE
+            WHERE ttbl.task_id = ? AND tb.deleted_at IS NULL
             ORDER BY tb.start_time ASC
             "#
         )
@@ -329,7 +329,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
     }
 
     async fn restore(&self, tx: &mut Transaction<'_>, time_block_id: Uuid) -> Result<TimeBlock, DbError> {
-        let result = sqlx::query("UPDATE time_blocks SET is_deleted = FALSE, updated_at = ? WHERE id = ?")
+        let result = sqlx::query("UPDATE time_blocks SET deleted_at IS NULL, updated_at = ? WHERE id = ?")
             .bind(Utc::now().to_rfc3339())
             .bind(time_block_id.to_string())
             .execute(&mut **tx)
@@ -405,7 +405,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
             sqlx::query(
                 r#"
                 SELECT COUNT(*) as count FROM time_blocks 
-                WHERE is_deleted = FALSE 
+                WHERE deleted_at IS NULL 
                 AND id != ?
                 AND start_time < ? AND end_time > ?
                 "#
@@ -417,7 +417,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
             sqlx::query(
                 r#"
                 SELECT COUNT(*) as count FROM time_blocks 
-                WHERE is_deleted = FALSE 
+                WHERE deleted_at IS NULL 
                 AND start_time < ? AND end_time > ?
                 "#
             )
@@ -487,7 +487,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
                 SUM((julianday(end_time) - julianday(start_time)) * 24 * 60) as total_duration_minutes,
                 AVG((julianday(end_time) - julianday(start_time)) * 24 * 60) as average_duration_minutes
             FROM time_blocks 
-            WHERE is_deleted = FALSE 
+            WHERE deleted_at IS NULL 
             AND start_time >= ? AND start_time <= ?
             "#
         )
@@ -512,7 +512,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
             r#"
             SELECT area_id, COUNT(*) as count
             FROM time_blocks 
-            WHERE is_deleted = FALSE 
+            WHERE deleted_at IS NULL 
             AND start_time >= ? AND start_time <= ?
             AND area_id IS NOT NULL
             GROUP BY area_id
@@ -549,7 +549,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
     }
 
     async fn find_recurring_blocks(&self, parent_id: Uuid) -> Result<Vec<TimeBlock>, DbError> {
-        let result = sqlx::query("SELECT * FROM time_blocks WHERE recurrence_parent_id = ? AND is_deleted = FALSE ORDER BY start_time ASC")
+        let result = sqlx::query("SELECT * FROM time_blocks WHERE recurrence_parent_id = ? AND deleted_at IS NULL ORDER BY start_time ASC")
             .bind(parent_id.to_string())
             .fetch_all(&self.pool)
             .await;
@@ -566,7 +566,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
     }
 
     async fn truncate_at(&self, tx: &mut Transaction<'_>, time_block_id: Uuid, truncate_at: DateTime<Utc>) -> Result<TimeBlock, DbError> {
-        let result = sqlx::query("UPDATE time_blocks SET end_time = ?, updated_at = ? WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("UPDATE time_blocks SET end_time = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
             .bind(truncate_at.to_rfc3339())
             .bind(Utc::now().to_rfc3339())
             .bind(time_block_id.to_string())
@@ -582,7 +582,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
                     })
                 } else {
                     // 查询更新后的时间块
-                    let time_block_result = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND is_deleted = FALSE")
+                    let time_block_result = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND deleted_at IS NULL")
                         .bind(time_block_id.to_string())
                         .fetch_one(&mut **tx)
                         .await;
@@ -598,7 +598,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
     }
 
     async fn extend_to(&self, tx: &mut Transaction<'_>, time_block_id: Uuid, new_end_time: DateTime<Utc>) -> Result<TimeBlock, DbError> {
-        let result = sqlx::query("UPDATE time_blocks SET end_time = ?, updated_at = ? WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("UPDATE time_blocks SET end_time = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
             .bind(new_end_time.to_rfc3339())
             .bind(Utc::now().to_rfc3339())
             .bind(time_block_id.to_string())
@@ -614,7 +614,7 @@ impl TimeBlockRepository for SqlxTimeBlockRepository {
                     })
                 } else {
                     // 查询更新后的时间块
-                    let time_block_result = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND is_deleted = FALSE")
+                    let time_block_result = sqlx::query("SELECT * FROM time_blocks WHERE id = ? AND deleted_at IS NULL")
                         .bind(time_block_id.to_string())
                         .fetch_one(&mut **tx)
                         .await;

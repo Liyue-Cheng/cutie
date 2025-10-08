@@ -117,7 +117,7 @@ POST /api/tasks
     - 设置 `id`, `title`, `glance_note`, `detail_note` 等字段
     - 设置 `completed_at = None`（未完成）
     - 设置 `created_at = now`, `updated_at = now`
-    - 设置 `is_deleted = false`
+    - 设置 `deleted_at IS NULL`
 7.  调用 `TaskRepository::insert_in_tx` 持久化任务到 `tasks` 表。
 8.  提交数据库事务（`TransactionHelper::commit`）。
 9.  调用 `TaskAssembler::task_to_card_basic` 组装 `TaskCardDto`。
@@ -254,7 +254,7 @@ mod logic {
             archived_at: None,
             created_at: now,
             updated_at: now,
-            is_deleted: false,
+            deleted_at: None,
             source_info: None,
             external_source_id: None,
             external_source_provider: None,

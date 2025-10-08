@@ -19,11 +19,11 @@ impl TaskRepository {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
-                   created_at, updated_at, is_deleted, source_info,
+                   created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM tasks
-            WHERE id = ? AND is_deleted = false
+            WHERE id = ? AND deleted_at IS NULL
         "#;
 
         let row = sqlx::query_as::<_, TaskRow>(query)
@@ -47,11 +47,11 @@ impl TaskRepository {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
-                   created_at, updated_at, is_deleted, source_info,
+                   created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             FROM tasks
-            WHERE id = ? AND is_deleted = false
+            WHERE id = ? AND deleted_at IS NULL
         "#;
 
         let row = sqlx::query_as::<_, TaskRow>(query)
@@ -76,7 +76,7 @@ impl TaskRepository {
             INSERT INTO tasks (
                 id, title, glance_note, detail_note, estimated_duration, subtasks,
                 project_id, area_id, due_date, due_date_type, completed_at, archived_at,
-                created_at, updated_at, is_deleted, source_info,
+                created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -105,7 +105,7 @@ impl TaskRepository {
             .bind(task.archived_at.map(|d| d.to_rfc3339()))
             .bind(task.created_at.to_rfc3339())
             .bind(task.updated_at.to_rfc3339())
-            .bind(task.is_deleted)
+            .bind(task.deleted_at.map(|d| d.to_rfc3339()))
             .bind(
                 task.source_info
                     .as_ref()
@@ -233,15 +233,107 @@ impl TaskRepository {
     pub async fn soft_delete_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
+        deleted_at: DateTime<Utc>,
     ) -> AppResult<()> {
-        let query = "UPDATE tasks SET is_deleted = true, updated_at = ? WHERE id = ?";
+        let query = "UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?";
         sqlx::query(query)
-            .bind(Utc::now().to_rfc3339())
+            .bind(deleted_at.to_rfc3339())
+            .bind(deleted_at.to_rfc3339())
             .bind(task_id.to_string())
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
         Ok(())
+    }
+
+    /// 恢复任务（从回收站）
+    pub async fn restore_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        updated_at: DateTime<Utc>,
+    ) -> AppResult<()> {
+        let query = "UPDATE tasks SET deleted_at = NULL, updated_at = ? WHERE id = ?";
+        sqlx::query(query)
+            .bind(updated_at.to_rfc3339())
+            .bind(task_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+        Ok(())
+    }
+
+    /// 物理删除任务（仅用于回收站清空）
+    pub async fn permanently_delete_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+    ) -> AppResult<()> {
+        let query = "DELETE FROM tasks WHERE id = ? AND deleted_at IS NOT NULL";
+        sqlx::query(query)
+            .bind(task_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+        Ok(())
+    }
+
+    /// 查询回收站中的任务（包含已删除的）
+    pub async fn find_deleted_by_id_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+    ) -> AppResult<Option<Task>> {
+        let query = r#"
+            SELECT id, title, glance_note, detail_note, estimated_duration,
+                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   created_at, updated_at, deleted_at, source_info,
+                   external_source_id, external_source_provider, external_source_metadata,
+                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+            FROM tasks
+            WHERE id = ? AND deleted_at IS NOT NULL
+        "#;
+
+        let row = sqlx::query_as::<_, TaskRow>(query)
+            .bind(task_id.to_string())
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        match row {
+            Some(r) => {
+                let task = Task::try_from(r)
+                    .map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))?;
+                Ok(Some(task))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// 查询回收站任务列表
+    pub async fn find_deleted_tasks(
+        pool: &SqlitePool,
+        limit: i64,
+        offset: i64,
+    ) -> AppResult<Vec<Task>> {
+        let query = r#"
+            SELECT id, title, glance_note, detail_note, estimated_duration,
+                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   created_at, updated_at, deleted_at, source_info,
+                   external_source_id, external_source_provider, external_source_metadata,
+                   recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+            FROM tasks
+            WHERE deleted_at IS NOT NULL
+            ORDER BY deleted_at DESC
+            LIMIT ? OFFSET ?
+        "#;
+
+        let rows = sqlx::query_as::<_, TaskRow>(query)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        let tasks: Result<Vec<Task>, String> = rows.into_iter().map(Task::try_from).collect();
+        tasks.map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))
     }
 
     /// 设置任务为已完成

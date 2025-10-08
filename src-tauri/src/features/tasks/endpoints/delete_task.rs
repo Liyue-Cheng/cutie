@@ -51,7 +51,7 @@ DELETE /api/tasks/{id}
 
 ### 2.2. 核心业务逻辑 (Core Business Logic)
 
-软删除任务（设置 `is_deleted = true`），并清理相关数据：
+软删除任务（设置 `deleted_at = now`），并清理相关数据：
 1. 删除所有 `task_time_block_links` 记录
 2. 删除所有 `task_schedules` 记录
 3. 检查时间块是否变成"孤儿"，如果是且为自动创建的，则删除该时间块
@@ -59,7 +59,7 @@ DELETE /api/tasks/{id}
 **孤儿时间块定义：**
 - 该时间块只链接了这一个任务
 - 删除这个任务后，时间块没有任何关联任务
-- 时间块的 `title` 与任务 `title` 相同（自动创建的标志）
+- 时间块的 `source_type == "native::from_task"`（自动创建的标志）
 
 ## 3. 输入输出规范 (Request/Response Specification)
 
@@ -109,7 +109,7 @@ DELETE /api/tasks/{id}
 4.  如果任务不存在，返回 404 错误。
 5.  组装基础 `TaskCardDto`（用于事件载荷）。
 6.  查询任务链接的所有时间块（`TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx`）。
-7.  软删除任务（`TaskRepository::soft_delete_in_tx`，设置 `is_deleted = true`）。
+7.  软删除任务（`TaskRepository::soft_delete_in_tx`，设置 `deleted_at = now`）。
 8.  删除任务的所有链接记录（`TaskTimeBlockLinkRepository::delete_all_for_task_in_tx`）。
 9.  删除任务的所有日程记录（`TaskScheduleRepository::delete_all_in_tx`）。
 10. 对每个链接的时间块，调用 `should_delete_orphan_block` 判断是否应该删除：
@@ -134,7 +134,7 @@ DELETE /api/tasks/{id}
 
 - **数据库写入:**
     - **`SELECT`:** 查询任务、链接的时间块、剩余任务数量。
-    - **`UPDATE`:** 1条记录在 `tasks` 表（设置 `is_deleted = true`）。
+    - **`UPDATE`:** 1条记录在 `tasks` 表（设置 `deleted_at = now`）。
     - **`DELETE`:** 0-N 条记录在 `task_time_block_links` 表。
     - **`DELETE`:** 0-N 条记录在 `task_schedules` 表。
     - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除孤儿时间块）。
@@ -143,7 +143,7 @@ DELETE /api/tasks/{id}
 - **写入许可:**
     - 获取应用级写入许可，确保 SQLite 写操作串行执行。
 - **SSE 事件:**
-    - 发送 `task.deleted` 事件，包含：
+    - 发送 `task.trashed` 事件，包含：
         - 删除的任务（`TaskCardDto`）
         - 删除时间（`deleted_at`）
         - 副作用：删除的时间块列表（`TimeBlockViewDto[]`）
@@ -188,14 +188,19 @@ mod logic {
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        let task_card = TaskAssembler::task_to_card_basic(&task);
-
         // 3. 找到该任务链接的所有时间块（✅ 使用共享 Repository）
         let linked_blocks =
             TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
 
+        let now = app_state.clock().now_utc();
+
         // 4. 删除任务（软删除）（✅ 使用共享 Repository）
-        TaskRepository::soft_delete_in_tx(&mut tx, task_id).await?;
+        TaskRepository::soft_delete_in_tx(&mut tx, task_id, now).await?;
+
+        // 4.5 组装 task_card（在软删除之后，包含 deleted_at）
+        let mut task_card = TaskAssembler::task_to_card_basic(&task);
+        task_card.deleted_at = Some(now); // 手动设置 deleted_at
+        task_card.is_deleted = true;
 
         // 5. 删除任务的所有链接和日程（✅ 使用共享 Repository）
         TaskTimeBlockLinkRepository::delete_all_for_task_in_tx(&mut tx, task_id).await?;
@@ -235,7 +240,6 @@ mod logic {
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
-        let now = app_state.clock().now_utc();
 
         {
             let payload = serde_json::json!({
@@ -245,7 +249,7 @@ mod logic {
                     "deleted_time_blocks": deleted_blocks,  // ✅ 完整对象
                 }
             });
-            let mut event = DomainEvent::new("task.deleted", "task", task_id.to_string(), payload)
+            let mut event = DomainEvent::new("task.trashed", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
 
             // 关联 correlation_id（用于前端去重和请求追踪）
@@ -298,7 +302,7 @@ mod logic {
 
 // ==================== 数据访问层 ====================
 // ✅ 已全部迁移到共享 Repository：
-// - TaskRepository::find_by_id_in_tx, soft_delete_in_tx
+// - TaskRepository::find_by_id_in_tx, soft_delete_in_tx(task_id, deleted_at)
 // - TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx, delete_all_for_task_in_tx, count_remaining_tasks_in_block_in_tx
 // - TaskScheduleRepository::delete_all_in_tx
 // - TimeBlockRepository::soft_delete_in_tx

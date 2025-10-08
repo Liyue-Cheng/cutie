@@ -141,7 +141,7 @@ POST /api/time-blocks
     - 设置 `id`, `title`, `glance_note`, `detail_note`, `area_id`
     - 设置 `start_time`, `end_time`
     - 设置 `created_at = now`, `updated_at = now`
-    - 设置 `is_deleted = false`
+    - 设置 `deleted_at IS NULL`
     - 设置循环相关字段为 `None`（当前版本不支持循环）
 7.  调用 `TimeBlockRepository::insert_in_tx` 持久化时间块到 `time_blocks` 表。
 8.  提交数据库事务。

@@ -84,7 +84,7 @@ GET /api/tasks/{id}
 
 - `task_id`:
     - **必须**是有效的 UUID 格式。
-    - **必须**存在于数据库中且未删除（`is_deleted = false`）。
+    - **必须**存在于数据库中且未删除（`deleted_at IS NULL`）。
     - 违反时返回 `404 NOT_FOUND`
 
 ## 5. 业务逻辑详解 (Business Logic Walkthrough)

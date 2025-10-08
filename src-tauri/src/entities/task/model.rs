@@ -95,10 +95,10 @@ pub struct Task {
     /// **后置条件:** 每当任务记录发生任何修改时，此字段必须被更新为当前时间
     pub updated_at: DateTime<Utc>,
 
-    /// 逻辑删除标记
+    /// 删除时间 (可选)
     ///
-    /// **后置条件:** 逻辑删除标记。当为true时，该任务对用户不可见
-    pub is_deleted: bool,
+    /// **后置条件:** NULL表示未删除，有值表示已删除（软删除）。删除时间用于回收站排序和清理策略
+    pub deleted_at: Option<DateTime<Utc>>,
 
     /// 来源信息 (可选)
     pub source_info: Option<SourceInfo>,
@@ -143,7 +143,7 @@ impl Task {
             archived_at: None,
             created_at,
             updated_at: created_at,
-            is_deleted: false,
+            deleted_at: None,
             source_info: None,
             external_source_id: None,
             external_source_provider: None,
@@ -153,6 +153,23 @@ impl Task {
             recurrence_original_date: None,
             recurrence_exclusions: None,
         }
+    }
+
+    /// 检查任务是否已删除
+    pub fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
+    }
+
+    /// 软删除任务
+    pub fn soft_delete(&mut self, deleted_at: DateTime<Utc>) {
+        self.deleted_at = Some(deleted_at);
+        self.updated_at = deleted_at;
+    }
+
+    /// 恢复任务
+    pub fn restore(&mut self, updated_at: DateTime<Utc>) {
+        self.deleted_at = None;
+        self.updated_at = updated_at;
     }
 
     /// 检查任务是否已完成
@@ -210,8 +227,8 @@ pub struct TaskRow {
     pub archived_at: Option<DateTime<Utc>>,  // SQLx自动转换
     pub created_at: DateTime<Utc>,           // SQLx自动转换
     pub updated_at: DateTime<Utc>,           // SQLx自动转换
-    pub is_deleted: bool,
-    pub source_info: Option<String>, // JSON
+    pub deleted_at: Option<DateTime<Utc>>,   // SQLx自动转换
+    pub source_info: Option<String>,         // JSON
     pub external_source_id: Option<String>,
     pub external_source_provider: Option<String>,
     pub external_source_metadata: Option<String>, // JSON
@@ -250,7 +267,7 @@ impl TryFrom<TaskRow> for Task {
             archived_at: row.archived_at,   // SQLx已经转换
             created_at: row.created_at,     // SQLx已经转换
             updated_at: row.updated_at,     // SQLx已经转换
-            is_deleted: row.is_deleted,
+            deleted_at: row.deleted_at,     // SQLx已经转换
             source_info: row
                 .source_info
                 .as_ref()

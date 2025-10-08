@@ -73,7 +73,7 @@ mod database {
             r#"
             SELECT id, name, color, parent_area_id, created_at, updated_at, is_deleted
             FROM areas
-            WHERE is_deleted = false
+            WHERE deleted_at IS NULL
             ORDER BY created_at DESC
             "#,
         )

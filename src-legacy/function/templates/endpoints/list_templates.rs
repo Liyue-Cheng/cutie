@@ -73,7 +73,7 @@ mod database {
                    estimated_duration_template, subtasks_template, area_id,
                    created_at, updated_at, is_deleted
             FROM templates
-            WHERE is_deleted = false
+            WHERE deleted_at IS NULL
             ORDER BY created_at DESC
             "#,
         )

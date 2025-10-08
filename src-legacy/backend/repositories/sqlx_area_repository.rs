@@ -113,7 +113,7 @@ impl AreaRepository for SqlxAreaRepository {
         let params = Self::area_to_params(area);
 
         let result = sqlx::query(
-            "UPDATE areas SET name = ?, color = ?, parent_area_id = ?, updated_at = ? WHERE id = ? AND is_deleted = FALSE"
+            "UPDATE areas SET name = ?, color = ?, parent_area_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(&params.1).bind(&params.2).bind(&params.3).bind(&params.5)
         .bind(&params.0)
@@ -136,7 +136,7 @@ impl AreaRepository for SqlxAreaRepository {
     }
 
     async fn find_by_id(&self, area_id: Uuid) -> Result<Option<Area>, DbError> {
-        let result = sqlx::query("SELECT * FROM areas WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("SELECT * FROM areas WHERE id = ? AND deleted_at IS NULL")
             .bind(area_id.to_string())
             .fetch_optional(&self.pool)
             .await;
@@ -151,7 +151,7 @@ impl AreaRepository for SqlxAreaRepository {
     }
 
     async fn find_all(&self) -> Result<Vec<Area>, DbError> {
-        let result = sqlx::query("SELECT * FROM areas WHERE is_deleted = FALSE ORDER BY name ASC")
+        let result = sqlx::query("SELECT * FROM areas WHERE deleted_at IS NULL ORDER BY name ASC")
             .fetch_all(&self.pool)
             .await;
 
@@ -166,7 +166,7 @@ impl AreaRepository for SqlxAreaRepository {
     }
 
     async fn find_root_areas(&self) -> Result<Vec<Area>, DbError> {
-        let result = sqlx::query("SELECT * FROM areas WHERE parent_area_id IS NULL AND is_deleted = FALSE ORDER BY name ASC")
+        let result = sqlx::query("SELECT * FROM areas WHERE parent_area_id IS NULL AND deleted_at IS NULL ORDER BY name ASC")
             .fetch_all(&self.pool)
             .await;
 
@@ -182,7 +182,7 @@ impl AreaRepository for SqlxAreaRepository {
 
     async fn find_children(&self, parent_id: Uuid) -> Result<Vec<Area>, DbError> {
         let result = sqlx::query(
-            "SELECT * FROM areas WHERE parent_area_id = ? AND is_deleted = FALSE ORDER BY name ASC",
+            "SELECT * FROM areas WHERE parent_area_id = ? AND deleted_at IS NULL ORDER BY name ASC",
         )
         .bind(parent_id.to_string())
         .fetch_all(&self.pool)
@@ -203,11 +203,11 @@ impl AreaRepository for SqlxAreaRepository {
         let result = sqlx::query(
             r#"
             WITH RECURSIVE descendants AS (
-                SELECT * FROM areas WHERE parent_area_id = ? AND is_deleted = FALSE
+                SELECT * FROM areas WHERE parent_area_id = ? AND deleted_at IS NULL
                 UNION ALL
                 SELECT a.* FROM areas a
                 INNER JOIN descendants d ON a.parent_area_id = d.id
-                WHERE a.is_deleted = FALSE
+                WHERE a.deleted_at IS NULL
             )
             SELECT * FROM descendants ORDER BY name ASC
             "#,
@@ -231,11 +231,11 @@ impl AreaRepository for SqlxAreaRepository {
         let result = sqlx::query(
             r#"
             WITH RECURSIVE path AS (
-                SELECT * FROM areas WHERE id = ? AND is_deleted = FALSE
+                SELECT * FROM areas WHERE id = ? AND deleted_at IS NULL
                 UNION ALL
                 SELECT a.* FROM areas a
                 INNER JOIN path p ON a.id = p.parent_area_id
-                WHERE a.is_deleted = FALSE
+                WHERE a.deleted_at IS NULL
             )
             SELECT * FROM path
             "#,
@@ -285,7 +285,7 @@ impl AreaRepository for SqlxAreaRepository {
 
     async fn restore(&self, tx: &mut Transaction<'_>, area_id: Uuid) -> Result<Area, DbError> {
         let result =
-            sqlx::query("UPDATE areas SET is_deleted = FALSE, updated_at = ? WHERE id = ?")
+            sqlx::query("UPDATE areas SET deleted_at IS NULL, updated_at = ? WHERE id = ?")
                 .bind(Utc::now().to_rfc3339())
                 .bind(area_id.to_string())
                 .execute(&mut **tx)
@@ -317,7 +317,7 @@ impl AreaRepository for SqlxAreaRepository {
 
     async fn has_children(&self, area_id: Uuid) -> Result<bool, DbError> {
         let result = sqlx::query(
-            "SELECT COUNT(*) as count FROM areas WHERE parent_area_id = ? AND is_deleted = FALSE",
+            "SELECT COUNT(*) as count FROM areas WHERE parent_area_id = ? AND deleted_at IS NULL",
         )
         .bind(area_id.to_string())
         .fetch_one(&self.pool)
@@ -336,9 +336,9 @@ impl AreaRepository for SqlxAreaRepository {
         let result = sqlx::query(
             r#"
             SELECT 
-                (SELECT COUNT(*) FROM tasks WHERE area_id = ? AND is_deleted = FALSE) +
-                (SELECT COUNT(*) FROM time_blocks WHERE area_id = ? AND is_deleted = FALSE) +
-                (SELECT COUNT(*) FROM projects WHERE area_id = ? AND is_deleted = FALSE) as total_usage
+                (SELECT COUNT(*) FROM tasks WHERE area_id = ? AND deleted_at IS NULL) +
+                (SELECT COUNT(*) FROM time_blocks WHERE area_id = ? AND deleted_at IS NULL) +
+                (SELECT COUNT(*) FROM projects WHERE area_id = ? AND deleted_at IS NULL) as total_usage
             "#
         )
         .bind(area_id.to_string())
@@ -374,7 +374,7 @@ impl AreaRepository for SqlxAreaRepository {
             }
         }
 
-        let result = sqlx::query("UPDATE areas SET parent_area_id = ?, updated_at = ? WHERE id = ? AND is_deleted = FALSE")
+        let result = sqlx::query("UPDATE areas SET parent_area_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
             .bind(new_parent_id.map(|id| id.to_string()))
             .bind(Utc::now().to_rfc3339())
             .bind(area_id.to_string())
@@ -391,7 +391,7 @@ impl AreaRepository for SqlxAreaRepository {
                 } else {
                     // 查询更新后的领域
                     let area_result =
-                        sqlx::query("SELECT * FROM areas WHERE id = ? AND is_deleted = FALSE")
+                        sqlx::query("SELECT * FROM areas WHERE id = ? AND deleted_at IS NULL")
                             .bind(area_id.to_string())
                             .fetch_one(&mut **tx)
                             .await;
@@ -432,22 +432,22 @@ impl AreaRepository for SqlxAreaRepository {
             LEFT JOIN (
                 SELECT area_id, COUNT(*) as task_count 
                 FROM tasks 
-                WHERE is_deleted = FALSE 
+                WHERE deleted_at IS NULL 
                 GROUP BY area_id
             ) t ON a.id = t.area_id
             LEFT JOIN (
                 SELECT area_id, COUNT(*) as time_block_count 
                 FROM time_blocks 
-                WHERE is_deleted = FALSE 
+                WHERE deleted_at IS NULL 
                 GROUP BY area_id
             ) tb ON a.id = tb.area_id
             LEFT JOIN (
                 SELECT area_id, COUNT(*) as project_count 
                 FROM projects 
-                WHERE is_deleted = FALSE 
+                WHERE deleted_at IS NULL 
                 GROUP BY area_id
             ) p ON a.id = p.area_id
-            WHERE a.is_deleted = FALSE
+            WHERE a.deleted_at IS NULL
             ORDER BY total_usage DESC, a.name ASC
             "#
         )
