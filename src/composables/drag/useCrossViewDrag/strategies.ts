@@ -333,14 +333,14 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
     if (result) {
       console.log('  ✅ Time block created:', result.time_block.id)
 
-      // 更新任务到 store
-      taskStore.addOrUpdateTask(result.updated_task)
+      // ✅ 不在这里更新任务！让SSE事件统一处理，避免双重更新闪烁
+      // taskStore.addOrUpdateTask(result.updated_task) // ❌ 删除这行
 
       return {
         success: true,
         message: '已创建时间块',
         affectedViews: [context.sourceView.id, 'calendar'],
-        updatedTask: result.updated_task,
+        updatedTask: result.updated_task, // 仍返回，但不立即更新store
       }
     } else {
       console.log('[CHK-5] ❌ No result returned from timeBlockStore')

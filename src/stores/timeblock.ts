@@ -530,24 +530,25 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
    * 处理时间块创建事件
    */
   async function handleTimeBlockCreatedEvent(event: any) {
-    const timeBlockId = event.payload?.time_block_id
-    if (!timeBlockId) return
+    const timeBlock = event.payload?.time_block
+    const updatedTask = event.payload?.updated_task
 
-    console.log('[TimeBlockStore] Handling time_blocks.created event:', timeBlockId)
+    if (!timeBlock) {
+      console.warn('[TimeBlockStore] time_blocks.created event missing time_block')
+      return
+    }
 
-    // 重新获取该时间块的完整数据
-    try {
-      await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl.value}/time-blocks?ids=${timeBlockId}`)
-      if (response.ok) {
-        const blocks: TimeBlockView[] = await response.json()
-        const block = blocks[0]
-        if (block) {
-          addOrUpdateTimeBlock(block)
-        }
-      }
-    } catch (error) {
-      console.error(`[TimeBlockStore] Failed to fetch time block ${timeBlockId}:`, error)
+    console.log('[TimeBlockStore] Handling time_blocks.created event:', timeBlock.id)
+
+    // 更新时间块
+    addOrUpdateTimeBlock(timeBlock)
+
+    // ✅ 关键：更新任务（schedule_status 已变化）
+    if (updatedTask) {
+      const { useTaskStore } = await import('@/stores/task')
+      const taskStore = useTaskStore()
+      taskStore.addOrUpdateTask(updatedTask)
+      console.log('[TimeBlockStore] Updated task schedule_status:', updatedTask.id)
     }
   }
 
@@ -590,8 +591,10 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   /**
    * 处理时间块链接事件（链接任务后，时间块可能继承了任务的area）
    */
-  function handleTimeBlockLinkedEvent(event: any) {
+  async function handleTimeBlockLinkedEvent(event: any) {
     const timeBlock = event.payload?.time_block
+    const updatedTask = event.payload?.updated_task
+
     if (!timeBlock) {
       console.warn('[TimeBlockStore] time_blocks.linked event missing time_block data')
       return
@@ -606,6 +609,14 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // 直接使用 payload 中的完整数据（包括更新后的 area_id）
     addOrUpdateTimeBlock(timeBlock)
+
+    // ✅ 关键：更新任务（schedule_status 已变化）
+    if (updatedTask) {
+      const { useTaskStore } = await import('@/stores/task')
+      const taskStore = useTaskStore()
+      taskStore.addOrUpdateTask(updatedTask)
+      console.log('[TimeBlockStore] Updated task schedule_status:', updatedTask.id)
+    }
   }
 
   return {

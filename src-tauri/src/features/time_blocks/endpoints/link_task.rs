@@ -253,9 +253,10 @@ mod logic {
             );
         }
 
-        // 6. 从时间块的 start_time 提取日期字符串
-        let scheduled_date =
-            time_utils::format_date_yyyy_mm_dd(&time_block.start_time.date_naive());
+        // 6. 从时间块的 start_time 提取日期字符串 - 使用系统本地时区
+        use chrono::Local;
+        let local_start = time_block.start_time.with_timezone(&Local);
+        let scheduled_date = time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
 
         // 7. 检查该任务在该天是否有 schedule 记录
         let has_schedule =

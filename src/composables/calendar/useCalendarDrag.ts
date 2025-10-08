@@ -518,10 +518,10 @@ export function useCalendarDrag(
       if (result.success) {
         console.log('[Calendar] ✅ Drop handled via strategy:', result.message)
 
-        // 如果策略返回了更新后的任务，更新到 store
-        if (result.updatedTask) {
-          taskStore.addOrUpdateTask(result.updatedTask)
-        }
+        // ✅ 不在这里更新任务！让SSE事件统一处理，避免双重更新闪烁
+        // if (result.updatedTask) {
+        //   taskStore.addOrUpdateTask(result.updatedTask) // ❌ 删除重复更新
+        // }
 
         clearPreviewEvent()
       } else {

@@ -344,9 +344,11 @@ mod logic {
         TaskTimeBlockLinkRepository::link_in_tx(&mut tx, request.task_id, block_id).await?;
 
         // 8. 创建日程记录（✅ 使用共享 Repository）
-        // 提取日期字符串（YYYY-MM-DD）
+        // 提取日期字符串（YYYY-MM-DD）- 使用系统本地时区
         use crate::shared::core::utils::time_utils;
-        let scheduled_date = time_utils::format_date_yyyy_mm_dd(&request.start_time.date_naive());
+        use chrono::Local;
+        let local_start = request.start_time.with_timezone(&Local);
+        let scheduled_date = time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
 
         tracing::info!(
             "[create_from_task] start_time (UTC): {}, scheduled_date: {}",

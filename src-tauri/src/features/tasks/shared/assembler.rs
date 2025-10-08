@@ -129,7 +129,10 @@ impl TaskAssembler {
         for (id_str, title, glance_note, start_time, end_time) in all_block_rows {
             let id =
                 UuidType::parse_str(&id_str).map_err(|e| AppError::StringError(e.to_string()))?;
-            let formatted_date = time_utils::format_date_yyyy_mm_dd(&start_time.date_naive());
+            // 使用系统本地时区提取日期
+            use chrono::Local;
+            let local_start = start_time.with_timezone(&Local);
+            let formatted_date = time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
 
             blocks_by_date
                 .entry(formatted_date)
@@ -243,7 +246,10 @@ impl TaskAssembler {
         for (id_str, title, glance_note, start_time, end_time) in all_block_rows {
             let id =
                 UuidType::parse_str(&id_str).map_err(|e| AppError::StringError(e.to_string()))?;
-            let formatted_date = time_utils::format_date_yyyy_mm_dd(&start_time.date_naive());
+            // 使用系统本地时区提取日期
+            use chrono::Local;
+            let local_start = start_time.with_timezone(&Local);
+            let formatted_date = time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
 
             blocks_by_date
                 .entry(formatted_date)
