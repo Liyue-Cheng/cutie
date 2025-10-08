@@ -210,7 +210,9 @@ mod logic {
         let time_block = TimeBlockRepository::find_by_id_in_tx(&mut tx, block_id).await?;
 
         // 3. 验证任务存在
-        let _task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
+        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
+            .await?
+            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         // 4. 检查链接是否已存在（幂等性）
         let link_exists = database::check_link_exists_in_tx(&mut tx, task_id, block_id).await?;
@@ -228,6 +230,26 @@ mod logic {
                 "Link already exists between task {} and time block {}",
                 task_id,
                 block_id
+            );
+        }
+
+        // 5.5. 如果时间块没有 area，则继承任务的 area
+        let should_update_area = time_block.area_id.is_none() && task.area_id.is_some();
+        if should_update_area {
+            let update_request = crate::entities::UpdateTimeBlockRequest {
+                title: None,
+                glance_note: None,
+                detail_note: None,
+                start_time: None,
+                end_time: None,
+                is_all_day: None,
+                area_id: Some(task.area_id),
+            };
+            TimeBlockRepository::update_in_tx(&mut tx, block_id, &update_request, now).await?;
+            tracing::info!(
+                "Updated time block {} area_id to {:?} (inherited from task)",
+                block_id,
+                task.area_id
             );
         }
 
@@ -255,9 +277,6 @@ mod logic {
 
         // 10. 重新查询任务并组装完整的 TaskCardDto
         let pool = app_state.db_pool();
-        let task = TaskRepository::find_by_id(pool, task_id)
-            .await?
-            .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
 
@@ -288,7 +307,26 @@ mod logic {
             crate::entities::ScheduleStatus::Staging
         };
 
-        // 11. 发布 SSE 事件
+        // 11. 组装更新后的时间块数据（用于SSE事件）
+        let updated_time_block = TimeBlockRepository::find_by_id(pool, block_id).await?;
+        let time_block_view = crate::entities::TimeBlockViewDto {
+            id: updated_time_block.id,
+            start_time: updated_time_block.start_time,
+            end_time: updated_time_block.end_time,
+            is_all_day: updated_time_block.is_all_day,
+            title: updated_time_block.title,
+            glance_note: updated_time_block.glance_note,
+            detail_note: updated_time_block.detail_note,
+            area_id: updated_time_block.area_id, // ✅ 包含更新后的 area_id
+            linked_tasks: vec![crate::entities::LinkedTaskSummary {
+                id: task.id,
+                title: task.title.clone(),
+                is_completed: task.is_completed(),
+            }],
+            is_recurring: false,
+        };
+
+        // 12. 发布 SSE 事件（包含完整的时间块数据）
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -301,6 +339,7 @@ mod logic {
             "time_block_id": block_id,
             "linked_task_id": task_id,
             "affected_task_ids": vec![task_id],
+            "time_block": time_block_view, // ✅ 包含完整数据
         });
 
         let mut event = DomainEvent::new(

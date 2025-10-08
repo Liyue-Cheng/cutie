@@ -587,26 +587,22 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   /**
    * 处理时间块链接事件（链接任务后，时间块可能继承了任务的area）
    */
-  async function handleTimeBlockLinkedEvent(event: any) {
-    const timeBlockId = event.payload?.time_block_id
-    if (!timeBlockId) return
-
-    console.log('[TimeBlockStore] Handling time_blocks.linked event:', timeBlockId)
-
-    // 重新获取该时间块的完整数据（包括更新的area）
-    try {
-      const port = await waitForApiReady()
-      const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
-      if (response.ok) {
-        const blocks: TimeBlockView[] = await response.json()
-        const block = blocks[0]
-        if (block) {
-          addOrUpdateTimeBlock(block)
-        }
-      }
-    } catch (error) {
-      console.error(`[TimeBlockStore] Failed to fetch time block ${timeBlockId}:`, error)
+  function handleTimeBlockLinkedEvent(event: any) {
+    const timeBlock = event.payload?.time_block
+    if (!timeBlock) {
+      console.warn('[TimeBlockStore] time_blocks.linked event missing time_block data')
+      return
     }
+
+    console.log(
+      '[TimeBlockStore] Handling time_blocks.linked event:',
+      timeBlock.id,
+      'area_id:',
+      timeBlock.area_id
+    )
+
+    // 直接使用 payload 中的完整数据（包括更新后的 area_id）
+    addOrUpdateTimeBlock(timeBlock)
   }
 
   return {
