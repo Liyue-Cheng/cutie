@@ -336,7 +336,6 @@ mod logic {
             recurrence_rule: None,
             recurrence_parent_id: None,
             recurrence_original_date: None,
-            recurrence_exclusions: None,
         };
 
         TimeBlockRepository::insert_in_tx(&mut tx, &time_block).await?;
@@ -345,27 +344,24 @@ mod logic {
         TaskTimeBlockLinkRepository::link_in_tx(&mut tx, request.task_id, block_id).await?;
 
         // 8. 创建日程记录（✅ 使用共享 Repository）
-        // 🔧 FIX: 使用系统时区提取本地日期
-        // 数据流：UTC时间 → 本地时区 → 提取日期 → UTC零点时间戳
-        // 例如：2025-10-02T18:00:00Z (UTC) → 2025-10-03T02:00+08 (Local) → 2025-10-03 → 2025-10-03T00:00:00Z
-        use crate::shared::core::utils::time_utils::utc_time_to_local_date_utc_midnight;
-
-        let scheduled_day = utc_time_to_local_date_utc_midnight(request.start_time);
+        // 提取日期字符串（YYYY-MM-DD）
+        use crate::shared::core::utils::time_utils;
+        let scheduled_date = time_utils::format_date_yyyy_mm_dd(&request.start_time.date_naive());
 
         tracing::info!(
-            "[create_from_task] start_time (UTC): {}, scheduled_day (UTC midnight): {}",
+            "[create_from_task] start_time (UTC): {}, scheduled_date: {}",
             request.start_time,
-            scheduled_day
+            scheduled_date
         );
 
         let has_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
             &mut tx,
             request.task_id,
-            scheduled_day,
+            &scheduled_date,
         )
         .await?;
         if !has_schedule {
-            TaskScheduleRepository::create_in_tx(&mut tx, request.task_id, scheduled_day).await?;
+            TaskScheduleRepository::create_in_tx(&mut tx, request.task_id, &scheduled_date).await?;
         }
 
         // 9. 提交事务
@@ -403,11 +399,11 @@ mod logic {
             TaskAssembler::assemble_schedules(app_state.db_pool(), request.task_id).await?;
 
         // 13. 发送 SSE 事件（通知其他视图时间块已创建）
+        use crate::features::shared::TransactionHelper;
         use crate::shared::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
-        use crate::features::shared::TransactionHelper;
 
         let mut outbox_tx = TransactionHelper::begin(app_state.db_pool()).await?;
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());

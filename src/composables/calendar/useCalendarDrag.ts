@@ -8,6 +8,7 @@ import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import type { EventInput } from '@fullcalendar/core'
 import type FullCalendar from '@fullcalendar/vue3'
 import type { TaskCard } from '@/types/dtos'
+import { parseDateString } from '@/utils/dateUtils'
 import type { ViewMetadata, CalendarViewConfig } from '@/types/drag'
 import { useCrossViewDrag, useDragTransfer } from '@/composables/drag'
 import { useAreaStore } from '@/stores/area'
@@ -185,9 +186,9 @@ export function useCalendarDrag(
 
       const dateStr = dayCell?.getAttribute('data-date')
       if (dateStr) {
-        // 使用本地时区的日期，转为 UTC ISO（避免时区偏移）
-        startDate = new Date(`${dateStr}T00:00:00`)
-        endDate = new Date(`${dateStr}T00:00:00`)
+        // 解析 YYYY-MM-DD 为本地日期对象
+        startDate = parseDateString(dateStr)
+        endDate = parseDateString(dateStr)
         endDate.setDate(endDate.getDate() + 1)
       } else if (calendarRef.value) {
         // 回退：使用当前视图日期
@@ -401,9 +402,9 @@ export function useCalendarDrag(
 
         const dateStr = dayCell?.getAttribute('data-date')
         if (dateStr) {
-          startDate = new Date(`${dateStr}T00:00:00Z`)
-          endDate = new Date(`${dateStr}T00:00:00Z`)
-          endDate.setUTCDate(endDate.getUTCDate() + 1)
+          startDate = parseDateString(dateStr)
+          endDate = parseDateString(dateStr)
+          endDate.setDate(endDate.getDate() + 1)
         } else if (calendarRef.value) {
           const calendarApi = calendarRef.value.getApi()
           const currentDate = calendarApi.getDate()

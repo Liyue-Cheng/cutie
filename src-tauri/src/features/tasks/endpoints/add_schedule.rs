@@ -7,7 +7,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -203,19 +203,17 @@ pub async fn handle(
 mod validation {
     use super::*;
 
-    pub fn parse_date(date_str: &str) -> AppResult<chrono::DateTime<Utc>> {
-        let naive_date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
-            AppError::validation_error(
-                "scheduled_day",
-                "日期格式错误，请使用 YYYY-MM-DD 格式",
-                "INVALID_DATE_FORMAT",
-            )
-        })?;
-
-        // 🔧 FIX: 直接使用 NaiveDate 转换为 UTC 零点
-        // 因为前端传递的日期已经是"用户本地日期"，不需要再做时区转换
-        use crate::shared::core::utils::time_utils::local_date_to_utc_midnight;
-        Ok(local_date_to_utc_midnight(naive_date))
+    pub fn parse_date(date_str: &str) -> AppResult<String> {
+        use crate::shared::core::utils::time_utils;
+        time_utils::parse_date_yyyy_mm_dd(date_str)
+            .map(|date| time_utils::format_date_yyyy_mm_dd(&date))
+            .map_err(|_| {
+                AppError::validation_error(
+                    "scheduled_day",
+                    "日期格式错误，请使用 YYYY-MM-DD 格式",
+                    "INVALID_DATE_FORMAT",
+                )
+            })
     }
 }
 
@@ -248,7 +246,7 @@ mod logic {
 
         // 4. 检查该日期是否已有日程
         let has_schedule =
-            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, scheduled_day)
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &scheduled_day)
                 .await?;
 
         if has_schedule {
@@ -256,7 +254,7 @@ mod logic {
         }
 
         // 5. 创建日程记录
-        TaskScheduleRepository::create_in_tx(&mut tx, task_id, scheduled_day).await?;
+        TaskScheduleRepository::create_in_tx(&mut tx, task_id, &scheduled_day).await?;
 
         // 6. 重新查询任务并组装 TaskCard
         // 注意：schedule_status 是派生字段，由装配器根据 task_schedules 表计算
@@ -275,17 +273,23 @@ mod logic {
         use crate::entities::ScheduleStatus;
         use chrono::Utc;
         let today = Utc::now().date_naive();
-        
-        let has_future_schedule = task_card.schedules.as_ref().map(|schedules| {
-            schedules.iter().any(|s| {
-                if let Ok(schedule_date) = chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d") {
-                    schedule_date >= today
-                } else {
-                    false
-                }
+
+        let has_future_schedule = task_card
+            .schedules
+            .as_ref()
+            .map(|schedules| {
+                schedules.iter().any(|s| {
+                    if let Ok(schedule_date) =
+                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                    {
+                        schedule_date >= today
+                    } else {
+                        false
+                    }
+                })
             })
-        }).unwrap_or(false);
-        
+            .unwrap_or(false);
+
         task_card.schedule_status = if has_future_schedule {
             ScheduleStatus::Scheduled
         } else {

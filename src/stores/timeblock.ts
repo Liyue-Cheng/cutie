@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TimeBlockView } from '@/types/dtos'
-import { waitForApiReady } from '@/composables/useApiConfig'
+import { waitForApiReady, apiBaseUrl } from '@/composables/useApiConfig'
 import { getEventSubscriber } from '@/services/events'
 
 /**
@@ -95,9 +95,12 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
    */
   const getTimeBlocksForDate = computed(() => {
     return (date: string): TimeBlockView[] => {
-      const targetDate = new Date(date).toDateString()
+      // date: YYYY-MM-DD 字符串，直接比较日期部分
       return Array.from(timeBlocks.value.values())
-        .filter((block) => new Date(block.start_time).toDateString() === targetDate)
+        .filter((block) => {
+          const blockDate = block.start_time.split('T')[0] // 提取 YYYY-MM-DD
+          return blockDate === date
+        })
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     }
   })
@@ -534,8 +537,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // 重新获取该时间块的完整数据
     try {
-      const port = await waitForApiReady()
-      const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+      await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl.value}/time-blocks?ids=${timeBlockId}`)
       if (response.ok) {
         const blocks: TimeBlockView[] = await response.json()
         const block = blocks[0]
@@ -559,8 +562,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // 重新获取该时间块的完整数据
     try {
-      const port = await waitForApiReady()
-      const response = await fetch(`http://localhost:${port}/api/time-blocks?ids=${timeBlockId}`)
+      await waitForApiReady()
+      const response = await fetch(`${apiBaseUrl.value}/time-blocks?ids=${timeBlockId}`)
       if (response.ok) {
         const blocks: TimeBlockView[] = await response.json()
         const block = blocks[0]

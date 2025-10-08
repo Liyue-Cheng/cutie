@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, State},
     response::{IntoResponse, Response},
 };
-use chrono::{NaiveDate, Utc};
+use chrono::NaiveDate;
 use serde::Serialize;
 
 use crate::{
@@ -167,22 +167,16 @@ pub async fn handle(State(app_state): State<AppState>, Path(date_str): Path<Stri
 // ==================== 验证层 ====================
 mod validation {
     use super::*;
+    use crate::shared::core::utils::time_utils;
 
-    pub fn parse_date(date_str: &str) -> AppResult<chrono::DateTime<Utc>> {
-        let naive_date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
+    pub fn parse_date(date_str: &str) -> AppResult<NaiveDate> {
+        time_utils::parse_date_yyyy_mm_dd(date_str).map_err(|_| {
             AppError::validation_error(
                 "date",
                 "日期格式错误，请使用 YYYY-MM-DD 格式",
                 "INVALID_DATE_FORMAT",
             )
-        })?;
-
-        let datetime = naive_date
-            .and_hms_opt(0, 0, 0)
-            .ok_or_else(|| AppError::validation_error("date", "无效的日期", "INVALID_DATE"))?
-            .and_utc();
-
-        Ok(datetime)
+        })
     }
 }
 
@@ -191,10 +185,10 @@ mod logic {
     use super::*;
 
     pub async fn execute(app_state: &AppState, date_str: &str) -> AppResult<GetDailyTasksResponse> {
-        // 1. 解析日期
+        // 1. 解析日期为 NaiveDate
         let target_date = validation::parse_date(date_str)?;
 
-        // 2. 查询该日期的所有任务
+        // 2. 查询该日期的所有任务（使用日期字符串匹配）
         let tasks = database::find_tasks_for_date(app_state.db_pool(), target_date).await?;
 
         tracing::info!("Found {} tasks for date {}", tasks.len(), date_str);
@@ -214,28 +208,31 @@ mod logic {
 // ==================== 数据访问层 ====================
 mod database {
     use super::*;
+    use crate::shared::core::utils::time_utils;
 
     /// 查询指定日期的所有任务
     pub async fn find_tasks_for_date(
         pool: &sqlx::SqlitePool,
-        target_date: chrono::DateTime<Utc>,
+        target_date: NaiveDate,
     ) -> AppResult<Vec<Task>> {
+        let date_str = time_utils::format_date_yyyy_mm_dd(&target_date);
+
         let query = r#"
             SELECT DISTINCT t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
                    t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, t.completed_at, t.archived_at,
                    t.created_at, t.updated_at, t.deleted_at, t.source_info,
                    t.external_source_id, t.external_source_provider, t.external_source_metadata,
-                   t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date, t.recurrence_exclusions
+                   t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date
             FROM tasks t
             INNER JOIN task_schedules ts ON ts.task_id = t.id
-            WHERE DATE(ts.scheduled_day) = DATE(?)
+            WHERE ts.scheduled_date = ?
               AND t.deleted_at IS NULL
               AND t.archived_at IS NULL
             ORDER BY t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, crate::entities::TaskRow>(query)
-            .bind(target_date.to_rfc3339())
+            .bind(date_str)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

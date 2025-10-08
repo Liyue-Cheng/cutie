@@ -159,7 +159,7 @@ pub struct DueDateInfo {
 /// 日程记录
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleRecord {
-    pub day: DateTime<Utc>,
+    pub day: chrono::NaiveDate, // YYYY-MM-DD 日期（无时区）
     pub outcome: DailyOutcome,
 }
 

@@ -74,8 +74,7 @@ CREATE TABLE tasks (
     external_source_metadata TEXT, -- JSON
     recurrence_rule TEXT,
     recurrence_parent_id TEXT,
-    recurrence_original_date TEXT, -- UTC timestamp in RFC 3339 format
-    recurrence_exclusions TEXT, -- JSON: Array of UTC timestamps in RFC 3339 format
+    recurrence_original_date TEXT, -- YYYY-MM-DD (日历日期字符串)
     
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (area_id) REFERENCES areas(id),
@@ -117,8 +116,7 @@ CREATE TABLE time_blocks (
     external_source_metadata TEXT, -- JSON
     recurrence_rule TEXT,
     recurrence_parent_id TEXT,
-    recurrence_original_date TEXT, -- UTC timestamp in RFC 3339 format
-    recurrence_exclusions TEXT, -- JSON: Array of UTC timestamps
+    recurrence_original_date TEXT, -- YYYY-MM-DD (日历日期字符串)
     
     FOREIGN KEY (area_id) REFERENCES areas(id),
     FOREIGN KEY (recurrence_parent_id) REFERENCES time_blocks(id),
@@ -160,12 +158,11 @@ CREATE INDEX idx_templates_area_id ON templates(area_id);
 CREATE TABLE task_schedules (
     id TEXT PRIMARY KEY NOT NULL,
     task_id TEXT NOT NULL,
-    -- 📅 scheduled_day: 日历日期的 UTC 零点时间戳（RFC 3339 格式）
-    -- 语义：表示"用户本地时区的某一天"，而非"UTC 的某一天"
-    -- 存储格式：YYYY-MM-DDT00:00:00Z
-    -- 计算方式：从 UTC 时间转换到系统本地时区，提取日期，再转为 UTC 零点
-    -- 前端显示：仅显示日期部分 (YYYY-MM-DD)，忽略时间部分
-    scheduled_day TEXT NOT NULL,
+    -- 📅 scheduled_date: 日历日期（YYYY-MM-DD 纯字符串，无时区）
+    -- 语义：表示"用户本地时区的某一天"
+    -- 存储格式：YYYY-MM-DD（如 "2025-10-08"）
+    -- 前后端传输：统一使用此格式，不做时区转换
+    scheduled_date TEXT NOT NULL,
     outcome TEXT NOT NULL DEFAULT 'PLANNED' CHECK (outcome IN ('PLANNED', 'PRESENCE_LOGGED', 'COMPLETED_ON_DAY', 'CARRIED_OVER')),
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
@@ -175,7 +172,7 @@ CREATE TABLE task_schedules (
 
 -- 为 task_schedules 表创建索引
 CREATE INDEX idx_task_schedules_task_id ON task_schedules(task_id);
-CREATE INDEX idx_task_schedules_scheduled_day ON task_schedules(scheduled_day);
+CREATE INDEX idx_task_schedules_scheduled_date ON task_schedules(scheduled_date);
 CREATE INDEX idx_task_schedules_outcome ON task_schedules(outcome);
 
 -- 创建 task_time_block_links 表 (任务-时间块链接表)
@@ -364,3 +361,43 @@ CREATE INDEX idx_outbox_aggregate ON event_outbox(aggregate_type, aggregate_id);
 
 -- 时间索引（清理旧事件）
 CREATE INDEX idx_outbox_created_at ON event_outbox(created_at);
+
+-- ============================================================
+-- 循环任务排除表 (Recurrence Exclusions)
+-- ============================================================
+-- 存储循环任务中被删除的单个实例日期
+-- 用于实现"删除某天的循环任务实例"功能
+
+CREATE TABLE recurrence_exclusions (
+    id TEXT PRIMARY KEY NOT NULL,
+    parent_task_id TEXT NOT NULL,
+    excluded_date TEXT NOT NULL,            -- YYYY-MM-DD (日历日期字符串)
+    created_at TEXT NOT NULL,               -- UTC timestamp in RFC 3339 format
+    
+    FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+-- 为 recurrence_exclusions 表创建索引
+CREATE INDEX idx_exclusions_task ON recurrence_exclusions(parent_task_id);
+CREATE INDEX idx_exclusions_date ON recurrence_exclusions(excluded_date);
+CREATE UNIQUE INDEX idx_exclusions_unique ON recurrence_exclusions(parent_task_id, excluded_date);
+
+-- ============================================================
+-- 循环时间块排除表 (Time Block Recurrence Exclusions)
+-- ============================================================
+-- 存储循环时间块中被删除的单个实例日期
+-- 用于实现"删除某天的循环时间块实例"功能
+
+CREATE TABLE time_block_recurrence_exclusions (
+    id TEXT PRIMARY KEY NOT NULL,
+    parent_time_block_id TEXT NOT NULL,
+    excluded_date TEXT NOT NULL,            -- YYYY-MM-DD (日历日期字符串)
+    created_at TEXT NOT NULL,               -- UTC timestamp in RFC 3339 format
+    
+    FOREIGN KEY (parent_time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE
+);
+
+-- 为 time_block_recurrence_exclusions 表创建索引
+CREATE INDEX idx_tb_exclusions_block ON time_block_recurrence_exclusions(parent_time_block_id);
+CREATE INDEX idx_tb_exclusions_date ON time_block_recurrence_exclusions(excluded_date);
+CREATE UNIQUE INDEX idx_tb_exclusions_unique ON time_block_recurrence_exclusions(parent_time_block_id, excluded_date);

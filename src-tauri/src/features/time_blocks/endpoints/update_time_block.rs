@@ -287,15 +287,15 @@ mod validation {
         Ok(())
     }
 
-    /// 检查两个时间是否在同一天（本地时区）
+    /// 检查两个时间是否在同一天（系统本地时区）
     fn is_same_day(
         time1: &chrono::DateTime<chrono::Utc>,
         time2: &chrono::DateTime<chrono::Utc>,
     ) -> bool {
-        use crate::shared::core::utils::time_utils::extract_local_date_from_utc;
-        let d1 = extract_local_date_from_utc(time1.clone());
-        let d2 = extract_local_date_from_utc(time2.clone());
-        d1 == d2
+        use chrono::Local;
+        let local1 = time1.with_timezone(&Local);
+        let local2 = time2.with_timezone(&Local);
+        local1.date_naive() == local2.date_naive()
     }
 }
 

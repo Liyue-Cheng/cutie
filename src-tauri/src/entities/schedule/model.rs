@@ -11,7 +11,7 @@ use crate::entities::task::Outcome;
 
 /// TaskSchedule (任务日程) 实体定义
 ///
-/// 一条关联记录，精确定义了一个Task在哪一天被安排，以及它在那一天的最终“结局”。
+/// 一条关联记录，精确定义了一个Task在哪一天被安排，以及它在那一天的最终"结局"。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TaskSchedule {
     /// 日程ID (主键)
@@ -22,10 +22,11 @@ pub struct TaskSchedule {
     /// **不变量:** 必须永远指向一个有效的、未被物理删除的Task
     pub task_id: Uuid,
 
-    /// 安排日期
+    /// 安排日期（YYYY-MM-DD 字符串）
     ///
-    /// **前置条件:** 必须是当日的零点零分零秒（UTC）
-    pub scheduled_day: DateTime<Utc>,
+    /// **语义:** 表示用户本地时区的某一天，无时区信息
+    /// **前置条件:** 必须是有效的 YYYY-MM-DD 格式字符串
+    pub scheduled_date: String,
 
     /// 结局
     ///
@@ -47,7 +48,7 @@ pub struct TaskSchedule {
 pub struct TaskScheduleRow {
     pub id: String,
     pub task_id: String,
-    pub scheduled_day: DateTime<Utc>, // SQLx自动转换
+    pub scheduled_date: String, // YYYY-MM-DD 字符串
     pub outcome: String,
     pub created_at: DateTime<Utc>, // SQLx自动转换
     pub updated_at: DateTime<Utc>, // SQLx自动转换
@@ -68,7 +69,7 @@ impl TryFrom<TaskScheduleRow> for TaskSchedule {
         Ok(TaskSchedule {
             id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
             task_id: Uuid::parse_str(&row.task_id).map_err(|e| e.to_string())?,
-            scheduled_day: row.scheduled_day, // SQLx已经转换
+            scheduled_date: row.scheduled_date, // YYYY-MM-DD 字符串
             outcome,
             created_at: row.created_at, // SQLx已经转换
             updated_at: row.updated_at, // SQLx已经转换
@@ -81,13 +82,13 @@ impl TaskSchedule {
     pub fn new(
         id: Uuid,
         task_id: Uuid,
-        scheduled_day: DateTime<Utc>,
+        scheduled_date: String,
         created_at: DateTime<Utc>,
     ) -> Self {
         Self {
             id,
             task_id,
-            scheduled_day,
+            scheduled_date,
             outcome: Outcome::Planned,
             created_at,
             updated_at: created_at,
@@ -101,8 +102,8 @@ impl TaskSchedule {
     }
 
     /// 重新安排到新日期
-    pub fn reschedule(&mut self, new_day: DateTime<Utc>, updated_at: DateTime<Utc>) {
-        self.scheduled_day = new_day;
+    pub fn reschedule(&mut self, new_date: String, updated_at: DateTime<Utc>) {
+        self.scheduled_date = new_date;
         self.outcome = Outcome::Planned; // 重置为计划状态
         self.updated_at = updated_at;
     }

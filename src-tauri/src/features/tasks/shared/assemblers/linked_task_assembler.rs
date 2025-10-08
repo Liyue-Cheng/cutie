@@ -24,7 +24,7 @@ impl LinkedTaskAssembler {
             r#"
             SELECT id, title, completed_at
             FROM tasks
-            WHERE id IN ({}) AND is_deleted = false
+            WHERE id IN ({}) AND deleted_at IS NULL
             "#,
             placeholders
         );
@@ -60,7 +60,7 @@ impl LinkedTaskAssembler {
             SELECT t.id, t.title, t.completed_at
             FROM tasks t
             INNER JOIN task_time_block_links ttbl ON t.id = ttbl.task_id
-            WHERE ttbl.time_block_id = ? AND t.is_deleted = false
+            WHERE ttbl.time_block_id = ? AND t.deleted_at IS NULL
             ORDER BY t.created_at ASC
         "#;
 

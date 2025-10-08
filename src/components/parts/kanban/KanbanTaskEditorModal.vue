@@ -7,6 +7,7 @@ import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
+import { getTodayDateString, parseDateString, toUtcIsoString } from '@/utils/dateUtils'
 
 interface Subtask {
   id: string
@@ -54,10 +55,7 @@ const selectedArea = computed(() => {
 })
 
 // 获取今天的日期（用于在场状态判断）
-const todayDate = computed(() => {
-  const now = new Date()
-  return now.toISOString().split('T')[0] // YYYY-MM-DD
-})
+const todayDate = computed(() => getTodayDateString())
 
 // 获取今天的 schedule outcome
 const currentScheduleOutcome = computed(() => {
@@ -198,14 +196,14 @@ async function updateArea(areaId: string | null) {
 async function saveDueDate() {
   if (!props.taskId || !task.value || !dueDateInput.value) return
 
-  // 将本地日期转为 UTC 时间戳（当天的开始时间）
-  const localDate = new Date(dueDateInput.value + 'T00:00:00')
+  // 将日期字符串转为 UTC 当天零点（ISO 格式）
+  const dateObj = parseDateString(dueDateInput.value) // 本地时区的当天零点
   const utcDate = new Date(
-    Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate(), 0, 0, 0, 0)
+    Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0)
   )
 
   await taskStore.updateTask(props.taskId, {
-    due_date: utcDate.toISOString(),
+    due_date: toUtcIsoString(utcDate),
     due_date_type: dueDateType.value,
   })
 

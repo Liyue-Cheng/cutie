@@ -253,22 +253,22 @@ mod logic {
             );
         }
 
-        // 6. 从时间块的 start_time 提取本地日期，并转换为 UTC midnight
-        let local_date = time_utils::extract_local_date_from_utc(time_block.start_time);
-        let scheduled_day = time_utils::local_date_to_utc_midnight(local_date);
+        // 6. 从时间块的 start_time 提取日期字符串
+        let scheduled_date =
+            time_utils::format_date_yyyy_mm_dd(&time_block.start_time.date_naive());
 
         // 7. 检查该任务在该天是否有 schedule 记录
         let has_schedule =
-            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, scheduled_day)
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &scheduled_date)
                 .await?;
 
         // 8. 如果没有，创建该天的 schedule 记录
         if !has_schedule {
-            TaskScheduleRepository::create_in_tx(&mut tx, task_id, scheduled_day).await?;
+            TaskScheduleRepository::create_in_tx(&mut tx, task_id, &scheduled_date).await?;
             tracing::info!(
                 "Created schedule for task {} on day {}",
                 task_id,
-                scheduled_day
+                scheduled_date
             );
         }
 
@@ -284,7 +284,7 @@ mod logic {
         task_card.schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
 
         // 根据 schedules 设置正确的 schedule_status
-        let local_today = time_utils::extract_local_date_from_utc(now);
+        let local_today = now.date_naive();
         let has_future_schedule = task_card
             .schedules
             .as_ref()

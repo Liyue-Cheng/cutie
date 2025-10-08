@@ -290,9 +290,9 @@ mod database {
         let future_dates = find_future_schedule_dates(tx, task_id, today).await?;
 
         // 2. 对每个日期，清理时间块链接和孤儿时间块
-        for scheduled_day in future_dates {
+        for scheduled_date in future_dates {
             // 查找该日期的所有时间块
-            let time_blocks = find_time_blocks_for_day(tx, task_id, scheduled_day).await?;
+            let time_blocks = find_time_blocks_for_day(tx, task_id, &scheduled_date).await?;
 
             // 删除时间块链接
             for block in &time_blocks {
@@ -310,14 +310,16 @@ mod database {
         }
 
         // 3. 删除所有当天及之后的日程记录
+        use crate::shared::core::utils::time_utils;
+        let today_str = time_utils::format_date_yyyy_mm_dd(&today);
         let query = r#"
             DELETE FROM task_schedules
-            WHERE task_id = ? AND DATE(scheduled_day) >= DATE(?)
+            WHERE task_id = ? AND scheduled_date >= ?
         "#;
 
         sqlx::query(query)
             .bind(task_id.to_string())
-            .bind(today.and_hms_opt(0, 0, 0).unwrap().and_utc().to_rfc3339())
+            .bind(today_str)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;
@@ -330,29 +332,24 @@ mod database {
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
         today: NaiveDate,
-    ) -> AppResult<Vec<DateTime<Utc>>> {
+    ) -> AppResult<Vec<String>> {
+        use crate::shared::core::utils::time_utils;
+        let today_str = time_utils::format_date_yyyy_mm_dd(&today);
         let query = r#"
-            SELECT scheduled_day
+            SELECT scheduled_date
             FROM task_schedules
-            WHERE task_id = ? AND DATE(scheduled_day) >= DATE(?)
-            ORDER BY scheduled_day ASC
+            WHERE task_id = ? AND scheduled_date >= ?
+            ORDER BY scheduled_date ASC
         "#;
 
         let rows = sqlx::query_as::<_, (String,)>(query)
             .bind(task_id.to_string())
-            .bind(today.and_hms_opt(0, 0, 0).unwrap().and_utc().to_rfc3339())
+            .bind(today_str)
             .fetch_all(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;
 
-        let dates = rows
-            .into_iter()
-            .filter_map(|(date_str,)| {
-                chrono::DateTime::parse_from_rfc3339(&date_str)
-                    .ok()
-                    .map(|dt| dt.with_timezone(&Utc))
-            })
-            .collect();
+        let dates = rows.into_iter().map(|(date_str,)| date_str).collect();
 
         Ok(dates)
     }
@@ -361,20 +358,20 @@ mod database {
     async fn find_time_blocks_for_day(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        scheduled_day: DateTime<Utc>,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<Vec<TimeBlockInfo>> {
         let query = r#"
             SELECT DISTINCT tb.id
             FROM time_blocks tb
             INNER JOIN task_time_block_links ttbl ON tb.id = ttbl.time_block_id
             WHERE ttbl.task_id = ?
-              AND DATE(tb.start_time) = DATE(?)
+              AND DATE(tb.start_time) = ?
               AND tb.is_deleted = false
         "#;
 
         let rows = sqlx::query_as::<_, (String,)>(query)
             .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
+            .bind(scheduled_date)
             .fetch_all(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

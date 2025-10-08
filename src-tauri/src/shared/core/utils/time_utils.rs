@@ -5,54 +5,44 @@ use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Timelike,
 ///
 /// **预期行为:** 封装所有与DateTime<Utc>相关的、不依赖当前系统时间的计算
 /// **后置条件:** 对于给定的DateTime输入，总是返回一个可预测的、正确计算后的DateTime输出
-/// **边界情况:** 必须能正确处理闰年、时区转换（虽然我们统一用UTC）、以及月份边界
-
-// ==================== 日历日期处理（时区感知）====================
-
-/// 从 UTC 时间提取本地日期（系统时区）
+/// **边界情况:** 必须能正确处理闰年、以及月份边界
 ///
-/// **预期行为**：将 UTC 时间转换为系统本地时区，然后提取日期部分
-/// **用途**：解决"日历日期"与"UTC时间戳"的时区转换问题
+/// **核心原则（TIME_REFACTOR_RFC）**:
+/// - 瞬时刻（Instant）：使用 DateTime<Utc>，存储与传输为 RFC3339（含 Z）
+/// - 日历日期（Calendar Date）：使用 NaiveDate，存储与传输为 YYYY-MM-DD 字符串
+/// - 禁止 UTC⇄本地时区的往返转换（已移除相关函数）
+
+// ==================== 日历日期解析与格式化 ====================
+
+/// 解析 YYYY-MM-DD 格式的日期字符串
+///
+/// **预期行为**：将日期字符串解析为 NaiveDate
+/// **用途**：端点参数验证、数据库查询准备
 ///
 /// ## 示例
 /// ```ignore
-/// // 用户在 UTC+8 时区拖动任务到 2025-10-03 02:00
-/// // 前端发送: 2025-10-02T18:00:00Z (UTC)
-/// let utc_time = Utc.with_ymd_and_hms(2025, 10, 2, 18, 0, 0).unwrap();
-/// let local_date = extract_local_date_from_utc(utc_time);
-/// // 返回: NaiveDate(2025, 10, 3) ✅ 正确！
+/// use crate::shared::core::utils::time_utils::parse_date_yyyy_mm_dd;
+/// let date = parse_date_yyyy_mm_dd("2025-10-08").unwrap();
+/// assert_eq!(date.to_string(), "2025-10-08");
 /// ```
-pub fn extract_local_date_from_utc(utc_time: DateTime<Utc>) -> NaiveDate {
-    let local_time = utc_time.with_timezone(&Local);
-    local_time.date_naive()
+pub fn parse_date_yyyy_mm_dd(date_str: &str) -> Result<NaiveDate, chrono::ParseError> {
+    NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
 }
 
-/// 将本地日期（NaiveDate）转换为 UTC 零点时间戳
+/// 格式化 NaiveDate 为 YYYY-MM-DD 字符串
 ///
-/// **预期行为**：用于数据库存储，将纯日期转为时间戳格式
-/// **后置条件**：返回的 DateTime 时分秒为 00:00:00
+/// **预期行为**：将 NaiveDate 转换为标准日期字符串
+/// **用途**：数据库绑定、API 响应构建
 ///
-/// ⚠️ **注意**：这里的"零点"是相对于 UTC 的，不是本地时区
-/// 仅用于存储"日历日期"到数据库，实际语义是日期而非时刻
-pub fn local_date_to_utc_midnight(date: NaiveDate) -> DateTime<Utc> {
-    date.and_hms_opt(0, 0, 0)
-        .expect("00:00:00 should always be valid")
-        .and_utc()
-}
-
-/// 从 UTC 时间提取本地日期，并转换为 UTC 零点（用于存储）
-///
-/// **预期行为**：组合上述两个函数，一步到位
-/// **用途**：从时间块的 start_time 计算 scheduled_day
-///
-/// ## 数据流
+/// ## 示例
 /// ```ignore
-/// UTC时间 → 本地时区 → 提取日期 → UTC零点时间戳
-/// 2025-10-02T18:00:00Z → 2025-10-03T02:00+08 → 2025-10-03 → 2025-10-03T00:00:00Z
+/// use chrono::NaiveDate;
+/// use crate::shared::core::utils::time_utils::format_date_yyyy_mm_dd;
+/// let date = NaiveDate::from_ymd_opt(2025, 10, 8).unwrap();
+/// assert_eq!(format_date_yyyy_mm_dd(&date), "2025-10-08");
 /// ```
-pub fn utc_time_to_local_date_utc_midnight(utc_time: DateTime<Utc>) -> DateTime<Utc> {
-    let local_date = extract_local_date_from_utc(utc_time);
-    local_date_to_utc_midnight(local_date)
+pub fn format_date_yyyy_mm_dd(date: &NaiveDate) -> String {
+    date.format("%Y-%m-%d").to_string()
 }
 
 /// 将日期时间规范化为当日零点（UTC）

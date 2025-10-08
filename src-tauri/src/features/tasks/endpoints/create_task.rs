@@ -262,7 +262,6 @@ mod logic {
             recurrence_rule: None,
             recurrence_parent_id: None,
             recurrence_original_date: None,
-            recurrence_exclusions: None,
         };
 
         // 5. 插入任务到数据库（✅ 使用共享 Repository）

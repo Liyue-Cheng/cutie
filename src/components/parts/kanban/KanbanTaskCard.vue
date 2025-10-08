@@ -47,14 +47,9 @@ const isDateKanban = computed(() => {
   return props.viewMetadata?.type === 'date'
 })
 
+import { getTodayDateString } from '@/utils/dateUtils'
 // ✅ 获取当日日期 (YYYY-MM-DD) - 使用本地时区
-const todayDate = computed(() => {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = (today.getMonth() + 1).toString().padStart(2, '0')
-  const day = today.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
-})
+const todayDate = computed(() => getTodayDateString())
 
 // ✅ 判断当前看板的日期类型
 const kanbanDateType = computed(() => {

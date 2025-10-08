@@ -189,10 +189,9 @@ mod logic {
     ) -> AppResult<ReturnToStagingResponse> {
         let now = app_state.clock().now_utc();
 
-        // 1. 计算"今天"的本地日期（UTC零点表示）
-        // 🔧 FIX: 使用系统时区提取本地日期
-        use crate::shared::core::utils::time_utils::utc_time_to_local_date_utc_midnight;
-        let today_utc = utc_time_to_local_date_utc_midnight(now);
+        // 1. 计算"今天"的本地日期（YYYY-MM-DD字符串）
+        use crate::shared::core::utils::time_utils;
+        let today_date = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
 
         // ✅ 获取写入许可，确保写操作串行执行
         let _permit = app_state.acquire_write_permit().await;
@@ -206,7 +205,7 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         // 4. 查找今天及未来的所有时间块
-        let time_blocks = database::find_future_time_blocks(&mut tx, task_id, today_utc).await?;
+        let time_blocks = database::find_future_time_blocks(&mut tx, task_id, now).await?;
 
         // 5. 删除 task_time_block_links
         let time_block_ids: Vec<Uuid> = time_blocks.iter().map(|b| b.id).collect();
@@ -234,7 +233,7 @@ mod logic {
             TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids).await?;
 
         // 8. 删除今天及未来的所有 schedules
-        database::delete_future_schedules(&mut tx, task_id, today_utc).await?;
+        database::delete_future_schedules(&mut tx, task_id, &today_date).await?;
 
         // 9. 如果任务已完成，重新打开它
         if task.completed_at.is_some() {
@@ -307,7 +306,7 @@ mod database {
     ) -> AppResult<Vec<TimeBlock>> {
         let query = r#"
             SELECT tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time,
-                   tb.area_id, tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_time,
+                   tb.area_id, tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_date,
                    tb.created_at, tb.updated_at, tb.is_deleted
             FROM time_blocks tb
             JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
@@ -360,16 +359,16 @@ mod database {
     pub async fn delete_future_schedules(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        today: chrono::DateTime<chrono::Utc>,
+        today_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<()> {
         let query = r#"
             DELETE FROM task_schedules
-            WHERE task_id = ? AND DATE(scheduled_day) >= DATE(?)
+            WHERE task_id = ? AND scheduled_date >= ?
         "#;
 
         sqlx::query(query)
             .bind(task_id.to_string())
-            .bind(today.to_rfc3339())
+            .bind(today_date)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

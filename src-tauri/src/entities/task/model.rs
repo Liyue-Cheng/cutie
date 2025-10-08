@@ -118,11 +118,8 @@ pub struct Task {
     /// 重复任务父ID (可选)
     pub recurrence_parent_id: Option<Uuid>,
 
-    /// 重复任务原始日期 (可选)
-    pub recurrence_original_date: Option<DateTime<Utc>>,
-
-    /// 重复任务排除日期 (可选)
-    pub recurrence_exclusions: Option<Vec<DateTime<Utc>>>,
+    /// 重复任务原始日期 (可选，YYYY-MM-DD 字符串)
+    pub recurrence_original_date: Option<String>,
 }
 
 impl Task {
@@ -151,7 +148,6 @@ impl Task {
             recurrence_rule: None,
             recurrence_parent_id: None,
             recurrence_original_date: None,
-            recurrence_exclusions: None,
         }
     }
 
@@ -234,8 +230,7 @@ pub struct TaskRow {
     pub external_source_metadata: Option<String>, // JSON
     pub recurrence_rule: Option<String>,
     pub recurrence_parent_id: Option<String>,
-    pub recurrence_original_date: Option<DateTime<Utc>>, // SQLx自动转换
-    pub recurrence_exclusions: Option<String>,           // JSON
+    pub recurrence_original_date: Option<String>, // YYYY-MM-DD 字符串
 }
 
 impl TryFrom<TaskRow> for Task {
@@ -283,11 +278,7 @@ impl TryFrom<TaskRow> for Task {
                 .recurrence_parent_id
                 .as_ref()
                 .and_then(|s| Uuid::parse_str(s).ok()),
-            recurrence_original_date: row.recurrence_original_date, // SQLx已经转换
-            recurrence_exclusions: row
-                .recurrence_exclusions
-                .as_ref()
-                .and_then(|s| serde_json::from_str(s).ok()),
+            recurrence_original_date: row.recurrence_original_date, // YYYY-MM-DD 字符串
         })
     }
 }

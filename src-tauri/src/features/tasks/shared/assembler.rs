@@ -71,10 +71,10 @@ impl TaskAssembler {
 
         // 1. 查询所有日程
         let schedule_query = r#"
-            SELECT id, task_id, scheduled_day, outcome, created_at, updated_at
+            SELECT id, task_id, scheduled_date, outcome, created_at, updated_at
             FROM task_schedules
             WHERE task_id = ?
-            ORDER BY scheduled_day ASC
+            ORDER BY scheduled_date ASC
         "#;
 
         let schedule_rows = sqlx::query_as::<_, crate::entities::TaskScheduleRow>(schedule_query)
@@ -123,18 +123,16 @@ impl TaskAssembler {
 
         // 将时间块按本地日期分组
         use crate::shared::core::utils::time_utils;
-        let mut blocks_by_date: std::collections::HashMap<
-            chrono::NaiveDate,
-            Vec<TimeBlockSummary>,
-        > = std::collections::HashMap::new();
+        let mut blocks_by_date: std::collections::HashMap<String, Vec<TimeBlockSummary>> =
+            std::collections::HashMap::new();
 
         for (id_str, title, glance_note, start_time, end_time) in all_block_rows {
             let id =
                 UuidType::parse_str(&id_str).map_err(|e| AppError::StringError(e.to_string()))?;
-            let local_date = time_utils::extract_local_date_from_utc(start_time);
+            let formatted_date = time_utils::format_date_yyyy_mm_dd(&start_time.date_naive());
 
             blocks_by_date
-                .entry(local_date)
+                .entry(formatted_date)
                 .or_insert_with(Vec::new)
                 .push(TimeBlockSummary {
                     id,
@@ -146,11 +144,11 @@ impl TaskAssembler {
         }
 
         for schedule in schedules {
-            let scheduled_day_str = schedule.scheduled_day.format("%Y-%m-%d").to_string();
+            let scheduled_day_str = &schedule.scheduled_date;
 
-            // 获取该日期的时间块（使用本地日期匹配）
+            // 获取该日期的时间块（使用字符串日期匹配）
             let time_blocks = blocks_by_date
-                .get(&schedule.scheduled_day.date_naive())
+                .get(&schedule.scheduled_date)
                 .cloned()
                 .unwrap_or_default();
 
@@ -163,7 +161,7 @@ impl TaskAssembler {
             };
 
             schedule_dtos.push(TaskScheduleDto {
-                scheduled_day: scheduled_day_str,
+                scheduled_day: scheduled_day_str.to_string(),
                 outcome,
                 time_blocks,
             });
@@ -187,10 +185,10 @@ impl TaskAssembler {
 
         // 1. 查询所有日程
         let schedule_query = r#"
-            SELECT id, task_id, scheduled_day, outcome, created_at, updated_at
+            SELECT id, task_id, scheduled_date, outcome, created_at, updated_at
             FROM task_schedules
             WHERE task_id = ?
-            ORDER BY scheduled_day ASC
+            ORDER BY scheduled_date ASC
         "#;
 
         let schedule_rows = sqlx::query_as::<_, crate::entities::TaskScheduleRow>(schedule_query)
@@ -239,18 +237,16 @@ impl TaskAssembler {
 
         // 将时间块按本地日期分组
         use crate::shared::core::utils::time_utils;
-        let mut blocks_by_date: std::collections::HashMap<
-            chrono::NaiveDate,
-            Vec<TimeBlockSummary>,
-        > = std::collections::HashMap::new();
+        let mut blocks_by_date: std::collections::HashMap<String, Vec<TimeBlockSummary>> =
+            std::collections::HashMap::new();
 
         for (id_str, title, glance_note, start_time, end_time) in all_block_rows {
             let id =
                 UuidType::parse_str(&id_str).map_err(|e| AppError::StringError(e.to_string()))?;
-            let local_date = time_utils::extract_local_date_from_utc(start_time);
+            let formatted_date = time_utils::format_date_yyyy_mm_dd(&start_time.date_naive());
 
             blocks_by_date
-                .entry(local_date)
+                .entry(formatted_date)
                 .or_insert_with(Vec::new)
                 .push(TimeBlockSummary {
                     id,
@@ -262,11 +258,11 @@ impl TaskAssembler {
         }
 
         for schedule in schedules {
-            let scheduled_day_str = schedule.scheduled_day.format("%Y-%m-%d").to_string();
+            let scheduled_day_str = &schedule.scheduled_date;
 
-            // 获取该日期的时间块（使用本地日期匹配）
+            // 获取该日期的时间块（使用字符串日期匹配）
             let time_blocks = blocks_by_date
-                .get(&schedule.scheduled_day.date_naive())
+                .get(&schedule.scheduled_date)
                 .cloned()
                 .unwrap_or_default();
 
@@ -279,7 +275,7 @@ impl TaskAssembler {
             };
 
             schedule_dtos.push(TaskScheduleDto {
-                scheduled_day: scheduled_day_str,
+                scheduled_day: scheduled_day_str.to_string(),
                 outcome,
                 time_blocks,
             });
@@ -376,7 +372,6 @@ mod tests {
             recurrence_rule: None,
             recurrence_parent_id: None,
             recurrence_original_date: None,
-            recurrence_exclusions: None,
         }
     }
 

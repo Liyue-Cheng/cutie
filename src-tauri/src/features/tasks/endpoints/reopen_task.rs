@@ -13,7 +13,7 @@ use serde::Serialize;
 use crate::{
     entities::TaskCardDto,
     features::tasks::shared::{
-        repositories::TaskRepository, TaskAssembler, TaskScheduleRepository,
+        repositories::TaskRepository, TaskAssembler,
     },
     shared::{
         core::{AppError, AppResult},

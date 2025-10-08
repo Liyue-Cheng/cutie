@@ -6,7 +6,7 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Response},
 };
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
 use serde::Serialize;
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
@@ -20,7 +20,7 @@ use crate::{
     },
     features::time_blocks::shared::repositories::TimeBlockRepository,
     shared::{
-        core::{utils::time_utils, AppError, AppResult},
+        core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
@@ -183,18 +183,17 @@ pub async fn handle(
 mod validation {
     use super::*;
 
-    pub fn parse_date(date_str: &str) -> AppResult<chrono::DateTime<Utc>> {
-        let naive_date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
-            AppError::validation_error(
-                "scheduled_day",
-                "日期格式错误，请使用 YYYY-MM-DD 格式",
-                "INVALID_DATE_FORMAT",
-            )
-        })?;
-
-        // 🔧 FIX: 直接使用 NaiveDate 转换为 UTC 零点
-        use crate::shared::core::utils::time_utils::local_date_to_utc_midnight;
-        Ok(local_date_to_utc_midnight(naive_date))
+    pub fn parse_date(date_str: &str) -> AppResult<String> {
+        use crate::shared::core::utils::time_utils;
+        time_utils::parse_date_yyyy_mm_dd(date_str)
+            .map(|date| time_utils::format_date_yyyy_mm_dd(&date))
+            .map_err(|_| {
+                AppError::validation_error(
+                    "scheduled_day",
+                    "日期格式错误，请使用 YYYY-MM-DD 格式",
+                    "INVALID_DATE_FORMAT",
+                )
+            })
     }
 }
 
@@ -227,7 +226,7 @@ mod logic {
 
         // 4. 检查该日期是否有日程
         let has_schedule =
-            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, scheduled_day)
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &scheduled_day)
                 .await?;
 
         if !has_schedule {
@@ -239,7 +238,7 @@ mod logic {
 
         // 5. 查找该日期的所有 time_blocks
         let time_blocks =
-            database::find_time_blocks_for_day(&mut tx, task_id, scheduled_day).await?;
+            database::find_time_blocks_for_day(&mut tx, task_id, &scheduled_day).await?;
 
         // 6. 删除 task_time_block_links
         let time_block_ids: Vec<Uuid> = time_blocks.iter().map(|b| b.id).collect();
@@ -267,7 +266,7 @@ mod logic {
             TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids).await?;
 
         // 9. 删除 schedule 记录
-        database::delete_schedule(&mut tx, task_id, scheduled_day).await?;
+        database::delete_schedule(&mut tx, task_id, &scheduled_day).await?;
 
         // 10. 重新查询任务并组装 TaskCard
         // 注意：schedule_status 是派生字段，由装配器根据 task_schedules 表计算
@@ -285,7 +284,7 @@ mod logic {
         // staging 定义：今天和未来没有排期的任务，过去的排期不影响
         use crate::entities::ScheduleStatus;
         use chrono::Utc;
-        let local_today = time_utils::extract_local_date_from_utc(Utc::now());
+        let local_today = Utc::now().date_naive();
 
         let has_future_schedule = task_card
             .schedules
@@ -354,22 +353,22 @@ mod database {
     pub async fn find_time_blocks_for_day(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        scheduled_day: chrono::DateTime<Utc>,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<Vec<TimeBlock>> {
         let query = r#"
             SELECT tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time,
-                   tb.area_id, tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_time,
+                   tb.area_id, tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_date,
                    tb.created_at, tb.updated_at, tb.is_deleted
             FROM time_blocks tb
             JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
             WHERE ttbl.task_id = ?
-              AND DATE(tb.start_time) = DATE(?)
+              AND DATE(tb.start_time) = ?
               AND tb.is_deleted = false
         "#;
 
         let rows = sqlx::query_as::<_, crate::entities::TimeBlockRow>(query)
             .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
+            .bind(scheduled_date)
             .fetch_all(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;
@@ -411,16 +410,16 @@ mod database {
     pub async fn delete_schedule(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        scheduled_day: chrono::DateTime<Utc>,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<()> {
         let query = r#"
             DELETE FROM task_schedules
-            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
+            WHERE task_id = ? AND scheduled_date = ?
         "#;
 
         sqlx::query(query)
             .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
+            .bind(scheduled_date)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

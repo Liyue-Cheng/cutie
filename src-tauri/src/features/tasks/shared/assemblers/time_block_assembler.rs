@@ -33,7 +33,7 @@ impl TimeBlockAssembler {
                 SELECT id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
                        created_at, updated_at, is_deleted, source_info,
                        external_source_id, external_source_provider, external_source_metadata,
-                       recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+                       recurrence_rule, recurrence_parent_id, recurrence_original_date
                 FROM time_blocks
                 WHERE id = ? AND is_deleted = false
             "#;

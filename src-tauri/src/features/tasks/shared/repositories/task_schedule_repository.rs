@@ -35,17 +35,17 @@ impl TaskScheduleRepository {
     pub async fn has_schedule_for_day_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        scheduled_day: DateTime<Utc>,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<bool> {
         let query = r#"
             SELECT COUNT(*) as count
             FROM task_schedules
-            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
+            WHERE task_id = ? AND scheduled_date = ?
         "#;
 
         let count: i64 = sqlx::query_scalar(query)
             .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
+            .bind(scheduled_date)
             .fetch_one(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
@@ -57,20 +57,20 @@ impl TaskScheduleRepository {
     pub async fn create_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        scheduled_day: DateTime<Utc>,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<()> {
         let schedule_id = Uuid::new_v4();
         let now = Utc::now();
 
         let query = r#"
-            INSERT INTO task_schedules (id, task_id, scheduled_day, outcome, created_at, updated_at)
+            INSERT INTO task_schedules (id, task_id, scheduled_date, outcome, created_at, updated_at)
             VALUES (?, ?, ?, 'PLANNED', ?, ?)
         "#;
 
         sqlx::query(query)
             .bind(schedule_id.to_string())
             .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
+            .bind(scheduled_date)
             .bind(now.to_rfc3339())
             .bind(now.to_rfc3339())
             .execute(&mut **tx)
@@ -86,17 +86,18 @@ impl TaskScheduleRepository {
         task_id: Uuid,
         now: DateTime<Utc>,
     ) -> AppResult<()> {
-        let today = now.date_naive();
+        use crate::shared::core::utils::time_utils;
+        let today = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
         let query = r#"
             UPDATE task_schedules 
             SET outcome = 'COMPLETED_ON_DAY', updated_at = ?
-            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
+            WHERE task_id = ? AND scheduled_date = ?
         "#;
 
         sqlx::query(query)
             .bind(now.to_rfc3339())
             .bind(task_id.to_string())
-            .bind(today.and_hms_opt(0, 0, 0).unwrap().and_utc().to_rfc3339())
+            .bind(today)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
@@ -110,15 +111,16 @@ impl TaskScheduleRepository {
         task_id: Uuid,
         now: DateTime<Utc>,
     ) -> AppResult<()> {
-        let today = now.date_naive();
+        use crate::shared::core::utils::time_utils;
+        let today = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
         let query = r#"
-            DELETE FROM task_schedules 
-            WHERE task_id = ? AND DATE(scheduled_day) > DATE(?)
+            DELETE FROM task_schedules
+            WHERE task_id = ? AND scheduled_date > ?
         "#;
 
         sqlx::query(query)
             .bind(task_id.to_string())
-            .bind(today.and_hms_opt(0, 0, 0).unwrap().and_utc().to_rfc3339())
+            .bind(today)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
@@ -146,10 +148,10 @@ impl TaskScheduleRepository {
         task_id: Uuid,
     ) -> AppResult<Vec<ScheduleRecord>> {
         let query = r#"
-            SELECT scheduled_day, outcome
+            SELECT scheduled_date, outcome
             FROM task_schedules
             WHERE task_id = ?
-            ORDER BY scheduled_day ASC
+            ORDER BY scheduled_date ASC
         "#;
 
         let rows = sqlx::query_as::<_, (String, String)>(query)
@@ -161,9 +163,9 @@ impl TaskScheduleRepository {
         let schedules = rows
             .into_iter()
             .filter_map(|(day_str, outcome_str)| {
-                let day = chrono::DateTime::parse_from_rfc3339(&day_str)
-                    .ok()?
-                    .with_timezone(&Utc);
+                // day_str 已经是 YYYY-MM-DD 字符串，直接使用
+                use crate::shared::core::utils::time_utils;
+                let day = time_utils::parse_date_yyyy_mm_dd(&day_str).ok()?;
 
                 let outcome = match outcome_str.as_str() {
                     "PLANNED" => DailyOutcome::Planned,

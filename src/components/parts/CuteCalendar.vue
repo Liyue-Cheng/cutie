@@ -108,10 +108,11 @@ const decorativeLineTop = decorativeLine.top
 const decorativeLineHeight = decorativeLine.height
 
 // ==================== 日期显示 ====================
+import { getTodayDateString, parseDateString } from '@/utils/dateUtils'
 // 格式化日期显示
 const formattedDate = computed(() => {
-  const dateToDisplay = props.currentDate || new Date().toISOString().split('T')[0]
-  const date = new Date(dateToDisplay + 'T00:00:00')
+  const dateToDisplay = props.currentDate || getTodayDateString()
+  const date = parseDateString(dateToDisplay)
 
   const year = date.getFullYear()
   const month = date.getMonth() + 1

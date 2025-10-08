@@ -7,7 +7,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -18,7 +18,7 @@ use crate::{
         TaskAssembler,
     },
     shared::{
-        core::{AppError, AppResult, utils::time_utils},
+        core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
@@ -217,18 +217,17 @@ pub async fn handle(
 mod validation {
     use super::*;
 
-    pub fn parse_date(date_str: &str) -> AppResult<chrono::DateTime<Utc>> {
-        let naive_date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
-            AppError::validation_error(
-                "scheduled_day",
-                "日期格式错误，请使用 YYYY-MM-DD 格式",
-                "INVALID_DATE_FORMAT",
-            )
-        })?;
-
-        // 🔧 FIX: 直接使用 NaiveDate 转换为 UTC 零点
-        use crate::shared::core::utils::time_utils::local_date_to_utc_midnight;
-        Ok(local_date_to_utc_midnight(naive_date))
+    pub fn parse_date(date_str: &str) -> AppResult<String> {
+        use crate::shared::core::utils::time_utils;
+        time_utils::parse_date_yyyy_mm_dd(date_str)
+            .map(|date| time_utils::format_date_yyyy_mm_dd(&date))
+            .map_err(|_| {
+                AppError::validation_error(
+                    "scheduled_day",
+                    "日期格式错误，请使用 YYYY-MM-DD 格式",
+                    "INVALID_DATE_FORMAT",
+                )
+            })
     }
 
     pub fn parse_outcome(outcome_str: &str) -> AppResult<Outcome> {
@@ -290,7 +289,7 @@ mod logic {
 
         // 5. 检查原始日期是否有日程
         let has_original_schedule =
-            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, original_date)
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &original_date)
                 .await?;
 
         if !has_original_schedule {
@@ -306,9 +305,9 @@ mod logic {
             let new_date = validation::parse_date(new_date_str)?;
 
             // 检查新日期是否已有日程（如果不是同一天）
-            if original_date.date_naive() != new_date.date_naive() {
+            if original_date != new_date {
                 let has_new_date_schedule =
-                    TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, new_date)
+                    TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &new_date)
                         .await?;
 
                 if has_new_date_schedule {
@@ -317,7 +316,7 @@ mod logic {
             }
 
             // 更新日期
-            database::update_schedule_date(&mut tx, task_id, original_date, new_date, now).await?;
+            database::update_schedule_date(&mut tx, task_id, &original_date, &new_date, now).await?;
         }
 
         // 7. 处理 outcome 更新
@@ -328,7 +327,7 @@ mod logic {
             } else {
                 original_date
             };
-            database::update_schedule_outcome(&mut tx, task_id, target_date, outcome, now).await?;
+            database::update_schedule_outcome(&mut tx, task_id, &target_date, outcome, now).await?;
         }
 
         // 8. 重新查询任务并组装 TaskCard
@@ -346,7 +345,7 @@ mod logic {
         // staging 定义：今天和未来没有排期的任务，过去的排期不影响
         use crate::entities::ScheduleStatus;
         use chrono::Utc;
-        let local_today = time_utils::extract_local_date_from_utc(Utc::now());
+        let local_today = Utc::now().date_naive();
 
         let has_future_schedule = task_card.schedules.as_ref().map(|schedules| {
             schedules.iter().any(|s| {
@@ -409,21 +408,21 @@ mod database {
     pub async fn update_schedule_date(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        original_date: chrono::DateTime<Utc>,
-        new_date: chrono::DateTime<Utc>,
+        original_date: &str, // YYYY-MM-DD 字符串
+        new_date: &str,      // YYYY-MM-DD 字符串
         updated_at: chrono::DateTime<Utc>,
     ) -> AppResult<()> {
         let query = r#"
             UPDATE task_schedules
-            SET scheduled_day = ?, updated_at = ?
-            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
+            SET scheduled_date = ?, updated_at = ?
+            WHERE task_id = ? AND scheduled_date = ?
         "#;
 
         sqlx::query(query)
-            .bind(new_date.to_rfc3339())
+            .bind(new_date)
             .bind(updated_at.to_rfc3339())
             .bind(task_id.to_string())
-            .bind(original_date.to_rfc3339())
+            .bind(original_date)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;
@@ -435,7 +434,7 @@ mod database {
     pub async fn update_schedule_outcome(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        scheduled_day: chrono::DateTime<Utc>,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
         outcome: Outcome,
         updated_at: chrono::DateTime<Utc>,
     ) -> AppResult<()> {
@@ -449,14 +448,14 @@ mod database {
         let query = r#"
             UPDATE task_schedules
             SET outcome = ?, updated_at = ?
-            WHERE task_id = ? AND DATE(scheduled_day) = DATE(?)
+            WHERE task_id = ? AND scheduled_date = ?
         "#;
 
         sqlx::query(query)
             .bind(outcome_str)
             .bind(updated_at.to_rfc3339())
             .bind(task_id.to_string())
-            .bind(scheduled_day.to_rfc3339())
+            .bind(scheduled_date)
             .execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

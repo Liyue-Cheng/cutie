@@ -61,14 +61,10 @@ function addDays(date: Date, days: number): Date {
   return result
 }
 
+import { getTodayDateString, toDateString, isSameDate } from '@/utils/dateUtils'
 // 判断是否是今天
 function isToday(date: Date): boolean {
-  const today = new Date()
-  return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
-  )
+  return isSameDate(toDateString(date), getTodayDateString())
 }
 
 // 获取星期几（中文）

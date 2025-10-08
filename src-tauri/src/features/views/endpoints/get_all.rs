@@ -184,7 +184,7 @@ mod database {
                 subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
-                recurrence_rule, recurrence_parent_id, recurrence_original_date, recurrence_exclusions
+                recurrence_rule, recurrence_parent_id, recurrence_original_date
             FROM tasks
             WHERE deleted_at IS NULL
             ORDER BY created_at DESC

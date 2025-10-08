@@ -180,11 +180,11 @@ mod database {
                 t.subtasks, t.project_id, t.area_id, t.due_date, t.due_date_type, t.completed_at, t.archived_at,
                 t.created_at, t.updated_at, t.deleted_at, t.source_info,
                 t.external_source_id, t.external_source_provider, t.external_source_metadata,
-                t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date, t.recurrence_exclusions
+                t.recurrence_rule, t.recurrence_parent_id, t.recurrence_original_date
             FROM tasks t
             INNER JOIN task_schedules ts ON t.id = ts.task_id
             WHERE t.deleted_at IS NULL AND t.completed_at IS NULL AND t.archived_at IS NULL
-            ORDER BY ts.scheduled_day ASC, t.created_at DESC
+            ORDER BY ts.scheduled_date ASC, t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, TaskRow>(query)

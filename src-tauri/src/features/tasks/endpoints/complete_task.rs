@@ -239,15 +239,17 @@ mod logic {
 
         // 4. 处理日程：确保今天有日程并设为完成，删除未来日程
         // 4.1. 检查今天是否有日程
+        use crate::shared::core::utils::time_utils;
+        let today_date = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
         let has_today_schedule =
-            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, now).await?;
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &today_date).await?;
 
         if has_today_schedule {
             // 今天已有日程，更新为已完成
             TaskScheduleRepository::update_today_to_completed_in_tx(&mut tx, task_id, now).await?;
         } else {
             // 今天没有日程，创建一条新的
-            TaskScheduleRepository::create_in_tx(&mut tx, task_id, now).await?;
+            TaskScheduleRepository::create_in_tx(&mut tx, task_id, &today_date).await?;
             // 立即更新为已完成
             TaskScheduleRepository::update_today_to_completed_in_tx(&mut tx, task_id, now).await?;
             tracing::info!("Created today's schedule for completed task {}", task_id);
