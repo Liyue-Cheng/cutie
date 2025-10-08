@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <FullCalendar ref="calendarRef" :key="calendarInstanceKey" :options="calendarOptions" />
+    <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
     <!-- 装饰竖线（跨越 TwoRowLayout 可视区域） -->
     <div
@@ -63,7 +63,6 @@ const props = defineProps<{
 
 // 默认缩放倍率为 1
 const currentZoom = computed(() => props.zoom ?? 1)
-const calendarInstanceKey = computed(() => `calendar-${currentZoom.value}`)
 
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
@@ -108,11 +107,10 @@ const decorativeLineTop = decorativeLine.top
 const decorativeLineHeight = decorativeLine.height
 
 // ==================== 日期显示 ====================
-import { getTodayDateString, parseDateString } from '@/utils/dateUtils'
 // 格式化日期显示
 const formattedDate = computed(() => {
-  const dateToDisplay = props.currentDate || getTodayDateString()
-  const date = parseDateString(dateToDisplay)
+  const dateToDisplay = props.currentDate || new Date().toISOString().split('T')[0]
+  const date = new Date(dateToDisplay + 'T00:00:00')
 
   const year = date.getFullYear()
   const month = date.getMonth() + 1
@@ -151,15 +149,46 @@ watch(
   { immediate: false }
 )
 
-// 缩放变化：强制更新日历尺寸并重算装饰线
+// 缩放变化：强制更新日历尺寸并重算装饰线，同时保持当前日期和滚动位置比例
 watch(
   () => props.zoom,
   async () => {
+    // 保存滚动位置比例（在DOM更新前）
+    let scrollRatio = 0
+    let scrollerEl: HTMLElement | null = null
+    if (calendarRef.value) {
+      const el = calendarRef.value.$el as HTMLElement
+      scrollerEl = el.querySelector('.fc-scroller-liquid-absolute') as HTMLElement
+      if (scrollerEl) {
+        const scrollTop = scrollerEl.scrollTop
+        const scrollHeight = scrollerEl.scrollHeight
+        const clientHeight = scrollerEl.clientHeight
+        const maxScroll = scrollHeight - clientHeight
+        // 计算滚动比例（0到1之间）
+        scrollRatio = maxScroll > 0 ? scrollTop / maxScroll : 0
+      }
+    }
+
     await nextTick()
     if (calendarRef.value) {
       try {
         const api = calendarRef.value.getApi()
+        // 保存当前日期
+        const currentDate = api.getDate()
+        // 更新尺寸
         api.updateSize()
+        // 恢复到之前的日期
+        api.gotoDate(currentDate)
+
+        // 根据比例恢复滚动位置
+        await nextTick()
+        if (scrollerEl) {
+          const newScrollHeight = scrollerEl.scrollHeight
+          const newClientHeight = scrollerEl.clientHeight
+          const newMaxScroll = newScrollHeight - newClientHeight
+          // 按比例计算新的滚动位置
+          scrollerEl.scrollTop = newMaxScroll * scrollRatio
+        }
       } catch {}
     }
     decorativeLine.updatePosition()
@@ -442,17 +471,56 @@ onMounted(async () => {
 
 /* 1x 缩放（默认） - 保持 FullCalendar 默认高度 1.5rem */
 .calendar-container.zoom-1x .fc .fc-timegrid-slot {
-  height: 1.5rem !important; /* 10分钟槽，默认值 */
+  height: 0.5rem !important; /* 10分钟槽，默认值 */
+  min-height: 0.5rem !important;
+  max-height: 0.5rem !important;
+  line-height: 0.5rem !important;
+  font-size: 0 !important;
+  padding: 0 !important;
+}
+
+/* 同时控制时间标签列，防止其撑高行 */
+.calendar-container.zoom-1x .fc .fc-timegrid-slot-label {
+  height: 0.6rem !important;
+  min-height: 0.6rem !important;
+  max-height: 0.6rem !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+}
+
+/* 时间标签文字使用绝对定位，不参与高度计算 */
+.calendar-container.zoom-1x .fc .fc-timegrid-slot-label-cushion {
+  position: absolute;
+  top: 50%;
+  transform: translate(-100%, -50%);
+  font-size: 1.2rem !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+/* 1x 缩放时隐藏半点时间标签 (xx:30) */
+
+.calendar-container.zoom-1x
+  .fc
+  .fc-timegrid-slot-label[data-time$=':30:00']
+  .fc-timegrid-slot-label-cushion {
+  display: none !important;
+}
+
+/* 1x 缩放时移除半点时间槽的边框 */
+
+.calendar-container.zoom-1x .fc .fc-timegrid-slot-lane[data-time$=':30:00'] {
+  border: none !important;
 }
 
 /* 2x 缩放 - 每小时约 2倍 */
 .calendar-container.zoom-2x .fc .fc-timegrid-slot {
-  height: 3rem !important; /* 10分钟槽 = 3rem，1小时 = 18rem */
+  height: 1.5rem !important; /* 10分钟槽 = 3rem，1小时 = 18rem */
 }
 
 /* 3x 缩放 - 每小时约 3倍 */
 .calendar-container.zoom-3x .fc .fc-timegrid-slot {
-  height: 4.5rem !important; /* 10分钟槽 = 4.5rem，1小时 = 27rem */
+  height: 3rem !important; /* 10分钟槽 = 4.5rem，1小时 = 27rem */
 }
 
 /* ===============================================
