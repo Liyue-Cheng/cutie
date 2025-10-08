@@ -60,6 +60,10 @@ export class EventSubscriber {
       this.handleEvent('task.deleted', e.data)
     })
 
+    this.eventSource.addEventListener('time_blocks.created', (e: MessageEvent) => {
+      this.handleEvent('time_blocks.created', e.data)
+    })
+
     this.eventSource.addEventListener('time_blocks.deleted', (e: MessageEvent) => {
       this.handleEvent('time_blocks.deleted', e.data)
     })
@@ -70,6 +74,10 @@ export class EventSubscriber {
 
     this.eventSource.addEventListener('time_blocks.truncated', (e: MessageEvent) => {
       this.handleEvent('time_blocks.truncated', e.data)
+    })
+
+    this.eventSource.addEventListener('time_blocks.linked', (e: MessageEvent) => {
+      this.handleEvent('time_blocks.linked', e.data)
     })
 
     // 连接成功
