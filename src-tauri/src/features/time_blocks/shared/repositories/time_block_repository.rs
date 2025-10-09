@@ -241,9 +241,24 @@ impl TimeBlockRepository {
         block_id: Uuid,
         end_time: DateTime<Utc>,
     ) -> AppResult<()> {
-        let query = "UPDATE time_blocks SET end_time = ?, updated_at = ? WHERE id = ?";
+        // 首先查询时间块的当前信息，以便正确处理时间语义
+        let block = Self::find_by_id_in_tx(tx, block_id).await?;
+
+        // 计算新的本地结束时间（如果是FLOATING类型）
+        let new_end_time_local =
+            if block.time_type == crate::entities::time_block::TimeType::Floating {
+                // 对于浮动时间，保持本地时间语义：提取UTC时间的时分秒作为本地时间
+                Some(end_time.format("%H:%M:%S").to_string())
+            } else {
+                // 对于固定时间，不需要本地时间
+                block.end_time_local
+            };
+
+        let query =
+            "UPDATE time_blocks SET end_time = ?, end_time_local = ?, updated_at = ? WHERE id = ?";
         sqlx::query(query)
             .bind(end_time.to_rfc3339())
+            .bind(new_end_time_local)
             .bind(end_time.to_rfc3339())
             .bind(block_id.to_string())
             .execute(&mut **tx)
