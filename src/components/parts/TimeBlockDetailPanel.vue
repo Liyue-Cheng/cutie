@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
-import { useAreaStore } from '@/stores/area'
 import CuteIcon from './CuteIcon.vue'
 
 const props = defineProps<{
@@ -13,7 +12,6 @@ const emit = defineEmits<{
 }>()
 
 const timeBlockStore = useTimeBlockStore()
-const areaStore = useAreaStore()
 
 // 获取当前时间块
 const timeBlock = computed(() => {
@@ -27,20 +25,32 @@ const linkedTasks = computed(() => {
   return timeBlock.value.linked_tasks || []
 })
 
-// 格式化时间
-function formatTime(isoString: string) {
-  const date = new Date(isoString)
-  const hours = date.getHours().toString().padStart(2, '0')
-  const minutes = date.getMinutes().toString().padStart(2, '0')
-  return `${hours}:${minutes}`
-}
+// 格式化时间范围
+function formatTimeRange(timeBlock: any) {
+  if (timeBlock.is_all_day) {
+    return '全天'
+  }
 
-// 格式化日期
-function formatDate(isoString: string) {
-  const date = new Date(isoString)
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${month}/${day}`
+  let startTime: string
+  let endTime: string
+
+  // 如果是浮动时间且有本地时间，使用本地时间
+  if (
+    timeBlock.time_type === 'FLOATING' &&
+    timeBlock.start_time_local &&
+    timeBlock.end_time_local
+  ) {
+    startTime = timeBlock.start_time_local.substring(0, 5) // HH:MM
+    endTime = timeBlock.end_time_local.substring(0, 5) // HH:MM
+  } else {
+    // 否则使用UTC时间转换为本地时间显示
+    const startDate = new Date(timeBlock.start_time)
+    const endDate = new Date(timeBlock.end_time)
+    startTime = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`
+    endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`
+  }
+
+  return `${startTime} - ${endTime}`
 }
 </script>
 
@@ -59,11 +69,15 @@ function formatDate(isoString: string) {
         <div class="info-row">
           <CuteIcon name="Clock" :size="16" />
           <span class="time-range">
-            {{ formatTime(timeBlock.start_time) }} - {{ formatTime(timeBlock.end_time) }}
+            {{ formatTimeRange(timeBlock) }}
           </span>
+          <span v-if="timeBlock.time_type === 'FLOATING'" class="time-type-badge floating">
+            浮动时间
+          </span>
+          <span v-else class="time-type-badge fixed"> 固定时间 </span>
         </div>
         <div v-if="timeBlock.title" class="info-row">
-          <CuteIcon name="Text" :size="16" />
+          <CuteIcon name="FileText" :size="16" />
           <span class="block-title">{{ timeBlock.title }}</span>
         </div>
       </div>
@@ -83,12 +97,8 @@ function formatDate(isoString: string) {
         <div v-else class="tasks-list">
           <div v-for="task in linkedTasks" :key="task.id" class="task-item">
             <div class="task-title">{{ task.title }}</div>
-            <div v-if="task.area_id" class="task-area">
-              <span
-                class="area-dot"
-                :style="{ backgroundColor: areaStore.getAreaById(task.area_id)?.color || '#ccc' }"
-              ></span>
-              <span class="area-name">{{ areaStore.getAreaById(task.area_id)?.name }}</span>
+            <div class="task-status" :class="{ completed: task.is_completed }">
+              {{ task.is_completed ? '已完成' : '进行中' }}
             </div>
           </div>
         </div>
@@ -221,20 +231,17 @@ function formatDate(isoString: string) {
 }
 
 .task-item {
-  padding: 1rem;
-  background-color: var(--color-background);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .task-item:hover {
   background-color: var(--color-background-hover);
-  border-color: var(--color-border-hover);
 }
 
 .task-title {
@@ -243,21 +250,38 @@ function formatDate(isoString: string) {
   color: var(--color-text-primary);
 }
 
-.task-area {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1.2rem;
-  color: var(--color-text-secondary);
+.task-item:last-child {
+  border-bottom: none;
 }
 
-.area-dot {
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 50%;
+.task-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: #e3f2fd;
+  color: #1976d2;
 }
 
-.area-name {
+.task-status.completed {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.time-type-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
   font-weight: 500;
+}
+
+.time-type-badge.floating {
+  background-color: #e0f2fe;
+  color: #0277bd;
+}
+
+.time-type-badge.fixed {
+  background-color: #fff3e0;
+  color: #f57c00;
 }
 </style>

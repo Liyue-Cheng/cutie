@@ -42,11 +42,44 @@ export function useCalendarEvents(previewEvent: Ref<EventInput | null>) {
         color = '#9ca3af' // 灰色（从无 area 任务创建）
       }
 
+      // 计算显示时间
+      let displayStartTime: string
+      let displayEndTime: string
+
+      if (
+        timeBlock.time_type === 'FLOATING' &&
+        timeBlock.start_time_local &&
+        timeBlock.end_time_local
+      ) {
+        // 浮动时间：将本地时间应用到当前日期
+        const baseDate = new Date(timeBlock.start_time) // 获取原始日期
+        const startTimeLocal = timeBlock.start_time_local // HH:MM:SS
+        const endTimeLocal = timeBlock.end_time_local // HH:MM:SS
+
+        // 解析本地时间
+        const [startHour, startMin, startSec] = startTimeLocal.split(':').map(Number)
+        const [endHour, endMin, endSec] = endTimeLocal.split(':').map(Number)
+
+        // 创建显示时间（保持原日期，使用本地时间）
+        const displayStart = new Date(baseDate)
+        displayStart.setHours(startHour, startMin, startSec || 0, 0)
+
+        const displayEnd = new Date(baseDate)
+        displayEnd.setHours(endHour, endMin, endSec || 0, 0)
+
+        displayStartTime = displayStart.toISOString()
+        displayEndTime = displayEnd.toISOString()
+      } else {
+        // 固定时间：直接使用UTC时间
+        displayStartTime = timeBlock.start_time
+        displayEndTime = timeBlock.end_time
+      }
+
       return {
         id: timeBlock.id,
         title: timeBlock.title ?? 'Time Block',
-        start: timeBlock.start_time,
-        end: timeBlock.end_time,
+        start: displayStartTime,
+        end: displayEndTime,
         allDay: timeBlock.is_all_day, // ✅ 使用后端返回的 is_all_day 字段
         color: color,
       }

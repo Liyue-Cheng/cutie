@@ -277,10 +277,10 @@ mod logic {
             detail_note: request.detail_note.clone(),
             start_time: request.start_time,
             end_time: request.end_time,
-            start_time_local: None, // 新增字段
-            end_time_local: None,   // 新增字段
-            time_type: crate::entities::time_block::TimeType::default(), // 新增字段，默认FLOATING
-            creation_timezone: None, // 新增字段
+            start_time_local: request.start_time_local.clone(), // 使用请求中的字段
+            end_time_local: request.end_time_local.clone(),     // 使用请求中的字段
+            time_type: request.time_type.unwrap_or_default(), // 使用请求中的字段，默认FLOATING
+            creation_timezone: request.creation_timezone.clone(), // 使用请求中的字段
             is_all_day,
             area_id: request.area_id,
             created_at: now,

@@ -248,9 +248,15 @@ const todayTimeBlocksTotalDuration = computed(() => {
   return totalMinutes
 })
 
-// ✅ 格式化时间块的开始时间（HH:mm）
-function formatTimeBlockStart(isoString: string): string {
-  const date = new Date(isoString)
+// ✅ 格式化时间块的开始时间（HH:mm） - 支持浮动时间
+function formatTimeBlockStart(timeBlock: any): string {
+  // 如果是浮动时间且有本地时间，使用本地时间
+  if (timeBlock.time_type === 'FLOATING' && timeBlock.start_time_local) {
+    return timeBlock.start_time_local.substring(0, 5) // HH:MM
+  }
+
+  // 否则使用UTC时间转换为本地时间显示
+  const date = new Date(timeBlock.start_time)
   const hours = date.getHours().toString().padStart(2, '0')
   const minutes = date.getMinutes().toString().padStart(2, '0')
   return `${hours}:${minutes}`
@@ -355,7 +361,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             class="time-tag"
             :style="{ backgroundColor: area?.color || '#ccc' }"
           >
-            {{ formatTimeBlockStart(block.start_time) }}
+            {{ formatTimeBlockStart(block) }}
           </span>
           <span v-if="todayTimeBlocks.length > 2" class="time-tag-more"
             >+{{ todayTimeBlocks.length - 2 }}</span

@@ -26,6 +26,11 @@ export type DueDateType = 'SOFT' | 'HARD'
  */
 export type DailyOutcome = 'planned' | 'presence_logged' | 'completed' | 'carried_over'
 
+/**
+ * 时间类型：定义时间块的时间解释方式
+ */
+export type TimeType = 'FLOATING' | 'FIXED'
+
 // --- DTO Interfaces ---
 
 /**
@@ -131,8 +136,16 @@ export interface TaskDetail extends TaskCard {
 export interface TimeBlockView {
   // --- 核心身份与时间 ---
   id: string
-  start_time: string
-  end_time: string
+  start_time: string // UTC ISO 8601 时间戳
+  end_time: string // UTC ISO 8601 时间戳
+  /** 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时有值 */
+  start_time_local: string | null
+  /** 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时有值 */
+  end_time_local: string | null
+  /** 时间类型：FLOATING(浮动时间) 或 FIXED(固定时间) */
+  time_type: TimeType
+  /** 创建时的时区（占位字段） */
+  creation_timezone: string | null
   is_all_day: boolean
 
   // --- 显示内容 ---

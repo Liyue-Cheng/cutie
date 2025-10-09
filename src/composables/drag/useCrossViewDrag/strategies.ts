@@ -346,10 +346,30 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
       endISO = end.toISOString()
     }
 
+    // 计算本地时间字符串
+    let startTimeLocal: string | undefined
+    let endTimeLocal: string | undefined
+
+    if (calendarConfig.isAllDay) {
+      // 全天事件：使用 00:00:00 到 23:59:59
+      startTimeLocal = '00:00:00'
+      endTimeLocal = '23:59:59'
+    } else {
+      // 分时事件：提取时间部分
+      const startDate = new Date(startISO)
+      const endDate = new Date(endISO)
+      startTimeLocal = startDate.toTimeString().split(' ')[0] // HH:MM:SS
+      endTimeLocal = endDate.toTimeString().split(' ')[0] // HH:MM:SS
+    }
+
     const result = await timeBlockStore.createTimeBlockFromTask({
       task_id: context.task.id,
       start_time: startISO,
       end_time: endISO,
+      start_time_local: startTimeLocal,
+      end_time_local: endTimeLocal,
+      time_type: 'FLOATING', // 默认使用浮动时间
+      creation_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // 当前时区
       is_all_day: calendarConfig.isAllDay, // ✅ 传递全天事件标记
     })
 

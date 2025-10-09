@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { TimeBlockView } from '@/types/dtos'
+import type { TimeBlockView, TimeType } from '@/types/dtos'
 import { waitForApiReady, apiBaseUrl } from '@/composables/useApiConfig'
 import { getEventSubscriber } from '@/services/events'
 import { logger, LogTags } from '@/services/logger'
@@ -23,6 +23,14 @@ export interface CreateTimeBlockPayload {
   detail_note?: string | null
   start_time: string // ISO 8601 UTC
   end_time: string // ISO 8601 UTC
+  /** 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+  start_time_local?: string | null
+  /** 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+  end_time_local?: string | null
+  /** 时间类型，默认为FLOATING */
+  time_type?: TimeType
+  /** 创建时的时区（占位字段） */
+  creation_timezone?: string | null
   is_all_day?: boolean
   area_id?: string | null
 }
@@ -31,6 +39,14 @@ export interface CreateFromTaskPayload {
   task_id: string
   start_time: string // ISO 8601 UTC
   end_time: string // ISO 8601 UTC
+  /** 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+  start_time_local?: string | null
+  /** 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+  end_time_local?: string | null
+  /** 时间类型，默认为FLOATING */
+  time_type?: TimeType
+  /** 创建时的时区（占位字段） */
+  creation_timezone?: string | null
   title?: string | null // 可选，默认使用任务标题
   is_all_day?: boolean // 可选，是否为全天事件
 }
@@ -46,6 +62,14 @@ export interface UpdateTimeBlockPayload {
   detail_note?: string | null
   start_time?: string
   end_time?: string
+  /** 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+  start_time_local?: string | null
+  /** 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+  end_time_local?: string | null
+  /** 时间类型 */
+  time_type?: TimeType
+  /** 创建时的时区（占位字段） */
+  creation_timezone?: string | null
   is_all_day?: boolean
   area_id?: string | null
 }

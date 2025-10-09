@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
 import { useViewStore } from '@/stores/view'
@@ -76,6 +76,7 @@ const crossViewTarget = useCrossViewDragTarget(initialViewMetadata)
 
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
+const addTaskInputRef = ref<HTMLInputElement | null>(null)
 
 async function handleAddTask() {
   const title = newTaskTitle.value.trim()
@@ -86,11 +87,41 @@ async function handleAddTask() {
   newTaskTitle.value = ''
 
   try {
-    // 🔥 直接调用 TaskStore 创建任务（不再发出事件）
     const { useTaskStore } = await import('@/stores/task')
     const taskStore = useTaskStore()
-    await taskStore.createTask({ title })
-    logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', { title, viewKey: props.viewKey })
+
+    // 检查是否是日期视图（daily::YYYY-MM-DD）
+    const viewMetadata = effectiveViewMetadata.value
+    const isDateView = viewMetadata.type === 'date'
+
+    if (isDateView) {
+      // 日期视图：创建任务并立即添加日程
+      const newTask = await taskStore.createTask({ title })
+      if (!newTask) {
+        throw new Error('Task creation returned null')
+      }
+
+      // 获取日期配置
+      const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
+      const date = dateConfig.date // YYYY-MM-DD
+
+      // 为任务添加日程
+      await taskStore.addSchedule(newTask.id, date)
+
+      logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created with schedule', {
+        title,
+        taskId: newTask.id,
+        date,
+        viewKey: props.viewKey,
+      })
+    } else {
+      // 非日期视图：只创建任务
+      await taskStore.createTask({ title })
+      logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', {
+        title,
+        viewKey: props.viewKey,
+      })
+    }
   } catch (error) {
     logger.error(
       LogTags.COMPONENT_KANBAN_COLUMN,
@@ -101,6 +132,12 @@ async function handleAddTask() {
     newTaskTitle.value = originalTitle
   } finally {
     isCreatingTask.value = false
+    // 重新聚焦到输入框，方便连续添加任务
+    nextTick(() => {
+      if (addTaskInputRef.value) {
+        addTaskInputRef.value.focus()
+      }
+    })
   }
 }
 
@@ -452,6 +489,7 @@ async function handleDrop(event: DragEvent) {
 
     <div v-if="showAddInput" class="add-task-wrapper">
       <input
+        ref="addTaskInputRef"
         v-model="newTaskTitle"
         type="text"
         placeholder="+ 添加任务"

@@ -232,8 +232,12 @@ pub struct CreateFromTaskRequest {
     pub task_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    pub title: Option<String>,    // 可选，默认使用任务标题
-    pub is_all_day: Option<bool>, // 可选，支持在日历全天槽位创建全天事件
+    pub start_time_local: Option<String>, // 本地开始时间 (HH:MM:SS)
+    pub end_time_local: Option<String>,   // 本地结束时间 (HH:MM:SS)
+    pub time_type: Option<crate::entities::time_block::TimeType>, // 时间类型
+    pub creation_timezone: Option<String>, // 创建时的时区
+    pub title: Option<String>,            // 可选，默认使用任务标题
+    pub is_all_day: Option<bool>,         // 可选，支持在日历全天槽位创建全天事件
 }
 
 #[derive(Debug, Serialize)]
@@ -319,10 +323,10 @@ mod logic {
             detail_note: None,
             start_time: request.start_time,
             end_time: request.end_time,
-            start_time_local: None, // 新增字段
-            end_time_local: None,   // 新增字段
-            time_type: crate::entities::time_block::TimeType::default(), // 新增字段，默认FLOATING
-            creation_timezone: None, // 新增字段
+            start_time_local: request.start_time_local, // 使用请求中的字段
+            end_time_local: request.end_time_local,     // 使用请求中的字段
+            time_type: request.time_type.unwrap_or_default(), // 使用请求中的字段，默认FLOATING
+            creation_timezone: request.creation_timezone, // 使用请求中的字段
             is_all_day,
             area_id: task.area_id, // 继承任务的 area
             created_at: now,

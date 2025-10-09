@@ -51,11 +51,16 @@ export function setupGlobalErrorHandling(): void {
  */
 export function createVueErrorHandler() {
   return (error: unknown, instance: any, info: string) => {
-    logger.error(LogTags.CRITICAL, 'Vue error', error instanceof Error ? error : new Error(String(error)), {
-      componentName: instance?.$options?.name || 'Unknown',
-      errorInfo: info,
-      stack: error instanceof Error ? error.stack : undefined,
-    })
+    logger.error(
+      LogTags.CRITICAL,
+      'Vue error',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        componentName: instance?.$options?.name || 'Unknown',
+        errorInfo: info,
+        stack: error instanceof Error ? error.stack : undefined,
+      }
+    )
   }
 }
 

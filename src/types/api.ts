@@ -96,6 +96,14 @@ export namespace TimeBlockAPI {
     detail_note?: string | null
     start_time: string // ISO 8601 UTC
     end_time: string // ISO 8601 UTC
+    /** 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+    start_time_local?: string | null
+    /** 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+    end_time_local?: string | null
+    /** 时间类型，默认为FLOATING */
+    time_type?: import('@/types/dtos').TimeType
+    /** 创建时的时区（占位字段） */
+    creation_timezone?: string | null
     area_id?: string | null
   }
 
@@ -126,6 +134,14 @@ export namespace TimeBlockAPI {
     detail_note?: string | null
     start_time?: string
     end_time?: string
+    /** 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+    start_time_local?: string | null
+    /** 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时使用 */
+    end_time_local?: string | null
+    /** 时间类型 */
+    time_type?: import('@/types/dtos').TimeType
+    /** 创建时的时区（占位字段） */
+    creation_timezone?: string | null
     area_id?: string | null
   }
 
