@@ -63,9 +63,14 @@ PATCH /api/time-blocks/{id}
 {
   "start_time": "string (ISO 8601 UTC) | null (optional)",
   "end_time": "string (ISO 8601 UTC) | null (optional)",
+  "start_time_local": "string | null (optional, HH:MM:SS format, 本地开始时间)",
+  "end_time_local": "string | null (optional, HH:MM:SS format, 本地结束时间)",
+  "time_type": "string | null (optional, 'FLOATING' | 'FIXED')",
+  "creation_timezone": "string | null (optional, 创建时的时区，占位字段)",
   "title": "string | null (optional, 最多255字符, 支持置空)",
   "glance_note": "string | null (optional, 支持置空)",
   "detail_note": "string | null (optional, 支持置空)",
+  "is_all_day": "boolean | null (optional, 是否为全天事件)",
   "area_id": "UUID | null (optional, 支持置空)"
 }
 ```
@@ -82,6 +87,11 @@ PATCH /api/time-blocks/{id}
   "id": "uuid",
   "start_time": "2025-10-05T14:00:00Z",
   "end_time": "2025-10-05T16:00:00Z",
+  "start_time_local": "14:00:00",
+  "end_time_local": "16:00:00",
+  "time_type": "FLOATING",
+  "creation_timezone": "Asia/Shanghai",
+  "is_all_day": false,
   "title": "string | null",
   "glance_note": "string | null",
   "detail_note": "string | null",

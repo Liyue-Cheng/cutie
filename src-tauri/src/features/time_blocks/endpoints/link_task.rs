@@ -98,6 +98,11 @@ POST /api/time-blocks/{block_id}/link-task
             "id": "uuid",
             "start_time": "2025-10-07T10:00:00Z",
             "end_time": "2025-10-07T11:00:00Z",
+            "start_time_local": "10:00:00",
+            "end_time_local": "11:00:00",
+            "time_type": "FLOATING",
+            "creation_timezone": "Asia/Shanghai",
+            "is_all_day": false,
             "title": "任务标题",
             "glance_note": null
           }

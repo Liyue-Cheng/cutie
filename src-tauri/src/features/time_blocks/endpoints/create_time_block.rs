@@ -48,9 +48,14 @@ POST /api/time-blocks
 {
   "start_time": "string (ISO 8601 UTC, required)",
   "end_time": "string (ISO 8601 UTC, required)",
+  "start_time_local": "string | null (optional, HH:MM:SS format, 本地开始时间)",
+  "end_time_local": "string | null (optional, HH:MM:SS format, 本地结束时间)",
+  "time_type": "string | null (optional, 'FLOATING' | 'FIXED', 默认 'FLOATING')",
+  "creation_timezone": "string | null (optional, 创建时的时区，占位字段)",
   "title": "string | null (optional, 最多255字符)",
   "glance_note": "string | null (optional)",
   "detail_note": "string | null (optional)",
+  "is_all_day": "boolean | null (optional, 是否为全天事件)",
   "area_id": "UUID | null (optional)"
 }
 ```
@@ -67,6 +72,11 @@ POST /api/time-blocks
   "id": "uuid",
   "start_time": "2025-10-05T14:00:00Z",
   "end_time": "2025-10-05T15:00:00Z",
+  "start_time_local": "14:00:00",
+  "end_time_local": "15:00:00",
+  "time_type": "FLOATING",
+  "creation_timezone": "Asia/Shanghai",
+  "is_all_day": false,
   "title": "string | null",
   "glance_note": "string | null",
   "detail_note": "string | null",
@@ -279,7 +289,7 @@ mod logic {
             end_time: request.end_time,
             start_time_local: request.start_time_local.clone(), // 使用请求中的字段
             end_time_local: request.end_time_local.clone(),     // 使用请求中的字段
-            time_type: request.time_type.unwrap_or_default(), // 使用请求中的字段，默认FLOATING
+            time_type: request.time_type.unwrap_or_default(),   // 使用请求中的字段，默认FLOATING
             creation_timezone: request.creation_timezone.clone(), // 使用请求中的字段
             is_all_day,
             area_id: request.area_id,

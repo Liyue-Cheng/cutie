@@ -66,7 +66,12 @@ POST /api/time-blocks/from-task
   "task_id": "UUID (required)",
   "start_time": "string (ISO 8601 UTC, required)",
   "end_time": "string (ISO 8601 UTC, required)",
-  "title": "string | null (optional, 默认使用任务标题)"
+  "start_time_local": "string | null (optional, HH:MM:SS format, 本地开始时间)",
+  "end_time_local": "string | null (optional, HH:MM:SS format, 本地结束时间)",
+  "time_type": "string | null (optional, 'FLOATING' | 'FIXED', 默认 'FLOATING')",
+  "creation_timezone": "string | null (optional, 创建时的时区，占位字段)",
+  "title": "string | null (optional, 默认使用任务标题)",
+  "is_all_day": "boolean | null (optional, 是否为全天事件)"
 }
 ```
 
@@ -82,6 +87,11 @@ POST /api/time-blocks/from-task
     "id": "uuid",
     "start_time": "2025-10-05T14:00:00Z",
     "end_time": "2025-10-05T15:00:00Z",
+    "start_time_local": "14:00:00",
+    "end_time_local": "15:00:00",
+    "time_type": "FLOATING",
+    "creation_timezone": "Asia/Shanghai",
+    "is_all_day": false,
     "title": "string",
     "glance_note": null,
     "detail_note": null,
