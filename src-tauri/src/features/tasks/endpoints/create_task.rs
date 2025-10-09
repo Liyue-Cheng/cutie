@@ -259,8 +259,7 @@ mod logic {
             external_source_id: None,
             external_source_provider: None,
             external_source_metadata: None,
-            recurrence_rule: None,
-            recurrence_parent_id: None,
+            recurrence_id: None,
             recurrence_original_date: None,
         };
 

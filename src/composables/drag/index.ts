@@ -9,6 +9,7 @@ export { useDragTransfer } from './useDragTransfer'
 export { useAutoScroll } from './useAutoScroll'
 export { useThrottledDragOver, useThrottledCallback } from './useThrottledDragOver'
 export { useDragState } from './useDragState'
+export { useTemplateDrop } from './useTemplateDrop'
 
 // ==================== 跨看板拖放核心 ====================
 export { useCrossViewDrag } from './useCrossViewDrag'

@@ -127,93 +127,100 @@ impl TimeBlockRepository {
         request: &UpdateTimeBlockRequest,
         updated_at: DateTime<Utc>,
     ) -> AppResult<()> {
-        let mut updates = Vec::new();
-        let mut bindings: Vec<String> = Vec::new();
+        // 收集需要更新的列
+        let mut set_clauses: Vec<&str> = Vec::new();
 
-        // 构建动态 UPDATE 语句
+        if request.title.is_some() {
+            set_clauses.push("title = ?");
+        }
+        if request.glance_note.is_some() {
+            set_clauses.push("glance_note = ?");
+        }
+        if request.detail_note.is_some() {
+            set_clauses.push("detail_note = ?");
+        }
+        if request.start_time.is_some() {
+            set_clauses.push("start_time = ?");
+        }
+        if request.end_time.is_some() {
+            set_clauses.push("end_time = ?");
+        }
+        if request.is_all_day.is_some() {
+            set_clauses.push("is_all_day = ?");
+        }
+        if request.area_id.is_some() {
+            set_clauses.push("area_id = ?");
+        }
+        if request.start_time_local.is_some() {
+            set_clauses.push("start_time_local = ?");
+        }
+        if request.end_time_local.is_some() {
+            set_clauses.push("end_time_local = ?");
+        }
+        if request.time_type.is_some() {
+            set_clauses.push("time_type = ?");
+        }
+        if request.creation_timezone.is_some() {
+            set_clauses.push("creation_timezone = ?");
+        }
+
+        // 如果没有任何字段要更新，直接返回
+        if set_clauses.is_empty() {
+            return Ok(());
+        }
+
+        // 追加更新时间
+        set_clauses.push("updated_at = ?");
+        let update_clause = set_clauses.join(", ");
+        let query = format!("UPDATE time_blocks SET {} WHERE id = ?", update_clause);
+
+        let mut q = sqlx::query(&query);
+
+        // 按顺序绑定各字段的值
         if let Some(ref title_opt) = request.title {
-            updates.push("title = ?");
-            bindings.push(title_opt.clone().unwrap_or_default());
+            q = q.bind(title_opt.as_ref());
         }
-
         if let Some(ref glance_note_opt) = request.glance_note {
-            updates.push("glance_note = ?");
-            bindings.push(glance_note_opt.clone().unwrap_or_default());
+            q = q.bind(glance_note_opt.as_ref());
         }
-
         if let Some(ref detail_note_opt) = request.detail_note {
-            updates.push("detail_note = ?");
-            bindings.push(detail_note_opt.clone().unwrap_or_default());
+            q = q.bind(detail_note_opt.as_ref());
         }
-
         if let Some(start_time) = request.start_time {
-            updates.push("start_time = ?");
-            bindings.push(start_time.to_rfc3339());
+            q = q.bind(start_time.to_rfc3339());
         }
-
         if let Some(end_time) = request.end_time {
-            updates.push("end_time = ?");
-            bindings.push(end_time.to_rfc3339());
+            q = q.bind(end_time.to_rfc3339());
         }
-
         if let Some(is_all_day) = request.is_all_day {
-            updates.push("is_all_day = ?");
-            bindings.push(if is_all_day { "1" } else { "0" }.to_string());
+            q = q.bind(is_all_day);
         }
-
         if let Some(ref area_id_opt) = request.area_id {
-            updates.push("area_id = ?");
-            bindings.push(area_id_opt.map(|id| id.to_string()).unwrap_or_default());
+            let bind_val: Option<String> = area_id_opt.map(|id| id.to_string());
+            q = q.bind(bind_val);
         }
-
         if let Some(ref start_time_local_opt) = request.start_time_local {
-            updates.push("start_time_local = ?");
-            bindings.push(start_time_local_opt.clone().unwrap_or_default());
+            q = q.bind(start_time_local_opt.as_ref());
         }
-
         if let Some(ref end_time_local_opt) = request.end_time_local {
-            updates.push("end_time_local = ?");
-            bindings.push(end_time_local_opt.clone().unwrap_or_default());
+            q = q.bind(end_time_local_opt.as_ref());
         }
-
         if let Some(time_type) = request.time_type {
-            updates.push("time_type = ?");
             let time_type_str = match time_type {
                 crate::entities::time_block::TimeType::Floating => "FLOATING",
                 crate::entities::time_block::TimeType::Fixed => "FIXED",
             };
-            bindings.push(time_type_str.to_string());
+            q = q.bind(time_type_str);
         }
-
         if let Some(ref creation_tz_opt) = request.creation_timezone {
-            updates.push("creation_timezone = ?");
-            bindings.push(creation_tz_opt.clone().unwrap_or_default());
-        }
-
-        // 如果没有任何字段要更新，直接返回
-        if updates.is_empty() {
-            return Ok(());
-        }
-
-        // 添加 updated_at
-        updates.push("updated_at = ?");
-
-        let query = format!("UPDATE time_blocks SET {} WHERE id = ?", updates.join(", "));
-
-        let mut query_builder = sqlx::query(&query);
-
-        // 绑定参数
-        for binding in bindings {
-            query_builder = query_builder.bind(binding);
+            q = q.bind(creation_tz_opt.as_ref());
         }
 
         // 绑定 updated_at 和 id
-        query_builder = query_builder
-            .bind(updated_at.to_rfc3339())
-            .bind(block_id.to_string());
+        q = q.bind(updated_at.to_rfc3339());
+        q = q.bind(block_id.to_string());
 
-        query_builder
-            .execute(&mut **tx)
+        q.execute(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 

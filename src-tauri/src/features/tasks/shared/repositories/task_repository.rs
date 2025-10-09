@@ -21,7 +21,7 @@ impl TaskRepository {
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date
+                   recurrence_id, recurrence_original_date
             FROM tasks
             WHERE id = ? AND deleted_at IS NULL
         "#;
@@ -49,7 +49,7 @@ impl TaskRepository {
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date
+                   recurrence_id, recurrence_original_date
             FROM tasks
             WHERE id = ? AND deleted_at IS NULL
         "#;
@@ -78,8 +78,8 @@ impl TaskRepository {
                 project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
-                recurrence_rule, recurrence_parent_id, recurrence_original_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                recurrence_id, recurrence_original_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -118,8 +118,7 @@ impl TaskRepository {
                     .as_ref()
                     .map(|m| serde_json::to_string(m).unwrap()),
             )
-            .bind(&task.recurrence_rule)
-            .bind(task.recurrence_parent_id.map(|id| id.to_string()))
+            .bind(task.recurrence_id.map(|id| id.to_string()))
             .bind(&task.recurrence_original_date)
             .execute(&mut **tx)
             .await
@@ -281,7 +280,7 @@ impl TaskRepository {
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date
+                   recurrence_id, recurrence_original_date
             FROM tasks
             WHERE id = ? AND deleted_at IS NOT NULL
         "#;
@@ -313,7 +312,7 @@ impl TaskRepository {
                    subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
-                   recurrence_rule, recurrence_parent_id, recurrence_original_date
+                   recurrence_id, recurrence_original_date
             FROM tasks
             WHERE deleted_at IS NOT NULL
             ORDER BY deleted_at DESC

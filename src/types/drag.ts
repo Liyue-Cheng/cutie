@@ -192,9 +192,23 @@ export interface AutoScrollOptions {
 /**
  * HTML5 拖拽数据传输格式
  */
-export interface DragTransferData {
+export type DragTransferData = TaskDragData | TemplateDragData
+
+/**
+ * 任务拖放数据
+ */
+export interface TaskDragData {
   type: 'task'
   task: TaskCard
   sourceView: ViewMetadata
   dragMode: NormalDragMode | SnapDragMode
+}
+
+/**
+ * 模板拖放数据
+ */
+export interface TemplateDragData {
+  type: 'template'
+  templateId: string
+  templateName: string
 }

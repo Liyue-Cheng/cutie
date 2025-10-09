@@ -8,6 +8,7 @@ import {
   useDragTransfer,
   useSameViewDrag,
   useCrossViewDragTarget,
+  useTemplateDrop,
 } from '@/composables/drag'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
@@ -71,6 +72,9 @@ const sameViewDrag = useSameViewDrag(() => effectiveTasks.value)
 // 注意：这里使用初始值，如果 viewMetadata 在运行时变化，可能需要重新考虑
 const initialViewMetadata = effectiveViewMetadata.value
 const crossViewTarget = useCrossViewDragTarget(initialViewMetadata)
+
+// 模板拖放处理
+const templateDrop = useTemplateDrop()
 
 // ==================== 任务创建 ====================
 
@@ -401,6 +405,22 @@ function handleContainerDragLeave(event: DragEvent) {
  */
 async function handleDrop(event: DragEvent) {
   event.preventDefault()
+
+  // 0. 优先处理模板拖放
+  const templateResult = await templateDrop.handleTemplateDrop(event, effectiveViewMetadata.value)
+  if (templateResult.handled) {
+    if (!templateResult.success) {
+      logger.error(
+        LogTags.COMPONENT_KANBAN_COLUMN,
+        'Template drop failed',
+        new Error(templateResult.error || 'Unknown error')
+      )
+      if (templateResult.error) {
+        alert(templateResult.error)
+      }
+    }
+    return // 模板拖放已处理，直接返回
+  }
 
   // 1. 尝试跨看板拖放
   // 预先记录当前预览的插入索引（目标 composable 在 handleDrop 内会清理状态）

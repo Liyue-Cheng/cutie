@@ -63,6 +63,7 @@ cat src-tauri/migrations/20241001000000_initial_schema.sql
 ```
 
 **常见错误**:
+
 ```rust
 // ❌ 错误: 猜测表名
 SELECT * FROM ordering WHERE ...
@@ -76,6 +77,7 @@ SELECT * FROM orderings WHERE ...  // 表名是 orderings
 **必须先查看** [公共资源完整清单](#公共资源完整清单),避免重复实现!
 
 检查项:
+
 - [ ] 需要的 Repository 是否已存在?
 - [ ] 需要的 Assembler 是否已存在?
 - [ ] 需要的工具函数是否已存在?
@@ -87,6 +89,7 @@ SELECT * FROM orderings WHERE ...  // 表名是 orderings
 #### 1.3 参考类似功能
 
 根据复杂度选择参考:
+
 - 简单 CRUD → 参考 `features/areas/endpoints/create_area.rs`
 - 复杂业务逻辑 → 参考 `features/tasks/endpoints/complete_task.rs`
 - 跨实体操作 → 参考 `features/time_blocks/endpoints/create_from_task.rs`
@@ -416,6 +419,7 @@ mod database {
 #### 3.2 关键检查项
 
 **依赖注入 ✅**:
+
 ```rust
 // ✅ 正确
 let id = app_state.id_generator().new_uuid();
@@ -428,6 +432,7 @@ let now = app_state.clock().now();
 ```
 
 **事务管理 ✅**:
+
 ```rust
 // ✅ 使用 TransactionHelper
 use crate::features::shared::TransactionHelper;
@@ -438,6 +443,7 @@ TransactionHelper::commit(tx).await?;
 ```
 
 **使用共享资源 ✅**:
+
 ```rust
 // ✅ 正确: 使用已有的 Repository
 use crate::features::tasks::shared::repositories::TaskRepository;
@@ -574,6 +580,7 @@ pub fn create_api_router() -> Router<AppState> {
 **文件**: `src-tauri/src/features/xxx/API_SPEC.md`
 
 参考其他功能的 API_SPEC.md,包含:
+
 - 功能概述
 - 端点清单
 - 每个端点的完整 CABC 文档
@@ -625,19 +632,15 @@ import { ref, computed } from 'vue'
 export const entities = ref(new Map<string, Entity>())
 
 // ==================== Getters ====================
-export const allEntities = computed(() =>
-  Array.from(entities.value.values())
-)
+export const allEntities = computed(() => Array.from(entities.value.values()))
 
-export const getEntityById = computed(() => (id: string) =>
-  entities.value.get(id)
-)
+export const getEntityById = computed(() => (id: string) => entities.value.get(id))
 
 // ==================== Mutations ====================
 export function addOrUpdateEntity(entity: Entity) {
   const newMap = new Map(entities.value)
   newMap.set(entity.id, entity)
-  entities.value = newMap  // ✅ 创建新对象触发响应式
+  entities.value = newMap // ✅ 创建新对象触发响应式
 }
 
 export function removeEntity(id: string) {
@@ -655,6 +658,20 @@ export function clearAll() {
 
 **文件**: `src/stores/xxx/crud-operations.ts`
 
+**⚠️ 重要：后端响应数据格式**
+
+后端所有成功响应都使用 `ApiResponse` 包装：
+
+```typescript
+interface ApiResponse<T> {
+  data: T // 实际数据
+  timestamp: string // 响应时间戳
+  request_id: string | null
+}
+```
+
+**前端必须从 `response.data` 中提取实际数据！**
+
 ```typescript
 import { apiBaseUrl } from '@/composables/useApiConfig'
 import { addOrUpdateEntity, removeEntity } from './core'
@@ -670,15 +687,14 @@ export async function createEntity(payload: CreateEntityPayload): Promise<Entity
     throw new Error('Failed to create entity')
   }
 
-  const entity: Entity = await response.json()  // ⚠️ 直接解析,不要提取 .data
+  // ✅ 正确：提取 .data 字段
+  const responseData = await response.json()
+  const entity: Entity = responseData.data
   addOrUpdateEntity(entity)
   return entity
 }
 
-export async function updateEntity(
-  id: string,
-  payload: UpdateEntityPayload
-): Promise<Entity> {
+export async function updateEntity(id: string, payload: UpdateEntityPayload): Promise<Entity> {
   const response = await fetch(`${apiBaseUrl.value}/xxx/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -689,7 +705,9 @@ export async function updateEntity(
     throw new Error('Failed to update entity')
   }
 
-  const entity: Entity = await response.json()
+  // ✅ 正确：提取 .data 字段
+  const responseData = await response.json()
+  const entity: Entity = responseData.data
   addOrUpdateEntity(entity)
   return entity
 }
@@ -722,7 +740,7 @@ export async function fetchAllEntities(): Promise<void> {
     throw new Error('Failed to fetch entities')
   }
 
-  const entities: Entity[] = await response.json()  // ⚠️ 直接解析数组
+  const entities: Entity[] = await response.json() // ⚠️ 直接解析数组
 
   clearAll()
   entities.forEach(addOrUpdateEntity)
@@ -809,7 +827,7 @@ export const useEntityStore = defineStore('entity', () => {
 import { useEntityStore } from '@/stores/xxx'
 
 const entityStore = useEntityStore()
-entityStore.initEventSubscriptions()  // ← 添加
+entityStore.initEventSubscriptions() // ← 添加
 ```
 
 ---
@@ -902,6 +920,7 @@ async function handleDelete(id: string) {
 ##### 📦 Repositories
 
 **`AreaRepository`** (`features/shared/repositories/area_repository.rs`)
+
 ```rust
 // 获取单个 Area 摘要
 pub async fn get_summary(
@@ -919,6 +938,7 @@ pub async fn get_summaries_batch(
 ##### 🔧 Utilities
 
 **`TransactionHelper`** (`features/shared/transaction.rs`)
+
 ```rust
 // 开始事务 (统一错误处理)
 pub async fn begin(pool: &SqlitePool) -> AppResult<Transaction<'_, Sqlite>>
@@ -928,6 +948,7 @@ pub async fn commit(tx: Transaction<'_, Sqlite>) -> AppResult<()>
 ```
 
 **使用示例**:
+
 ```rust
 use crate::features::shared::{repositories::AreaRepository, TransactionHelper};
 
@@ -943,6 +964,7 @@ TransactionHelper::commit(tx).await?;
 ##### 📦 Repositories
 
 **`TaskRepository`** (`repositories/task_repository.rs`)
+
 ```rust
 // 在事务中查询任务
 pub async fn find_by_id_in_tx(
@@ -991,6 +1013,7 @@ pub async fn set_reopened_in_tx(
 ```
 
 **`TaskScheduleRepository`** (`repositories/task_schedule_repository.rs`)
+
 ```rust
 // 检查任务是否有日程
 pub async fn has_any_schedule(
@@ -1040,6 +1063,7 @@ pub async fn get_all_for_task(
 ```
 
 **`TaskTimeBlockLinkRepository`** (`repositories/task_time_block_link_repository.rs`)
+
 ```rust
 // 创建任务到时间块的链接
 pub async fn link_in_tx(
@@ -1083,6 +1107,7 @@ pub async fn count_remaining_tasks_in_block_in_tx(
 ##### 🏗️ Assemblers
 
 **`TaskAssembler`** (`shared/assembler.rs`)
+
 ```rust
 // 从 Task 实体创建基础 TaskCardDto
 pub fn task_to_card_basic(task: &Task) -> TaskCardDto
@@ -1100,6 +1125,7 @@ pub fn task_to_detail_basic(task: &Task) -> TaskDetailDto
 ```
 
 **`LinkedTaskAssembler`** (`shared/assemblers/linked_task_assembler.rs`)
+
 ```rust
 // 批量获取任务摘要
 pub async fn get_summaries_batch(
@@ -1115,6 +1141,7 @@ pub async fn get_for_time_block(
 ```
 
 **`TimeBlockAssembler`** (`shared/assemblers/time_block_assembler.rs`)
+
 ```rust
 // 查询并组装完整的 TimeBlockViewDto (用于事件载荷)
 pub async fn assemble_for_event_in_tx(
@@ -1136,6 +1163,7 @@ pub async fn assemble_view(
 ##### 📦 Repositories
 
 **`TimeBlockRepository`** (`repositories/time_block_repository.rs`)
+
 ```rust
 // 在事务中查询时间块
 pub async fn find_by_id_in_tx(
@@ -1193,6 +1221,7 @@ pub async fn exists_in_tx(
 ##### 🔍 Utilities
 
 **`TimeBlockConflictChecker`** (`shared/conflict_checker.rs`)
+
 ```rust
 // 检查时间冲突
 pub async fn check_in_tx(
@@ -1210,6 +1239,7 @@ pub async fn check_in_tx(
 ##### 🏗️ Assemblers
 
 **`ViewTaskCardAssembler`** (`shared/task_card_assembler.rs`)
+
 ```rust
 // 为 Task 组装完整 TaskCard (包括 area、schedule_status)
 pub async fn assemble_full(
@@ -1238,6 +1268,7 @@ pub async fn assemble_with_status(
 ##### 排序算法 (LexoRank)
 
 **`sort_order_utils.rs`**
+
 ```rust
 use crate::shared::core::utils::{
     generate_initial_sort_order,  // 生成初始排序字符串
@@ -1257,6 +1288,7 @@ let mut chars: Vec<char> = max.chars().collect();
 ##### 时间工具
 
 **`time_utils.rs`**
+
 ```rust
 use crate::shared::core::utils::time_utils;
 
@@ -1270,6 +1302,7 @@ use crate::shared::core::utils::time_utils;
 #### API 配置
 
 **`src/composables/useApiConfig.ts`**
+
 ```typescript
 import { apiBaseUrl, waitForApiReady } from '@/composables/useApiConfig'
 
@@ -1283,6 +1316,7 @@ const response = await fetch('http://127.0.0.1:3538/api/tasks')
 #### SSE 服务
 
 **`src/services/events.ts`**
+
 ```typescript
 import { getEventSubscriber } from '@/services/events'
 
@@ -1348,6 +1382,7 @@ Vue 组件 (UI)
 **重要**: 某些实体/DTO 可能被多个功能模块使用!
 
 **查找跨功能依赖**:
+
 ```bash
 # 查找所有组装该 DTO 的位置
 grep -rn "TimeBlockViewDto {" src-tauri/src/features
@@ -1375,6 +1410,7 @@ grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features
 **原因**: 硬编码了端口号,但 Tauri sidecar 使用动态端口
 
 **错误代码**:
+
 ```typescript
 // ❌ 错误: 硬编码端口
 const response = await fetch(
@@ -1384,6 +1420,7 @@ const response = await fetch(
 ```
 
 **正确代码**:
+
 ```typescript
 // ✅ 正确: 使用动态端口
 import { apiBaseUrl } from '@/composables/useApiConfig'
@@ -1403,10 +1440,12 @@ const response = await fetch(
 **原因**: 后端输入输出使用不同的枚举格式
 
 后端有两个枚举:
+
 - **输入**: `Outcome` (UPPERCASE: `PLANNED`, `PRESENCE_LOGGED`)
 - **输出**: `DailyOutcome` (snake_case: `planned`, `presence_logged`)
 
 **解决方案**:
+
 ```typescript
 // ✅ 正确: 接收时使用 snake_case (来自 DTO)
 const isPresenceLogged = computed(() => {
@@ -1427,6 +1466,7 @@ await taskStore.updateSchedule(taskId, date, { outcome: newOutcome })
 **原因**: 虽然数据库有字段,但 DTO 和 Assembler 缺少映射
 
 **数据流断点**:
+
 ```
 数据库 (tasks.estimated_duration)
     ↓ ✅ Task 实体有字段
@@ -1463,21 +1503,25 @@ await taskStore.updateSchedule(taskId, date, { outcome: newOutcome })
 **SSE 事件链完整性检查清单**:
 
 **后端 (Rust)**:
+
 - [ ] 端点发送 SSE 事件 (EventOutbox)
 - [ ] SSE payload 包含完整数据,不只是 ID
 - [ ] 事件类型命名一致 (如 time_blocks.linked)
 
 **中间层 (events.ts)**:
+
 - [ ] EventSource.addEventListener 注册了该事件类型
 - [ ] handleEvent 正确解析和分发
 
 **前端 Store**:
+
 - [ ] Store 实现了 initEventSubscriptions
 - [ ] Store 订阅了所有相关事件
 - [ ] Event handler 正确处理数据
 - [ ] useApiConfig.ts 中调用了 initEventSubscriptions
 
 **测试验证**:
+
 - [ ] 控制台可以看到 SSE 事件日志
 - [ ] Store handler 被正确调用
 - [ ] UI 实时更新,无需手动刷新
@@ -1489,6 +1533,7 @@ await taskStore.updateSchedule(taskId, date, { outcome: newOutcome })
 **错误设计**: 基于 `time_block.title == deleted_task.title` 判断是否删除
 
 **Bug 场景**:
+
 ```
 1. 任务 A 创建时间块 K (title="任务A")
 2. 链接任务 B 到时间块 K
@@ -1513,9 +1558,95 @@ Ok(false)  // 其他来源一律保留
 ```
 
 **教训**:
+
 - ❌ 不要使用易变的业务数据 (如标题) 作为逻辑判断依据
 - ✅ 使用明确的元数据 (source_type) 标记来源和意图
 - ✅ 采用命名空间化设计,便于未来扩展
+
+---
+
+### 6. 前端未正确提取后端响应数据导致功能失败 (2025-10-09)
+
+**问题**: 从模板创建任务时，任务创建成功但前端报错"未返回任务数据"，界面不显示新任务
+
+**现象**:
+
+```typescript
+// 后端实际返回
+{
+  "data": { id: "...", title: "..." },  // ✅ TaskCard 在这里
+  "timestamp": "2025-10-09T...",
+  "request_id": null
+}
+
+// 前端错误处理
+const taskCard = await response.json()  // ❌ 得到整个包装对象
+if (!taskCard.id) {  // ❌ taskCard.id 是 undefined！
+  throw new Error('未返回任务数据')
+}
+```
+
+**根本原因**:
+
+后端统一使用 `ApiResponse<T>` 包装所有成功响应:
+
+```rust
+// src-tauri/src/shared/http/responses.rs
+pub struct ApiResponse<T> {
+    pub data: T,
+    pub timestamp: DateTime<Utc>,
+    pub request_id: Option<String>,
+}
+
+// src-tauri/src/shared/http/error_handler.rs
+pub fn created_response<T: serde::Serialize>(data: T) -> impl IntoResponse {
+    (
+        StatusCode::CREATED,
+        Json(super::responses::ApiResponse::success(data)),
+    )
+}
+```
+
+前端必须从 `response.data` 提取实际数据，但很多地方直接使用了 `await response.json()`。
+
+**正确方案**:
+
+```typescript
+// ❌ 错误
+const entity = await response.json()
+return entity
+
+// ✅ 正确
+const responseData = await response.json()
+const entity = responseData.data // 提取 data 字段
+return entity
+```
+
+**影响范围**: 所有 POST/PATCH 请求（GET 请求也使用 `ApiResponse` 包装）
+
+**修复检查清单**:
+
+- [ ] 所有 `createXxx` 函数
+- [ ] 所有 `updateXxx` 函数
+- [ ] 所有 `fetchXxx` 函数（如果返回单个对象）
+- [ ] 特殊端点（如 `createTaskFromTemplate`）
+
+**教训**:
+
+- ✅ 前后端约定必须明确文档化
+- ✅ 在开发手册中明确说明响应格式
+- ✅ 新增 API 调用时参考现有正确实现
+- ✅ 添加详细日志帮助快速定位问题
+
+**调试技巧**:
+
+```typescript
+// 添加详细日志
+const responseData = await response.json()
+console.log('Raw response:', responseData)
+console.log('Has data field:', !!responseData?.data)
+console.log('Data keys:', responseData?.data ? Object.keys(responseData.data) : [])
+```
 
 ---
 
@@ -1524,11 +1655,13 @@ Ok(false)  // 其他来源一律保留
 ### 后端开发检查清单
 
 **开发前**:
+
 - [ ] 查看数据库 Schema (`migrations/xxx.sql`)
 - [ ] 查看共享资源清单,确认可复用的 Repository/Assembler
 - [ ] 选择参考实现 (Area/Task/TimeBlock)
 
 **实体层**:
+
 - [ ] 创建 Entity struct
 - [ ] 创建 EntityRow struct
 - [ ] 实现 TryFrom<EntityRow>
@@ -1537,6 +1670,7 @@ Ok(false)  // 其他来源一律保留
 - [ ] 导出模块
 
 **端点层 (SFC)**:
+
 - [ ] 编写完整的 CABC 文档
 - [ ] 实现 HTTP Handler
 - [ ] 实现 Validation (如需要)
@@ -1550,13 +1684,16 @@ Ok(false)  // 其他来源一律保留
 - [ ] SSE 和 HTTP 返回相同数据
 
 **路由注册**:
+
 - [ ] 在 feature 的 mod.rs 中注册端点
 - [ ] 在 features/mod.rs 中注册 feature
 
 **文档**:
+
 - [ ] 编写 API_SPEC.md
 
 **测试**:
+
 - [ ] 运行 `cargo check`
 - [ ] 运行 `cargo clippy`
 - [ ] 测试 API (curl/Postman)
@@ -1568,9 +1705,11 @@ Ok(false)  // 其他来源一律保留
 ### 前端开发检查清单
 
 **类型层**:
+
 - [ ] 在 `src/types/dtos.ts` 添加 interface
 
 **Store 层**:
+
 - [ ] 创建 core.ts (State & Getters)
 - [ ] 创建 crud-operations.ts
 - [ ] 创建 view-operations.ts
@@ -1579,15 +1718,18 @@ Ok(false)  // 其他来源一律保留
 - [ ] 在 useApiConfig.ts 初始化 SSE 订阅
 
 **SSE 层**:
+
 - [ ] 在 events.ts 注册 addEventListener
 
 **UI 层**:
+
 - [ ] 创建管理/列表组件
 - [ ] 创建编辑/详情组件
 - [ ] 添加路由
 - [ ] 添加导航链接
 
 **测试**:
+
 - [ ] 检查 linter 错误
 - [ ] 测试 CRUD 操作
 - [ ] 测试 SSE 实时更新
@@ -1600,6 +1742,7 @@ Ok(false)  // 其他来源一律保留
 **当你添加/修改字段时,必须检查**:
 
 **后端**:
+
 - [ ] Schema: migrations/xxx.sql
 - [ ] Entity: entities/xxx/model.rs (Entity + EntityRow + TryFrom)
 - [ ] Request DTO: entities/xxx/request_dtos.rs
@@ -1610,6 +1753,7 @@ Ok(false)  // 其他来源一律保留
 - [ ] 跨功能 Repository: `grep -rn "SELECT.*FROM xxx" src-tauri/src/features`
 
 **前端**:
+
 - [ ] DTO: src/types/dtos.ts
 - [ ] Store: src/stores/xxx.ts
 - [ ] UI: 显示和编辑逻辑
@@ -1638,7 +1782,7 @@ Ok(false)  // 其他来源一律保留
 1. **后端返回真实状态**: 查询 DB,不用默认值
 2. **后端返回完整数据**: 包含受影响的关联对象
 3. **先填充后发送**: SSE 之前填充所有关联数据
-4. **前端直接解析**: 不要尝试从 `result.data` 提取
+4. **前端正确提取数据**: ⚠️ **必须从 `responseData.data` 提取** (见 Q7)
 5. **前端创建新对象**: `new Map(...)` 触发响应式
 
 ---
@@ -1672,14 +1816,17 @@ Ok(false)  // 其他来源一律保留
 **A**: 常见编译错误:
 
 **错误 1**: `no column found for name: xxx`
+
 - **原因**: 忘记在 SQL SELECT 中添加新字段
 - **解决**: 更新所有查询该表的 SQL
 
 **错误 2**: `missing field 'xxx' in initializer`
+
 - **原因**: Assembler 或 DTO 初始化缺少字段
 - **解决**: 更新装配器和所有 DTO 初始化
 
 **错误 3**: `method not found in IdGenerator`
+
 - **原因**: 使用了错误的方法名
 - **解决**: 使用 `new_uuid()` 而非 `generate()`
 
@@ -1702,6 +1849,52 @@ grep -rn "DomainEvent::new" src-tauri/src
 
 ---
 
+### Q7: 为什么后端返回了数据但前端报错"未返回数据"?
+
+**A**: 检查是否正确提取了 `ApiResponse` 包装的数据
+
+**症状**:
+
+```typescript
+const task = await response.json()
+console.log(task) // { data: {...}, timestamp: "...", request_id: null }
+console.log(task.id) // undefined ❌
+```
+
+**原因**: 后端所有成功响应都使用 `ApiResponse<T>` 包装
+
+**解决方案**:
+
+```typescript
+// ❌ 错误
+const entity = await response.json()
+return entity // 返回的是整个包装对象
+
+// ✅ 正确
+const responseData = await response.json()
+const entity = responseData.data // 提取 data 字段
+return entity
+```
+
+**快速检查**:
+
+```typescript
+// 在浏览器 Network Tab 中查看响应
+// 如果看到 { data: {...}, timestamp: "...", request_id: null }
+// 那么就需要提取 .data
+```
+
+**影响范围**:
+
+- ✅ 所有 POST 请求 (创建资源)
+- ✅ 所有 PATCH 请求 (更新资源)
+- ✅ 所有 GET 请求 (获取单个资源)
+- ❌ DELETE 请求通常返回 204 No Content
+
+**相关教训**: 见 [关键经验教训 #6](#6-前端未正确提取后端响应数据导致功能失败-2025-10-09)
+
+---
+
 ## 总结
 
 ### 开发新功能的核心步骤
@@ -1721,6 +1914,7 @@ grep -rn "DomainEvent::new" src-tauri/src
 - ✅ **数据真实**: 查询实际状态,不用默认值
 - ✅ **SSE 一致**: 先填充数据,再发送事件
 - ✅ **文档驱动**: 代码必须与 CABC 文档一致
+- ✅ **响应提取**: 前端必须从 `responseData.data` 提取数据
 
 ### 遇到问题时
 

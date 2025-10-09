@@ -16,13 +16,13 @@ pub mod shared;
 
 pub mod areas;
 pub mod tasks;
+pub mod templates;
 pub mod time_blocks;
 pub mod trash;
 pub mod view_preferences;
 pub mod views;
 // 其他功能模块（待迁移）
 // pub mod schedules;
-// pub mod templates;
 
 /// 创建所有功能模块的API路由器
 ///
@@ -34,6 +34,7 @@ pub fn create_api_router() -> Router<AppState> {
     Router::new()
         .nest("/areas", areas::create_routes())
         .nest("/tasks", tasks::create_routes())
+        .nest("/templates", templates::create_routes())
         .nest("/time-blocks", time_blocks::create_routes())
         .nest("/trash", trash::create_routes())
         .nest("/view-preferences", view_preferences::create_routes())
@@ -41,5 +42,4 @@ pub fn create_api_router() -> Router<AppState> {
         .route("/events/stream", get(sse::handle))
     // 其他路由（待迁移）
     // .nest("/schedules", schedules::create_routes())
-    // .nest("/templates", templates::create_routes())
 }

@@ -29,12 +29,17 @@ export function useDragTransfer() {
       event.dataTransfer.setData(DRAG_DATA_TYPE, jsonString)
       event.dataTransfer.effectAllowed = 'copyMove' // ✅ 修复：允许 copy 和 move
 
-      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data set', {
-        type: data.type,
-        taskId: data.task.id,
-        sourceView: data.sourceView.id,
-        dragMode: data.dragMode.mode,
-      })
+      const logData: any = { type: data.type }
+      if (data.type === 'task') {
+        logData.taskId = data.task.id
+        logData.sourceView = data.sourceView.id
+        logData.dragMode = data.dragMode.mode
+      } else if (data.type === 'template') {
+        logData.templateId = data.templateId
+        logData.templateName = data.templateName
+      }
+
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data set', logData)
 
       // 🔍 检查点1：effectAllowed/dropEffect 匹配
       logger.debug(LogTags.DRAG_CROSS_VIEW, 'Effect allowed and types', {
@@ -70,12 +75,17 @@ export function useDragTransfer() {
 
       const data = JSON.parse(jsonString) as DragTransferData
 
-      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data retrieved', {
-        type: data.type,
-        taskId: data.task.id,
-        sourceView: data.sourceView.id,
-        dragMode: data.dragMode.mode,
-      })
+      const logData: any = { type: data.type }
+      if (data.type === 'task') {
+        logData.taskId = data.task.id
+        logData.sourceView = data.sourceView.id
+        logData.dragMode = data.dragMode.mode
+      } else if (data.type === 'template') {
+        logData.templateId = data.templateId
+        logData.templateName = data.templateName
+      }
+
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data retrieved', logData)
 
       return data
     } catch (error) {

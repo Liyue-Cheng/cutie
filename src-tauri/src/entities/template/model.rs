@@ -9,6 +9,35 @@ use uuid::Uuid;
 
 use crate::entities::task::Subtask;
 
+/// 模板类别枚举
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TemplateCategory {
+    General,
+    Recurrence,
+}
+
+impl TemplateCategory {
+    pub fn as_str(&self) -> &str {
+        match self {
+            TemplateCategory::General => "GENERAL",
+            TemplateCategory::Recurrence => "RECURRENCE",
+        }
+    }
+}
+
+impl TryFrom<&str> for TemplateCategory {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "GENERAL" => Ok(TemplateCategory::General),
+            "RECURRENCE" => Ok(TemplateCategory::Recurrence),
+            _ => Err(format!("Invalid template category: {}", s)),
+        }
+    }
+}
+
 /// Template (模板) 实体定义
 ///
 /// 一个用于快速创建新Task的预设配置。
@@ -17,16 +46,11 @@ pub struct Template {
     /// 模板ID (主键)
     pub id: Uuid,
 
-    /// 模板名称
+    /// 模板标题
     ///
-    /// **前置条件:** 不能为空，用于在模板列表中展示
-    pub name: String,
-
-    /// 标题模板
-    ///
-    /// **后置条件:** 定义了当使用此模板创建Task时，新Task标题字段的初始值
+    /// **前置条件:** 不能为空，定义了当使用此模板创建Task时，新Task标题字段的初始值
     /// 可能包含特定的模板变量（如{{date}}），由服务层在实例化时进行解析和替换
-    pub title_template: String,
+    pub title: String,
 
     /// 快览笔记模板 (可选)
     pub glance_note_template: Option<String>,
@@ -42,6 +66,9 @@ pub struct Template {
 
     /// 领域ID (外键, 可选)
     pub area_id: Option<Uuid>,
+
+    /// 模板类别
+    pub category: TemplateCategory,
 
     /// 创建时间
     pub created_at: DateTime<Utc>,
@@ -60,13 +87,13 @@ pub struct Template {
 #[derive(Debug, FromRow)]
 pub struct TemplateRow {
     pub id: String,
-    pub name: String,
-    pub title_template: String,
+    pub title: String,
     pub glance_note_template: Option<String>,
     pub detail_note_template: Option<String>,
     pub estimated_duration_template: Option<i32>,
     pub subtasks_template: Option<String>, // JSON
     pub area_id: Option<String>,
+    pub category: String,
     pub created_at: DateTime<Utc>, // SQLx自动转换
     pub updated_at: DateTime<Utc>, // SQLx自动转换
     pub is_deleted: bool,
@@ -78,8 +105,7 @@ impl TryFrom<TemplateRow> for Template {
     fn try_from(row: TemplateRow) -> Result<Self, Self::Error> {
         Ok(Template {
             id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
-            name: row.name,
-            title_template: row.title_template,
+            title: row.title,
             glance_note_template: row.glance_note_template,
             detail_note_template: row.detail_note_template,
             estimated_duration_template: row.estimated_duration_template,
@@ -88,6 +114,7 @@ impl TryFrom<TemplateRow> for Template {
                 .as_ref()
                 .and_then(|s| serde_json::from_str(s).ok()),
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
+            category: TemplateCategory::try_from(row.category.as_str())?,
             created_at: row.created_at, // SQLx已经转换
             updated_at: row.updated_at, // SQLx已经转换
             is_deleted: row.is_deleted,
@@ -97,16 +124,16 @@ impl TryFrom<TemplateRow> for Template {
 
 impl Template {
     /// 创建新的模板
-    pub fn new(id: Uuid, name: String, title_template: String, created_at: DateTime<Utc>) -> Self {
+    pub fn new(id: Uuid, title: String, created_at: DateTime<Utc>) -> Self {
         Self {
             id,
-            name,
-            title_template,
+            title,
             glance_note_template: None,
             detail_note_template: None,
             estimated_duration_template: None,
             subtasks_template: None,
             area_id: None,
+            category: TemplateCategory::General,
             created_at,
             updated_at: created_at,
             is_deleted: false,
@@ -115,7 +142,7 @@ impl Template {
 
     /// 检查模板是否包含变量
     pub fn has_variables(&self) -> bool {
-        self.title_template.contains("{{")
+        self.title.contains("{{")
             || self
                 .glance_note_template
                 .as_ref()
@@ -132,7 +159,7 @@ impl Template {
 
         // 简单的变量提取逻辑
         for template in [
-            Some(&self.title_template),
+            Some(&self.title),
             self.glance_note_template.as_ref(),
             self.detail_note_template.as_ref(),
         ]

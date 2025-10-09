@@ -166,3 +166,31 @@ export interface TimeBlockView {
   // --- 其他元信息 ---
   is_recurring: boolean
 }
+
+/**
+ * 模板类别
+ */
+export type TemplateCategory = 'GENERAL' | 'RECURRENCE'
+
+/**
+ * Template (模板)
+ *
+ * 用途: 快速创建具有相同结构的任务
+ */
+export interface Template {
+  id: string
+  title: string
+  glance_note_template: string | null
+  detail_note_template: string | null
+  estimated_duration_template: number | null
+  subtasks_template: Array<{
+    id: string
+    title: string
+    is_completed: boolean
+    sort_order: string
+  }> | null
+  area_id: string | null
+  category: TemplateCategory
+  created_at: string
+  updated_at: string
+}

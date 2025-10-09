@@ -72,13 +72,11 @@ CREATE TABLE tasks (
     external_source_id TEXT,
     external_source_provider TEXT,
     external_source_metadata TEXT, -- JSON
-    recurrence_rule TEXT,
-    recurrence_parent_id TEXT,
     recurrence_original_date TEXT, -- YYYY-MM-DD (日历日期字符串)
+    recurrence_id TEXT, -- 关联循环规则表
     
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (area_id) REFERENCES areas(id),
-    FOREIGN KEY (recurrence_parent_id) REFERENCES tasks(id),
     
     -- 确保due_date和due_date_type的一致性
     CHECK (
@@ -96,6 +94,8 @@ CREATE INDEX idx_tasks_external_source_id ON tasks(external_source_id);
 CREATE INDEX idx_tasks_completed_at ON tasks(completed_at);
 CREATE INDEX idx_tasks_archived_at ON tasks(archived_at);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);
+CREATE INDEX idx_tasks_recurrence_id ON tasks(recurrence_id);
+CREATE INDEX idx_tasks_recurrence_original_date ON tasks(recurrence_original_date);
 
 -- 创建 time_blocks 表 (时间块表)
 CREATE TABLE time_blocks (
@@ -142,13 +142,13 @@ CREATE INDEX idx_time_blocks_time_type ON time_blocks(time_type);
 -- 创建 templates 表 (模板表)
 CREATE TABLE templates (
     id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    title_template TEXT NOT NULL,
+    title TEXT NOT NULL,
     glance_note_template TEXT,
     detail_note_template TEXT,
     estimated_duration_template INTEGER,
     subtasks_template TEXT, -- JSON
     area_id TEXT,
+    category TEXT NOT NULL DEFAULT 'GENERAL' CHECK (category IN ('GENERAL', 'RECURRENCE')),
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
@@ -160,6 +160,7 @@ CREATE TABLE templates (
 CREATE INDEX idx_templates_updated_at ON templates(updated_at);
 CREATE INDEX idx_templates_is_deleted ON templates(is_deleted);
 CREATE INDEX idx_templates_area_id ON templates(area_id);
+CREATE INDEX idx_templates_category ON templates(category);
 
 -- 创建 task_schedules 表 (任务日程表)
 CREATE TABLE task_schedules (
@@ -181,6 +182,63 @@ CREATE TABLE task_schedules (
 CREATE INDEX idx_task_schedules_task_id ON task_schedules(task_id);
 CREATE INDEX idx_task_schedules_scheduled_date ON task_schedules(scheduled_date);
 CREATE INDEX idx_task_schedules_outcome ON task_schedules(outcome);
+
+-- ============================================================
+-- 循环任务规则表 (Task Recurrences)
+-- ============================================================
+-- 存储生效的循环规则
+-- 说明：
+-- - rule: 循环字符串（如 RRULE:FREQ=DAILY 或自定义简化串）
+-- - time_type: 'FLOATING' | 'FIXED'，表示是浮动时间还是绝对时间
+-- - start_date/end_date: 可选生效边界（YYYY-MM-DD）
+-- - timezone: 仅当 FIXED 时需要明确解释为某时区本地日
+
+CREATE TABLE task_recurrences (
+    id TEXT PRIMARY KEY NOT NULL,
+    template_id TEXT NOT NULL,
+    rule TEXT NOT NULL,
+    time_type TEXT NOT NULL DEFAULT 'FLOATING' CHECK (time_type IN ('FLOATING', 'FIXED')),
+    start_date TEXT,                         -- YYYY-MM-DD (日历日期字符串)
+    end_date TEXT,                           -- YYYY-MM-DD (日历日期字符串)
+    timezone TEXT,                           -- e.g. "Asia/Shanghai"
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TEXT NOT NULL,                -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL,                -- UTC timestamp in RFC 3339 format
+    
+    FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
+);
+
+-- 为 task_recurrences 表创建索引
+CREATE INDEX idx_task_recurrences_template_id ON task_recurrences(template_id);
+CREATE INDEX idx_task_recurrences_is_active ON task_recurrences(is_active);
+CREATE INDEX idx_task_recurrences_time_type ON task_recurrences(time_type);
+
+-- ============================================================
+-- 循环任务实例链接表 (Task Recurrence Links)
+-- ============================================================
+-- 为每条循环规则在"某一天"的实例与任务建立一条链接
+-- 语义：
+--   - (recurrence_id, instance_date) 联合唯一，保证同一规则同一天只有一个任务
+--   - task_id 唯一，防止同一任务被多条规则/多天重复链接
+-- 用法：
+--   - 查今天是否已有实例：SELECT * FROM task_recurrence_links WHERE recurrence_id=? AND instance_date=?
+--   - 无则创建任务 + 插入链接；有则取出 task_id 并校验任务是否仍属于今天
+
+CREATE TABLE task_recurrence_links (
+    recurrence_id TEXT NOT NULL,
+    instance_date TEXT NOT NULL,             -- YYYY-MM-DD (日历日期字符串)
+    task_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,                -- UTC timestamp in RFC 3339 format
+    
+    PRIMARY KEY (recurrence_id, instance_date),
+    FOREIGN KEY (recurrence_id) REFERENCES task_recurrences(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+-- 为 task_recurrence_links 表创建索引
+CREATE UNIQUE INDEX idx_recurrence_links_task_id ON task_recurrence_links(task_id);
+CREATE INDEX idx_recurrence_links_date ON task_recurrence_links(instance_date);
+CREATE INDEX idx_recurrence_links_recurrence ON task_recurrence_links(recurrence_id);
 
 -- 创建 task_time_block_links 表 (任务-时间块链接表)
 CREATE TABLE task_time_block_links (
