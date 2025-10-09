@@ -1650,6 +1650,180 @@ console.log('Data keys:', responseData?.data ? Object.keys(responseData.data) : 
 
 ---
 
+### 7. 三态字段序列化/反序列化问题 (2025-10-09)
+
+**问题**: 更新请求中的可空字段（如 `area_id`）无法正确设置为 NULL
+
+**背景**: 
+
+在 PATCH 请求中，我们需要区分三种状态：
+1. **不更新该字段** - 前端不发送该字段
+2. **设置为 NULL** - 前端发送 `null`
+3. **设置为新值** - 前端发送具体值
+
+这需要使用 `Option<Option<T>>` 类型（嵌套 Option）。
+
+**错误实现**:
+
+```rust
+// ❌ 错误: 无法区分"不更新"和"设为 NULL"
+#[derive(Deserialize)]
+pub struct UpdateRequest {
+    pub area_id: Option<Uuid>,  // None 既可能是"不发送"也可能是"发送 null"
+}
+```
+
+**序列化问题**:
+
+如果不添加自定义反序列化器，serde 无法正确处理嵌套 Option：
+
+```rust
+// ❌ 错误: 缺少自定义反序列化器
+pub struct UpdateRequest {
+    pub area_id: Option<Option<Uuid>>,  // serde 默认行为不正确
+}
+
+// 前端发送 { "area_id": null }
+// serde 可能解析为 None (不更新) 而非 Some(None) (设为 NULL)
+```
+
+**正确实现**:
+
+**1. 定义自定义反序列化器**:
+
+```rust
+use serde::Deserialize;
+
+/// 自定义反序列化器，用于正确处理三态字段
+/// - 字段缺失 → None (不更新)
+/// - 字段为 null → Some(None) (设为 NULL)
+/// - 字段有值 → Some(Some(value)) (设为值)
+fn deserialize_nullable_field<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    use serde::Deserialize;
+    Ok(Some(Option::deserialize(deserializer)?))
+}
+```
+
+**2. 在 DTO 中使用**:
+
+```rust
+#[derive(Debug, Deserialize, Default)]
+pub struct UpdateTemplateRequest {
+    pub title: Option<String>,  // 非空字段，用普通 Option
+    
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
+    pub glance_note_template: Option<Option<String>>,  // 可空字段
+    
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
+    pub area_id: Option<Option<Uuid>>,  // 可空字段
+}
+```
+
+**3. 在 Repository 中正确绑定**:
+
+```rust
+// ❌ 错误: 将 None 转为空字符串，无法设置 NULL
+if let Some(ref area_id_opt) = request.area_id {
+    bindings.push(area_id_opt.map(|id| id.to_string()).unwrap_or_default());
+}
+
+// ✅ 正确: 保持 Option 类型，让 SQLx 正确处理 NULL
+if let Some(ref area_id_opt) = request.area_id {
+    let bind_val: Option<String> = area_id_opt.map(|id| id.to_string());
+    q = q.bind(bind_val);  // SQLx 会将 None 转为 SQL NULL
+}
+```
+
+**参考实现**:
+
+查看以下文件获取完整示例：
+- `src-tauri/src/entities/task/request_dtos.rs` - Task 的三态字段实现
+- `src-tauri/src/entities/template/request_dtos.rs` - Template 的三态字段实现
+- `src-tauri/src/entities/time_block/request_dtos.rs` - TimeBlock 的三态字段实现
+- `src-tauri/src/features/tasks/shared/repositories/task_repository.rs` - Task 的绑定逻辑
+
+**完整数据流示例**:
+
+```typescript
+// 前端: 更新模板，设置 area_id 为 null
+await updateTemplate(templateId, {
+  title: "新标题",    // 更新为新值
+  area_id: null,      // 设置为 NULL
+  // glance_note 字段不发送 → 不更新
+})
+```
+
+```rust
+// 后端: 接收请求
+pub struct UpdateTemplateRequest {
+    pub title: Option<String>,                              // Some("新标题")
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
+    pub area_id: Option<Option<Uuid>>,                      // Some(None)
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
+    pub glance_note_template: Option<Option<String>>,       // None
+}
+
+// 后端: 构建 SQL
+let mut set_clauses = vec![];
+if request.title.is_some() { set_clauses.push("title = ?"); }        // ✅ 添加
+if request.area_id.is_some() { set_clauses.push("area_id = ?"); }    // ✅ 添加
+if request.glance_note_template.is_some() { /*不添加*/ }             // ❌ 跳过
+
+// 后端: 绑定参数
+if let Some(ref title) = request.title {
+    q = q.bind(title);  // "新标题"
+}
+if let Some(ref area_id_opt) = request.area_id {
+    let bind_val: Option<String> = area_id_opt.map(|id| id.to_string());
+    q = q.bind(bind_val);  // None → SQL NULL
+}
+// glance_note_template 没有绑定
+
+// 最终 SQL
+UPDATE templates SET title = ?, area_id = ?, updated_at = ? WHERE id = ?
+// 绑定值: ["新标题", NULL, "2025-10-09...", "template-uuid"]
+```
+
+**开发检查清单**:
+
+为所有 `UpdateXxxRequest` 添加三态字段支持时：
+
+- [ ] 确定哪些字段是可空的（Schema 中允许 NULL）
+- [ ] 为可空字段使用 `Option<Option<T>>` 类型
+- [ ] 添加 `#[serde(default, deserialize_with = "deserialize_nullable_field")]` 标注
+- [ ] 为 DTO 添加 `#[derive(Default)]`
+- [ ] 复制 `deserialize_nullable_field` 函数（如果文件中没有）
+- [ ] 在 Repository 绑定逻辑中使用 `Option<String>` 而非 `.unwrap_or_default()`
+- [ ] 在验证逻辑中使用双重模式匹配 `if let Some(Some(value))`
+
+**常见错误**:
+
+```rust
+// ❌ 错误 1: 忘记自定义反序列化器
+pub area_id: Option<Option<Uuid>>,  // 缺少 #[serde(...)]
+
+// ❌ 错误 2: 绑定时使用 unwrap_or_default
+bindings.push(area_id_opt.unwrap_or_default());  // 将 None 变成空字符串
+
+// ❌ 错误 3: 验证时单层模式匹配
+if let Some(duration) = request.duration {  // 应该是 Some(Some(duration))
+    if duration <= 0 { ... }
+}
+```
+
+**教训**:
+
+- ✅ 所有 Update DTO 的可空字段必须统一使用三态逻辑
+- ✅ 参考 Task/Template/TimeBlock 的实现保持一致性
+- ✅ 绑定参数时必须保持类型为 `Option<T>`，让数据库驱动处理 NULL
+- ✅ 不要使用 `Vec<String>` 统一绑定所有参数（无法表达 NULL）
+
+---
+
 ## 开发检查清单
 
 ### 后端开发检查清单
