@@ -1,8 +1,9 @@
 import { ref, type Ref } from 'vue'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * 响应式状态管理工具
- * 
+ *
  * 提供标准化的状态操作方法，确保：
  * - 响应式更新的一致性
  * - Map 操作的不可变性
@@ -28,8 +29,8 @@ export function updateMapItem<K, V>(mapRef: Ref<Map<K, V>>, key: K, value: V): v
  * @param getKey 获取键的函数
  */
 export function updateMapItems<K, V>(
-  mapRef: Ref<Map<K, V>>, 
-  items: V[], 
+  mapRef: Ref<Map<K, V>>,
+  items: V[],
   getKey: (item: V) => K
 ): void {
   const newMap = new Map(mapRef.value)
@@ -78,7 +79,7 @@ export function clearMap<K, V>(mapRef: Ref<Map<K, V>>): void {
 export function createLoadingState() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  
+
   /**
    * 包装异步操作，自动管理加载状态
    */
@@ -88,19 +89,19 @@ export function createLoadingState() {
   ): Promise<T | null> => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const result = await operation()
       return result
     } catch (e) {
       error.value = `${errorPrefix}: ${e}`
-      console.error(`[StateUtils] ${errorPrefix}:`, e)
+      logger.error(LogTags.STORE_TASKS, errorPrefix, e instanceof Error ? e : new Error(String(e)))
       return null
     } finally {
       isLoading.value = false
     }
   }
-  
+
   return {
     isLoading,
     error,

@@ -15,6 +15,7 @@
 import { defineProps, defineEmits } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskOperations } from '@/composables/useTaskOperations'
+import { logger, LogTags } from '@/services/logger'
 
 const props = defineProps<{
   task: TaskCard
@@ -29,31 +30,43 @@ const handleAction = async (action: 'edit' | 'delete' | 'archive' | 'unarchive')
     try {
       const success = await taskOps.deleteTask(props.task.id)
       if (success) {
-        console.log(`任务 "${props.task.title}" 已删除`)
+        logger.info(LogTags.COMPONENT_KANBAN, 'Task deleted', { taskTitle: props.task.title })
       }
     } catch (error) {
-      console.error('删除任务失败:', error)
+      logger.error(
+        LogTags.COMPONENT_KANBAN,
+        'Failed to delete task',
+        error instanceof Error ? error : new Error(String(error))
+      )
     }
   } else if (action === 'archive') {
     try {
       const success = await taskOps.archiveTask(props.task.id)
       if (success) {
-        console.log(`任务 "${props.task.title}" 已归档`)
+        logger.info(LogTags.COMPONENT_KANBAN, 'Task archived', { taskTitle: props.task.title })
       }
     } catch (error) {
-      console.error('归档任务失败:', error)
+      logger.error(
+        LogTags.COMPONENT_KANBAN,
+        'Failed to archive task',
+        error instanceof Error ? error : new Error(String(error))
+      )
     }
   } else if (action === 'unarchive') {
     try {
       const success = await taskOps.unarchiveTask(props.task.id)
       if (success) {
-        console.log(`任务 "${props.task.title}" 已取消归档`)
+        logger.info(LogTags.COMPONENT_KANBAN, 'Task unarchived', { taskTitle: props.task.title })
       }
     } catch (error) {
-      console.error('取消归档任务失败:', error)
+      logger.error(
+        LogTags.COMPONENT_KANBAN,
+        'Failed to unarchive task',
+        error instanceof Error ? error : new Error(String(error))
+      )
     }
   } else if (action === 'edit') {
-    console.log(`Action: ${action} on task:`, props.task)
+    logger.debug(LogTags.COMPONENT_KANBAN, 'Task action', { action, taskId: props.task.id })
     // TODO: 实现编辑功能
   }
 

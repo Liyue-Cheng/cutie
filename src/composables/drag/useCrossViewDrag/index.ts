@@ -7,6 +7,7 @@
 import { computed } from 'vue'
 import type { ViewMetadata, StrategyResult, DragStrategy } from '@/types/drag'
 import type { TaskCard } from '@/types/dtos'
+import { logger, LogTags } from '@/services/logger'
 import { useDragContext } from './context'
 import { findStrategy, hasStrategy, getStrategyPriority } from './finder'
 import {
@@ -70,7 +71,11 @@ export function useCrossViewDrag() {
     const context = dragContext.currentContext.value
 
     if (!context) {
-      console.error('[useCrossViewDrag] ❌ No active drag context')
+      logger.error(
+        LogTags.DRAG_CROSS_VIEW,
+        'No active drag context',
+        new Error('Drop attempted without active drag context')
+      )
       return {
         success: false,
         error: '没有活动的拖拽上下文',
@@ -78,14 +83,19 @@ export function useCrossViewDrag() {
     }
 
     // 🔍 检查点5：策略调用前的上下文
-    console.log(
-      '[CHK-5] useCrossViewDrag.handleDrop called with context=',
-      context,
-      'targetView=',
-      targetView
-    )
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'handleDrop called', {
+      context: {
+        taskTitle: context.task.title,
+        sourceType: context.sourceView.type,
+        sourceId: context.sourceView.id,
+      },
+      targetView: {
+        type: targetView.type,
+        id: targetView.id,
+      },
+    })
 
-    console.log('[useCrossViewDrag] 📦 Handling drop:', {
+    logger.info(LogTags.DRAG_CROSS_VIEW, 'Handling drop', {
       task: context.task.title,
       source: `${context.sourceView.type}:${context.sourceView.id}`,
       target: `${targetView.type}:${targetView.id}`,
@@ -100,14 +110,16 @@ export function useCrossViewDrag() {
       const strategy = findStrategy(context.sourceView.type, targetView.type, context.dragMode.mode)
 
       // 🔍 检查点5：策略查找结果
-      console.log('[CHK-5] Strategy found for', `${context.sourceView.type}->${targetView.type}`)
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Strategy found', {
+        strategyPath: `${context.sourceView.type}->${targetView.type}`,
+      })
 
       const result = await strategy(context, targetView)
 
       // 🔍 检查点5：策略执行结果
-      console.log('[CHK-5] Strategy executed, result=', result)
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Strategy executed', { result })
 
-      console.log('[useCrossViewDrag] ✅ Drop handled:', {
+      logger.info(LogTags.DRAG_CROSS_VIEW, 'Drop handled', {
         success: result.success,
         message: result.message,
         error: result.error,
@@ -120,7 +132,11 @@ export function useCrossViewDrag() {
 
       return result
     } catch (error) {
-      console.error('[useCrossViewDrag] ❌ Drop failed:', error)
+      logger.error(
+        LogTags.DRAG_CROSS_VIEW,
+        'Drop failed',
+        error instanceof Error ? error : new Error(String(error))
+      )
 
       // 清除上下文
       dragContext.clearContext()
@@ -142,11 +158,11 @@ export function useCrossViewDrag() {
     const context = dragContext.currentContext.value
 
     if (!context) {
-      console.warn('[useCrossViewDrag] No active drag to cancel')
+      logger.warn(LogTags.DRAG_CROSS_VIEW, 'No active drag to cancel')
       return
     }
 
-    console.log('[useCrossViewDrag] ❌ Drag cancelled:', {
+    logger.info(LogTags.DRAG_CROSS_VIEW, 'Drag cancelled', {
       task: context.task.title,
       mode: context.dragMode.mode,
       duration: `${dragContext.getDragDuration()}ms`,

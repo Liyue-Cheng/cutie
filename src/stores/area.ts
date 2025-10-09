@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { logger, LogTags } from '@/services/logger'
 import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
@@ -99,10 +100,14 @@ export const useAreaStore = defineStore('area', () => {
       const result = await response.json()
       const areaList: Area[] = result.data
       addOrUpdateAreas(areaList)
-      console.log('[AreaStore] Fetched', areaList.length, 'areas')
+      logger.info(LogTags.STORE_AREA, 'Fetched areas', { count: areaList.length })
     } catch (e) {
       error.value = `Failed to fetch areas: ${e}`
-      console.error('[AreaStore] Error fetching areas:', e)
+      logger.error(
+        LogTags.STORE_AREA,
+        'Error fetching areas',
+        e instanceof Error ? e : new Error(String(e))
+      )
     } finally {
       isLoading.value = false
     }
@@ -122,11 +127,16 @@ export const useAreaStore = defineStore('area', () => {
       const result = await response.json()
       const newArea: Area = result.data
       addOrUpdateArea(newArea)
-      console.log('[AreaStore] Created area:', newArea)
+      logger.info(LogTags.STORE_AREA, 'Created area', { areaId: newArea.id, name: newArea.name })
       return newArea
     } catch (e) {
       error.value = `Failed to create area: ${e}`
-      console.error('[AreaStore] Error creating area:', e)
+      logger.error(
+        LogTags.STORE_AREA,
+        'Error creating area',
+        e instanceof Error ? e : new Error(String(e)),
+        { payload }
+      )
       return null
     } finally {
       isLoading.value = false
@@ -147,11 +157,19 @@ export const useAreaStore = defineStore('area', () => {
       const result = await response.json()
       const updatedArea: Area = result.data
       addOrUpdateArea(updatedArea)
-      console.log('[AreaStore] Updated area:', updatedArea)
+      logger.info(LogTags.STORE_AREA, 'Updated area', {
+        areaId: updatedArea.id,
+        name: updatedArea.name,
+      })
       return updatedArea
     } catch (e) {
       error.value = `Failed to update area: ${e}`
-      console.error('[AreaStore] Error updating area:', e)
+      logger.error(
+        LogTags.STORE_AREA,
+        'Error updating area',
+        e instanceof Error ? e : new Error(String(e)),
+        { areaId: id, payload }
+      )
       return null
     } finally {
       isLoading.value = false
@@ -168,11 +186,16 @@ export const useAreaStore = defineStore('area', () => {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       removeArea(id)
-      console.log('[AreaStore] Deleted area:', id)
+      logger.info(LogTags.STORE_AREA, 'Deleted area', { areaId: id })
       return true
     } catch (e) {
       error.value = `Failed to delete area: ${e}`
-      console.error('[AreaStore] Error deleting area:', e)
+      logger.error(
+        LogTags.STORE_AREA,
+        'Error deleting area',
+        e instanceof Error ? e : new Error(String(e)),
+        { areaId: id }
+      )
       return false
     } finally {
       isLoading.value = false

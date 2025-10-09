@@ -11,6 +11,7 @@ import { ref, computed, watch } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
 import { useCrossViewDrag } from './useCrossViewDrag'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * 跨看板拖放目标 Composable
@@ -56,7 +57,7 @@ export function useCrossViewDragTarget(viewMetadata: ViewMetadata) {
     () => crossViewDrag.targetViewId.value,
     (newId) => {
       if (newId !== viewMetadata.id && isReceivingDrag.value) {
-        console.log('[useCrossViewDragTarget] 🧹 Target moved away, clearing state')
+        logger.debug(LogTags.DRAG_CROSS_VIEW, 'Target moved away, clearing state')
         clearReceivingState()
       }
     }
@@ -78,7 +79,7 @@ export function useCrossViewDragTarget(viewMetadata: ViewMetadata) {
     enterDepth.value += 1
 
     if (enterDepth.value === 1) {
-      console.log('[useCrossViewDragTarget] 🌍 Cross-view drag entered:', {
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Cross-view drag entered', {
         from: context.sourceView.id,
         to: viewMetadata.id,
         task: context.task.title,
@@ -111,7 +112,7 @@ export function useCrossViewDragTarget(viewMetadata: ViewMetadata) {
     enterDepth.value = Math.max(0, enterDepth.value - 1)
 
     if (reallyLeft || enterDepth.value === 0) {
-      console.log('[useCrossViewDragTarget] 🚪 Cross-view drag left:', {
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Cross-view drag left', {
         viewId: viewMetadata.id,
         reallyLeft,
         depth: enterDepth.value,
@@ -183,7 +184,7 @@ export function useCrossViewDragTarget(viewMetadata: ViewMetadata) {
       return { isHandled: false }
     }
 
-    console.log('[useCrossViewDragTarget] 🎯 Cross-view drop detected')
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Cross-view drop detected')
 
     // 调用跨看板拖放框架
     const result = await crossViewDrag.handleDrop(viewMetadata, event)
@@ -193,14 +194,18 @@ export function useCrossViewDragTarget(viewMetadata: ViewMetadata) {
     crossViewDrag.setTargetViewId(null)
 
     if (result.success) {
-      console.log('✅ 跨看板拖放成功:', result.message)
+      logger.info(LogTags.DRAG_CROSS_VIEW, 'Cross-view drop success', { message: result.message })
       return {
         isHandled: true,
         success: true,
         taskId: context.task.id,
       }
     } else {
-      console.error('❌ 跨看板拖放失败:', result.error)
+      logger.error(
+        LogTags.DRAG_CROSS_VIEW,
+        'Cross-view drop failed',
+        new Error(result.error || 'Unknown error')
+      )
       return {
         isHandled: true,
         success: false,

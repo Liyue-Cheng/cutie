@@ -6,6 +6,7 @@ import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useTaskOperations } from '@/composables/useTaskOperations'
 import { useContextMenu } from '@/composables/useContextMenu'
+import { logger, LogTags } from '@/services/logger'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
@@ -181,9 +182,12 @@ async function handlePresenceToggle(newCheckedValue: boolean) {
     // checked = true: 在场 (PRESENCE_LOGGED)
     // checked = false: 仅计划 (PLANNED)
     const newOutcome = newCheckedValue ? 'PRESENCE_LOGGED' : 'PLANNED'
-    console.log(
-      `[KanbanTaskCard] Toggle presence for task ${props.task.id} on ${kanbanDate}: ${newOutcome} (checked=${newCheckedValue})`
-    )
+    logger.debug(LogTags.COMPONENT_KANBAN, 'Toggle presence for task', {
+      taskId: props.task.id,
+      kanbanDate,
+      newOutcome,
+      checked: newCheckedValue,
+    })
 
     // ✅ 标记刚点击过在场按钮，防止完成按钮立即出现在同一位置
     justToggledPresence.value = true
@@ -191,9 +195,13 @@ async function handlePresenceToggle(newCheckedValue: boolean) {
     // 调用后端 API 更新 schedule 的 outcome
     await taskStore.updateSchedule(props.task.id, kanbanDate, { outcome: newOutcome })
 
-    console.log('[KanbanTaskCard] Presence toggled successfully')
+    logger.debug(LogTags.COMPONENT_KANBAN, 'Presence toggled successfully')
   } catch (error) {
-    console.error('[KanbanTaskCard] Error toggling presence:', error)
+    logger.error(
+      LogTags.COMPONENT_KANBAN,
+      'Error toggling presence',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 }
 
@@ -308,7 +316,11 @@ async function updateEstimatedDuration(duration: number | null) {
     } as any)
     showTimePicker.value = false
   } catch (error) {
-    console.error('[KanbanTaskCard] Error updating estimated duration:', error)
+    logger.error(
+      LogTags.COMPONENT_KANBAN,
+      'Error updating estimated duration',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 }
 

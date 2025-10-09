@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTaskStore } from '@/stores/task'
+import { logger, LogTags } from '@/services/logger'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
 
@@ -53,7 +54,7 @@ function handleDragOver(event: DragEvent) {
 function handleDrop(event: DragEvent) {
   event.preventDefault()
   // 不做任何处理，让任务卡片自动弹回原位
-  console.log('[UpcomingColumn] Drop ignored - tasks are sorted by due date')
+  logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Drop ignored - tasks are sorted by due date')
 }
 </script>
 
@@ -64,9 +65,7 @@ function handleDrop(event: DragEvent) {
         <h3>即将到期</h3>
         <span class="task-count">{{ taskCount }}</span>
       </div>
-      <div v-if="overdueCount > 0" class="overdue-badge">
-        {{ overdueCount }} 个已逾期
-      </div>
+      <div v-if="overdueCount > 0" class="overdue-badge">{{ overdueCount }} 个已逾期</div>
     </div>
 
     <div class="column-content" @dragover="handleDragOver" @drop="handleDrop">

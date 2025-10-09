@@ -5,6 +5,7 @@
  */
 
 import type { DragTransferData } from '@/types/drag'
+import { logger, LogTags } from '@/services/logger'
 
 const DRAG_DATA_TYPE = 'application/x-cutie-task'
 
@@ -19,7 +20,7 @@ export function useDragTransfer() {
    */
   function setDragData(event: DragEvent, data: DragTransferData): void {
     if (!event.dataTransfer) {
-      console.warn('[useDragTransfer] dataTransfer is null')
+      logger.warn(LogTags.DRAG_CROSS_VIEW, 'dataTransfer is null')
       return
     }
 
@@ -28,7 +29,7 @@ export function useDragTransfer() {
       event.dataTransfer.setData(DRAG_DATA_TYPE, jsonString)
       event.dataTransfer.effectAllowed = 'copyMove' // ✅ 修复：允许 copy 和 move
 
-      console.log('[useDragTransfer] Data set:', {
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data set', {
         type: data.type,
         taskId: data.task.id,
         sourceView: data.sourceView.id,
@@ -36,14 +37,16 @@ export function useDragTransfer() {
       })
 
       // 🔍 检查点1：effectAllowed/dropEffect 匹配
-      console.log(
-        '[CHK-1] effectAllowed=',
-        event.dataTransfer.effectAllowed,
-        'types=',
-        Array.from(event.dataTransfer.types)
-      )
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Effect allowed and types', {
+        effectAllowed: event.dataTransfer.effectAllowed,
+        types: Array.from(event.dataTransfer.types),
+      })
     } catch (error) {
-      console.error('[useDragTransfer] Failed to set drag data:', error)
+      logger.error(
+        LogTags.DRAG_CROSS_VIEW,
+        'Failed to set drag data',
+        error instanceof Error ? error : new Error(String(error))
+      )
     }
   }
 
@@ -54,20 +57,20 @@ export function useDragTransfer() {
    */
   function getDragData(event: DragEvent): DragTransferData | null {
     if (!event.dataTransfer) {
-      console.warn('[useDragTransfer] dataTransfer is null')
+      logger.warn(LogTags.DRAG_CROSS_VIEW, 'dataTransfer is null')
       return null
     }
 
     try {
       const jsonString = event.dataTransfer.getData(DRAG_DATA_TYPE)
       if (!jsonString) {
-        console.warn('[useDragTransfer] No data found')
+        logger.warn(LogTags.DRAG_CROSS_VIEW, 'No drag data found')
         return null
       }
 
       const data = JSON.parse(jsonString) as DragTransferData
 
-      console.log('[useDragTransfer] Data retrieved:', {
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data retrieved', {
         type: data.type,
         taskId: data.task.id,
         sourceView: data.sourceView.id,
@@ -76,7 +79,11 @@ export function useDragTransfer() {
 
       return data
     } catch (error) {
-      console.error('[useDragTransfer] Failed to get drag data:', error)
+      logger.error(
+        LogTags.DRAG_CROSS_VIEW,
+        'Failed to get drag data',
+        error instanceof Error ? error : new Error(String(error))
+      )
       return null
     }
   }
@@ -90,9 +97,13 @@ export function useDragTransfer() {
 
     try {
       event.dataTransfer.clearData()
-      console.log('[useDragTransfer] Data cleared')
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag data cleared')
     } catch (error) {
-      console.error('[useDragTransfer] Failed to clear drag data:', error)
+      logger.error(
+        LogTags.DRAG_CROSS_VIEW,
+        'Failed to clear drag data',
+        error instanceof Error ? error : new Error(String(error))
+      )
     }
   }
 

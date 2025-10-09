@@ -1,6 +1,7 @@
 import { useTimeBlockStore } from '@/stores/timeblock'
 import type { createTaskCore } from './core'
 import type { createCrudOperations } from './crud-operations'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * Task Store 事件处理器
@@ -28,7 +29,7 @@ export function createEventHandlers(
     import('@/services/events').then(({ getEventSubscriber }) => {
       const subscriber = getEventSubscriber()
       if (!subscriber) {
-        console.warn('[TaskStore] Event subscriber not initialized yet')
+        logger.warn(LogTags.STORE_TASKS, 'Event subscriber not initialized yet')
         return
       }
 
@@ -73,7 +74,12 @@ export function createEventHandlers(
 
     // ✅ 数据验证：确保任务数据完整
     if (!task || !task.id || !task.title) {
-      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Invalid task data in SSE event',
+        new Error('Invalid task data'),
+        { task }
+      )
       return
     }
 
@@ -86,19 +92,16 @@ export function createEventHandlers(
     const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
 
     if (isOwnOperation) {
-      console.log(
-        '[TaskStore] Skipping duplicate task update (own operation):',
-        task.id,
-        'correlation:',
-        correlationId
-      )
+      logger.debug(LogTags.STORE_TASKS, 'Skipping duplicate task update (own operation)', {
+        taskId: task.id,
+        correlationId,
+      })
       // ⚠️ 不更新任务数据（HTTP 响应已更新），但副作用仍要处理
     } else {
-      console.log(
-        '[TaskStore] Handling task.completed event from other source:',
-        task.id,
-        sideEffects
-      )
+      logger.info(LogTags.STORE_TASKS, 'Handling task.completed event from other source', {
+        taskId: task.id,
+        sideEffects,
+      })
       // 这是其他窗口/客户端触发的，完整更新
       addOrUpdateTask(task)
     }
@@ -137,7 +140,12 @@ export function createEventHandlers(
 
     // ✅ 数据验证：确保任务数据完整
     if (!task || !task.id || !task.title) {
-      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Invalid task data in SSE event',
+        new Error('Invalid task data'),
+        { task }
+      )
       return
     }
 
@@ -150,22 +158,20 @@ export function createEventHandlers(
     const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
 
     if (isOwnOperation) {
-      console.log(
-        '[TaskStore] Skipping duplicate task update (own operation):',
-        task.id,
-        'correlation:',
-        correlationId
-      )
+      logger.debug(LogTags.STORE_TASKS, 'Skipping duplicate task update (own operation)', {
+        taskId: task.id,
+        correlationId,
+      })
       // ⚠️ 不更新任务（HTTP 响应已更新），但副作用仍要处理
     } else {
       // 不是自己的操作，更新任务
-      console.log('[TaskStore] Updating task from SSE:', task.id)
+      logger.info(LogTags.STORE_TASKS, 'Updating task from SSE', { taskId: task.id })
       addOrUpdateTask(task)
     }
 
     // 处理副作用（无论是否是自己的操作）
     if (sideEffects) {
-      console.log('[TaskStore] Processing side effects for task.updated:', sideEffects)
+      logger.debug(LogTags.STORE_TASKS, 'Processing side effects for task.updated', { sideEffects })
       // 委托给 TimeBlockStore 处理时间块副作用
       const timeBlockStore = useTimeBlockStore()
       await timeBlockStore.handleTimeBlockSideEffects(sideEffects)
@@ -207,15 +213,16 @@ export function createEventHandlers(
     const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
 
     if (isOwnOperation) {
-      console.log(
-        '[TaskStore] Skipping duplicate task deletion (own operation):',
+      logger.debug(LogTags.STORE_TASKS, 'Skipping duplicate task deletion (own operation)', {
         taskId,
-        'correlation:',
-        correlationId
-      )
+        correlationId,
+      })
       // ⚠️ 不删除任务（HTTP 响应已删除），但副作用仍要处理
     } else {
-      console.log('[TaskStore] Handling task.deleted event from other source:', taskId, sideEffects)
+      logger.info(LogTags.STORE_TASKS, 'Handling task.deleted event from other source', {
+        taskId,
+        sideEffects,
+      })
       // 这是其他窗口/客户端触发的，完整处理
       removeTask(taskId)
     }
@@ -254,7 +261,12 @@ export function createEventHandlers(
 
     // ✅ 数据验证：确保任务数据完整
     if (!task || !task.id || !task.title) {
-      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Invalid task data in SSE event',
+        new Error('Invalid task data'),
+        { task }
+      )
       return
     }
 
@@ -267,15 +279,15 @@ export function createEventHandlers(
     const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
 
     if (isOwnOperation) {
-      console.log(
-        '[TaskStore] Skipping duplicate task update (own operation):',
-        task.id,
-        'correlation:',
-        correlationId
-      )
+      logger.debug(LogTags.STORE_TASKS, 'Skipping duplicate task update (own operation)', {
+        taskId: task.id,
+        correlationId,
+      })
       // HTTP 响应已更新，跳过
     } else {
-      console.log('[TaskStore] Handling task.archived event from other source:', task.id)
+      logger.info(LogTags.STORE_TASKS, 'Handling task.archived event from other source', {
+        taskId: task.id,
+      })
       // 这是其他窗口/客户端触发的，完整更新
       addOrUpdateTask(task)
     }
@@ -301,7 +313,12 @@ export function createEventHandlers(
 
     // ✅ 数据验证：确保任务数据完整
     if (!task || !task.id || !task.title) {
-      console.error('[TaskStore] Invalid task data in SSE event:', task)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Invalid task data in SSE event',
+        new Error('Invalid task data'),
+        { task }
+      )
       return
     }
 
@@ -314,15 +331,15 @@ export function createEventHandlers(
     const isOwnOperation = correlationTracker.isOwnOperation(correlationId)
 
     if (isOwnOperation) {
-      console.log(
-        '[TaskStore] Skipping duplicate task update (own operation):',
-        task.id,
-        'correlation:',
-        correlationId
-      )
+      logger.debug(LogTags.STORE_TASKS, 'Skipping duplicate task update (own operation)', {
+        taskId: task.id,
+        correlationId,
+      })
       // HTTP 响应已更新，跳过
     } else {
-      console.log('[TaskStore] Handling task.unarchived event from other source:', task.id)
+      logger.info(LogTags.STORE_TASKS, 'Handling task.unarchived event from other source', {
+        taskId: task.id,
+      })
       // 这是其他窗口/客户端触发的，完整更新
       addOrUpdateTask(task)
     }
@@ -346,16 +363,20 @@ export function createEventHandlers(
     const payload = event.payload
     const taskIds = payload?.affected_task_ids || []
 
-    console.log('[TaskStore] Handling time_blocks.deleted event, affected tasks:', taskIds)
+    logger.info(LogTags.STORE_TASKS, 'Handling time_blocks.deleted event', {
+      affectedTasks: taskIds,
+    })
 
     // 重新获取受影响的任务数据
     for (const taskId of taskIds) {
       try {
         await crudOps.fetchTaskDetail(taskId)
       } catch (error) {
-        console.error(
-          `[TaskStore] Failed to refresh task ${taskId} after time block deletion:`,
-          error
+        logger.error(
+          LogTags.STORE_TASKS,
+          'Failed to refresh task after time block deletion',
+          error instanceof Error ? error : new Error(String(error)),
+          { taskId }
         )
       }
     }
@@ -369,16 +390,20 @@ export function createEventHandlers(
     const payload = event.payload
     const taskIds = payload?.affected_task_ids || []
 
-    console.log('[TaskStore] Handling time_blocks.updated event, affected tasks:', taskIds)
+    logger.info(LogTags.STORE_TASKS, 'Handling time_blocks.updated event', {
+      affectedTasks: taskIds,
+    })
 
     // 重新获取受影响的任务数据
     for (const taskId of taskIds) {
       try {
         await crudOps.fetchTaskDetail(taskId)
       } catch (error) {
-        console.error(
-          `[TaskStore] Failed to refresh task ${taskId} after time block update:`,
-          error
+        logger.error(
+          LogTags.STORE_TASKS,
+          'Failed to refresh task after time block update',
+          error instanceof Error ? error : new Error(String(error)),
+          { taskId }
         )
       }
     }
@@ -392,16 +417,20 @@ export function createEventHandlers(
     const payload = event.payload
     const taskIds = payload?.affected_task_ids || []
 
-    console.log('[TaskStore] Handling time_blocks.truncated event, affected tasks:', taskIds)
+    logger.info(LogTags.STORE_TASKS, 'Handling time_blocks.truncated event', {
+      affectedTasks: taskIds,
+    })
 
     // 重新获取受影响的任务数据
     for (const taskId of taskIds) {
       try {
         await crudOps.fetchTaskDetail(taskId)
       } catch (error) {
-        console.error(
-          `[TaskStore] Failed to refresh task ${taskId} after time block truncation:`,
-          error
+        logger.error(
+          LogTags.STORE_TASKS,
+          'Failed to refresh task after time block truncation',
+          error instanceof Error ? error : new Error(String(error)),
+          { taskId }
         )
       }
     }
@@ -415,14 +444,21 @@ export function createEventHandlers(
     const payload = event.payload
     const taskIds = payload?.affected_task_ids || []
 
-    console.log('[TaskStore] Handling time_blocks.linked event, affected tasks:', taskIds)
+    logger.info(LogTags.STORE_TASKS, 'Handling time_blocks.linked event', {
+      affectedTasks: taskIds,
+    })
 
     // 重新获取受影响的任务数据
     for (const taskId of taskIds) {
       try {
         await crudOps.fetchTaskDetail(taskId)
       } catch (error) {
-        console.error(`[TaskStore] Failed to refresh task ${taskId} after time block link:`, error)
+        logger.error(
+          LogTags.STORE_TASKS,
+          'Failed to refresh task after time block link',
+          error instanceof Error ? error : new Error(String(error)),
+          { taskId }
+        )
       }
     }
   }

@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import type { TaskCard, TaskDetail } from '@/types/dtos'
 import { updateMapItem, removeMapItem, createLoadingState } from '@/stores/shared'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * Task Store 核心状态管理
@@ -180,7 +181,7 @@ export function createTaskCore() {
   function addOrUpdateTasks(newTasks: (TaskCard | TaskDetail)[]) {
     for (const task of newTasks) {
       if (!task || !task.id) {
-        console.warn('[TaskCore] Skipping task without ID', task)
+        logger.warn(LogTags.STORE_TASKS, 'Skipping task without ID', { task })
         continue
       }
 

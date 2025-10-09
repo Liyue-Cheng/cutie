@@ -6,6 +6,7 @@
 
 import type { DragStrategy, ViewType, DragMode } from '@/types/drag'
 import { dragStrategies } from './strategies'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * 查找策略
@@ -19,7 +20,7 @@ export function findStrategy(
   targetType: ViewType,
   dragMode?: DragMode
 ): DragStrategy {
-  console.log('[StrategyFinder] 🔍 Finding strategy:', {
+  logger.debug(LogTags.DRAG_STRATEGY, 'Finding strategy', {
     sourceType,
     targetType,
     dragMode,
@@ -28,26 +29,26 @@ export function findStrategy(
   // 1. 精确匹配
   const exactKey = `${sourceType}->${targetType}`
   if (dragStrategies[exactKey as keyof typeof dragStrategies]) {
-    console.log(`  ✅ Found exact match: ${exactKey}`)
+    logger.debug(LogTags.DRAG_STRATEGY, 'Found exact match', { strategy: exactKey })
     return dragStrategies[exactKey as keyof typeof dragStrategies]!
   }
 
   // 2. 源通配符：sourceType->*
   const sourceWildcard = `${sourceType}->*`
   if (dragStrategies[sourceWildcard as keyof typeof dragStrategies]) {
-    console.log(`  ✅ Found source wildcard: ${sourceWildcard}`)
+    logger.debug(LogTags.DRAG_STRATEGY, 'Found source wildcard', { strategy: sourceWildcard })
     return dragStrategies[sourceWildcard as keyof typeof dragStrategies]!
   }
 
   // 3. 目标通配符：*->targetType
   const targetWildcard = `*->${targetType}`
   if (dragStrategies[targetWildcard as keyof typeof dragStrategies]) {
-    console.log(`  ✅ Found target wildcard: ${targetWildcard}`)
+    logger.debug(LogTags.DRAG_STRATEGY, 'Found target wildcard', { strategy: targetWildcard })
     return dragStrategies[targetWildcard as keyof typeof dragStrategies]!
   }
 
   // 4. 默认策略：*->*
-  console.log('  ⚠️ Using default strategy: *->*')
+  logger.debug(LogTags.DRAG_STRATEGY, 'Using default strategy', { strategy: '*->*' })
   return dragStrategies['*->*']!
 }
 
@@ -92,5 +93,3 @@ export function getStrategyPriority(sourceType: ViewType, targetType: ViewType):
   }
   return 'default'
 }
-
-

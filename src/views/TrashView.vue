@@ -3,16 +3,21 @@ import { computed, onMounted } from 'vue'
 import { useTrashStore } from '@/stores/trash'
 import KanbanTaskCard from '@/components/parts/kanban/KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
+import { logger, LogTags } from '@/services/logger'
 
 const trashStore = useTrashStore()
 
 onMounted(async () => {
-  console.log('[TrashView] Loading trash...')
+  logger.info(LogTags.VIEW_TRASH, 'Loading trash...')
   try {
     await trashStore.fetchTrash()
-    console.log('[TrashView] Loaded', trashStore.trashedTaskCount, 'deleted tasks')
+    logger.info(LogTags.VIEW_TRASH, 'Loaded deleted tasks', { count: trashStore.trashedTaskCount })
   } catch (error) {
-    console.error('[TrashView] Failed to fetch trash:', error)
+    logger.error(
+      LogTags.VIEW_TRASH,
+      'Failed to fetch trash',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 })
 
@@ -48,9 +53,14 @@ async function handleRestore(task: TaskCard) {
 
   try {
     await trashStore.restoreTask(task.id)
-    console.log('[TrashView] Task restored:', task.id)
+    logger.info(LogTags.VIEW_TRASH, 'Task restored', { taskId: task.id })
   } catch (error) {
-    console.error('[TrashView] Failed to restore task:', error)
+    logger.error(
+      LogTags.VIEW_TRASH,
+      'Failed to restore task',
+      error instanceof Error ? error : new Error(String(error)),
+      { taskId: task.id }
+    )
     alert('恢复失败，请重试')
   }
 }
@@ -61,9 +71,14 @@ async function handlePermanentlyDelete(task: TaskCard) {
 
   try {
     await trashStore.permanentlyDeleteTask(task.id)
-    console.log('[TrashView] Task permanently deleted:', task.id)
+    logger.info(LogTags.VIEW_TRASH, 'Task permanently deleted', { taskId: task.id })
   } catch (error) {
-    console.error('[TrashView] Failed to permanently delete task:', error)
+    logger.error(
+      LogTags.VIEW_TRASH,
+      'Failed to permanently delete task',
+      error instanceof Error ? error : new Error(String(error)),
+      { taskId: task.id }
+    )
     alert('删除失败，请重试')
   }
 }
@@ -76,10 +91,14 @@ async function handleEmptyTrash() {
 
   try {
     const deletedCount = await trashStore.emptyTrash({ olderThanDays: 0 })
-    console.log('[TrashView] Trash emptied, deleted count:', deletedCount)
+    logger.info(LogTags.VIEW_TRASH, 'Trash emptied', { deletedCount })
     alert(`已清空回收站，删除了 ${deletedCount} 个任务`)
   } catch (error) {
-    console.error('[TrashView] Failed to empty trash:', error)
+    logger.error(
+      LogTags.VIEW_TRASH,
+      'Failed to empty trash',
+      error instanceof Error ? error : new Error(String(error))
+    )
     alert('清空失败，请重试')
   }
 }
@@ -87,7 +106,7 @@ async function handleEmptyTrash() {
 // 禁止打开编辑器
 function handleOpenEditor() {
   // 回收站中的任务不允许编辑
-  console.log('[TrashView] Cannot edit deleted tasks')
+  logger.debug(LogTags.VIEW_TRASH, 'Cannot edit deleted tasks')
 }
 </script>
 

@@ -50,6 +50,7 @@ import { useDecorativeLine } from '@/composables/calendar/useDecorativeLine'
 import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
 import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
+import { logger, LogTags } from '@/services/logger'
 import { useCalendarDrag } from '@/composables/calendar/useCalendarDrag'
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
@@ -127,22 +128,21 @@ watch(
   () => props.currentDate,
   (newDate, oldDate) => {
     // 🔍 检查点3：日历日期同步
-    console.log('[CHK-3] calendar watch currentDate:', oldDate, '->', newDate)
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Date changed', { oldDate, newDate })
 
     if (newDate && calendarRef.value) {
       const calendarApi = calendarRef.value.getApi()
       if (calendarApi) {
-        console.log('[CuteCalendar] 📅 Switching to date:', newDate)
+        logger.info(LogTags.COMPONENT_CALENDAR, 'Switching to date', { newDate })
         calendarApi.gotoDate(newDate)
 
         // 🔧 FIX: 清除缓存，强制重新计算位置
         clearCache()
 
         // 🔍 检查点3：确认切换后的日期
-        console.log(
-          '[CHK-3] After gotoDate, calendarApi.getDate()=',
-          calendarApi.getDate().toISOString().split('T')[0]
-        )
+        logger.debug(LogTags.COMPONENT_CALENDAR, 'After gotoDate', {
+          currentDate: calendarApi.getDate().toISOString().split('T')[0],
+        })
       }
     }
   },
@@ -201,12 +201,10 @@ onMounted(async () => {
     'drop',
     (e) => {
       const target = e.target as HTMLElement
-      console.log(
-        '[CHK-2] 🌍 Global drop capture! target=',
-        target?.className,
-        'tagName=',
-        target?.tagName
-      )
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Global drop capture', {
+        targetClass: target?.className,
+        tagName: target?.tagName,
+      })
     },
     true
   ) // 捕获阶段
@@ -220,19 +218,19 @@ onMounted(async () => {
     const startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1) // 3个月前
     const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0) // 3个月后（下个月的0号=本月最后一天）
 
-    console.log(
-      '[CuteCalendar] Loading time blocks from',
-      startDate.toISOString(),
-      'to',
-      endDate.toISOString()
-    )
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Loading time blocks for range', {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    })
     await timeBlockStore.fetchTimeBlocksForRange(startDate.toISOString(), endDate.toISOString())
 
     // 如果有初始日期，切换到该日期
     if (props.currentDate && calendarRef.value) {
       const calendarApi = calendarRef.value.getApi()
       if (calendarApi) {
-        console.log('[CuteCalendar] 📅 Initial date:', props.currentDate)
+        logger.debug(LogTags.COMPONENT_CALENDAR, 'Setting initial date', {
+          currentDate: props.currentDate,
+        })
         calendarApi.gotoDate(props.currentDate)
       }
     }
@@ -241,7 +239,11 @@ onMounted(async () => {
     await nextTick()
     decorativeLine.updatePosition()
   } catch (error) {
-    console.error('[CuteCalendar] Failed to fetch initial time blocks:', error)
+    logger.error(
+      LogTags.COMPONENT_CALENDAR,
+      'Failed to fetch initial time blocks',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 })
 </script>

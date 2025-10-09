@@ -2,6 +2,7 @@ import { ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
 import { waitForApiReady } from '@/composables/useApiConfig'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * View Store V4.0 - 纯排序系统
@@ -125,14 +126,21 @@ export const useViewStore = defineStore('view', () => {
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error(`[ViewStore] Failed to save sorting for ${viewKey}:`, errorText)
+        logger.error(LogTags.STORE_VIEW, 'Failed to save sorting', new Error(errorText), {
+          viewKey,
+        })
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
       await response.json()
       return true
     } catch (err) {
-      console.error(`[ViewStore] Failed to update sorting for ${viewKey}:`, err)
+      logger.error(
+        LogTags.STORE_VIEW,
+        'Failed to update sorting',
+        err instanceof Error ? err : new Error(String(err)),
+        { viewKey }
+      )
       error.value = `Failed to update sorting: ${err}`
       return false
     }
@@ -212,7 +220,12 @@ export const useViewStore = defineStore('view', () => {
 
       return true
     } catch (err) {
-      console.error(`[ViewStore] Failed to fetch preference for ${viewKey}:`, err)
+      logger.error(
+        LogTags.STORE_VIEW,
+        'Failed to fetch preference',
+        err instanceof Error ? err : new Error(String(err)),
+        { viewKey }
+      )
       return false
     }
   }
@@ -236,7 +249,7 @@ export const useViewStore = defineStore('view', () => {
     const newMap = new Map(sortWeights.value)
     newMap.delete(viewKey)
     sortWeights.value = newMap
-    console.log(`[ViewStore] Cleared sorting for ${viewKey}`)
+    logger.debug(LogTags.STORE_VIEW, 'Cleared sorting for view', { viewKey })
   }
 
   /**
@@ -244,7 +257,7 @@ export const useViewStore = defineStore('view', () => {
    */
   function clearAllSorting() {
     sortWeights.value = new Map()
-    console.log('[ViewStore] Cleared all sorting')
+    logger.debug(LogTags.STORE_VIEW, 'Cleared all sorting')
   }
 
   return {

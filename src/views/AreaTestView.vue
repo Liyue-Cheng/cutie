@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
 import { useAreaStore } from '@/stores/area'
-import { useTaskStore } from '@/stores/task'
-import { useViewStore } from '@/stores/view'
 import { useViewOperations } from '@/composables/useViewOperations'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 
 const areaStore = useAreaStore()
-const taskStore = useTaskStore()
-const viewStore = useViewStore()
 const viewOps = useViewOperations()
 
 onMounted(async () => {
@@ -16,16 +12,12 @@ onMounted(async () => {
   await Promise.all([areaStore.fetchAreas(), viewOps.loadAllTasks()])
 })
 
-// 为每个 Area 创建看板列
+// 🆕 为每个 Area 创建看板列（使用 viewKey 模式）
 const areaColumns = computed(() => {
-  // ✅ 新架构：过滤（TaskStore）+ 排序（ViewStore）
   return areaStore.allAreas.map((area) => {
-    const filteredTasks = taskStore.allTasks.filter((task) => task.area_id === area.id)
-    const sortedTasks = viewStore.applySorting(filteredTasks, `area::${area.id}`)
-
     return {
       area,
-      tasks: sortedTasks,
+      viewKey: `area::${area.id}`, // ✅ 遵循 VIEW_CONTEXT_KEY_SPEC 规范
     }
   })
 })
@@ -40,7 +32,7 @@ const areaColumns = computed(() => {
         :key="column.area.id"
         :title="column.area.name"
         :subtitle="`颜色: ${column.area.color}`"
-        :tasks="column.tasks"
+        :view-key="column.viewKey"
         @open-editor="() => {}"
       />
     </div>

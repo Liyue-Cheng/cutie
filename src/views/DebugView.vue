@@ -11,6 +11,7 @@ import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
 import { useViewOperations } from '@/composables/useViewOperations'
 import { useTaskOperations } from '@/composables/useTaskOperations'
+import { logger, LogTags } from '@/services/logger'
 
 const taskStore = useTaskStore()
 const viewStore = useViewStore()
@@ -47,14 +48,14 @@ async function handleAddTask(title: string) {
   // ✅ 使用 TaskOperations 创建任务
   const taskId = await taskOps.createTask({ title })
   if (taskId) {
-    console.log('[DebugView] Task created:', taskId)
+    logger.info(LogTags.VIEW_HOME, 'Task created in debug view', { taskId })
     // ✅ 新架构：无需手动添加，任务会自动出现在 stagingTasks 中
   }
 }
 
 // 处理拖拽排序
 async function handleReorder(viewKey: string, newOrder: string[]) {
-  console.log(`[DebugView] 重新排序 ${viewKey}:`, newOrder)
+  logger.debug(LogTags.VIEW_HOME, 'Reordering tasks in debug view', { viewKey, newOrder })
   await viewStore.updateSorting(viewKey, newOrder)
 }
 
@@ -69,10 +70,14 @@ onMounted(async () => {
       viewOps.loadStagingTasks(),
     ])
 
-    console.log('[DebugView] Loaded all task data')
+    logger.info(LogTags.VIEW_HOME, 'Loaded all task data in debug view')
     // 注意：排序配置由 SimpleKanbanColumn 自己加载
   } catch (error) {
-    console.error('[DebugView] Failed to fetch tasks:', error)
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Failed to fetch tasks in debug view',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 })
 </script>

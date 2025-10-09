@@ -12,6 +12,7 @@ import UpcomingColumn from '@/components/parts/kanban/UpcomingColumn.vue'
 import UnderConstruction from '@/components/parts/UnderConstruction.vue'
 import TrashView from '@/views/TrashView.vue'
 import { useTaskStore } from '@/stores/task'
+import { logger, LogTags } from '@/services/logger'
 
 // ==================== 视图类型 ====================
 type RightPaneView =
@@ -29,9 +30,9 @@ const taskStore = useTaskStore()
 
 // ==================== 初始化 ====================
 onMounted(async () => {
-  console.log('[HomeView] 🚀 Initializing, loading all tasks...')
+  logger.info(LogTags.VIEW_HOME, 'Initializing, loading all tasks...')
   await taskStore.fetchAllTasks()
-  console.log('[HomeView] ✅ Loaded', taskStore.allTasks.length, 'tasks')
+  logger.info(LogTags.VIEW_HOME, 'Loaded tasks', { count: taskStore.allTasks.length })
 })
 
 // ==================== 状态 ====================
@@ -61,45 +62,57 @@ const viewConfig = {
 function handleOpenEditor(task: TaskCard) {
   selectedTaskId.value = task.id
   isEditorOpen.value = true
-  console.log('[HomeView] 📝 Opening editor for task:', task.id)
+  logger.info(LogTags.VIEW_HOME, 'Opening editor for task', { taskId: task.id })
 }
 
 async function handleAddTask(title: string, date: string) {
-  console.log('[HomeView] ➕ Add task:', { title, date })
+  logger.info(LogTags.VIEW_HOME, 'Add task', { title, date })
 
   try {
     // 1. 创建任务
     const newTask = await taskStore.createTask({ title })
     if (!newTask) {
-      console.error('[HomeView] ❌ Failed to create task')
+      logger.error(
+        LogTags.VIEW_HOME,
+        'Failed to create task',
+        new Error('Task creation returned null')
+      )
       return
     }
 
-    console.log('[HomeView] ✅ Task created:', newTask.id)
+    logger.info(LogTags.VIEW_HOME, 'Task created', { taskId: newTask.id })
 
     // 2. 立即为任务添加日程
     const updatedTask = await taskStore.addSchedule(newTask.id, date)
     if (!updatedTask) {
-      console.error('[HomeView] ❌ Failed to add schedule')
+      logger.error(
+        LogTags.VIEW_HOME,
+        'Failed to add schedule',
+        new Error('Schedule addition returned null')
+      )
       return
     }
 
-    console.log('[HomeView] ✅ Schedule added for task:', updatedTask.id, 'on', date)
+    logger.info(LogTags.VIEW_HOME, 'Schedule added for task', { taskId: updatedTask.id, date })
 
     // ✅ 无需手动刷新！TaskStore 已更新，Vue 响应式系统会自动更新 UI
   } catch (error) {
-    console.error('[HomeView] ❌ Error adding task with schedule:', error)
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Error adding task with schedule',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 }
 
 function handleVisibleDateChange(date: string) {
-  console.log('[HomeView] 📅 Visible date changed:', date)
+  logger.debug(LogTags.VIEW_HOME, 'Visible date changed', { date })
   currentVisibleDate.value = date
   // 日历会自动通过 :current-date prop 更新显示
 }
 
 function switchRightPaneView(view: RightPaneView) {
-  console.log('[HomeView] 🔄 Switching right pane view to:', view)
+  logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
   currentRightPaneView.value = view
 }
 
@@ -112,12 +125,12 @@ async function handleDeleteAllTasks() {
   if (!confirmed) return
 
   isDeletingAll.value = true
-  console.log('[HomeView] 🗑️ Starting to delete all tasks...')
+  logger.warn(LogTags.VIEW_HOME, 'Starting to delete all tasks')
 
   try {
     const allTasks = taskStore.allTasks
     const totalCount = allTasks.length
-    console.log(`[HomeView] 🗑️ Deleting ${totalCount} tasks...`)
+    logger.warn(LogTags.VIEW_HOME, 'Deleting tasks', { totalCount })
 
     // 批量删除所有任务（添加延迟避免数据库锁冲突）
     let successCount = 0
@@ -127,17 +140,30 @@ async function handleDeleteAllTasks() {
       try {
         await taskStore.deleteTask(task.id)
         successCount++
-        console.log(`[HomeView] ✅ Deleted task ${successCount}/${totalCount}: ${task.title}`)
+        logger.debug(LogTags.VIEW_HOME, 'Deleted task', {
+          successCount,
+          totalCount,
+          taskTitle: task.title,
+        })
       } catch (error) {
         failCount++
-        console.error(`[HomeView] ❌ Failed to delete task: ${task.title}`, error)
+        logger.error(
+          LogTags.VIEW_HOME,
+          'Failed to delete task',
+          error instanceof Error ? error : new Error(String(error)),
+          { taskTitle: task.title }
+        )
       }
     }
 
-    console.log(`[HomeView] 🎉 Delete completed: ${successCount} succeeded, ${failCount} failed`)
+    logger.info(LogTags.VIEW_HOME, 'Delete completed', { successCount, failCount })
     alert(`删除完成！成功：${successCount}，失败：${failCount}`)
   } catch (error) {
-    console.error('[HomeView] ❌ Error during batch delete:', error)
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Error during batch delete',
+      error instanceof Error ? error : new Error(String(error))
+    )
     alert('删除过程中出现错误')
   } finally {
     isDeletingAll.value = false
@@ -146,16 +172,20 @@ async function handleDeleteAllTasks() {
 
 async function handleLoadAllTasks() {
   isLoadingAll.value = true
-  console.log('[HomeView] 🔄 Loading all tasks...')
+  logger.info(LogTags.VIEW_HOME, 'Loading all tasks...')
 
   try {
     await taskStore.fetchAllTasks()
     const taskCount = taskStore.allTasks.length
     const archivedCount = taskStore.archivedTasks.length
-    console.log(`[HomeView] ✅ Loaded ${taskCount} tasks (${archivedCount} archived)`)
+    logger.info(LogTags.VIEW_HOME, 'Loaded tasks', { taskCount, archivedCount })
     alert(`加载完成！总任务数：${taskCount}，归档任务：${archivedCount}`)
   } catch (error) {
-    console.error('[HomeView] ❌ Error loading tasks:', error)
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Error loading tasks',
+      error instanceof Error ? error : new Error(String(error))
+    )
     alert('加载任务失败')
   } finally {
     isLoadingAll.value = false

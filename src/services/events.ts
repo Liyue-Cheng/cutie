@@ -4,6 +4,8 @@
  * 负责建立与后端 SSE 端点的连接，并将领域事件分发到各个 Store
  */
 
+import { logger, LogTags } from '@/services/logger'
+
 /// 领域事件接口（与后端保持一致）
 export interface DomainEvent {
   event_id: string
@@ -37,13 +39,13 @@ export class EventSubscriber {
   // 连接到 SSE 端点
   connect() {
     if (this.eventSource) {
-      console.warn('[EventSubscriber] Already connected')
+      logger.warn(LogTags.SYSTEM_SSE, 'Already connected to event stream')
       return
     }
 
     this.isManualClose = false
     const url = `${this.apiBaseUrl}/events/stream`
-    console.log('[EventSubscriber] Connecting to', url)
+    logger.info(LogTags.SYSTEM_SSE, 'Connecting to event stream', { url })
 
     this.eventSource = new EventSource(url)
 
@@ -98,13 +100,17 @@ export class EventSubscriber {
 
     // 连接成功
     this.eventSource.onopen = () => {
-      console.log('[EventSubscriber] Connected to event stream')
+      logger.info(LogTags.SYSTEM_SSE, 'Connected to event stream')
       this.reconnectAttempts = 0
     }
 
     // 连接错误
     this.eventSource.onerror = (error) => {
-      console.error('[EventSubscriber] Connection error:', error)
+      logger.error(
+        LogTags.SYSTEM_SSE,
+        'Connection error',
+        error instanceof Error ? error : new Error(String(error))
+      )
       this.eventSource?.close()
       this.eventSource = null
 
@@ -112,9 +118,10 @@ export class EventSubscriber {
       if (!this.isManualClose && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-        console.log(
-          `[EventSubscriber] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
-        )
+        logger.info(LogTags.SYSTEM_SSE, 'Reconnecting to event stream', {
+          delay,
+          attempt: this.reconnectAttempts,
+        })
         setTimeout(() => this.connect(), delay)
       }
     }
@@ -126,7 +133,7 @@ export class EventSubscriber {
     if (this.eventSource) {
       this.eventSource.close()
       this.eventSource = null
-      console.log('[EventSubscriber] Disconnected')
+      logger.info(LogTags.SYSTEM_SSE, 'Disconnected from event stream')
     }
   }
 
@@ -153,7 +160,11 @@ export class EventSubscriber {
   private handleEvent(eventType: string, data: string): void {
     try {
       const event: DomainEvent = JSON.parse(data)
-      console.log(`[EventSubscriber] Received event: ${eventType}`, event)
+      logger.debug(LogTags.SYSTEM_SSE, 'Received event', {
+        eventType,
+        eventId: event.event_id,
+        correlationId: event.correlation_id,
+      })
 
       const handlers = this.handlers.get(eventType) || []
       for (const handler of handlers) {
@@ -161,15 +172,29 @@ export class EventSubscriber {
           const result = handler(event)
           if (result instanceof Promise) {
             result.catch((err) => {
-              console.error(`[EventSubscriber] Handler error for ${eventType}:`, err)
+              logger.error(
+                LogTags.SYSTEM_SSE,
+                'Handler error (async)',
+                err instanceof Error ? err : new Error(String(err)),
+                { eventType }
+              )
             })
           }
         } catch (err) {
-          console.error(`[EventSubscriber] Handler error for ${eventType}:`, err)
+          logger.error(
+            LogTags.SYSTEM_SSE,
+            'Handler error (sync)',
+            err instanceof Error ? err : new Error(String(err)),
+            { eventType }
+          )
         }
       }
     } catch (err) {
-      console.error('[EventSubscriber] Failed to parse event data:', err)
+      logger.error(
+        LogTags.SYSTEM_SSE,
+        'Failed to parse event data',
+        err instanceof Error ? err : new Error(String(err))
+      )
     }
   }
 }
@@ -179,7 +204,7 @@ let globalSubscriber: EventSubscriber | null = null
 
 export function initEventSubscriber(apiBaseUrl: string): EventSubscriber {
   if (globalSubscriber) {
-    console.warn('[EventSubscriber] Already initialized')
+    logger.warn(LogTags.SYSTEM_SSE, 'Event subscriber already initialized')
     return globalSubscriber
   }
 

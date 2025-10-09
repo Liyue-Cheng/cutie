@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * Correlation ID 追踪器
@@ -46,7 +47,10 @@ export function createCorrelationTracker() {
       httpSent: 0,
     })
     
-    console.log(`[⏱️ Performance] ${operationName} START | correlation: ${correlationId}`)
+    logger.debug(LogTags.PERF, 'Operation started', {
+      operationName,
+      correlationId,
+    })
     return correlationId
   }
   
@@ -61,9 +65,10 @@ export function createCorrelationTracker() {
     timer.httpSent = httpSentTime
     
     const preparationTime = httpSentTime - timer.start
-    console.log(
-      `[⏱️ Performance] HTTP REQUEST SENT | Δ=${preparationTime.toFixed(2)}ms | correlation: ${correlationId}`
-    )
+    logger.debug(LogTags.PERF, 'HTTP request sent', {
+      correlationId,
+      preparationTime: `${preparationTime.toFixed(2)}ms`,
+    })
   }
   
   /**
@@ -78,9 +83,11 @@ export function createCorrelationTracker() {
     
     const httpRoundtrip = httpReceivedTime - timer.httpSent
     const totalSoFar = httpReceivedTime - timer.start
-    console.log(
-      `[⏱️ Performance] HTTP RESPONSE RECEIVED | Δ=${httpRoundtrip.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
-    )
+    logger.debug(LogTags.PERF, 'HTTP response received', {
+      correlationId,
+      httpRoundtrip: `${httpRoundtrip.toFixed(2)}ms`,
+      totalSoFar: `${totalSoFar.toFixed(2)}ms`,
+    })
   }
   
   /**
@@ -95,9 +102,11 @@ export function createCorrelationTracker() {
     
     const sseDelay = sseReceivedTime - (timer.httpReceived || timer.httpSent)
     const totalSoFar = sseReceivedTime - timer.start
-    console.log(
-      `[⏱️ Performance] SSE EVENT RECEIVED | Δ=${sseDelay.toFixed(2)}ms | Total=${totalSoFar.toFixed(2)}ms | correlation: ${correlationId}`
-    )
+    logger.debug(LogTags.PERF, 'SSE event received', {
+      correlationId,
+      sseDelay: `${sseDelay.toFixed(2)}ms`,
+      totalSoFar: `${totalSoFar.toFixed(2)}ms`,
+    })
   }
   
   /**
@@ -113,19 +122,21 @@ export function createCorrelationTracker() {
     const sideEffectsDuration = completedTime - (timer.sseReceived || timer.httpReceived || timer.httpSent)
     const totalDuration = completedTime - timer.start
     
-    console.log(
-      `[⏱️ Performance] SIDE EFFECTS COMPLETED | Δ=${sideEffectsDuration.toFixed(2)}ms | Total=${totalDuration.toFixed(2)}ms | correlation: ${correlationId}`
-    )
+    logger.debug(LogTags.PERF, 'Side effects completed', {
+      correlationId,
+      sideEffectsDuration: `${sideEffectsDuration.toFixed(2)}ms`,
+      totalDuration: `${totalDuration.toFixed(2)}ms`,
+    })
     
     // 输出详细总结
-    console.log(
-      `[⏱️ Performance] 📊 ${operationName.toUpperCase()} SUMMARY | correlation: ${correlationId}\n` +
-        `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
-        `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
-        `  ├─ SSE Delay:          ${((timer.sseReceived || 0) - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
-        `  ├─ Side Effects:       ${sideEffectsDuration.toFixed(2)}ms\n` +
-        `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
-    )
+    logger.info(LogTags.PERF, `${operationName.toUpperCase()} performance summary`, {
+      correlationId,
+      preparation: `${(timer.httpSent - timer.start).toFixed(2)}ms`,
+      httpRoundtrip: `${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms`,
+      sseDelay: `${((timer.sseReceived || 0) - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms`,
+      sideEffects: `${sideEffectsDuration.toFixed(2)}ms`,
+      total: `${totalDuration.toFixed(2)}ms`,
+    })
   }
   
   /**
@@ -138,13 +149,13 @@ export function createCorrelationTracker() {
     const completedTime = timer.sseReceived || timer.httpReceived || performance.now()
     const totalDuration = completedTime - timer.start
     
-    console.log(
-      `[⏱️ Performance] 📊 ${operationName.toUpperCase()} SUMMARY (no side effects) | correlation: ${correlationId}\n` +
-        `  ├─ Preparation:        ${(timer.httpSent - timer.start).toFixed(2)}ms\n` +
-        `  ├─ HTTP Roundtrip:     ${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms\n` +
-        `  ├─ SSE Delay:          ${((timer.sseReceived || 0) - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms\n` +
-        `  └─ TOTAL:              ${totalDuration.toFixed(2)}ms ✅`
-    )
+    logger.info(LogTags.PERF, `${operationName.toUpperCase()} performance summary (no side effects)`, {
+      correlationId,
+      preparation: `${(timer.httpSent - timer.start).toFixed(2)}ms`,
+      httpRoundtrip: `${((timer.httpReceived || 0) - timer.httpSent).toFixed(2)}ms`,
+      sseDelay: `${((timer.sseReceived || 0) - (timer.httpReceived || timer.httpSent)).toFixed(2)}ms`,
+      total: `${totalDuration.toFixed(2)}ms`,
+    })
   }
   
   /**

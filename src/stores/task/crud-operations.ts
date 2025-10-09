@@ -9,6 +9,7 @@ import type {
   UnarchiveTaskResponse,
 } from './types'
 import type { createTaskCore } from './core'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * Task Store CRUD 操作
@@ -31,12 +32,12 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
    * API: POST /tasks
    */
   async function createTask(payload: CreateTaskPayload): Promise<TaskCard | null> {
-    console.log('[TaskStore] Creating task with payload:', payload)
+    logger.info(LogTags.STORE_TASKS, 'Creating task', { payload })
 
     return withLoading(async () => {
       const newTask: TaskCard = await apiPost('/tasks', payload)
       addOrUpdateTask(newTask)
-      console.log('[TaskStore] Created task:', newTask)
+      logger.info(LogTags.STORE_TASKS, 'Created task', { taskId: newTask.id, title: newTask.title })
       return newTask
     }, 'create task')
   }
@@ -46,13 +47,16 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
    * API: PATCH /tasks/:id
    */
   async function updateTask(id: string, payload: UpdateTaskPayload): Promise<TaskCard | null> {
-    console.log('[TaskStore] Updating task', id, 'with payload:', payload)
+    logger.info(LogTags.STORE_TASKS, 'Updating task', { taskId: id, payload })
 
     return withLoading(async () => {
       const result = await apiPatch(`/tasks/${id}`, payload)
       const updatedTask: TaskCard = result.task
       addOrUpdateTask(updatedTask)
-      console.log('[TaskStore] Updated task:', updatedTask)
+      logger.info(LogTags.STORE_TASKS, 'Updated task', {
+        taskId: updatedTask.id,
+        title: updatedTask.title,
+      })
       return updatedTask
     }, `update task ${id}`)
   }
@@ -65,7 +69,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
     return withLoading(async () => {
       const taskDetail: TaskDetail = await apiGet(`/tasks/${id}`)
       addOrUpdateTask(taskDetail) // 会自动合并并覆盖旧的 TaskCard 数据
-      console.log('[TaskStore] Fetched task detail:', taskDetail)
+      logger.info(LogTags.STORE_TASKS, 'Fetched task detail', {
+        taskId: taskDetail.id,
+        title: taskDetail.title,
+      })
       return taskDetail
     }, `fetch task detail ${id}`)
   }
@@ -95,7 +102,7 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
           // ✅ 注意：副作用（deleted orphan time blocks）已通过 SSE 推送
           // HTTP响应体现在只返回 success 标志，真实的副作用由事件处理器处理
 
-          console.log('[TaskStore] Deleted task (HTTP):', id, 'correlation:', correlationId)
+          logger.info(LogTags.STORE_TASKS, 'Deleted task (HTTP)', { taskId: id, correlationId })
           return true
         } catch (e) {
           // 清理失败的追踪
@@ -137,7 +144,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
         // ✅ 注意：副作用（deleted/truncated time blocks）已通过 SSE 推送
         // HTTP响应体现在返回空的ID列表，真实的副作用由事件处理器处理
 
-        console.log('[TaskStore] Completed task (HTTP):', data.task, 'correlation:', correlationId)
+        logger.info(LogTags.STORE_TASKS, 'Completed task (HTTP)', {
+          taskId: data.task.id,
+          correlationId,
+        })
         return data.task
       } catch (e) {
         // 清理失败的追踪
@@ -163,22 +173,27 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
         // 记录 HTTP 请求发送
         correlationTracker.markHttpSent(correlationId, 'reopenTask')
         const httpSentTimestamp = new Date().toISOString()
-        console.log(
-          `[⏱️ Performance] HTTP REQUEST SENT | timestamp=${httpSentTimestamp} | correlation: ${correlationId}`
-        )
+        logger.debug(LogTags.PERF, 'HTTP request sent for reopen task', {
+          timestamp: httpSentTimestamp,
+          correlationId,
+        })
 
         const data: ReopenTaskResponse = await apiDelete(`/tasks/${id}/completion`, correlationId)
 
         // 记录 HTTP 响应接收
         correlationTracker.markHttpReceived(correlationId, 'reopenTask')
         const httpReceivedTimestamp = new Date().toISOString()
-        console.log(
-          `[⏱️ Performance] HTTP RESPONSE RECEIVED | timestamp=${httpReceivedTimestamp} | correlation: ${correlationId}`
-        )
+        logger.debug(LogTags.PERF, 'HTTP response received for reopen task', {
+          timestamp: httpReceivedTimestamp,
+          correlationId,
+        })
 
         const reopenedTask: TaskCard = data.task
         addOrUpdateTask(reopenedTask)
-        console.log('[TaskStore] Reopened task (HTTP):', reopenedTask)
+        logger.info(LogTags.STORE_TASKS, 'Reopened task (HTTP)', {
+          taskId: reopenedTask.id,
+          correlationId,
+        })
         return reopenedTask
       } catch (e) {
         // 清理失败的追踪
@@ -202,14 +217,21 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
       try {
         correlationTracker.markHttpSent(correlationId, 'addSchedule')
 
-        const data = await apiPost(`/tasks/${taskId}/schedules`, { scheduled_day: scheduledDay }, correlationId)
+        const data = await apiPost(
+          `/tasks/${taskId}/schedules`,
+          { scheduled_day: scheduledDay },
+          correlationId
+        )
 
         correlationTracker.markHttpReceived(correlationId, 'addSchedule')
 
         const updatedTask: TaskCard = data.task_card
         addOrUpdateTask(updatedTask)
 
-        console.log('[TaskStore] Added schedule (HTTP):', updatedTask, 'correlation:', correlationId)
+        logger.info(LogTags.STORE_TASKS, 'Added schedule (HTTP)', {
+          taskId: updatedTask.id,
+          correlationId,
+        })
         return updatedTask
       } catch (e) {
         correlationTracker.cleanupFailedTracking(correlationId)
@@ -242,7 +264,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
         const updatedTask: TaskCard = data.task_card
         addOrUpdateTask(updatedTask)
 
-        console.log('[TaskStore] Updated schedule (HTTP):', updatedTask, 'correlation:', correlationId)
+        logger.info(LogTags.STORE_TASKS, 'Updated schedule (HTTP)', {
+          taskId: updatedTask.id,
+          correlationId,
+        })
         return updatedTask
       } catch (e) {
         correlationTracker.cleanupFailedTracking(correlationId)
@@ -273,7 +298,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
 
         // ✅ 注意：副作用（deleted time blocks）已通过 SSE 推送
 
-        console.log('[TaskStore] Deleted schedule (HTTP):', updatedTask, 'correlation:', correlationId)
+        logger.info(LogTags.STORE_TASKS, 'Deleted schedule (HTTP)', {
+          taskId: updatedTask.id,
+          correlationId,
+        })
         return updatedTask
       } catch (e) {
         correlationTracker.cleanupFailedTracking(correlationId)
@@ -304,7 +332,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
 
         // ✅ 注意：副作用（deleted time blocks）已通过 SSE 推送
 
-        console.log('[TaskStore] Returned to staging (HTTP):', updatedTask, 'correlation:', correlationId)
+        logger.info(LogTags.STORE_TASKS, 'Returned to staging (HTTP)', {
+          taskId: updatedTask.id,
+          correlationId,
+        })
         return updatedTask
       } catch (e) {
         correlationTracker.cleanupFailedTracking(correlationId)
@@ -336,7 +367,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
 
         addOrUpdateTask(data.task)
 
-        console.log('[TaskStore] Archived task (HTTP):', data.task, 'correlation:', correlationId)
+        logger.info(LogTags.STORE_TASKS, 'Archived task (HTTP)', {
+          taskId: data.task.id,
+          correlationId,
+        })
         return data.task
       } catch (e) {
         correlationTracker.cleanupFailedTracking(correlationId)
@@ -368,12 +402,10 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
 
         addOrUpdateTask(data.task)
 
-        console.log(
-          '[TaskStore] Unarchived task (HTTP):',
-          data.task,
-          'correlation:',
-          correlationId
-        )
+        logger.info(LogTags.STORE_TASKS, 'Unarchived task (HTTP)', {
+          taskId: data.task.id,
+          correlationId,
+        })
         return data.task
       } catch (e) {
         correlationTracker.cleanupFailedTracking(correlationId)

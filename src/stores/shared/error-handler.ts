@@ -1,8 +1,10 @@
 /**
  * 统一错误处理工具
- * 
+ *
  * 提供标准化的错误处理和日志记录功能
  */
+
+import { logger, LogTags } from '@/services/logger'
 
 export interface ErrorContext {
   operation: string
@@ -18,15 +20,15 @@ export interface ErrorContext {
  */
 export function formatError(error: unknown, context: ErrorContext): string {
   const { operation, store, details } = context
-  
+
   let errorMessage = `[${store}] Failed to ${operation}`
-  
+
   if (error instanceof Error) {
     errorMessage += `: ${error.message}`
   } else {
     errorMessage += `: ${String(error)}`
   }
-  
+
   return errorMessage
 }
 
@@ -37,12 +39,17 @@ export function formatError(error: unknown, context: ErrorContext): string {
  */
 export function logError(error: unknown, context: ErrorContext): void {
   const { operation, store, details } = context
-  
-  console.error(`[${store}] Error in ${operation}:`, error)
-  
-  if (details) {
-    console.error(`[${store}] Error details:`, details)
-  }
+
+  logger.error(
+    LogTags.STORE_TASKS,
+    `Error in ${operation}`,
+    error instanceof Error ? error : new Error(String(error)),
+    {
+      store,
+      operation,
+      ...details,
+    }
+  )
 }
 
 /**

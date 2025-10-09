@@ -13,6 +13,7 @@
  */
 
 import { useTaskStore, type CreateTaskPayload } from '@/stores/task'
+import { logger, LogTags } from '@/services/logger'
 
 export function useTaskOperations() {
   const taskStore = useTaskStore()
@@ -27,11 +28,16 @@ export function useTaskOperations() {
 
       if (!task) return false
 
-      console.log('[TaskOperations] Task completed successfully:', taskId)
+      logger.info(LogTags.STORE_TASKS, 'Task completed successfully', { taskId })
       // ✅ 无需任何额外处理，视图会自动更新
       return true
     } catch (error) {
-      console.error('[TaskOperations] Error completing task:', error)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Error completing task',
+        error instanceof Error ? error : new Error(String(error)),
+        { taskId }
+      )
       return false
     }
   }
@@ -46,11 +52,16 @@ export function useTaskOperations() {
 
       if (!success) return false
 
-      console.log('[TaskOperations] Task deleted successfully:', taskId)
+      logger.info(LogTags.STORE_TASKS, 'Task deleted successfully', { taskId })
       // ✅ 无需手动从视图移除，TaskStore.getTaskById 返回 undefined 后自动过滤
       return true
     } catch (error) {
-      console.error('[TaskOperations] Error deleting task:', error)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Error deleting task',
+        error instanceof Error ? error : new Error(String(error)),
+        { taskId }
+      )
       return false
     }
   }
@@ -65,11 +76,16 @@ export function useTaskOperations() {
 
       if (!task) return false
 
-      console.log('[TaskOperations] Task reopened successfully:', taskId)
+      logger.info(LogTags.STORE_TASKS, 'Task reopened successfully', { taskId })
       // ✅ 无需任何额外处理，视图会自动更新
       return true
     } catch (error) {
-      console.error('[TaskOperations] Error reopening task:', error)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Error reopening task',
+        error instanceof Error ? error : new Error(String(error)),
+        { taskId }
+      )
       return false
     }
   }
@@ -83,11 +99,19 @@ export function useTaskOperations() {
       const task = await taskStore.createTask(payload)
       if (!task) return null
 
-      console.log('[TaskOperations] Task created successfully:', task.id)
+      logger.info(LogTags.STORE_TASKS, 'Task created successfully', {
+        taskId: task.id,
+        title: task.title,
+      })
       // ✅ 无需手动添加到视图，会自动出现在对应的过滤列表中
       return task.id
     } catch (error) {
-      console.error('[TaskOperations] Error creating task:', error)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Error creating task',
+        error instanceof Error ? error : new Error(String(error)),
+        { payload }
+      )
       return null
     }
   }
@@ -102,11 +126,16 @@ export function useTaskOperations() {
 
       if (!task) return false
 
-      console.log('[TaskOperations] Task archived successfully:', taskId)
+      logger.info(LogTags.STORE_TASKS, 'Task archived successfully', { taskId })
       // ✅ 无需任何额外处理，视图会自动更新
       return true
     } catch (error) {
-      console.error('[TaskOperations] Error archiving task:', error)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Error archiving task',
+        error instanceof Error ? error : new Error(String(error)),
+        { taskId }
+      )
       return false
     }
   }
@@ -121,11 +150,16 @@ export function useTaskOperations() {
 
       if (!task) return false
 
-      console.log('[TaskOperations] Task unarchived successfully:', taskId)
+      logger.info(LogTags.STORE_TASKS, 'Task unarchived successfully', { taskId })
       // ✅ 无需任何额外处理，视图会自动更新
       return true
     } catch (error) {
-      console.error('[TaskOperations] Error unarchiving task:', error)
+      logger.error(
+        LogTags.STORE_TASKS,
+        'Error unarchiving task',
+        error instanceof Error ? error : new Error(String(error)),
+        { taskId }
+      )
       return false
     }
   }

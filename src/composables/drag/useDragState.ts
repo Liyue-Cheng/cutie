@@ -6,6 +6,7 @@
 
 import { ref, readonly } from 'vue'
 import type { Ref } from 'vue'
+import { logger, LogTags } from '@/services/logger'
 
 // ==================== 全局状态 ====================
 // 使用单例模式，确保整个应用共享同一个状态
@@ -27,7 +28,7 @@ export function useDragState<T = any>() {
     draggedItem.value = item
     dragStartTime.value = Date.now()
 
-    console.log('[useDragState] Drag started:', {
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag started', {
       itemType: typeof item,
       timestamp: dragStartTime.value,
     })
@@ -39,7 +40,7 @@ export function useDragState<T = any>() {
   function endDrag(): void {
     const duration = Date.now() - dragStartTime.value
 
-    console.log('[useDragState] Drag ended:', {
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag ended', {
       duration: `${duration}ms`,
     })
 
@@ -55,7 +56,7 @@ export function useDragState<T = any>() {
   function updateDraggedItem(item: T): void {
     draggedItem.value = item
 
-    console.log('[useDragState] Dragged item updated')
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Dragged item updated')
   }
 
   /**

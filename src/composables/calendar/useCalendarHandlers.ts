@@ -15,6 +15,7 @@ import type {
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
+import { logger, LogTags } from '@/services/logger'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
@@ -76,7 +77,11 @@ export function useCalendarHandlers(
         // 清除临时预览，真实事件会通过store更新显示
         previewEvent.value = null
       } catch (error) {
-        console.error('Failed to create event:', error)
+        logger.error(
+          LogTags.COMPONENT_CALENDAR,
+          'Failed to create event',
+          error instanceof Error ? error : new Error(String(error))
+        )
 
         // 清除临时预览
         previewEvent.value = null
@@ -89,7 +94,7 @@ export function useCalendarHandlers(
           errorMessage = error
         }
 
-        console.error(`创建事件失败: ${errorMessage}`)
+        logger.error(LogTags.COMPONENT_CALENDAR, 'Event creation failed', new Error(errorMessage))
         alert(`创建事件失败: ${errorMessage}`)
       }
     }
@@ -124,9 +129,10 @@ export function useCalendarHandlers(
       startTime = start.toISOString()
       endTime = end.toISOString()
 
-      console.log(
-        `[Calendar] Converting all-day event to timed event (max 1 hour): ${startTime} - ${endTime}`
-      )
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Converting all-day to timed event', {
+        startTime,
+        endTime,
+      })
     }
 
     // ✅ 从分时拖到全天：规整到日界
@@ -138,7 +144,10 @@ export function useCalendarHandlers(
       startTime = startDate.toISOString()
       endTime = endDate.toISOString()
 
-      console.log(`[Calendar] Converting timed event to all-day event: ${startTime} - ${endTime}`)
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Converting timed to all-day event', {
+        startTime,
+        endTime,
+      })
     }
 
     // 统一截断：分时事件不得跨天（包括拖动/拉伸）
@@ -158,7 +167,7 @@ export function useCalendarHandlers(
       const endLocalDay = toLocalYMD(end)
 
       if (startLocalDay !== endLocalDay) {
-        // 跨天了：根据“当前日历视图日期”（本地）决定保留哪一天
+        // 跨天了：根据"当前日历视图日期"（本地）决定保留哪一天
         const viewLocalDate = currentDateRef.value || startLocalDay
 
         if (viewLocalDate === endLocalDay) {
@@ -167,18 +176,20 @@ export function useCalendarHandlers(
           dayStart.setHours(0, 0, 0, 0)
           start = dayStart
           startTime = start.toISOString()
-          console.log(
-            `[Calendar] Cross-day detected, keep ${viewLocalDate}, truncate start -> ${startTime}`
-          )
+          logger.debug(LogTags.COMPONENT_CALENDAR, 'Cross-day detected, truncate start', {
+            viewLocalDate,
+            startTime,
+          })
         } else {
           // 默认：视图日期为开始那天：将结束截断到开始那天的 23:59:59.999
           const dayEnd = new Date(start)
           dayEnd.setHours(23, 59, 59, 999)
           end = dayEnd
           endTime = end.toISOString()
-          console.log(
-            `[Calendar] Cross-day detected, keep ${viewLocalDate}, truncate end -> ${endTime}`
-          )
+          logger.debug(LogTags.COMPONENT_CALENDAR, 'Cross-day detected, truncate end', {
+            viewLocalDate,
+            endTime,
+          })
         }
       }
     }
@@ -191,7 +202,11 @@ export function useCalendarHandlers(
         is_all_day: isNowAllDay, // ✅ 更新全天标志
       })
     } catch (error) {
-      console.error('Failed to update event:', error)
+      logger.error(
+        LogTags.COMPONENT_CALENDAR,
+        'Failed to update event',
+        error instanceof Error ? error : new Error(String(error))
+      )
 
       // 显示错误信息给用户
       let errorMessage = 'Could not update the event. It might be overlapping with another event.'
@@ -201,7 +216,7 @@ export function useCalendarHandlers(
         errorMessage = error
       }
 
-      console.error(`更新事件失败: ${errorMessage}`)
+      logger.error(LogTags.COMPONENT_CALENDAR, 'Event update failed', new Error(errorMessage))
       alert(`更新事件失败: ${errorMessage}`)
 
       changeInfo.revert() // Revert the change on the calendar
@@ -226,7 +241,7 @@ export function useCalendarHandlers(
     if (eventId === 'preview-event' || eventId === 'temp-creating') {
       return
     }
-    console.log('[CuteCalendar] Event clicked:', eventId)
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Event clicked', { eventId })
     selectedTimeBlockId.value = eventId
   }
 

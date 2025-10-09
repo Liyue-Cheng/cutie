@@ -3,12 +3,13 @@ import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
-import { useTaskStore } from '@/stores/task'
+// import { useTaskStore } from '@/stores/task' // 🗑️ 不再需要
 import { useViewStore } from '@/stores/view'
 import { useDragTransfer } from '@/composables/drag'
+import { logger, LogTags } from '@/services/logger'
 
 // ==================== Stores ====================
-const taskStore = useTaskStore()
+// const taskStore = useTaskStore() // 🗑️ 不再需要：SimpleKanbanColumn 内部处理任务数据
 const viewStore = useViewStore()
 const dragTransfer = useDragTransfer()
 
@@ -277,25 +278,9 @@ function handleScroll(_event: Event) {
 }
 
 // 为每个看板获取任务（响应式）
-// ✅ 使用computed缓存，避免重复计算
-const kanbanTasksMap = computed(() => {
-  console.log('[InfiniteDailyKanban] 🔄 Recomputing all kanban tasks')
-  const map = new Map<string, TaskCard[]>()
-
-  kanbans.value.forEach((kanban) => {
-    const tasks = taskStore.getTasksByDate(kanban.id)
-    const sorted = viewStore.applySorting(tasks, kanban.viewKey)
-    map.set(kanban.viewKey, sorted)
-    // console.log(`[InfiniteDailyKanban] Cached ${sorted.length} tasks for ${kanban.id}`)
-  })
-
-  return map
-})
-
-// 获取缓存的任务列表
-function getKanbanTasks(kanban: DailyKanban): TaskCard[] {
-  return kanbanTasksMap.value.get(kanban.viewKey) ?? []
-}
+// 🗑️ 移除：任务获取和排序现在由 SimpleKanbanColumn 内部处理
+// const kanbanTasksMap = computed(() => { ... })
+// function getKanbanTasks(kanban: DailyKanban): TaskCard[] { ... }
 
 // 🆕 为每个看板生成 ViewMetadata
 function getKanbanMetadata(kanban: DailyKanban): ViewMetadata {
@@ -327,14 +312,9 @@ function handleOpenEditor(task: TaskCard) {
   emit('open-editor', task)
 }
 
-function handleAddTask(title: string, kanban: DailyKanban) {
-  emit('add-task', title, kanban.id)
-}
-
-async function handleReorder(viewKey: string, newOrder: string[]) {
-  console.log('[InfiniteDailyKanban] 🔄 Reorder:', viewKey, newOrder)
-  await viewStore.updateSorting(viewKey, newOrder)
-}
+// 🗑️ 移除不再需要的事件处理器（SimpleKanbanColumn 内部处理）：
+// function handleAddTask() { ... }
+// async function handleReorder() { ... }
 
 // ==================== 拖动滚动 ====================
 function handleMouseDown(event: MouseEvent) {
@@ -463,18 +443,18 @@ function handleTaskDragStart(event: DragEvent) {
   // 检查是否是任务卡片拖动（使用统一的 dragTransfer 检测）
   if (dragTransfer.hasDragData(event)) {
     isTaskDragging.value = true
-    console.log('[InfiniteDailyKanban] 🎯 Task drag started, disabling kanban drag')
+    logger.debug(LogTags.COMPONENT_KANBAN, 'Task drag started, disabling kanban drag')
   }
 }
 
 function handleTaskDragEnd() {
   isTaskDragging.value = false
-  console.log('[InfiniteDailyKanban] 🎯 Task drag ended, enabling kanban drag')
+  logger.debug(LogTags.COMPONENT_KANBAN, 'Task drag ended, enabling kanban drag')
 }
 
 // ==================== 生命周期 ====================
 onMounted(async () => {
-  console.log('[InfiniteDailyKanban] 🚀 Initializing daily kanbans...')
+  logger.info(LogTags.COMPONENT_KANBAN, 'Initializing daily kanbans')
   // 初始化日期看板
   initKanbans()
 
@@ -497,7 +477,7 @@ onMounted(async () => {
     () => {
       if (isTaskDragging.value) {
         isTaskDragging.value = false
-        console.log('[InfiniteDailyKanban] ♻️ Global drop detected, re-enable kanban drag')
+        logger.debug(LogTags.COMPONENT_KANBAN, 'Global drop detected, re-enable kanban drag')
       }
     },
     true
@@ -531,15 +511,9 @@ onBeforeUnmount(() => {
         :subtitle="`${getWeekdayName(kanban.date)}${isToday(kanban.date) ? ' · 今天' : ''}`"
         :view-key="kanban.viewKey"
         :view-metadata="getKanbanMetadata(kanban)"
-        :tasks="getKanbanTasks(kanban)"
         :show-add-input="true"
         :style="{ width: `${KANBAN_WIDTH}rem`, flexShrink: 0 }"
         @open-editor="handleOpenEditor"
-        @add-task="(title) => handleAddTask(title, kanban)"
-        @reorder-tasks="(order) => handleReorder(kanban.viewKey, order)"
-        @cross-view-drop="
-          (taskId, targetViewId) => console.log('📦 Cross-view drop:', taskId, 'to', targetViewId)
-        "
       />
     </div>
   </div>

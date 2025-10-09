@@ -6,6 +6,7 @@
 
 import { ref, computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * 同看板拖放 Composable
@@ -66,7 +67,7 @@ export function useSameViewDrag(getTasksFn: () => TaskCard[]) {
     draggedOverIndex.value = null
     lastDragOverTime = 0
 
-    console.log('[useSameViewDrag] 🚀 Drag started:', taskId)
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Same view drag started', { taskId })
   }
 
   /**
@@ -98,7 +99,7 @@ export function useSameViewDrag(getTasksFn: () => TaskCard[]) {
   function finishDrag(): string[] | null {
     if (!isDragging.value) return null
 
-    console.log('[useSameViewDrag] ✅ Drag finished')
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Same view drag finished')
 
     const finalOrder = reorderedTasks.value.map((t) => t.id)
 
@@ -116,7 +117,7 @@ export function useSameViewDrag(getTasksFn: () => TaskCard[]) {
   function cancelDrag(): void {
     if (!isDragging.value) return
 
-    console.log('[useSameViewDrag] ❌ Drag cancelled')
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Same view drag cancelled')
 
     draggedTaskId.value = null
     draggedOverIndex.value = null
@@ -128,7 +129,7 @@ export function useSameViewDrag(getTasksFn: () => TaskCard[]) {
    */
   function resetDragOverIndex(): void {
     if (draggedOverIndex.value !== null) {
-      console.log('[useSameViewDrag] 🔄 Reset drag over index')
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Reset drag over index')
       draggedOverIndex.value = null
     }
   }

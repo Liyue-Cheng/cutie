@@ -8,6 +8,7 @@ import { ref, readonly, computed } from 'vue'
 import type { Ref } from 'vue'
 import type { DragContext, ViewMetadata, NormalDragMode, SnapDragMode } from '@/types/drag'
 import type { TaskCard } from '@/types/dtos'
+import { logger, LogTags } from '@/services/logger'
 
 // ==================== 全局上下文状态 ====================
 
@@ -66,7 +67,7 @@ export function useDragContext() {
       startTime: Date.now(),
     }
 
-    console.log('[DragContext] 🚀 Started normal drag:', {
+    logger.info(LogTags.DRAG_CONTEXT, 'Started normal drag', {
       taskId: task.id,
       taskTitle: task.title,
       sourceViewType: sourceView.type,
@@ -100,7 +101,7 @@ export function useDragContext() {
       startTime: Date.now(),
     }
 
-    console.log('[DragContext] 📍 Started snap drag:', {
+    logger.info(LogTags.DRAG_CONTEXT, 'Started snap drag', {
       taskId: task.id,
       taskTitle: task.title,
       sourceViewType: sourceView.type,
@@ -116,7 +117,7 @@ export function useDragContext() {
    */
   function updateMetadata(metadata: Record<string, any>): void {
     if (!currentContext.value) {
-      console.warn('[DragContext] Cannot update metadata: no active drag context')
+      logger.warn(LogTags.DRAG_CONTEXT, 'Cannot update metadata: no active drag context')
       return
     }
 
@@ -128,7 +129,7 @@ export function useDragContext() {
       },
     }
 
-    console.log('[DragContext] Updated metadata:', metadata)
+    logger.debug(LogTags.DRAG_CONTEXT, 'Updated metadata', { metadata })
   }
 
   /**
@@ -137,7 +138,7 @@ export function useDragContext() {
   function setTargetViewId(viewId: string | null): void {
     currentTargetViewId.value = viewId
     if (viewId) {
-      console.log('[DragContext] 🎯 Target view changed:', viewId)
+      logger.debug(LogTags.DRAG_CONTEXT, 'Target view changed', { viewId })
     }
   }
 
@@ -156,7 +157,7 @@ export function useDragContext() {
 
     const duration = Date.now() - currentContext.value.startTime
 
-    console.log('[DragContext] ✅ Cleared context:', {
+    logger.debug(LogTags.DRAG_CONTEXT, 'Cleared context', {
       duration: `${duration}ms`,
       mode: currentContext.value.dragMode.mode,
     })

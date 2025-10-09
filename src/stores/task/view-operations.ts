@@ -1,6 +1,7 @@
 import type { TaskCard } from '@/types/dtos'
 import { apiGet } from '@/stores/shared'
 import type { createTaskCore } from './core'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * Task Store 视图操作
@@ -25,7 +26,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
     return withLoading(async () => {
       const tasks: TaskCard[] = await apiGet('/views/all')
       addOrUpdateTasks(tasks)
-      console.log('[TaskStore] Fetched', tasks.length, 'all tasks')
+      logger.info(LogTags.STORE_TASKS, 'Fetched all tasks', { count: tasks.length })
       return tasks
     }, 'fetch all tasks')
   }
@@ -38,7 +39,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
     return withLoading(async () => {
       const tasks: TaskCard[] = await apiGet('/views/all-incomplete')
       addOrUpdateTasks(tasks)
-      console.log('[TaskStore] Fetched', tasks.length, 'incomplete tasks')
+      logger.info(LogTags.STORE_TASKS, 'Fetched incomplete tasks', { count: tasks.length })
       return tasks
     }, 'fetch incomplete tasks')
   }
@@ -51,7 +52,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
     return withLoading(async () => {
       const tasks: TaskCard[] = await apiGet('/views/planned')
       addOrUpdateTasks(tasks)
-      console.log('[TaskStore] Fetched', tasks.length, 'planned tasks')
+      logger.info(LogTags.STORE_TASKS, 'Fetched planned tasks', { count: tasks.length })
       return tasks
     }, 'fetch planned tasks')
   }
@@ -64,7 +65,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
     return withLoading(async () => {
       const stagingTasks: TaskCard[] = await apiGet('/views/staging')
       addOrUpdateTasks(stagingTasks)
-      console.log('[TaskStore] Fetched', stagingTasks.length, 'staging tasks')
+      logger.info(LogTags.STORE_TASKS, 'Fetched staging tasks', { count: stagingTasks.length })
       return stagingTasks
     }, 'fetch staging tasks')
   }
@@ -79,7 +80,10 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
         `/views/daily/${date}`
       )
       addOrUpdateTasks(response.tasks)
-      console.log('[TaskStore] Fetched', response.tasks.length, 'tasks for date', date)
+      logger.info(LogTags.STORE_TASKS, 'Fetched tasks for date', {
+        count: response.tasks.length,
+        date,
+      })
       return response.tasks
     }, `fetch tasks for ${date}`)
     return result ?? []
@@ -98,7 +102,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
       // addOrUpdateTasks(results)
       // return results
 
-      console.log('[TaskStore] searchTasks - API not implemented yet', { query, limit })
+      logger.info(LogTags.STORE_TASKS, 'searchTasks - API not implemented yet', { query, limit })
       return []
     }, 'search tasks')
 

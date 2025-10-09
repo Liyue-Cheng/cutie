@@ -13,6 +13,7 @@ import type {
   ProjectViewConfig,
   CalendarViewConfig,
 } from '@/types/drag'
+import { logger, LogTags } from '@/services/logger'
 
 // ==================== 策略实现 ====================
 
@@ -24,16 +25,18 @@ const statusToStatus: DragStrategy = async (context, targetView) => {
   const sourceConfig = context.sourceView.config as StatusViewConfig
   const targetConfig = targetView.config as StatusViewConfig
 
-  console.log('[Strategy] 📊 status -> status', {
-    task: context.task.title,
-    from: sourceConfig.status,
-    to: targetConfig.status,
+  logger.debug(LogTags.DRAG_STRATEGY, 'Status to status strategy', {
+    taskTitle: context.task.title,
+    fromStatus: sourceConfig.status,
+    toStatus: targetConfig.status,
     mode: context.dragMode.mode,
   })
 
   // 特殊情况：staging -> planned
   if (sourceConfig.status === 'staging' && targetConfig.status === 'planned') {
-    console.log('  ➡️ Action: Set scheduled_date to today')
+    logger.info(LogTags.DRAG_STRATEGY, 'Action: Set scheduled_date to today', {
+      taskId: context.task.id,
+    })
     return {
       success: true,
       message: '已设置排期',
@@ -42,7 +45,7 @@ const statusToStatus: DragStrategy = async (context, targetView) => {
   }
 
   // 默认：仅重排序
-  console.log('  ➡️ Action: Reorder only')
+  logger.debug(LogTags.DRAG_STRATEGY, 'Action: Reorder only', { taskId: context.task.id })
   return {
     success: true,
     reorderOnly: true,
@@ -57,10 +60,10 @@ const dateToDate: DragStrategy = async (context, targetView) => {
   const sourceDate = (context.sourceView.config as DateViewConfig).date
   const targetDate = (targetView.config as DateViewConfig).date
 
-  console.log('[Strategy] 📅 date -> date', {
-    task: context.task.title,
-    from: sourceDate,
-    to: targetDate,
+  logger.debug(LogTags.DRAG_STRATEGY, 'Date to date strategy', {
+    taskTitle: context.task.title,
+    fromDate: sourceDate,
+    toDate: targetDate,
     mode: context.dragMode.mode,
   })
 
@@ -74,8 +77,14 @@ const dateToDate: DragStrategy = async (context, targetView) => {
 
     if (hasTargetSchedule) {
       // 目标天已有安排，删除源日期的安排即可
-      console.log(
-        `  ➡️ Action: Target date already has schedule, deleting source date ${sourceDate}`
+      logger.info(
+        LogTags.DRAG_STRATEGY,
+        'Action: Target date already has schedule, deleting source date',
+        {
+          taskId: context.task.id,
+          sourceDate,
+          targetDate,
+        }
       )
 
       await taskStore.deleteSchedule(context.task.id, sourceDate)
@@ -87,7 +96,11 @@ const dateToDate: DragStrategy = async (context, targetView) => {
       }
     } else {
       // 目标天没有安排，更新日期
-      console.log(`  ➡️ Action: Update scheduled_date from ${sourceDate} to ${targetDate}`)
+      logger.info(LogTags.DRAG_STRATEGY, 'Action: Update scheduled_date', {
+        taskId: context.task.id,
+        fromDate: sourceDate,
+        toDate: targetDate,
+      })
 
       const updatedTask = await taskStore.updateSchedule(context.task.id, sourceDate, {
         new_date: targetDate,
@@ -108,7 +121,12 @@ const dateToDate: DragStrategy = async (context, targetView) => {
       }
     }
   } catch (error) {
-    console.error('  ❌ Failed to update date schedule:', error)
+    logger.error(
+      LogTags.DRAG_STRATEGY,
+      'Failed to update date schedule',
+      error instanceof Error ? error : new Error(String(error)),
+      { taskId: context.task.id }
+    )
 
     let errorMessage = '改期失败'
     if (error instanceof Error) {
@@ -132,25 +150,28 @@ const projectToProject: DragStrategy = async (context, targetView) => {
   const sourceConfig = context.sourceView.config as ProjectViewConfig
   const targetConfig = targetView.config as ProjectViewConfig
 
-  console.log('[Strategy] 📁 project -> project', {
-    task: context.task.title,
-    from: sourceConfig.projectName,
-    to: targetConfig.projectName,
+  logger.debug(LogTags.DRAG_STRATEGY, 'Project to project strategy', {
+    taskTitle: context.task.title,
+    fromProject: sourceConfig.projectName,
+    toProject: targetConfig.projectName,
     mode: context.dragMode.mode,
   })
 
   // 检查权限：已完成的任务不能移动项目
   if (context.task.is_completed) {
-    console.log('  ❌ Blocked: Completed tasks cannot change projects')
+    logger.warn(LogTags.DRAG_STRATEGY, 'Blocked: Completed tasks cannot change projects', {
+      taskId: context.task.id,
+    })
     return {
       success: false,
       error: '已完成的任务不能移动到其他项目',
     }
   }
 
-  console.log(
-    `  ➡️ Action: Change project from ${sourceConfig.projectId} to ${targetConfig.projectId}`
-  )
+  logger.info(LogTags.DRAG_STRATEGY, 'Action: Change project', {
+    fromProjectId: sourceConfig.projectId,
+    toProjectId: targetConfig.projectId,
+  })
 
   return {
     success: true,
@@ -167,10 +188,10 @@ const statusToDate: DragStrategy = async (context, targetView) => {
   const sourceStatus = (context.sourceView.config as StatusViewConfig).status
   const targetDate = (targetView.config as DateViewConfig).date
 
-  console.log('[Strategy] 📊➡️📅 status -> date', {
-    task: context.task.title,
-    from: sourceStatus,
-    to: targetDate,
+  logger.debug(LogTags.DRAG_STRATEGY, 'Status to date strategy', {
+    taskTitle: context.task.title,
+    fromStatus: sourceStatus,
+    toDate: targetDate,
     mode: context.dragMode.mode,
   })
 
@@ -181,7 +202,7 @@ const statusToDate: DragStrategy = async (context, targetView) => {
   try {
     // 特殊处理：从 staging 拖到日期看板，新建安排
     if (sourceStatus === 'staging') {
-      console.log(`  ➡️ Action: Add schedule for ${targetDate}`)
+      logger.info(LogTags.DRAG_STRATEGY, 'Action: Add schedule for date', { targetDate })
 
       const updatedTask = await taskStore.addSchedule(context.task.id, targetDate)
 
@@ -201,7 +222,7 @@ const statusToDate: DragStrategy = async (context, targetView) => {
     }
 
     // 其他状态看板：仅提示（保留原有逻辑）
-    console.log(`  ➡️ Action: Set scheduled_date to ${targetDate}`)
+    logger.info(LogTags.DRAG_STRATEGY, 'Action: Set scheduled_date', { targetDate })
 
     return {
       success: true,
@@ -209,7 +230,11 @@ const statusToDate: DragStrategy = async (context, targetView) => {
       affectedViews: [context.sourceView.id, targetView.id],
     }
   } catch (error) {
-    console.error('  ❌ Failed to add schedule:', error)
+    logger.error(
+      LogTags.DRAG_STRATEGY,
+      'Failed to add schedule',
+      error instanceof Error ? error : new Error(String(error))
+    )
 
     let errorMessage = '设置排期失败'
     if (error instanceof Error) {
@@ -233,16 +258,16 @@ const dateToStatus: DragStrategy = async (context, targetView) => {
   const sourceDate = (context.sourceView.config as DateViewConfig).date
   const targetStatus = (targetView.config as StatusViewConfig).status
 
-  console.log('[Strategy] 📅➡️📊 date -> status', {
-    task: context.task.title,
-    from: sourceDate,
-    to: targetStatus,
+  logger.debug(LogTags.DRAG_STRATEGY, 'Date to status strategy', {
+    taskTitle: context.task.title,
+    fromDate: sourceDate,
+    toStatus: targetStatus,
     mode: context.dragMode.mode,
   })
 
   // 拖回 staging：取消排期
   if (targetStatus === 'staging') {
-    console.log('  ➡️ Action: Clear scheduled_date (return to staging)')
+    logger.info(LogTags.DRAG_STRATEGY, 'Action: Clear scheduled_date (return to staging)')
     return {
       success: true,
       message: '已取消排期',
@@ -251,7 +276,7 @@ const dateToStatus: DragStrategy = async (context, targetView) => {
   }
 
   // 其他状态看板：仅重排序
-  console.log('  ➡️ Action: Reorder only')
+  logger.debug(LogTags.DRAG_STRATEGY, 'Action: Reorder only')
   return {
     success: true,
     reorderOnly: true,
@@ -266,11 +291,11 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
   const calendarConfig = targetView.config as CalendarViewConfig
 
   // 🔍 检查点5：策略入口
-  console.log('[CHK-5] ✅ anyToCalendar strategy invoked!')
+  logger.debug(LogTags.DRAG_STRATEGY, 'Any to calendar strategy invoked')
 
-  console.log('[Strategy] 🗓️ * -> calendar', {
-    task: context.task.title,
-    from: `${context.sourceView.type}:${context.sourceView.id}`,
+  logger.debug(LogTags.DRAG_STRATEGY, 'Calendar drop strategy', {
+    taskTitle: context.task.title,
+    fromView: `${context.sourceView.type}:${context.sourceView.id}`,
     calendarSlot: {
       start: calendarConfig.startTime,
       end: calendarConfig.endTime,
@@ -287,22 +312,23 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
   const taskStore = useTaskStore()
 
   try {
-    console.log('  ➡️ Action: Create time block from task')
-    console.log('    - task_id:', context.task.id)
-    console.log('    - start_time:', calendarConfig.startTime)
-    console.log('    - end_time:', calendarConfig.endTime)
+    logger.info(LogTags.DRAG_STRATEGY, 'Action: Create time block from task', {
+      taskId: context.task.id,
+      startTime: calendarConfig.startTime,
+      endTime: calendarConfig.endTime,
+    })
 
     // 如果任务是 tiny（estimated_duration 为 0 或 null），先更新为 15 分钟
     const estimatedDuration = context.task.estimated_duration
     if (estimatedDuration === null || estimatedDuration === 0) {
-      console.log('  ⏱️ Task is tiny, updating estimated_duration to 15 minutes')
+      logger.debug(LogTags.DRAG_STRATEGY, 'Task is tiny, updating estimated_duration to 15 minutes')
       await taskStore.updateTask(context.task.id, { estimated_duration: 15 } as any)
       // 更新本地任务对象，以便后续使用
       context.task.estimated_duration = 15
     }
 
     // 🔍 检查点5：即将调用 timeBlockStore
-    console.log('[CHK-5] About to call timeBlockStore.createTimeBlockFromTask')
+    logger.debug(LogTags.DRAG_STRATEGY, 'About to call timeBlockStore.createTimeBlockFromTask')
 
     // 截断跨天：如果是分时事件，确保 end <= 当日 24:00
     let startISO = calendarConfig.startTime
@@ -328,10 +354,12 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
     })
 
     // 🔍 检查点5：timeBlockStore 返回结果
-    console.log('[CHK-5] timeBlockStore.createTimeBlockFromTask result=', result)
+    logger.debug(LogTags.DRAG_STRATEGY, 'TimeBlockStore result', { result })
 
     if (result) {
-      console.log('  ✅ Time block created:', result.time_block.id)
+      logger.info(LogTags.DRAG_STRATEGY, 'Time block created successfully', {
+        timeBlockId: result.time_block.id,
+      })
 
       // ✅ 不在这里更新任务！让SSE事件统一处理，避免双重更新闪烁
       // taskStore.addOrUpdateTask(result.updated_task) // ❌ 删除这行
@@ -343,15 +371,22 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
         updatedTask: result.updated_task, // 仍返回，但不立即更新store
       }
     } else {
-      console.log('[CHK-5] ❌ No result returned from timeBlockStore')
+      logger.error(
+        LogTags.DRAG_STRATEGY,
+        'No result returned from timeBlockStore',
+        new Error('No result')
+      )
       return {
         success: false,
         error: '创建时间块失败：未返回结果',
       }
     }
   } catch (error) {
-    console.error('  ❌ Failed to create time block:', error)
-    console.error('[CHK-5] ❌ Exception:', error)
+    logger.error(
+      LogTags.DRAG_STRATEGY,
+      'Failed to create time block',
+      error instanceof Error ? error : new Error(String(error))
+    )
 
     let errorMessage = '创建时间块失败'
     if (error instanceof Error) {
@@ -371,10 +406,10 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
  * 默认策略：不支持的拖放操作
  */
 const defaultStrategy: DragStrategy = async (context, targetView) => {
-  console.log('[Strategy] ❌ Unsupported operation', {
-    task: context.task.title,
-    from: `${context.sourceView.type}:${context.sourceView.id}`,
-    to: `${targetView.type}:${targetView.id}`,
+  logger.warn(LogTags.DRAG_STRATEGY, 'Unsupported drag operation', {
+    taskTitle: context.task.title,
+    fromView: `${context.sourceView.type}:${context.sourceView.id}`,
+    toView: `${targetView.type}:${targetView.id}`,
     mode: context.dragMode.mode,
   })
 
@@ -419,7 +454,7 @@ export const dragStrategies: StrategyRegistry = {
 export function registerStrategy(key: string, strategy: DragStrategy): void {
   dragStrategies[key as keyof StrategyRegistry] = strategy
 
-  console.log('[Strategies] ✅ Registered custom strategy:', key)
+  logger.debug(LogTags.DRAG_STRATEGY, 'Registered custom strategy', { key })
 }
 
 /**
@@ -429,7 +464,7 @@ export function registerStrategy(key: string, strategy: DragStrategy): void {
 export function unregisterStrategy(key: string): void {
   delete dragStrategies[key as keyof StrategyRegistry]
 
-  console.log('[Strategies] ❌ Unregistered strategy:', key)
+  logger.debug(LogTags.DRAG_STRATEGY, 'Unregistered strategy', { key })
 }
 
 /**

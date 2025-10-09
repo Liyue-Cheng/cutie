@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { logger, LogTags } from '@/services/logger'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
@@ -23,7 +24,7 @@ export async function initializeApiConfig() {
     if (discoveredPort) {
       sidecarPort.value = discoveredPort
       isPortDiscovered.value = true
-      console.log(`🔍 [API Config] Using discovered port: ${discoveredPort}`)
+      logger.info(LogTags.SYSTEM_API, 'Using discovered port', { port: discoveredPort })
 
       // ✅ 初始化事件订阅
       await initializeEventSubscriptions(discoveredPort)
@@ -35,10 +36,16 @@ export async function initializeApiConfig() {
       const port = event.payload
       sidecarPort.value = port
       isPortDiscovered.value = true
-      console.log(`🔍 [API Config] Port discovered via event: ${port}`)
+      logger.info(LogTags.SYSTEM_API, 'Port discovered via event', { port })
 
       // ✅ 初始化事件订阅
-      initializeEventSubscriptions(port).catch(console.error)
+      initializeEventSubscriptions(port).catch((error) => {
+        logger.error(
+          LogTags.SYSTEM_API,
+          'Failed to initialize event subscriptions',
+          error instanceof Error ? error : new Error(String(error))
+        )
+      })
     })
 
     // 等待端口发现（最多10秒）
@@ -53,7 +60,7 @@ export async function initializeApiConfig() {
       if (currentPort) {
         sidecarPort.value = currentPort
         isPortDiscovered.value = true
-        console.log(`🔍 [API Config] Port discovered via polling: ${currentPort}`)
+        logger.info(LogTags.SYSTEM_API, 'Port discovered via polling', { port: currentPort })
 
         // ✅ 初始化事件订阅
         await initializeEventSubscriptions(currentPort)
@@ -64,14 +71,20 @@ export async function initializeApiConfig() {
     }
 
     if (!isPortDiscovered.value) {
-      console.warn(`⚠️ [API Config] Port discovery timeout, using default port: ${DEFAULT_PORT}`)
+      logger.warn(LogTags.SYSTEM_API, 'Port discovery timeout, using default port', {
+        port: DEFAULT_PORT,
+      })
       sidecarPort.value = DEFAULT_PORT
 
       // ✅ 初始化事件订阅（使用默认端口）
       await initializeEventSubscriptions(DEFAULT_PORT)
     }
   } catch (error) {
-    console.error('❌ [API Config] Failed to initialize API config:', error)
+    logger.error(
+      LogTags.SYSTEM_API,
+      'Failed to initialize API config',
+      error instanceof Error ? error : new Error(String(error))
+    )
     sidecarPort.value = DEFAULT_PORT
   }
 }
@@ -84,7 +97,7 @@ async function initializeEventSubscriptions(port: number) {
     // 动态导入事件服务
     const { initEventSubscriber } = await import('@/services/events')
     initEventSubscriber(apiUrl)
-    console.log('🔔 [API Config] Event subscriber initialized')
+    logger.info(LogTags.SYSTEM_API, 'Event subscriber initialized')
 
     // 初始化各个 Store 的事件订阅
     const { useTaskStore } = await import('@/stores/task')
@@ -98,9 +111,13 @@ async function initializeEventSubscriptions(port: number) {
     taskStore.initEventSubscriptions()
     timeBlockStore.initEventSubscriptions()
     trashStore.initEventSubscriptions()
-    console.log('🔔 [API Config] Store event subscriptions initialized')
+    logger.info(LogTags.SYSTEM_API, 'Store event subscriptions initialized')
   } catch (error) {
-    console.error('❌ [API Config] Failed to initialize event subscriptions:', error)
+    logger.error(
+      LogTags.SYSTEM_API,
+      'Failed to initialize event subscriptions',
+      error instanceof Error ? error : new Error(String(error))
+    )
   }
 }
 

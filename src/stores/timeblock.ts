@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import type { TimeBlockView } from '@/types/dtos'
 import { waitForApiReady, apiBaseUrl } from '@/composables/useApiConfig'
 import { getEventSubscriber } from '@/services/events'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * TimeBlock Store
@@ -196,11 +197,18 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // addOrUpdateTimeBlocks(blocks)
       // return blocks
 
-      console.log('[TimeBlockStore] fetchTimeBlocksForDate - API not implemented yet', { date })
+      logger.info(LogTags.STORE_TIMEBLOCK, 'fetchTimeBlocksForDate - API not implemented yet', {
+        date,
+      })
       return []
     } catch (e) {
       error.value = `Failed to fetch time blocks for ${date}: ${e}`
-      console.error('[TimeBlockStore] Error fetching time blocks:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error fetching time blocks',
+        e instanceof Error ? e : new Error(String(e)),
+        { date }
+      )
       return []
     } finally {
       isLoading.value = false
@@ -228,11 +236,20 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       const result = await response.json()
       const blocks: TimeBlockView[] = result.data
       addOrUpdateTimeBlocks(blocks)
-      console.log('[TimeBlockStore] Fetched', blocks.length, 'time blocks for range')
+      logger.info(LogTags.STORE_TIMEBLOCK, 'Fetched time blocks for range', {
+        count: blocks.length,
+        startDate,
+        endDate,
+      })
       return blocks
     } catch (e) {
       error.value = `Failed to fetch time blocks for range: ${e}`
-      console.error('[TimeBlockStore] Error fetching time blocks for range:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error fetching time blocks for range',
+        e instanceof Error ? e : new Error(String(e)),
+        { startDate, endDate }
+      )
       return []
     } finally {
       isLoading.value = false
@@ -248,7 +265,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   ): Promise<CreateFromTaskResponse | null> {
     isLoading.value = true
     error.value = null
-    console.log('[TimeBlockStore] Creating time block from task:', payload)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Creating time block from task', { payload })
 
     try {
       const apiBaseUrl = await waitForApiReady()
@@ -259,7 +276,12 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       })
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('[TimeBlockStore] API error:', errorData)
+        logger.error(
+          LogTags.STORE_TIMEBLOCK,
+          'API error creating time block from task',
+          new Error(JSON.stringify(errorData)),
+          { payload }
+        )
         throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
       }
       const result = await response.json()
@@ -267,12 +289,20 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
       // 更新时间块
       addOrUpdateTimeBlock(data.time_block)
-      console.log('[TimeBlockStore] Created time block from task:', data)
+      logger.info(LogTags.STORE_TIMEBLOCK, 'Created time block from task', {
+        timeBlockId: data.time_block.id,
+        taskId: payload.task_id,
+      })
 
       return data // 返回完整响应，包含 updated_task
     } catch (e) {
       error.value = `Failed to create time block from task: ${e}`
-      console.error('[TimeBlockStore] Error creating time block from task:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error creating time block from task',
+        e instanceof Error ? e : new Error(String(e)),
+        { payload }
+      )
       throw e
     } finally {
       isLoading.value = false
@@ -286,7 +316,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   async function createTimeBlock(payload: CreateTimeBlockPayload): Promise<TimeBlockView | null> {
     isLoading.value = true
     error.value = null
-    console.log('[TimeBlockStore] Creating time block:', payload)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Creating time block', { payload })
 
     try {
       const apiBaseUrl = await waitForApiReady()
@@ -297,17 +327,30 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       })
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('[TimeBlockStore] API error:', errorData)
+        logger.error(
+          LogTags.STORE_TIMEBLOCK,
+          'API error creating time block',
+          new Error(JSON.stringify(errorData)),
+          { payload }
+        )
         throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
       }
       const result = await response.json()
       const newBlock: TimeBlockView = result.data // 提取 ApiResponse 的 data 字段
       addOrUpdateTimeBlock(newBlock)
-      console.log('[TimeBlockStore] Created time block:', newBlock)
+      logger.info(LogTags.STORE_TIMEBLOCK, 'Created time block', {
+        timeBlockId: newBlock.id,
+        title: newBlock.title,
+      })
       return newBlock
     } catch (e) {
       error.value = `Failed to create time block: ${e}`
-      console.error('[TimeBlockStore] Error creating time block:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error creating time block',
+        e instanceof Error ? e : new Error(String(e)),
+        { payload }
+      )
       throw e // 重新抛出错误，让调用者处理
     } finally {
       isLoading.value = false
@@ -324,7 +367,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   ): Promise<TimeBlockView | null> {
     isLoading.value = true
     error.value = null
-    console.log('[TimeBlockStore] Updating time block', id, ':', payload)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Updating time block', { id, payload })
 
     try {
       const apiBaseUrl = await waitForApiReady()
@@ -335,17 +378,30 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       })
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('[TimeBlockStore] API error:', errorData)
+        logger.error(
+          LogTags.STORE_TIMEBLOCK,
+          'API error creating time block',
+          new Error(JSON.stringify(errorData)),
+          { payload }
+        )
         throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
       }
       const result = await response.json()
       const updatedBlock: TimeBlockView = result.data // 提取 ApiResponse 的 data 字段
       addOrUpdateTimeBlock(updatedBlock)
-      console.log('[TimeBlockStore] Updated time block:', updatedBlock)
+      logger.info(LogTags.STORE_TIMEBLOCK, 'Updated time block', {
+        timeBlockId: updatedBlock.id,
+        title: updatedBlock.title,
+      })
       return updatedBlock
     } catch (e) {
       error.value = `Failed to update time block ${id}: ${e}`
-      console.error('[TimeBlockStore] Error updating time block:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error updating time block',
+        e instanceof Error ? e : new Error(String(e)),
+        { id, payload }
+      )
       throw e // 重新抛出错误，让调用者处理
     } finally {
       isLoading.value = false
@@ -367,11 +423,16 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       removeTimeBlock(id)
-      console.log('[TimeBlockStore] Deleted time block:', id)
+      logger.info(LogTags.STORE_TIMEBLOCK, 'Deleted time block', { timeBlockId: id })
       return true
     } catch (e) {
       error.value = `Failed to delete time block ${id}: ${e}`
-      console.error('[TimeBlockStore] Error deleting time block:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error deleting time block',
+        e instanceof Error ? e : new Error(String(e)),
+        { timeBlockId: id }
+      )
       return false
     } finally {
       isLoading.value = false
@@ -385,7 +446,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   async function linkTaskToBlock(blockId: string, taskId: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
-    console.log('[TimeBlockStore] Linking task', taskId, 'to block', blockId)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Linking task to block', { taskId, blockId })
 
     try {
       // TODO: 实现 API 调用
@@ -405,11 +466,19 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // }
       // return true
 
-      console.log('[TimeBlockStore] linkTaskToBlock - API not implemented yet')
+      logger.info(LogTags.STORE_TIMEBLOCK, 'linkTaskToBlock - API not implemented yet', {
+        taskId,
+        blockId,
+      })
       return false
     } catch (e) {
       error.value = `Failed to link task to block: ${e}`
-      console.error('[TimeBlockStore] Error linking task to block:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error linking task to block',
+        e instanceof Error ? e : new Error(String(e)),
+        { taskId, blockId }
+      )
       return false
     } finally {
       isLoading.value = false
@@ -423,7 +492,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   async function unlinkTaskFromBlock(blockId: string, taskId: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
-    console.log('[TimeBlockStore] Unlinking task', taskId, 'from block', blockId)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Unlinking task from block', { taskId, blockId })
 
     try {
       // TODO: 实现 API 调用
@@ -441,11 +510,19 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // }
       // return true
 
-      console.log('[TimeBlockStore] unlinkTaskFromBlock - API not implemented yet')
+      logger.info(LogTags.STORE_TIMEBLOCK, 'unlinkTaskFromBlock - API not implemented yet', {
+        taskId,
+        blockId,
+      })
       return false
     } catch (e) {
       error.value = `Failed to unlink task from block: ${e}`
-      console.error('[TimeBlockStore] Error unlinking task from block:', e)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Error unlinking task from block',
+        e instanceof Error ? e : new Error(String(e)),
+        { taskId, blockId }
+      )
       return false
     } finally {
       isLoading.value = false
@@ -466,13 +543,16 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     truncated_time_blocks?: TimeBlockView[]
     updated_time_blocks?: TimeBlockView[]
   }) {
-    console.log('[TimeBlockStore] Handling side effects:', sideEffects)
+    logger.debug(LogTags.STORE_TIMEBLOCK, 'Handling side effects', { sideEffects })
 
     // 处理删除的时间块：直接使用完整对象，无需查询
     if (sideEffects.deleted_time_blocks?.length) {
       for (const block of sideEffects.deleted_time_blocks) {
         removeTimeBlock(block.id)
-        console.log(`[TimeBlockStore] Removed time block: ${block.id} ("${block.title}")`)
+        logger.debug(LogTags.STORE_TIMEBLOCK, 'Removed time block', {
+          timeBlockId: block.id,
+          title: block.title,
+        })
       }
     }
 
@@ -480,9 +560,10 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     if (sideEffects.truncated_time_blocks?.length) {
       for (const block of sideEffects.truncated_time_blocks) {
         addOrUpdateTimeBlock(block)
-        console.log(
-          `[TimeBlockStore] Updated truncated time block: ${block.id} (end_time: ${block.end_time})`
-        )
+        logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated truncated time block', {
+          timeBlockId: block.id,
+          endTime: block.end_time,
+        })
       }
     }
 
@@ -490,9 +571,11 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     if (sideEffects.updated_time_blocks?.length) {
       for (const block of sideEffects.updated_time_blocks) {
         addOrUpdateTimeBlock(block)
-        console.log(
-          `[TimeBlockStore] Updated time block: ${block.id} (title: "${block.title}", area_id: ${block.area_id || 'none'})`
-        )
+        logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated time block', {
+          timeBlockId: block.id,
+          title: block.title,
+          areaId: block.area_id || 'none',
+        })
       }
     }
   }
@@ -507,7 +590,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
   function initEventSubscriptions() {
     const subscriber = getEventSubscriber()
     if (!subscriber) {
-      console.error('[TimeBlockStore] EventSubscriber not initialized yet')
+      logger.error(LogTags.STORE_TIMEBLOCK, 'EventSubscriber not initialized yet')
       return
     }
 
@@ -523,7 +606,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     // 订阅时间块链接事件
     subscriber.on('time_blocks.linked', handleTimeBlockLinkedEvent)
 
-    console.log('[TimeBlockStore] SSE event subscriptions initialized')
+    logger.info(LogTags.STORE_TIMEBLOCK, 'SSE event subscriptions initialized')
   }
 
   /**
@@ -534,11 +617,13 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     const updatedTask = event.payload?.updated_task
 
     if (!timeBlock) {
-      console.warn('[TimeBlockStore] time_blocks.created event missing time_block')
+      logger.warn(LogTags.STORE_TIMEBLOCK, 'time_blocks.created event missing time_block')
       return
     }
 
-    console.log('[TimeBlockStore] Handling time_blocks.created event:', timeBlock.id)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Handling time_blocks.created event', {
+      timeBlockId: timeBlock.id,
+    })
 
     // 更新时间块
     addOrUpdateTimeBlock(timeBlock)
@@ -548,7 +633,10 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       const { useTaskStore } = await import('@/stores/task')
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask(updatedTask)
-      console.log('[TimeBlockStore] Updated task schedule_status:', updatedTask.id)
+      logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated task schedule_status', {
+        taskId: updatedTask.id,
+        scheduleStatus: updatedTask.schedule_status,
+      })
     }
   }
 
@@ -559,7 +647,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     const timeBlockId = event.payload?.time_block_id
     if (!timeBlockId) return
 
-    console.log('[TimeBlockStore] Handling time_blocks.updated event:', timeBlockId)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Handling time_blocks.updated event', { timeBlockId })
 
     // 重新获取该时间块的完整数据
     try {
@@ -573,7 +661,12 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
         }
       }
     } catch (error) {
-      console.error(`[TimeBlockStore] Failed to fetch time block ${timeBlockId}:`, error)
+      logger.error(
+        LogTags.STORE_TIMEBLOCK,
+        'Failed to fetch time block',
+        error instanceof Error ? error : new Error(String(error)),
+        { timeBlockId }
+      )
     }
   }
 
@@ -584,7 +677,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     const timeBlockId = event.payload?.time_block_id
     if (!timeBlockId) return
 
-    console.log('[TimeBlockStore] Handling time_blocks.deleted event:', timeBlockId)
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Handling time_blocks.deleted event', { timeBlockId })
     removeTimeBlock(timeBlockId)
   }
 
@@ -596,16 +689,15 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     const updatedTask = event.payload?.updated_task
 
     if (!timeBlock) {
-      console.warn('[TimeBlockStore] time_blocks.linked event missing time_block data')
+      logger.warn(LogTags.STORE_TIMEBLOCK, 'time_blocks.linked event missing time_block data')
       return
     }
 
-    console.log(
-      '[TimeBlockStore] Handling time_blocks.linked event:',
-      timeBlock.id,
-      'area_id:',
-      timeBlock.area_id
-    )
+    logger.info(LogTags.STORE_TIMEBLOCK, 'Handling time_blocks.linked event', {
+      timeBlockId: timeBlock.id,
+      areaId: timeBlock.area_id,
+      taskId: timeBlock.task_id,
+    })
 
     // 直接使用 payload 中的完整数据（包括更新后的 area_id）
     addOrUpdateTimeBlock(timeBlock)
@@ -615,7 +707,10 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       const { useTaskStore } = await import('@/stores/task')
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask(updatedTask)
-      console.log('[TimeBlockStore] Updated task schedule_status:', updatedTask.id)
+      logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated task schedule_status', {
+        taskId: updatedTask.id,
+        scheduleStatus: updatedTask.schedule_status,
+      })
     }
   }
 

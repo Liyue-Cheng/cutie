@@ -2,8 +2,9 @@
  * Trash Store - Event Handlers
  */
 import { getEventSubscriber } from '@/services/events'
-import { addOrUpdateTrashedTask, removeTrashedTask, clearAllTrashedTasks } from './core'
+import { addOrUpdateTrashedTask, removeTrashedTask } from './core'
 import type { DomainEvent } from '@/services/events'
+import { logger, LogTags } from '@/services/logger'
 
 /**
  * 初始化事件订阅
@@ -11,7 +12,7 @@ import type { DomainEvent } from '@/services/events'
 export function initEventSubscriptions() {
   const subscriber = getEventSubscriber()
   if (!subscriber) {
-    console.warn('[TrashStore] Event subscriber not initialized')
+    logger.warn(LogTags.STORE_TRASH, 'Event subscriber not initialized')
     return
   }
 
@@ -24,7 +25,7 @@ export function initEventSubscriptions() {
 function handleTaskTrashedEvent(event: DomainEvent) {
   const task = event.payload?.task
   if (task) {
-    console.log('[TrashStore] Task trashed:', task.id)
+    logger.info(LogTags.STORE_TRASH, 'Task trashed', { taskId: task.id })
     addOrUpdateTrashedTask(task)
   }
 }
@@ -32,7 +33,7 @@ function handleTaskTrashedEvent(event: DomainEvent) {
 function handleTaskRestoredEvent(event: DomainEvent) {
   const task = event.payload?.task
   if (task) {
-    console.log('[TrashStore] Task restored:', task.id)
+    logger.info(LogTags.STORE_TRASH, 'Task restored', { taskId: task.id })
     removeTrashedTask(task.id)
   }
 }
@@ -40,14 +41,14 @@ function handleTaskRestoredEvent(event: DomainEvent) {
 function handleTaskPermanentlyDeletedEvent(event: DomainEvent) {
   const taskId = event.payload?.task_id
   if (taskId) {
-    console.log('[TrashStore] Task permanently deleted:', taskId)
+    logger.info(LogTags.STORE_TRASH, 'Task permanently deleted', { taskId })
     removeTrashedTask(taskId)
   }
 }
 
 function handleTrashEmptiedEvent(event: DomainEvent) {
   const deletedTaskIds = event.payload?.deleted_task_ids || []
-  console.log('[TrashStore] Trash emptied, deleted tasks:', deletedTaskIds.length)
+  logger.info(LogTags.STORE_TRASH, 'Trash emptied', { deletedTasksCount: deletedTaskIds.length })
 
   // 从回收站移除所有已删除的任务
   for (const taskId of deletedTaskIds) {

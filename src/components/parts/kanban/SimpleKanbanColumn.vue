@@ -9,26 +9,54 @@ import {
   useSameViewDrag,
   useCrossViewDragTarget,
 } from '@/composables/drag'
+import { useViewTasks } from '@/composables/useViewTasks'
+import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
+import { logger, LogTags } from '@/services/logger'
 
 const props = defineProps<{
   title: string
   subtitle?: string
-  tasks: TaskCard[]
   showAddInput?: boolean
-  viewKey?: string
-  viewMetadata: ViewMetadata
+  viewKey: string // 🔥 必需：所有看板都必须提供 viewKey
+  viewMetadata?: ViewMetadata // 可选：可自动推导
 }>()
 
 const emit = defineEmits<{
   openEditor: [task: TaskCard]
-  addTask: [title: string]
-  reorderTasks: [newOrder: string[]]
-  crossViewDrop: [taskId: string, targetViewId: string]
+  // 🗑️ 移除不再需要的事件（内部自动处理）：
+  // addTask: [title: string]
+  // reorderTasks: [newOrder: string[]]
+  // crossViewDrop: [taskId: string, targetViewId: string]
 }>()
 
 const viewStore = useViewStore()
+
+// ==================== 数据源管理 ====================
+
+// 🔥 统一数据模式：所有看板都通过 viewKey 获取数据
+const { tasks: effectiveTasks } = useViewTasks(props.viewKey)
+
+// ✅ 统一的 ViewMetadata：优先使用父传的，否则自动推导
+const effectiveViewMetadata = computed<ViewMetadata>(() => {
+  if (props.viewMetadata) {
+    return props.viewMetadata
+  }
+
+  const derived = deriveViewMetadata(props.viewKey)
+  if (derived) {
+    return derived
+  }
+
+  // 兜底：提供最小可用元数据
+  return {
+    id: props.viewKey,
+    type: 'custom', // 使用 ViewType 中的有效值
+    label: props.title,
+    config: {}, // 提供空配置对象
+  } as ViewMetadata
+})
 
 // ==================== Composables ====================
 
@@ -37,10 +65,12 @@ const crossViewDrag = useCrossViewDrag()
 const dragTransfer = useDragTransfer()
 
 // 同看板拖放
-const sameViewDrag = useSameViewDrag(() => props.tasks)
+const sameViewDrag = useSameViewDrag(() => effectiveTasks.value)
 
 // 跨看板拖放目标
-const crossViewTarget = useCrossViewDragTarget(props.viewMetadata)
+// 注意：这里使用初始值，如果 viewMetadata 在运行时变化，可能需要重新考虑
+const initialViewMetadata = effectiveViewMetadata.value
+const crossViewTarget = useCrossViewDragTarget(initialViewMetadata)
 
 // ==================== 任务创建 ====================
 
@@ -56,9 +86,18 @@ async function handleAddTask() {
   newTaskTitle.value = ''
 
   try {
-    emit('addTask', title)
+    // 🔥 直接调用 TaskStore 创建任务（不再发出事件）
+    const { useTaskStore } = await import('@/stores/task')
+    const taskStore = useTaskStore()
+    await taskStore.createTask({ title })
+    logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', { title, viewKey: props.viewKey })
   } catch (error) {
-    console.error('[SimpleKanbanColumn] Task creation failed:', error)
+    logger.error(
+      LogTags.COMPONENT_KANBAN_COLUMN,
+      'Task creation failed',
+      error instanceof Error ? error : new Error(String(error)),
+      { title, viewKey: props.viewKey }
+    )
     newTaskTitle.value = originalTitle
   } finally {
     isCreatingTask.value = false
@@ -68,14 +107,17 @@ async function handleAddTask() {
 // ==================== 任务完成后重新排序 ====================
 
 function handleTaskCompleted(completedTaskId: string) {
+  // ✅ 使用 effectiveTasks 替代 props.tasks
+  const tasks = effectiveTasks.value
+
   // 找到已完成任务的当前索引
-  const currentIndex = props.tasks.findIndex((t) => t.id === completedTaskId)
+  const currentIndex = tasks.findIndex((t) => t.id === completedTaskId)
   if (currentIndex === -1) return
 
   // 找到最后一个未完成任务的索引
   let lastIncompleteIndex = -1
-  for (let i = props.tasks.length - 1; i >= 0; i--) {
-    const task = props.tasks[i]
+  for (let i = tasks.length - 1; i >= 0; i--) {
+    const task = tasks[i]
     if (task && !task.is_completed && task.id !== completedTaskId) {
       lastIncompleteIndex = i
       break
@@ -88,7 +130,7 @@ function handleTaskCompleted(completedTaskId: string) {
   }
 
   // 创建新的任务顺序
-  const newOrder = [...props.tasks.map((t) => t.id)]
+  const newOrder = [...tasks.map((t) => t.id)]
   // 移除已完成的任务
   newOrder.splice(currentIndex, 1)
 
@@ -100,8 +142,15 @@ function handleTaskCompleted(completedTaskId: string) {
   // 插入到最后一个未完成任务的后面
   newOrder.splice(insertPosition, 0, completedTaskId)
 
-  // 触发重新排序
-  emit('reorderTasks', newOrder)
+  // 🔥 直接更新排序（不再发出事件）
+  viewStore.updateSorting(props.viewKey, newOrder).catch((error) => {
+    logger.error(
+      LogTags.COMPONENT_KANBAN_COLUMN,
+      'Failed to persist completed task reorder',
+      error,
+      { viewKey: props.viewKey }
+    )
+  })
 }
 
 // ==================== 排序配置管理 ====================
@@ -110,22 +159,19 @@ const sortingConfigLoaded = ref(false)
 const previousTaskIds = ref<Set<string>>(new Set())
 
 onMounted(async () => {
-  if (props.viewKey) {
-    const alreadyLoaded = viewStore.sortWeights.has(props.viewKey)
-    if (!alreadyLoaded) {
-      await viewStore.fetchViewPreference(props.viewKey)
-    }
-    sortingConfigLoaded.value = true
-  } else {
-    sortingConfigLoaded.value = true
+  // 🔥 简化：所有看板都有 viewKey，直接加载排序配置
+  const alreadyLoaded = viewStore.sortWeights.has(props.viewKey)
+  if (!alreadyLoaded) {
+    await viewStore.fetchViewPreference(props.viewKey)
   }
+  sortingConfigLoaded.value = true
 })
 
-// 自动检测任务列表变化并持久化
+// ✅ 自动检测任务列表变化并持久化（使用 effectiveTasks）
 watch(
-  () => props.tasks,
+  () => effectiveTasks.value,
   (newTasks) => {
-    if (!sortingConfigLoaded.value || !props.viewKey || sameViewDrag.isDragging.value) {
+    if (!sortingConfigLoaded.value || sameViewDrag.isDragging.value) {
       previousTaskIds.value = new Set(newTasks.map((t) => t.id))
       return
     }
@@ -139,8 +185,11 @@ watch(
       previousTaskIds.value = currentTaskIds
       const currentOrder = newTasks.map((t) => t.id)
 
+      // 🔥 自动持久化排序（所有看板都使用内部数据模式）
       viewStore.updateSorting(props.viewKey, currentOrder).catch((error) => {
-        console.error(`[SimpleKanbanColumn] Failed to auto-persist for "${props.viewKey}":`, error)
+        logger.error(LogTags.COMPONENT_KANBAN_COLUMN, 'Failed to auto-persist view tasks', error, {
+          viewKey: props.viewKey,
+        })
       })
     } else {
       previousTaskIds.value = currentTaskIds
@@ -152,14 +201,16 @@ watch(
 // ==================== 显示任务列表 ====================
 
 const displayTasks = computed(() => {
-  let taskList = [...props.tasks]
+  // ✅ 使用 effectiveTasks 替代 props.tasks
+  let taskList = [...effectiveTasks.value]
 
   // 1. 如果是源看板，且任务正在被拖到其他看板，隐藏幽灵元素
   const context = crossViewDrag.currentContext.value
   const targetView = crossViewDrag.targetViewId.value
+  const viewMetadata = effectiveViewMetadata.value
 
-  if (context && context.sourceView.id === props.viewMetadata.id) {
-    if (targetView && targetView !== props.viewMetadata.id) {
+  if (context && context.sourceView.id === viewMetadata.id) {
+    if (targetView && targetView !== viewMetadata.id) {
       taskList = taskList.filter((t) => t.id !== context.task.id)
     }
   }
@@ -169,7 +220,7 @@ const displayTasks = computed(() => {
 
   // 3. 同看板内重排序预览
   // 仅当未发生跨看板（或目标仍为本列）时才返回同列预览
-  const isCrossViewActive = !!context && !!targetView && targetView !== props.viewMetadata.id
+  const isCrossViewActive = !!context && !!targetView && targetView !== viewMetadata.id
   if (
     sameViewDrag.isDragging.value &&
     !isCrossViewActive &&
@@ -195,13 +246,13 @@ function handleDragStart(event: DragEvent, task: TaskCard) {
   sameViewDrag.startDrag(task.id)
 
   // 启动跨看板拖放
-  crossViewDrag.startNormalDrag(task, props.viewMetadata)
+  crossViewDrag.startNormalDrag(task, effectiveViewMetadata.value)
 
   // 设置拖拽数据
   dragTransfer.setDragData(event, {
     type: 'task',
     task,
-    sourceView: props.viewMetadata,
+    sourceView: effectiveViewMetadata.value,
     dragMode: { mode: 'normal' },
   })
 
@@ -226,7 +277,9 @@ function handleDragEnd(event: DragEvent) {
 
   // 如果 drop 正在执行，延迟清理以避免闪烁
   if (isDropExecuting) {
-    console.log('[SimpleKanbanColumn] dragend: Drop in progress, delaying cleanup')
+    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Dragend: Drop in progress, delaying cleanup', {
+      viewKey: props.viewKey,
+    })
     // drop 会在完成后自动清理上下文，这里只清理本地状态
     sameViewDrag.cancelDrag()
     crossViewTarget.clearReceivingState()
@@ -241,7 +294,9 @@ function handleDragEnd(event: DragEvent) {
 
   // 如果 drop 被拒绝（dropEffect === 'none'），清理全局上下文
   if (context && event.dataTransfer?.dropEffect === 'none') {
-    console.log('[SimpleKanbanColumn] dragend: Drop rejected, clearing context')
+    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Dragend: Drop rejected, clearing context', {
+      viewKey: props.viewKey,
+    })
     crossViewDrag.cancelDrag()
   }
 
@@ -256,7 +311,7 @@ function handleDragOver(event: DragEvent, targetIndex: number) {
 
   // 跨看板拖放：交给 crossViewTarget 处理
   const context = crossViewDrag.currentContext.value
-  if (context && context.sourceView.id !== props.viewMetadata.id) {
+  if (context && context.sourceView.id !== effectiveViewMetadata.value.id) {
     return
   }
 
@@ -286,7 +341,7 @@ function handleContainerDragLeave(event: DragEvent) {
   const context = crossViewDrag.currentContext.value
 
   // 只处理源看板的同看板拖放
-  if (!context || context.sourceView.id !== props.viewMetadata.id) return
+  if (!context || context.sourceView.id !== effectiveViewMetadata.value.id) return
   if (!sameViewDrag.isDragging.value) return
 
   // 检查是否真的离开了容器
@@ -297,7 +352,9 @@ function handleContainerDragLeave(event: DragEvent) {
   const reallyLeft = x < rect.left || x > rect.right || y < rect.top || y > rect.bottom
 
   if (reallyLeft) {
-    console.log('[SimpleKanbanColumn] 🚪 Drag left column, resetting order')
+    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Drag left column, resetting order', {
+      viewKey: props.viewKey,
+    })
     sameViewDrag.resetDragOverIndex()
   }
 }
@@ -313,29 +370,45 @@ async function handleDrop(event: DragEvent) {
   const plannedInsertIndex =
     crossViewTarget.targetIndex.value !== null
       ? (crossViewTarget.targetIndex.value as number)
-      : props.tasks.length
+      : effectiveTasks.value.length
 
   const crossViewResult = await crossViewTarget.handleDrop(event)
 
   if (crossViewResult.isHandled) {
     if (crossViewResult.success) {
-      emit('crossViewDrop', crossViewResult.taskId!, props.viewMetadata.id)
+      // 🔥 跨视图拖放成功（不再发出事件）
+      logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Cross-view drop successful', {
+        taskId: crossViewResult.taskId,
+        viewKey: props.viewKey,
+      })
 
       // 固化跨列插入位置到 ViewStore，避免回到底部
       if (props.viewKey && crossViewResult.taskId) {
         const incomingId = crossViewResult.taskId
-        // 基于当前列任务构建排序，移除可能已存在的该任务ID
-        const baseOrder = props.tasks.map((t) => t.id).filter((id) => id !== incomingId)
+        // ✅ 基于当前列任务构建排序，移除可能已存在的该任务ID
+        const baseOrder = effectiveTasks.value.map((t) => t.id).filter((id) => id !== incomingId)
         const safeIndex = Math.max(0, Math.min(plannedInsertIndex, baseOrder.length))
         baseOrder.splice(safeIndex, 0, incomingId)
         viewStore
           .updateSorting(props.viewKey, baseOrder)
           .catch((err) =>
-            console.error('[SimpleKanbanColumn] Failed to persist cross-view sort:', err)
+            logger.error(
+              LogTags.COMPONENT_KANBAN_COLUMN,
+              'Failed to persist cross-view sort',
+              err,
+              { viewKey: props.viewKey }
+            )
           )
       }
     } else {
-      console.error('❌ Cross-view drop failed:', crossViewResult.error)
+      logger.error(
+        LogTags.COMPONENT_KANBAN_COLUMN,
+        'Cross-view drop failed',
+        crossViewResult.error
+          ? new Error(crossViewResult.error)
+          : new Error('Unknown cross-view drop error'),
+        { viewKey: props.viewKey }
+      )
     }
     sameViewDrag.cancelDrag()
     return
@@ -344,7 +417,12 @@ async function handleDrop(event: DragEvent) {
   // 2. 同看板拖放
   const finalOrder = sameViewDrag.finishDrag()
   if (finalOrder) {
-    emit('reorderTasks', finalOrder)
+    // 🔥 直接更新排序（不再发出事件）
+    viewStore.updateSorting(props.viewKey, finalOrder).catch((error) => {
+      logger.error(LogTags.COMPONENT_KANBAN_COLUMN, 'Failed to persist same-view reorder', error, {
+        viewKey: props.viewKey,
+      })
+    })
   }
 }
 </script>
@@ -368,7 +446,7 @@ async function handleDrop(event: DragEvent) {
         <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
       </div>
       <div class="task-count">
-        <span class="count">{{ tasks.length }}</span>
+        <span class="count">{{ effectiveTasks.length }}</span>
       </div>
     </div>
 
@@ -398,7 +476,7 @@ async function handleDrop(event: DragEvent) {
       >
         <KanbanTaskCard
           :task="task"
-          :view-metadata="viewMetadata"
+          :view-metadata="effectiveViewMetadata"
           class="kanban-task-card"
           @open-editor="emit('openEditor', task)"
           @task-completed="handleTaskCompleted"

@@ -6,6 +6,7 @@
 
 import { ref, type Ref } from 'vue'
 import type FullCalendar from '@fullcalendar/vue3'
+import { logger, LogTags } from '@/services/logger'
 
 const UPDATE_THROTTLE = 16 // 约60fps
 
@@ -57,7 +58,7 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
     dropTime.setHours(hours, minutes, 0, 0)
 
     // 🔍 检查点3 & 4：日历日期同步 & 缓存
-    console.log('[CHK-3] Drop position calculated:', {
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop position calculated', {
       calendarDate: currentDate.toISOString().split('T')[0],
       dropTime: dropTime.toISOString(),
       clientY: event.clientY,
@@ -84,7 +85,7 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
   function resetCache() {
     cachedCalendarEl.value = null
     cachedRect.value = null
-    console.log('[CHK-4] dragenter: reset cache')
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Cache reset on drag enter')
   }
 
   return {

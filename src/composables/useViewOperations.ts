@@ -11,7 +11,9 @@
  */
 
 import { useTaskStore } from '@/stores/task'
-import { fetchView, type ViewContext } from '@/services/viewAdapter'
+import { logger, LogTags } from '@/services/logger'
+// import { fetchView, type ViewContext } from '@/services/viewAdapter'
+// 注意：fetchView 函数不存在，暂时注释掉避免错误
 
 export function useViewOperations() {
   const taskStore = useTaskStore()
@@ -20,25 +22,21 @@ export function useViewOperations() {
    * 加载视图数据
    * 统一的视图加载入口
    */
-  async function loadView(context: ViewContext): Promise<boolean> {
+  async function loadView(context: any): Promise<boolean> {
     try {
-      // 获取并缓存任务数据
-      const tasks = await fetchView(context)
-      taskStore.addOrUpdateTasks(tasks)
+      // 🚧 临时实现：直接调用 taskStore.fetchAllTasks()
+      // 因为 fetchView 函数不存在，我们使用现有的 API
+      await taskStore.fetchAllTasks()
 
-      console.log(`[ViewOperations] Loaded view:`, context, `- ${tasks.length} tasks`)
-
-      // TODO: 加载该视图的排序配置
-      // const contextKey = getContextKey(context)
-      // const preference = await fetchViewPreference(contextKey)
-      // if (preference) {
-      //   const taskIds = JSON.parse(preference.sorted_task_ids)
-      //   viewStore.loadSorting(contextKey, taskIds)
-      // }
+      logger.info(LogTags.STORE_VIEW, 'Loaded all tasks (temporary implementation)')
 
       return true
     } catch (error) {
-      console.error('[ViewOperations] Error loading view:', context, error)
+      logger.error(
+        LogTags.STORE_VIEW,
+        'Error loading tasks',
+        error instanceof Error ? error : new Error(String(error))
+      )
       return false
     }
   }
@@ -47,35 +45,35 @@ export function useViewOperations() {
    * 便捷方法：加载所有任务
    */
   async function loadAllTasks() {
-    return loadView({ type: 'all' })
+    return loadView({})
   }
 
   /**
    * 便捷方法：加载所有未完成任务
    */
   async function loadAllIncompleteTasks() {
-    return loadView({ type: 'all_incomplete' })
+    return loadView({})
   }
 
   /**
    * 便捷方法：加载 Staging 区任务
    */
   async function loadStagingTasks() {
-    return loadView({ type: 'staging' })
+    return loadView({})
   }
 
   /**
    * 便捷方法：加载已排期任务
    */
   async function loadPlannedTasks() {
-    return loadView({ type: 'planned' })
+    return loadView({})
   }
 
   /**
    * 便捷方法：加载每日看板
    */
   async function loadDailyKanban(date: string) {
-    return loadView({ type: 'daily_kanban', date })
+    return loadView({})
   }
 
   return {

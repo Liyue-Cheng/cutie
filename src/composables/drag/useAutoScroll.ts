@@ -6,6 +6,7 @@
 
 import { ref } from 'vue'
 import type { AutoScrollOptions } from '@/types/drag'
+import { logger, LogTags } from '@/services/logger'
 
 const DEFAULT_OPTIONS: Required<AutoScrollOptions> = {
   edgeSize: 50, // 边缘触发距离（像素）
@@ -42,7 +43,7 @@ export function useAutoScroll(options: AutoScrollOptions = {}) {
       }
     }, 16) // ~60fps
 
-    console.log('[useAutoScroll] Started:', { direction, axis })
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Auto scroll started', { direction, axis })
   }
 
   /**
@@ -54,7 +55,7 @@ export function useAutoScroll(options: AutoScrollOptions = {}) {
       scrollTimer.value = null
       isScrolling.value = false
 
-      console.log('[useAutoScroll] Stopped')
+      logger.debug(LogTags.DRAG_CROSS_VIEW, 'Auto scroll stopped')
     }
   }
 

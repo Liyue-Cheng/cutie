@@ -14,6 +14,7 @@ import { useCrossViewDrag, useDragTransfer } from '@/composables/drag'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import { apiBaseUrl } from '@/composables/useApiConfig'
+import { logger, LogTags } from '@/services/logger'
 
 export function useCalendarDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -79,7 +80,7 @@ export function useCalendarDrag(
     // 检查是否包含任务数据（使用统一的 dragTransfer）
     if (dragTransfer.hasDragData(event)) {
       isDragging.value = true
-      console.log('[CHK-1] dragenter: hasDragData=true, isDragging set')
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Drag enter with task data')
     }
   }
 
@@ -91,14 +92,11 @@ export function useCalendarDrag(
 
     // 🔍 检查点1：effectAllowed/dropEffect 匹配
     if (event.dataTransfer) {
-      console.log(
-        '[CHK-1] dragover: dropEffect(before)=',
-        event.dataTransfer.dropEffect,
-        'effectAllowed=',
-        event.dataTransfer.effectAllowed,
-        'types=',
-        Array.from(event.dataTransfer.types)
-      )
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Drag over effect', {
+        dropEffect: event.dataTransfer.dropEffect,
+        effectAllowed: event.dataTransfer.effectAllowed,
+        types: Array.from(event.dataTransfer.types),
+      })
       event.dataTransfer.dropEffect = 'copy'
     }
 
@@ -130,7 +128,7 @@ export function useCalendarDrag(
    * 更新预览事件
    */
   function updatePreviewEvent(event: DragEvent) {
-    console.log('[DEBUG-PREVIEW] 🔍 updatePreviewEvent called')
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Updating preview event')
 
     // ✅ 检查是否拖到全日区域
     const target =
@@ -139,35 +137,37 @@ export function useCalendarDrag(
 
     // ✅ 检查是否悬浮在已有事件上
     const fcEvent = target?.closest('.fc-event') as HTMLElement | null
-    console.log('[DEBUG-PREVIEW] fcEvent found:', !!fcEvent, fcEvent?.className)
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'FC event found', { hasEvent: !!fcEvent })
 
     if (fcEvent) {
       // 获取事件ID
       const eventEl = fcEvent as any
       if (eventEl?.fcSeg?.eventRange?.def?.publicId) {
         const eventId = eventEl.fcSeg.eventRange.def.publicId
-        console.log('[DEBUG-PREVIEW] Event ID detected:', eventId)
+        logger.debug(LogTags.COMPONENT_CALENDAR, 'Event ID detected', { eventId })
 
         // 不是预览事件才设置
         if (eventId !== 'preview-event') {
-          console.log('[DEBUG-PREVIEW] ✅ Hovering on real event, CLEARING preview')
+          logger.debug(LogTags.COMPONENT_CALENDAR, 'Hovering on real event, clearing preview')
           hoveredEventId.value = eventId
           // 清除预览，不显示预览块
           const wasPreview = previewEvent.value !== null
           previewEvent.value = null
-          console.log('[DEBUG-PREVIEW] Preview cleared (was showing:', wasPreview, ')')
+          logger.debug(LogTags.COMPONENT_CALENDAR, 'Preview cleared', { wasPreview })
           // ✅ 添加简化的视觉反馈（仅链子图标）
           fcEvent.classList.add('hover-link-target')
           return
         } else {
-          console.log('[DEBUG-PREVIEW] ⚠️ Hovering on preview-event itself, ignoring')
+          logger.debug(LogTags.COMPONENT_CALENDAR, 'Hovering on preview-event itself, ignoring')
         }
       }
     } else {
-      console.log('[DEBUG-PREVIEW] No fcEvent found, checking if need to clear hover state')
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'No FC event found, checking hover state')
       // 清除悬浮状态
       if (hoveredEventId.value) {
-        console.log('[DEBUG-PREVIEW] Clearing hover state for:', hoveredEventId.value)
+        logger.debug(LogTags.COMPONENT_CALENDAR, 'Clearing hover state', {
+          eventId: hoveredEventId.value,
+        })
         const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
         if (prevHoveredEl) {
           prevHoveredEl.classList.remove('hover-link-target')
@@ -208,7 +208,7 @@ export function useCalendarDrag(
         : null
       const previewColor = area?.color || '#9ca3af'
 
-      console.log('[DEBUG-PREVIEW] 📅 Creating ALL-DAY preview')
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Creating all-day preview')
       previewEvent.value = {
         id: 'preview-event',
         title: previewTitle,
@@ -219,14 +219,16 @@ export function useCalendarDrag(
         classNames: ['preview-event'],
         display: 'block',
       }
-      console.log('[DEBUG-PREVIEW] ✅ All-day preview created:', previewEvent.value)
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'All-day preview created', {
+        preview: previewEvent.value,
+      })
     } else {
       // 分时预览：使用拖拽位置计算时间
       const dropTime = dependencies.getTimeFromDropPosition(
         event,
         event.currentTarget as HTMLElement
       )
-      console.log('[DEBUG-PREVIEW] dropTime calculated:', dropTime)
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop time calculated', { dropTime })
 
       if (dropTime) {
         // 根据任务的 estimated_duration 计算预览时间块长度
@@ -245,7 +247,7 @@ export function useCalendarDrag(
         const durationMs = durationMinutes * 60 * 1000
         let endTime = new Date(dropTime.getTime() + durationMs)
 
-        // 截断到“当前日历视图”的当日 24:00，禁止跨天预览（保留“当前视图日期”的部分）
+        // 截断到"当前日历视图"的当日 24:00，禁止跨天预览（保留"当前视图日期"的部分）
         let dayStart = new Date(dropTime)
         if (calendarRef.value) {
           const api = calendarRef.value.getApi()
@@ -281,7 +283,9 @@ export function useCalendarDrag(
       }
     }
 
-    console.log('[CuteCalendar] Preview event updated:', previewEvent.value)
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Preview event updated', {
+      preview: previewEvent.value,
+    })
   }
 
   /**
@@ -311,14 +315,11 @@ export function useCalendarDrag(
     event.preventDefault()
 
     // 🔍 检查点1 & 2：drop 是否被触发
-    console.log(
-      '[CHK-1] ✅ DROP FIRED! target=',
-      (event.target as HTMLElement)?.className,
-      'effectAllowed=',
-      event.dataTransfer?.effectAllowed,
-      'dropEffect=',
-      event.dataTransfer?.dropEffect
-    )
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop fired', {
+      targetClass: (event.target as HTMLElement)?.className,
+      effectAllowed: event.dataTransfer?.effectAllowed,
+      dropEffect: event.dataTransfer?.dropEffect,
+    })
 
     // 标记开始处理 drop，防止 dragend 事件清除预览
     isProcessingDrop.value = true
@@ -347,7 +348,9 @@ export function useCalendarDrag(
 
       // ✅ 检查是否拖到已有事件上（链接任务到时间块）
       if (eventIdToLink && currentDraggedTask.value) {
-        console.log('[CuteCalendar] Linking task to existing time block:', eventIdToLink)
+        logger.info(LogTags.COMPONENT_CALENDAR, 'Linking task to existing time block', {
+          eventId: eventIdToLink,
+        })
 
         try {
           // 调用链接API（使用动态端口）
@@ -366,15 +369,23 @@ export function useCalendarDrag(
 
           if (!response.ok) {
             const errorData = await response.json()
-            console.error('[CuteCalendar] Failed to link task:', errorData)
+            logger.error(
+              LogTags.COMPONENT_CALENDAR,
+              'Failed to link task',
+              new Error(errorData.message || 'Unknown error')
+            )
             alert('链接任务失败：' + (errorData.message || '未知错误'))
           } else {
             const result = await response.json()
-            console.log('[CuteCalendar] Successfully linked task:', result)
+            logger.info(LogTags.COMPONENT_CALENDAR, 'Successfully linked task', { result })
             // 刷新任务数据会通过SSE事件自动触发
           }
         } catch (error) {
-          console.error('[CuteCalendar] Error linking task:', error)
+          logger.error(
+            LogTags.COMPONENT_CALENDAR,
+            'Error linking task',
+            error instanceof Error ? error : new Error(String(error))
+          )
           alert('链接任务时发生错误')
         } finally {
           // 清理状态
@@ -395,7 +406,7 @@ export function useCalendarDrag(
       let calendarView: ViewMetadata | null = null
 
       if (isAllDayArea) {
-        console.log('[CuteCalendar] isAllDayArea=true')
+        logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop in all-day area')
         // 全天事件：优先从 dayCell 的 data-date 获取具体日期
         let startDate: Date | null = null
         let endDate: Date | null = null
@@ -454,7 +465,7 @@ export function useCalendarDrag(
           }
         }
 
-        // 创建时间块，并在“当前日历视图”的日界处截断（保留“当前视图日期”的部分）
+        // 创建时间块，并在"当前日历视图"的日界处截断（保留"当前视图日期"的部分）
         const durationMsDrop = durationMinutes * 60 * 1000
         let endTime = new Date(dropTime.getTime() + durationMsDrop)
         let dayStart = new Date(dropTime)
@@ -500,23 +511,31 @@ export function useCalendarDrag(
 
       // 若意外未生成视图，安全返回
       if (!calendarView) {
-        console.error('[Calendar] ❌ Missing calendarView before drop handling')
+        logger.error(
+          LogTags.COMPONENT_CALENDAR,
+          'Missing calendar view before drop handling',
+          new Error('Calendar view not generated')
+        )
         clearPreviewEvent()
         isProcessingDrop.value = false
         return
       }
 
       // 🔍 检查点5：确认策略调用
-      console.log('[CHK-5] About to call crossViewDrag.handleDrop with calendarView=', calendarView)
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'About to call cross-view drag handle drop', {
+        calendarView,
+      })
 
       // 🆕 统一走策略系统
       const result = await crossViewDrag.handleDrop(calendarView, event)
 
       // 🔍 检查点5：策略结果
-      console.log('[CHK-5] Strategy result:', result)
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Strategy result', { result })
 
       if (result.success) {
-        console.log('[Calendar] ✅ Drop handled via strategy:', result.message)
+        logger.info(LogTags.COMPONENT_CALENDAR, 'Drop handled via strategy', {
+          message: result.message,
+        })
 
         // ✅ 不在这里更新任务！让SSE事件统一处理，避免双重更新闪烁
         // if (result.updatedTask) {
@@ -525,12 +544,20 @@ export function useCalendarDrag(
 
         clearPreviewEvent()
       } else {
-        console.error('[Calendar] ❌ Drop failed:', result.error)
+        logger.error(
+          LogTags.COMPONENT_CALENDAR,
+          'Drop failed',
+          new Error(result.error || 'Unknown error')
+        )
         alert(`创建时间块失败: ${result.error}`)
         clearPreviewEvent()
       }
     } catch (error) {
-      console.error('处理拖拽失败:', error)
+      logger.error(
+        LogTags.COMPONENT_CALENDAR,
+        'Drop processing failed',
+        error instanceof Error ? error : new Error(String(error))
+      )
 
       // 清除预览
       clearPreviewEvent()
@@ -543,7 +570,11 @@ export function useCalendarDrag(
         errorMessage = error
       }
 
-      console.error(`创建时间块失败: ${errorMessage}`)
+      logger.error(
+        LogTags.COMPONENT_CALENDAR,
+        'Time block creation failed',
+        new Error(errorMessage)
+      )
       alert(`创建时间块失败: ${errorMessage}`)
     } finally {
       // 无论成功还是失败，都要重置标志
@@ -561,12 +592,10 @@ export function useCalendarDrag(
         'drop',
         (e) => {
           const target = e.target as HTMLElement
-          console.log(
-            '[CHK-2] 🌍 Global drop capture! target=',
-            target?.className,
-            'tagName=',
-            target?.tagName
-          )
+          logger.debug(LogTags.COMPONENT_CALENDAR, 'Global drop capture', {
+            targetClass: target?.className,
+            tagName: target?.tagName,
+          })
         },
         true
       ) // 捕获阶段
