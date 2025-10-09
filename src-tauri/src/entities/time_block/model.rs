@@ -8,6 +8,33 @@ use uuid::Uuid;
 
 use crate::entities::task::SourceInfo;
 
+/// 时间类型枚举
+///
+/// 定义时间块的时间解释方式
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TimeType {
+    /// 浮动时间（本地时间语义）
+    ///
+    /// 表示"本地时间"，不随用户时区变化而变化。
+    /// 适用场景：日常习惯、日程安排、生日提醒等
+    /// 存储方式：start_time/end_time作为参考，实际时间由start_time_local/end_time_local决定
+    Floating,
+
+    /// 固定时间（绝对UTC时刻）
+    ///
+    /// 表示"绝对时刻"，需要时区转换。
+    /// 适用场景：国际会议、跨时区协作、航班时刻等
+    /// 存储方式：start_time/end_time为真正的UTC时间戳
+    Fixed,
+}
+
+impl Default for TimeType {
+    fn default() -> Self {
+        TimeType::Floating
+    }
+}
+
 /// TimeBlock (时间块) 实体定义
 ///
 /// 代表日历上的一个有明确开始和结束时间的持续性时间段。
@@ -34,12 +61,44 @@ pub struct TimeBlock {
     /// 开始时间
     ///
     /// **不变量:** start_time必须永远小于或等于end_time
+    /// **语义:** 解释方式取决于time_type
+    /// - FLOATING: 仅作为参考时刻，实际时间由start_time_local决定
+    /// - FIXED: 绝对UTC时刻
     pub start_time: DateTime<Utc>,
 
     /// 结束时间
     ///
     /// **不变量:** end_time必须永远大于或等于start_time
+    /// **语义:** 解释方式取决于time_type
+    /// - FLOATING: 仅作为参考时刻，实际时间由end_time_local决定
+    /// - FIXED: 绝对UTC时刻
     pub end_time: DateTime<Utc>,
+
+    /// 本地开始时间 (HH:MM:SS)
+    ///
+    /// **语义:** 仅在time_type=FLOATING时使用
+    /// 表示本地时间的时分秒，如 "08:00:00" 表示早上8点
+    pub start_time_local: Option<String>,
+
+    /// 本地结束时间 (HH:MM:SS)
+    ///
+    /// **语义:** 仅在time_type=FLOATING时使用
+    /// 表示本地时间的时分秒，如 "09:00:00" 表示早上9点
+    pub end_time_local: Option<String>,
+
+    /// 时间类型
+    ///
+    /// **语义:** 决定如何解释start_time和end_time
+    /// - FLOATING: 浮动时间（本地时间语义）
+    /// - FIXED: 固定时间（绝对UTC时刻）
+    #[serde(default)]
+    pub time_type: TimeType,
+
+    /// 创建时的时区 (占位字段)
+    ///
+    /// **语义:** 记录创建时间块时用户所在的时区，如 "Asia/Shanghai"
+    /// 当前版本暂不使用，为未来扩展预留
+    pub creation_timezone: Option<String>,
 
     /// 是否为全天事件
     ///
@@ -94,8 +153,12 @@ pub struct TimeBlockRow {
     pub title: Option<String>,
     pub glance_note: Option<String>,
     pub detail_note: Option<String>,
-    pub start_time: DateTime<Utc>, // SQLx自动转换
-    pub end_time: DateTime<Utc>,   // SQLx自动转换
+    pub start_time: DateTime<Utc>,         // SQLx自动转换
+    pub end_time: DateTime<Utc>,           // SQLx自动转换
+    pub start_time_local: Option<String>,  // HH:MM:SS 本地时间
+    pub end_time_local: Option<String>,    // HH:MM:SS 本地时间
+    pub time_type: String,                 // 'FLOATING' 或 'FIXED'
+    pub creation_timezone: Option<String>, // 时区标识
     pub is_all_day: bool,
     pub area_id: Option<String>,
     pub created_at: DateTime<Utc>, // SQLx自动转换
@@ -114,6 +177,13 @@ impl TryFrom<TimeBlockRow> for TimeBlock {
     type Error = String;
 
     fn try_from(row: TimeBlockRow) -> Result<Self, Self::Error> {
+        // 解析时间类型
+        let time_type = match row.time_type.as_str() {
+            "FLOATING" => TimeType::Floating,
+            "FIXED" => TimeType::Fixed,
+            _ => return Err(format!("Invalid time_type: {}", row.time_type)),
+        };
+
         Ok(TimeBlock {
             id: Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
             title: row.title,
@@ -121,6 +191,10 @@ impl TryFrom<TimeBlockRow> for TimeBlock {
             detail_note: row.detail_note,
             start_time: row.start_time, // SQLx已经转换
             end_time: row.end_time,     // SQLx已经转换
+            start_time_local: row.start_time_local,
+            end_time_local: row.end_time_local,
+            time_type,
+            creation_timezone: row.creation_timezone,
             is_all_day: row.is_all_day,
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
             created_at: row.created_at, // SQLx已经转换
@@ -165,6 +239,10 @@ impl TimeBlock {
             detail_note: None,
             start_time,
             end_time,
+            start_time_local: None,
+            end_time_local: None,
+            time_type: TimeType::default(), // 默认为FLOATING
+            creation_timezone: None,
             is_all_day: false,
             area_id: None,
             created_at,

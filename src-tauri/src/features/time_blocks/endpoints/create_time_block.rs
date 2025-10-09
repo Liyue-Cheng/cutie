@@ -277,6 +277,10 @@ mod logic {
             detail_note: request.detail_note.clone(),
             start_time: request.start_time,
             end_time: request.end_time,
+            start_time_local: None, // 新增字段
+            end_time_local: None,   // 新增字段
+            time_type: crate::entities::time_block::TimeType::default(), // 新增字段，默认FLOATING
+            creation_timezone: None, // 新增字段
             is_all_day,
             area_id: request.area_id,
             created_at: now,
@@ -313,6 +317,10 @@ mod logic {
             id: time_block.id,
             start_time: time_block.start_time,
             end_time: time_block.end_time,
+            start_time_local: time_block.start_time_local,
+            end_time_local: time_block.end_time_local,
+            time_type: time_block.time_type,
+            creation_timezone: time_block.creation_timezone,
             is_all_day: time_block.is_all_day,
             title: time_block.title,
             glance_note: time_block.glance_note,

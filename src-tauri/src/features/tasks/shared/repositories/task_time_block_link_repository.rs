@@ -70,8 +70,9 @@ impl TaskTimeBlockLinkRepository {
     ) -> AppResult<Vec<TimeBlock>> {
         let query = r#"
             SELECT DISTINCT
-                tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time, tb.is_all_day,
-                tb.area_id, tb.created_at, tb.updated_at, tb.is_deleted, tb.source_info,
+                tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time,
+                tb.start_time_local, tb.end_time_local, tb.time_type, tb.creation_timezone,
+                tb.is_all_day, tb.area_id, tb.created_at, tb.updated_at, tb.is_deleted, tb.source_info,
                 tb.external_source_id, tb.external_source_provider, tb.external_source_metadata,
                 tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_date
             FROM time_blocks tb

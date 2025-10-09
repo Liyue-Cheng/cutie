@@ -5,6 +5,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::TimeType;
+
 /// TimeBlockView (时间块视图模型)
 ///
 /// 对应前端: src/types/dtos.ts 中的 TimeBlockView
@@ -15,6 +17,14 @@ pub struct TimeBlockViewDto {
     pub id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
+    /// 本地开始时间 (HH:MM:SS)，仅在time_type=FLOATING时有值
+    pub start_time_local: Option<String>,
+    /// 本地结束时间 (HH:MM:SS)，仅在time_type=FLOATING时有值
+    pub end_time_local: Option<String>,
+    /// 时间类型
+    pub time_type: TimeType,
+    /// 创建时的时区（占位字段）
+    pub creation_timezone: Option<String>,
     pub is_all_day: bool,
 
     // --- 显示内容 ---

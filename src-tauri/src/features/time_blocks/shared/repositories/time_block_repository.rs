@@ -17,8 +17,9 @@ impl TimeBlockRepository {
         block_id: Uuid,
     ) -> AppResult<TimeBlock> {
         let query = r#"
-            SELECT id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
-                   created_at, updated_at, is_deleted, source_info,
+            SELECT id, title, glance_note, detail_note, start_time, end_time, 
+                   start_time_local, end_time_local, time_type, creation_timezone,
+                   is_all_day, area_id, created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date
             FROM time_blocks
@@ -40,8 +41,9 @@ impl TimeBlockRepository {
     /// 非事务查询时间块
     pub async fn find_by_id(pool: &SqlitePool, block_id: Uuid) -> AppResult<TimeBlock> {
         let query = r#"
-            SELECT id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
-                   created_at, updated_at, is_deleted, source_info,
+            SELECT id, title, glance_note, detail_note, start_time, end_time, 
+                   start_time_local, end_time_local, time_type, creation_timezone,
+                   is_all_day, area_id, created_at, updated_at, is_deleted, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_rule, recurrence_parent_id, recurrence_original_date
             FROM time_blocks
@@ -67,11 +69,12 @@ impl TimeBlockRepository {
     ) -> AppResult<()> {
         let query = r#"
             INSERT INTO time_blocks (
-                id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
-                created_at, updated_at, is_deleted, source_info,
+                id, title, glance_note, detail_note, start_time, end_time, 
+                start_time_local, end_time_local, time_type, creation_timezone,
+                is_all_day, area_id, created_at, updated_at, is_deleted, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -81,6 +84,13 @@ impl TimeBlockRepository {
             .bind(&block.detail_note)
             .bind(block.start_time.to_rfc3339())
             .bind(block.end_time.to_rfc3339())
+            .bind(&block.start_time_local)
+            .bind(&block.end_time_local)
+            .bind(match block.time_type {
+                crate::entities::time_block::TimeType::Floating => "FLOATING",
+                crate::entities::time_block::TimeType::Fixed => "FIXED",
+            })
+            .bind(&block.creation_timezone)
             .bind(block.is_all_day)
             .bind(block.area_id.map(|id| id.to_string()))
             .bind(block.created_at.to_rfc3339())
@@ -156,6 +166,30 @@ impl TimeBlockRepository {
             bindings.push(area_id_opt.map(|id| id.to_string()).unwrap_or_default());
         }
 
+        if let Some(ref start_time_local_opt) = request.start_time_local {
+            updates.push("start_time_local = ?");
+            bindings.push(start_time_local_opt.clone().unwrap_or_default());
+        }
+
+        if let Some(ref end_time_local_opt) = request.end_time_local {
+            updates.push("end_time_local = ?");
+            bindings.push(end_time_local_opt.clone().unwrap_or_default());
+        }
+
+        if let Some(time_type) = request.time_type {
+            updates.push("time_type = ?");
+            let time_type_str = match time_type {
+                crate::entities::time_block::TimeType::Floating => "FLOATING",
+                crate::entities::time_block::TimeType::Fixed => "FIXED",
+            };
+            bindings.push(time_type_str.to_string());
+        }
+
+        if let Some(ref creation_tz_opt) = request.creation_timezone {
+            updates.push("creation_timezone = ?");
+            bindings.push(creation_tz_opt.clone().unwrap_or_default());
+        }
+
         // 如果没有任何字段要更新，直接返回
         if updates.is_empty() {
             return Ok(());
@@ -227,8 +261,9 @@ impl TimeBlockRepository {
         let mut query = String::from(
             r#"
             SELECT 
-                id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
-                created_at, updated_at, is_deleted, source_info,
+                id, title, glance_note, detail_note, start_time, end_time, 
+                start_time_local, end_time_local, time_type, creation_timezone,
+                is_all_day, area_id, created_at, updated_at, is_deleted, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_rule, recurrence_parent_id, recurrence_original_date
             FROM time_blocks

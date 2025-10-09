@@ -103,8 +103,12 @@ CREATE TABLE time_blocks (
     title TEXT,
     glance_note TEXT,
     detail_note TEXT,
-    start_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
-    end_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    start_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format (解释方式取决于time_type)
+    end_time TEXT NOT NULL, -- UTC timestamp in RFC 3339 format (解释方式取决于time_type)
+    start_time_local TEXT, -- HH:MM:SS 本地时间 (仅FLOATING类型使用)
+    end_time_local TEXT, -- HH:MM:SS 本地时间 (仅FLOATING类型使用)
+    time_type TEXT NOT NULL DEFAULT 'FLOATING' CHECK (time_type IN ('FLOATING', 'FIXED')), -- 时间类型
+    creation_timezone TEXT, -- 创建时的时区 (占位字段)
     is_all_day BOOLEAN NOT NULL DEFAULT FALSE, -- 是否为全天事件
     area_id TEXT,
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
@@ -122,7 +126,9 @@ CREATE TABLE time_blocks (
     FOREIGN KEY (recurrence_parent_id) REFERENCES time_blocks(id),
     
     -- 确保时间范围有效
-    CHECK (start_time <= end_time)
+    CHECK (start_time <= end_time),
+    -- 当time_type='FLOATING'时，必须有local时间
+    CHECK (time_type != 'FLOATING' OR (start_time_local IS NOT NULL AND end_time_local IS NOT NULL))
 );
 
 -- 为 time_blocks 表创建索引
@@ -131,6 +137,7 @@ CREATE INDEX idx_time_blocks_is_deleted ON time_blocks(is_deleted);
 CREATE INDEX idx_time_blocks_area_id ON time_blocks(area_id);
 CREATE INDEX idx_time_blocks_start_time ON time_blocks(start_time);
 CREATE INDEX idx_time_blocks_end_time ON time_blocks(end_time);
+CREATE INDEX idx_time_blocks_time_type ON time_blocks(time_type);
 
 -- 创建 templates 表 (模板表)
 CREATE TABLE templates (

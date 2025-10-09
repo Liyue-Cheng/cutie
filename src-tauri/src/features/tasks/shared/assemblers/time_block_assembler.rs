@@ -30,8 +30,9 @@ impl TimeBlockAssembler {
         for block_id in time_block_ids {
             // 1. 查询时间块（✅ 完整字段列表）
             let query = r#"
-                SELECT id, title, glance_note, detail_note, start_time, end_time, is_all_day, area_id,
-                       created_at, updated_at, is_deleted, source_info,
+                SELECT id, title, glance_note, detail_note, start_time, end_time, 
+                       start_time_local, end_time_local, time_type, creation_timezone,
+                       is_all_day, area_id, created_at, updated_at, is_deleted, source_info,
                        external_source_id, external_source_provider, external_source_metadata,
                        recurrence_rule, recurrence_parent_id, recurrence_original_date
                 FROM time_blocks
@@ -57,6 +58,10 @@ impl TimeBlockAssembler {
                     id: block.id,
                     start_time: block.start_time,
                     end_time: block.end_time,
+                    start_time_local: block.start_time_local,
+                    end_time_local: block.end_time_local,
+                    time_type: block.time_type,
+                    creation_timezone: block.creation_timezone,
                     is_all_day: block.is_all_day,
                     title: block.title,
                     glance_note: block.glance_note,
@@ -83,6 +88,10 @@ impl TimeBlockAssembler {
             id: block.id,
             start_time: block.start_time,
             end_time: block.end_time,
+            start_time_local: block.start_time_local.clone(),
+            end_time_local: block.end_time_local.clone(),
+            time_type: block.time_type,
+            creation_timezone: block.creation_timezone.clone(),
             is_all_day: block.is_all_day,
             title: block.title.clone(),
             glance_note: block.glance_note.clone(),
