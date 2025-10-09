@@ -41,7 +41,7 @@ export function createEventHandlers(
 
       // 订阅任务删除事件
       subscriber.on('task.deleted', handleTaskDeletedEvent)
-      
+
       // 订阅任务移至垃圾桶事件（也需要处理时间块副作用）
       subscriber.on('task.trashed', handleTaskDeletedEvent)
 

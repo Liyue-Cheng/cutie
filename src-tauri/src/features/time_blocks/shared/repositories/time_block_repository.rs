@@ -245,14 +245,40 @@ impl TimeBlockRepository {
         let block = Self::find_by_id_in_tx(tx, block_id).await?;
 
         // 计算新的本地结束时间（如果是FLOATING类型）
-        let new_end_time_local =
-            if block.time_type == crate::entities::time_block::TimeType::Floating {
-                // 对于浮动时间，保持本地时间语义：提取UTC时间的时分秒作为本地时间
-                Some(end_time.format("%H:%M:%S").to_string())
+        let new_end_time_local = if block.time_type
+            == crate::entities::time_block::TimeType::Floating
+        {
+            // 对于浮动时间，需要计算对应的本地时间
+            if let (Some(start_local), Some(end_local)) =
+                (&block.start_time_local, &block.end_time_local)
+            {
+                // 解析原始的本地时间
+                if let (Ok(start_local_time), Ok(_end_local_time)) = (
+                    chrono::NaiveTime::parse_from_str(start_local, "%H:%M:%S"),
+                    chrono::NaiveTime::parse_from_str(end_local, "%H:%M:%S"),
+                ) {
+                    // 计算原始时间的时区偏移（本地时间 - UTC时间）
+                    let utc_start_time = block.start_time.time();
+                    let local_offset_seconds = (start_local_time - utc_start_time).num_seconds();
+
+                    // 将新的UTC结束时间转换为本地时间
+                    let new_utc_end_time = end_time.time();
+                    let new_local_end_time =
+                        new_utc_end_time + chrono::Duration::seconds(local_offset_seconds);
+
+                    Some(new_local_end_time.format("%H:%M:%S").to_string())
+                } else {
+                    // 解析失败，回退到UTC时间
+                    Some(end_time.format("%H:%M:%S").to_string())
+                }
             } else {
-                // 对于固定时间，不需要本地时间
-                block.end_time_local
-            };
+                // 没有原始本地时间，回退到UTC时间
+                Some(end_time.format("%H:%M:%S").to_string())
+            }
+        } else {
+            // 对于固定时间，不需要本地时间
+            block.end_time_local
+        };
 
         let query =
             "UPDATE time_blocks SET end_time = ?, end_time_local = ?, updated_at = ? WHERE id = ?";
