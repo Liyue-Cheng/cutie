@@ -103,14 +103,17 @@ async function initializeEventSubscriptions(port: number) {
     const { useTaskStore } = await import('@/stores/task')
     const { useTimeBlockStore } = await import('@/stores/timeblock')
     const { useTrashStore } = await import('@/stores/trash')
+    const { useTemplateStore } = await import('@/stores/template')
 
     const taskStore = useTaskStore()
     const timeBlockStore = useTimeBlockStore()
     const trashStore = useTrashStore()
+    const templateStore = useTemplateStore()
 
     taskStore.initEventSubscriptions()
     timeBlockStore.initEventSubscriptions()
     trashStore.initEventSubscriptions()
+    templateStore.initEventSubscriptions()
     logger.info(LogTags.SYSTEM_API, 'Store event subscriptions initialized')
   } catch (error) {
     logger.error(

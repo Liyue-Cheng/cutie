@@ -191,10 +191,40 @@ mod logic {
         // 5. 插入数据库
         database::insert_in_tx(&mut tx, &template).await?;
 
-        // 6. 提交事务
+        // 6. 写入事件到 outbox（在事务内）
+        use crate::shared::events::{
+            models::DomainEvent,
+            outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+        };
+
+        let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+
+        let payload = serde_json::json!({
+            "id": template.id,
+            "title": template.title,
+            "glance_note_template": template.glance_note_template,
+            "detail_note_template": template.detail_note_template,
+            "estimated_duration_template": template.estimated_duration_template,
+            "subtasks_template": template.subtasks_template,
+            "area_id": template.area_id,
+            "category": template.category.as_str(),
+            "created_at": template.created_at,
+            "updated_at": template.updated_at,
+        });
+
+        let event = DomainEvent::new(
+            "template.created",
+            "Template",
+            template.id.to_string(),
+            payload,
+        );
+
+        outbox_repo.append_in_tx(&mut tx, &event).await?;
+
+        // 7. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 7. 组装 DTO
+        // 8. 组装 DTO
         let dto = TemplateDto {
             id: template.id,
             title: template.title,

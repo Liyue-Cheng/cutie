@@ -23,7 +23,14 @@
       "Bash(cargo check --message-format=short)",
       "Bash(git log --since=\"10 days ago\" --numstat --pretty=format:\"\")",
       "Bash(awk '{if (NF==3) {add+=$1; del+=$2; files[$3]++}} END {print \"\"\"\"新增行数:\"\"\"\", add; print \"\"\"\"删除行数:\"\"\"\", del; print \"\"\"\"净变化:\"\"\"\", add-del; print \"\"\"\"编辑文件数:\"\"\"\", length(files)}')",
-      "Bash(cargo check)"
+      "Bash(cargo check)",
+      "Bash(git log --since=\"10 days ago\" --all --oneline --pretty=format:\"%s\")",
+      "Bash(git log --since=\"10 days ago\" --all --pretty=format:\"%h|%an|%ad|%s\" --date=short)",
+      "Bash(git log --since=\"10 days ago\" --all --pretty=format:\"%s\")",
+      "Bash(git log --since=\"15 days ago\" --numstat --pretty=format:\"\")",
+      "Bash(git log --since=\"15 days ago\" --all --oneline --pretty=format:\"%s\")",
+      "Bash(git log --since=\"15 days ago\" --all --pretty=format:\"%h|%an|%ad|%s\" --date=short)",
+      "Bash(git log --since=\"15 days ago\" --all --pretty=format:\"%s\")"
     ],
     "deny": [],
     "ask": []

@@ -526,6 +526,7 @@ export const LogTags = {
   STORE_VIEW: 'Store:View',
   STORE_AREA: 'Store:Area',
   STORE_TRASH: 'Store:Trash',
+  STORE_TEMPLATE: 'Store:Template',
 
   // 路由相关
   ROUTER: 'Router',

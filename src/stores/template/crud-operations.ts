@@ -43,7 +43,8 @@ export async function createTemplate(payload: CreateTemplatePayload): Promise<Te
     throw new Error('Failed to create template')
   }
 
-  const template: Template = await response.json()
+  const responseData = await response.json()
+  const template: Template = responseData.data // 提取 data 字段
   addOrUpdateTemplate(template)
   return template
 }
@@ -62,7 +63,8 @@ export async function updateTemplate(
     throw new Error('Failed to update template')
   }
 
-  const template: Template = await response.json()
+  const responseData = await response.json()
+  const template: Template = responseData.data // 提取 data 字段
   addOrUpdateTemplate(template)
   return template
 }

@@ -1654,9 +1654,10 @@ console.log('Data keys:', responseData?.data ? Object.keys(responseData.data) : 
 
 **问题**: 更新请求中的可空字段（如 `area_id`）无法正确设置为 NULL
 
-**背景**: 
+**背景**:
 
 在 PATCH 请求中，我们需要区分三种状态：
+
 1. **不更新该字段** - 前端不发送该字段
 2. **设置为 NULL** - 前端发送 `null`
 3. **设置为新值** - 前端发送具体值
@@ -1714,10 +1715,10 @@ where
 #[derive(Debug, Deserialize, Default)]
 pub struct UpdateTemplateRequest {
     pub title: Option<String>,  // 非空字段，用普通 Option
-    
+
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub glance_note_template: Option<Option<String>>,  // 可空字段
-    
+
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub area_id: Option<Option<Uuid>>,  // 可空字段
 }
@@ -1741,6 +1742,7 @@ if let Some(ref area_id_opt) = request.area_id {
 **参考实现**:
 
 查看以下文件获取完整示例：
+
 - `src-tauri/src/entities/task/request_dtos.rs` - Task 的三态字段实现
 - `src-tauri/src/entities/template/request_dtos.rs` - Template 的三态字段实现
 - `src-tauri/src/entities/time_block/request_dtos.rs` - TimeBlock 的三态字段实现
@@ -1751,8 +1753,8 @@ if let Some(ref area_id_opt) = request.area_id {
 ```typescript
 // 前端: 更新模板，设置 area_id 为 null
 await updateTemplate(templateId, {
-  title: "新标题",    // 更新为新值
-  area_id: null,      // 设置为 NULL
+  title: '新标题', // 更新为新值
+  area_id: null, // 设置为 NULL
   // glance_note 字段不发送 → 不更新
 })
 ```

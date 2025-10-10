@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import * as core from './core'
 import * as crud from './crud-operations'
 import * as view from './view-operations'
+import * as events from './event-handlers'
 
 export const useTemplateStore = defineStore('template', () => {
   return {
@@ -20,5 +21,8 @@ export const useTemplateStore = defineStore('template', () => {
 
     // View Actions
     fetchAllTemplates: view.fetchAllTemplates,
+
+    // Event Handlers
+    initEventSubscriptions: events.initEventSubscriptions,
   }
 })
