@@ -1,8 +1,8 @@
 /// 测试数据构造器（Fixtures）
 ///
 /// 提供快速创建测试数据的工具
-use crate::entities::{Area, Task};
 use chrono::{DateTime, Utc};
+use explore_lib::entities::{Area, Task};
 use uuid::Uuid;
 
 /// 任务测试数据构造器
@@ -143,28 +143,3 @@ impl AreaFixture {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_task_fixture() {
-        let task = TaskFixture::new()
-            .title("My Task")
-            .duration(60)
-            .completed()
-            .build();
-
-        assert_eq!(task.title, "My Task");
-        assert_eq!(task.estimated_duration, Some(60));
-        assert!(task.completed_at.is_some());
-    }
-
-    #[test]
-    fn test_area_fixture() {
-        let area = AreaFixture::new().name("Work").color("#00FF00").build();
-
-        assert_eq!(area.name, "Work");
-        assert_eq!(area.color, "#00FF00");
-    }
-}

@@ -121,33 +121,3 @@ impl TestResponse {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::{routing::get, Json};
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    struct TestData {
-        message: String,
-    }
-
-    async fn test_handler() -> Json<TestData> {
-        Json(TestData {
-            message: "Hello".to_string(),
-        })
-    }
-
-    #[tokio::test]
-    async fn test_get_request() {
-        let router = Router::new().route("/test", get(test_handler));
-        let client = TestClient::new(router);
-
-        let response = client.get("/test").await;
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let data: TestData = response.json().await;
-        assert_eq!(data.message, "Hello");
-    }
-}
-

@@ -14,10 +14,6 @@ pub mod http;
 pub mod logging;
 pub mod ports;
 
-// 测试工具模块（仅在测试时可用）
-#[cfg(test)]
-pub mod testing;
-
 // 显式导出最常用的核心类型，避免 ambiguous glob re-exports 警告
 
 // Core - 错误类型和结果类型（最常用）

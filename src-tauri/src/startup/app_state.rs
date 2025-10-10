@@ -151,23 +151,3 @@ pub enum HealthStatus {
     Healthy,
     Unhealthy,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_app_state_creation() {
-        // 基本的结构测试
-        assert_eq!(
-            std::mem::size_of::<AppState>(),
-            std::mem::size_of::<(Arc<AppConfig>, Arc<SqlitePool>)>()
-        );
-    }
-
-    #[test]
-    fn test_health_status() {
-        let status = HealthStatus::Healthy;
-        matches!(status, HealthStatus::Healthy);
-    }
-}

@@ -15,10 +15,6 @@ use crate::startup::AppState;
 // 共享模块（装配器等工具）
 pub mod shared;
 
-// 集成测试模块
-#[cfg(test)]
-mod integration_test;
-
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
     pub mod add_schedule; // POST /tasks/:id/schedules
@@ -36,10 +32,6 @@ mod endpoints {
     pub mod unarchive_task; // POST /tasks/:id/unarchive
     pub mod update_schedule; // PATCH /tasks/:id/schedules/:date
     pub mod update_task; // PATCH /tasks/:id
-
-    // 测试模块
-    #[cfg(test)]
-    pub mod create_task_test;
 }
 
 /// 创建任务功能模块的路由

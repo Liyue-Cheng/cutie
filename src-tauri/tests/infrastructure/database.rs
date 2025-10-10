@@ -1,5 +1,4 @@
 /// 测试数据库工具
-use crate::shared::database::DatabaseConfig;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -71,48 +70,3 @@ pub async fn create_test_db() -> Result<TestDb, Box<dyn std::error::Error>> {
     Ok(TestDb { pool, temp_dir })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_create_test_db() {
-        let test_db = create_test_db().await.unwrap();
-        assert!(test_db.pool().acquire().await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_clean_db() {
-        let test_db = create_test_db().await.unwrap();
-
-        // 插入测试数据
-        sqlx::query(
-            "INSERT INTO areas (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind("test-area-id")
-        .bind("Test Area")
-        .bind("#FF0000")
-        .bind(chrono::Utc::now())
-        .bind(chrono::Utc::now())
-        .execute(test_db.pool())
-        .await
-        .unwrap();
-
-        // 验证数据存在
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM areas")
-            .fetch_one(test_db.pool())
-            .await
-            .unwrap();
-        assert_eq!(count.0, 1);
-
-        // 清空数据库
-        test_db.clean().await.unwrap();
-
-        // 验证数据已清空
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM areas")
-            .fetch_one(test_db.pool())
-            .await
-            .unwrap();
-        assert_eq!(count.0, 0);
-    }
-}

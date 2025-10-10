@@ -8,7 +8,3 @@ pub use task_repository::TaskRepository;
 pub use task_schedule_repository::TaskScheduleRepository;
 pub use task_time_block_link_repository::TaskTimeBlockLinkRepository;
 
-// 测试模块
-#[cfg(test)]
-mod task_repository_test;
-
