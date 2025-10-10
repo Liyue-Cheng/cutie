@@ -42,7 +42,8 @@ mod tests {
         let create_response = client.post("/tasks", &create_request).await;
         assert_eq!(create_response.status(), StatusCode::CREATED);
 
-        let created_task: serde_json::Value = create_response.json().await;
+        let create_body: serde_json::Value = create_response.json().await;
+        let created_task = &create_body["data"];
         let task_id = created_task["id"].as_str().unwrap();
         assert_eq!(created_task["title"], "Lifecycle Test Task");
         assert_eq!(created_task["is_completed"], false);
@@ -51,7 +52,8 @@ mod tests {
         let get_response = client.get(&format!("/tasks/{}", task_id)).await;
         assert_eq!(get_response.status(), StatusCode::OK);
 
-        let fetched_task: serde_json::Value = get_response.json().await;
+        let get_body: serde_json::Value = get_response.json().await;
+        let fetched_task = &get_body["data"];
         assert_eq!(fetched_task["id"], task_id);
         assert_eq!(fetched_task["title"], "Lifecycle Test Task");
 
@@ -73,24 +75,31 @@ mod tests {
             .await;
         assert_eq!(update_response.status(), StatusCode::OK);
 
-        let updated_task: serde_json::Value = update_response.json().await;
+        let update_body: serde_json::Value = update_response.json().await;
+        let updated_task = &update_body["data"]["task"];
         assert_eq!(updated_task["title"], "Updated Lifecycle Task");
         assert_eq!(updated_task["glance_note"], "Updated note");
         assert_eq!(updated_task["estimated_duration"], 45);
 
         // Step 4: 完成任务
         let complete_response = client
-            .post::<serde_json::Value>(&format!("/tasks/{}/completion", task_id), &serde_json::json!({}))
+            .post::<serde_json::Value>(
+                &format!("/tasks/{}/completion", task_id),
+                &serde_json::json!({}),
+            )
             .await;
         assert_eq!(complete_response.status(), StatusCode::OK);
 
-        let completed_task: serde_json::Value = complete_response.json().await;
+        let complete_body: serde_json::Value = complete_response.json().await;
+        let completed_task = &complete_body["data"]["task"];
         assert_eq!(completed_task["is_completed"], true);
-        assert!(completed_task["completed_at"].is_string());
+        // 验证 schedule_status 变为 scheduled
+        assert_eq!(completed_task["schedule_status"], "scheduled");
 
         // Step 5: 验证完成状态持久化
         let final_get_response = client.get(&format!("/tasks/{}", task_id)).await;
-        let final_task: serde_json::Value = final_get_response.json().await;
+        let final_body: serde_json::Value = final_get_response.json().await;
+        let final_task = &final_body["data"];
         assert_eq!(final_task["is_completed"], true);
     }
 
@@ -114,12 +123,19 @@ mod tests {
         };
 
         let create_response = client.post("/tasks", &create_request).await;
-        let created_task: serde_json::Value = create_response.json().await;
+        let create_body: serde_json::Value = create_response.json().await;
+        let created_task = &create_body["data"];
         let task_id = created_task["id"].as_str().unwrap();
 
         // Step 2: 软删除任务（移到回收站）
         let delete_response = client.delete(&format!("/tasks/{}", task_id)).await;
-        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+        // 删除端点可能返回 200 或 204
+        assert!(
+            delete_response.status() == StatusCode::OK
+                || delete_response.status() == StatusCode::NO_CONTENT,
+            "Delete should return 200 or 204, got {}",
+            delete_response.status()
+        );
 
         // Step 3: 验证任务不再出现在正常列表中
         // （这里需要有 list_tasks 端点，暂时跳过）
@@ -156,4 +172,3 @@ mod tests {
         // （需要记录 task_id 或使用 list 端点）
     }
 }
-

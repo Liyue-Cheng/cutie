@@ -45,15 +45,16 @@ mod tests {
         let response = client.post("/tasks", &request).await;
 
         // Assert: 验证响应
-        let status = response.status();
-        assert_eq!(status, StatusCode::CREATED, "Should return 201 Created");
+        assert_eq!(response.status(), StatusCode::CREATED);
 
         let body: serde_json::Value = response.json().await;
-        assert_eq!(body["title"], "New Test Task");
-        assert_eq!(body["glance_note"], "Quick note");
-        assert_eq!(body["estimated_duration"], 60);
-        assert_eq!(body["schedule_status"], "staging");
-        assert!(body["id"].is_string());
+        // 响应格式：{ "data": {...}, "timestamp": "...", "request_id": null }
+        let data = &body["data"];
+        assert_eq!(data["title"], "New Test Task");
+        assert_eq!(data["glance_note"], "Quick note");
+        assert_eq!(data["estimated_duration"], 60);
+        assert_eq!(data["schedule_status"], "staging");
+        assert!(data["id"].is_string());
     }
 
     #[tokio::test]
