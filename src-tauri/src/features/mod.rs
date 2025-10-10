@@ -15,6 +15,7 @@ use crate::startup::AppState;
 pub mod shared;
 
 pub mod areas;
+pub mod recurrences;
 pub mod tasks;
 pub mod templates;
 pub mod time_blocks;
@@ -33,6 +34,7 @@ pub fn create_api_router() -> Router<AppState> {
     
     Router::new()
         .nest("/areas", areas::create_routes())
+        .nest("/recurrences", recurrences::create_routes())
         .nest("/tasks", tasks::create_routes())
         .nest("/templates", templates::create_routes())
         .nest("/time-blocks", time_blocks::create_routes())

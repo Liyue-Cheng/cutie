@@ -6,8 +6,10 @@
 /// - 不使用shared等通用命名
 // 按业务概念组织的实体
 pub mod area;
+pub mod recurrence_link;
 pub mod schedule;
 pub mod task;
+pub mod task_recurrence;
 pub mod template;
 pub mod time_block;
 pub mod view_preference;
@@ -16,6 +18,9 @@ pub mod view_preference;
 
 // Area 相关类型
 pub use area::{Area, AreaDto, AreaRow, AreaTreeDto, CreateAreaRequest, UpdateAreaRequest};
+
+// RecurrenceLink 相关类型
+pub use recurrence_link::{TaskRecurrenceLink, TaskRecurrenceLinkRow};
 
 // Schedule 相关类型
 pub use schedule::{TaskSchedule, TaskScheduleRow};
@@ -51,6 +56,12 @@ pub use task::{
 
 // Template 相关类型
 pub use template::{Template, TemplateRow};
+
+// TaskRecurrence 相关类型
+pub use task_recurrence::{
+    CreateTaskRecurrenceRequest, TaskRecurrence, TaskRecurrenceDto, TaskRecurrenceRow, TimeType,
+    UpdateTaskRecurrenceRequest,
+};
 
 // TimeBlock 相关类型
 pub use time_block::{

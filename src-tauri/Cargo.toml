@@ -84,6 +84,7 @@ ts-rs = { version = "8.1", features = [
 ] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 regex = "1.10"
+rrule = "0.14.0"
 
 [dev-dependencies]
 # 测试框架

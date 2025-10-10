@@ -53,6 +53,28 @@ impl TaskScheduleRepository {
         Ok(count > 0)
     }
 
+    /// 检查任务在某天是否有日程记录（非事务版本）
+    pub async fn has_schedule_for_day(
+        pool: &SqlitePool,
+        task_id: Uuid,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
+    ) -> AppResult<bool> {
+        let query = r#"
+            SELECT COUNT(*) as count
+            FROM task_schedules
+            WHERE task_id = ? AND scheduled_date = ?
+        "#;
+
+        let count: i64 = sqlx::query_scalar(query)
+            .bind(task_id.to_string())
+            .bind(scheduled_date)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        Ok(count > 0)
+    }
+
     /// 创建日程记录
     pub async fn create_in_tx(
         tx: &mut Transaction<'_, Sqlite>,

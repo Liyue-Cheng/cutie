@@ -31,6 +31,11 @@ export type DailyOutcome = 'planned' | 'presence_logged' | 'completed' | 'carrie
  */
 export type TimeType = 'FLOATING' | 'FIXED'
 
+/**
+ * 模板类别
+ */
+export type TemplateCategory = 'GENERAL' | 'RECURRENCE'
+
 // --- DTO Interfaces ---
 
 /**
@@ -193,4 +198,49 @@ export interface Template {
   category: TemplateCategory
   created_at: string
   updated_at: string
+}
+
+/**
+ * TaskRecurrence (循环任务规则)
+ *
+ * 用途: 定义循环任务的规则，系统将根据 RRULE 标准规则自动生成任务实例
+ */
+export interface TaskRecurrence {
+  id: string
+  template_id: string
+  rule: string // RRULE 标准字符串，如 "FREQ=DAILY" 或 "FREQ=WEEKLY;BYDAY=MO,WE,FR"
+  time_type: TimeType // 时间类型
+  start_date: string | null // 生效起始日期 (YYYY-MM-DD)
+  end_date: string | null // 生效结束日期 (YYYY-MM-DD)
+  timezone: string | null // 时区（仅 FIXED 类型使用）
+  is_active: boolean // 是否激活
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * CreateTaskRecurrencePayload (创建循环规则的请求载荷)
+ */
+export interface CreateTaskRecurrencePayload {
+  template_id: string
+  rule: string
+  time_type?: TimeType
+  start_date?: string | null
+  end_date?: string | null
+  timezone?: string | null
+  is_active?: boolean
+  source_task_id?: string // 源任务ID - 如果提供，将其作为第一个循环实例（避免重复创建）
+}
+
+/**
+ * UpdateTaskRecurrencePayload (更新循环规则的请求载荷)
+ */
+export interface UpdateTaskRecurrencePayload {
+  template_id?: string
+  rule?: string
+  time_type?: TimeType
+  start_date?: string | null
+  end_date?: string | null
+  timezone?: string | null
+  is_active?: boolean
 }

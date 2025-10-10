@@ -1,5 +1,4 @@
 /// 删除模板 - 单文件组件
-
 // ==================== CABC 文档 ====================
 /*
 CABC for `delete_template`
@@ -56,7 +55,6 @@ DELETE /api/templates/:id
 ### 后置条件:
 - 模板已软删除
 */
-
 // ==================== 依赖引入 ====================
 use axum::{
     extract::{Path, State},
@@ -84,14 +82,50 @@ mod logic {
     use super::*;
 
     pub async fn execute(app_state: &AppState, id: Uuid) -> AppResult<()> {
-        // 1. 开启事务
+        // 1. 🔥 验证：不允许删除循环模板
+        check_not_recurrence_template(app_state.db_pool(), id).await?;
+
+        // 2. 开启事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
-        // 2. 软删除模板
+        // 3. 软删除模板
         database::soft_delete_in_tx(&mut tx, id).await?;
 
-        // 3. 提交事务
+        // 4. 提交事务
         TransactionHelper::commit(tx).await?;
+
+        Ok(())
+    }
+
+    /// 🔥 检查模板是否被循环规则使用
+    async fn check_not_recurrence_template(
+        pool: &sqlx::SqlitePool,
+        template_id: Uuid,
+    ) -> AppResult<()> {
+        let query = r#"
+            SELECT COUNT(*) as count
+            FROM task_recurrences
+            WHERE template_id = ? AND is_active = 1
+        "#;
+
+        let count: i64 = sqlx::query_scalar(query)
+            .bind(template_id.to_string())
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        if count > 0 {
+            return Err(AppError::ValidationFailed(vec![
+                crate::shared::core::ValidationError::new(
+                    "template_id".to_string(),
+                    format!(
+                        "Cannot delete template: it is used by {} active recurrence rule(s). Please delete or deactivate the recurrence rules first.",
+                        count
+                    ),
+                    "TEMPLATE_IN_USE_BY_RECURRENCE".to_string(),
+                ),
+            ]));
+        }
 
         Ok(())
     }
@@ -102,10 +136,7 @@ mod database {
     use super::*;
     use sqlx::{Sqlite, Transaction};
 
-    pub async fn soft_delete_in_tx(
-        tx: &mut Transaction<'_, Sqlite>,
-        id: Uuid,
-    ) -> AppResult<()> {
+    pub async fn soft_delete_in_tx(tx: &mut Transaction<'_, Sqlite>, id: Uuid) -> AppResult<()> {
         let query = r#"
             UPDATE templates
             SET is_deleted = TRUE
@@ -128,4 +159,3 @@ mod database {
         Ok(())
     }
 }
-

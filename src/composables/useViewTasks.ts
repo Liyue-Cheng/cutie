@@ -39,6 +39,12 @@ export function useViewTasks(viewKey: string) {
     const [type, id] = parts
     let baseTasks: TaskCard[] = []
 
+    // 确保 id 存在
+    if (!id) {
+      logger.warn(LogTags.STORE_VIEW, 'Missing id in viewKey', { viewKey })
+      return []
+    }
+
     try {
       switch (type) {
         case 'daily':
@@ -84,29 +90,53 @@ export function useViewTasks(viewKey: string) {
       const sortedTasks = viewStore.applySorting(baseTasks, viewKey)
 
       // 调试日志
-      logger.debug(LogTags.STORE_VIEW, `${viewKey}: ${baseTasks.length} base → ${sortedTasks.length} sorted`, {
-        baseCount: baseTasks.length,
-        sortedCount: sortedTasks.length,
-        viewKey
-      })
+      logger.debug(
+        LogTags.STORE_VIEW,
+        `${viewKey}: ${baseTasks.length} base → ${sortedTasks.length} sorted`,
+        {
+          baseCount: baseTasks.length,
+          sortedCount: sortedTasks.length,
+          viewKey,
+        }
+      )
 
       return sortedTasks
     } catch (error) {
-      logger.error(LogTags.STORE_VIEW, 'Error processing viewKey', error, { viewKey })
+      logger.error(
+        LogTags.STORE_VIEW,
+        'Error processing viewKey',
+        error instanceof Error ? error : new Error(String(error)),
+        { viewKey }
+      )
       return []
     }
   })
 
   /**
-   * 组件挂载时预加载排序配置
+   * 组件挂载时预加载排序配置和数据
    */
   onMounted(async () => {
     if (viewKey) {
       try {
+        // 1. 加载排序配置
         await viewStore.fetchViewPreference(viewKey)
         logger.debug(LogTags.STORE_VIEW, 'Loaded sorting preference', { viewKey })
+
+        // 2. 如果是日视图，调用专用端点获取任务（触发循环任务实例化）
+        const parts = viewKey.split('::')
+        if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
+          const date = parts[1]
+          logger.info(LogTags.STORE_VIEW, 'Fetching daily tasks for date', { date, viewKey })
+          await taskStore.fetchDailyTasks(date)
+          logger.info(LogTags.STORE_VIEW, 'Daily tasks loaded', { date, viewKey })
+        }
       } catch (error) {
-        logger.error(LogTags.STORE_VIEW, 'Failed to load preference', error, { viewKey })
+        logger.error(
+          LogTags.STORE_VIEW,
+          'Failed to load view data',
+          error instanceof Error ? error : new Error(String(error)),
+          { viewKey }
+        )
       }
     }
   })

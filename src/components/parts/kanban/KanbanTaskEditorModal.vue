@@ -2,11 +2,16 @@
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
+import { useRecurrenceStore } from '@/stores/recurrence'
+import { useTemplateStore } from '@/stores/template'
 import { useTaskOperations } from '@/composables/useTaskOperations'
+import { RRule } from 'rrule'
 import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
+import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
 import { getTodayDateString, parseDateString, toUtcIsoString } from '@/utils/dateUtils'
 
 interface Subtask {
@@ -24,6 +29,8 @@ const emit = defineEmits(['close'])
 
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
+const recurrenceStore = useRecurrenceStore()
+const templateStore = useTemplateStore()
 const taskOps = useTaskOperations()
 
 // 本地编辑状态
@@ -41,6 +48,8 @@ const draggingSubtaskId = ref<string | null>(null)
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const mouseDownOnOverlay = ref(false)
+const showRecurrenceDialog = ref(false)
+const currentRecurrence = ref<any>(null)
 
 const task = computed(() => {
   return props.taskId ? taskStore.getTaskById(props.taskId) : null
@@ -70,6 +79,17 @@ const isPresenceLogged = computed(() => {
   return currentScheduleOutcome.value === 'presence_logged'
 })
 
+// 循环规则的人类可读描述
+const recurrenceDescription = computed(() => {
+  if (!currentRecurrence.value) return null
+  try {
+    const rule = RRule.fromString(currentRecurrence.value.rule)
+    return rule.toText()
+  } catch (e) {
+    return currentRecurrence.value.rule
+  }
+})
+
 // 自动调整 textarea 高度
 function autoResizeTextarea(textarea: HTMLTextAreaElement) {
   textarea.style.height = 'auto'
@@ -83,6 +103,27 @@ function initTextareaHeights() {
   }
   if (detailNoteTextarea.value) {
     autoResizeTextarea(detailNoteTextarea.value)
+  }
+}
+
+// 加载循环规则（如果存在）
+async function loadRecurrence() {
+  if (!task.value) return
+
+  // 获取所有循环规则
+  await recurrenceStore.fetchAllRecurrences()
+  await templateStore.fetchAllTemplates()
+
+  // 查找与当前任务标题匹配的循环模板和规则
+  const matchingTemplate = templateStore.allTemplates.find(
+    (t) => t.title === task.value?.title && t.category === 'RECURRENCE'
+  )
+
+  if (matchingTemplate) {
+    const matchingRecurrence = recurrenceStore.getRecurrencesByTemplateId(matchingTemplate.id)[0]
+    if (matchingRecurrence) {
+      currentRecurrence.value = matchingRecurrence
+    }
   }
 }
 
@@ -109,6 +150,9 @@ onMounted(async () => {
       // 等待 DOM 更新后调整 textarea 高度
       await nextTick()
       initTextareaHeights()
+
+      // 加载循环规则
+      await loadRecurrence()
     }
   }
 })
@@ -137,6 +181,9 @@ watch(
         // 等待 DOM 更新后调整 textarea 高度
         await nextTick()
         initTextareaHeights()
+
+        // 加载循环规则
+        await loadRecurrence()
       }
     }
   }
@@ -330,6 +377,85 @@ function handleCardMouseDown() {
 function handleClose() {
   emit('close')
 }
+
+function openRecurrenceDialog() {
+  showRecurrenceDialog.value = true
+}
+
+async function handleRecurrenceSuccess() {
+  // 循环创建成功后，重新加载循环规则以显示
+  console.log('Recurrence created successfully')
+  await loadRecurrence()
+}
+
+async function handleStopRepeating() {
+  const taskData = task.value as any
+  if (!currentRecurrence.value || !taskData?.recurrence_original_date) return
+
+  const instanceDate = taskData.recurrence_original_date
+  if (
+    confirm(
+      `确定停止此循环吗？\n将从 ${instanceDate} 之后停止生成新任务。\n已生成的任务不会被删除。`
+    )
+  ) {
+    try {
+      await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
+        end_date: instanceDate,
+      })
+      // 重新加载以更新状态
+      await loadRecurrence()
+    } catch (error) {
+      console.error('Failed to stop repeating:', error)
+      alert('操作失败，请重试')
+    }
+  }
+}
+
+async function handleExtendRecurrence() {
+  if (!currentRecurrence.value) return
+
+  if (confirm('确定继续此循环吗？将清除结束日期，继续生成新任务。')) {
+    try {
+      await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
+        end_date: null,
+      })
+      // 重新加载以更新状态
+      await loadRecurrence()
+    } catch (error) {
+      console.error('Failed to extend recurrence:', error)
+      alert('操作失败，请重试')
+    }
+  }
+}
+
+async function handleDeleteRecurrence() {
+  if (!currentRecurrence.value) return
+
+  if (confirm('确定删除这个循环规则吗？已生成的任务不会被删除。')) {
+    try {
+      await recurrenceStore.deleteRecurrence(currentRecurrence.value.id)
+      currentRecurrence.value = null
+    } catch (error) {
+      console.error('Failed to delete recurrence:', error)
+      alert('删除失败，请重试')
+    }
+  }
+}
+
+async function handleToggleRecurrenceActive() {
+  if (!currentRecurrence.value) return
+
+  try {
+    await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
+      is_active: !currentRecurrence.value.is_active,
+    })
+    // 重新加载以更新状态
+    await loadRecurrence()
+  } catch (error) {
+    console.error('Failed to toggle recurrence:', error)
+    alert('操作失败，请重试')
+  }
+}
 </script>
 
 <template>
@@ -426,8 +552,83 @@ function handleClose() {
               </div>
             </div>
 
+            <!-- 循环设置按钮 -->
+            <button
+              class="recurrence-button"
+              :class="{ active: currentRecurrence }"
+              @click="openRecurrenceDialog"
+              :title="currentRecurrence ? '查看循环规则' : '设置为循环任务'"
+            >
+              <CuteIcon name="RefreshCw" :size="18" />
+            </button>
+
             <!-- × 按钮 -->
             <button class="close-button" @click="handleClose">×</button>
+          </div>
+        </div>
+
+        <!-- 循环规则展示区 -->
+        <div v-if="currentRecurrence" class="recurrence-info-section">
+          <div class="recurrence-header">
+            <div class="recurrence-icon-wrapper">
+              <CuteIcon name="RefreshCw" :size="16" />
+            </div>
+            <div class="recurrence-content">
+              <div class="recurrence-title">
+                循环任务规则
+                <span class="status-badge" :class="{ active: currentRecurrence.is_active }">
+                  {{ currentRecurrence.is_active ? '激活中' : '已暂停' }}
+                </span>
+              </div>
+              <div class="recurrence-description">{{ recurrenceDescription }}</div>
+              <div
+                v-if="currentRecurrence.start_date || currentRecurrence.end_date"
+                class="recurrence-dates"
+              >
+                <span v-if="currentRecurrence.start_date"
+                  >开始: {{ currentRecurrence.start_date }}</span
+                >
+                <span v-if="currentRecurrence.end_date" class="date-separator">-</span>
+                <span v-if="currentRecurrence.end_date"
+                  >结束: {{ currentRecurrence.end_date }}</span
+                >
+              </div>
+            </div>
+            <div class="recurrence-actions">
+              <!-- Stop Repeating / Extend -->
+              <button
+                v-if="(task as any)?.recurrence_original_date && !currentRecurrence.end_date"
+                class="action-icon-btn stop"
+                @click="handleStopRepeating"
+                title="停止重复（从此日期之后不再生成）"
+              >
+                <CuteIcon name="X" :size="14" />
+              </button>
+              <button
+                v-if="currentRecurrence.end_date"
+                class="action-icon-btn extend"
+                @click="handleExtendRecurrence"
+                title="继续循环（清除结束日期）"
+              >
+                <CuteIcon name="Check" :size="14" />
+              </button>
+              <!-- 暂停/激活 -->
+              <button
+                class="action-icon-btn"
+                @click="handleToggleRecurrenceActive"
+                :title="currentRecurrence.is_active ? '暂停' : '激活'"
+              >
+                <CuteIcon :name="currentRecurrence.is_active ? 'Pause' : 'Play'" :size="14" />
+              </button>
+              <!-- 删除 -->
+              <button
+                class="action-icon-btn danger"
+                @click="handleDeleteRecurrence"
+                title="删除规则"
+              >
+                <CuteIcon name="Trash2" :size="14" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -534,6 +735,15 @@ function handleClose() {
         </div>
       </div>
     </CuteCard>
+
+    <!-- 循环配置对话框 -->
+    <RecurrenceConfigDialog
+      v-if="showRecurrenceDialog && task"
+      :task="task"
+      :open="showRecurrenceDialog"
+      @close="showRecurrenceDialog = false"
+      @success="handleRecurrenceSuccess"
+    />
   </div>
 </template>
 
@@ -641,7 +851,7 @@ function handleClose() {
 .right-section {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .due-date-wrapper {
@@ -774,6 +984,158 @@ function handleClose() {
 
 .cancel-button:hover {
   background-color: #bdbdbd;
+}
+
+.recurrence-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  padding: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.recurrence-button:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.recurrence-button.active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: rgb(25 118 210 / 10%);
+}
+
+.recurrence-button.active:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* 循环规则展示区 */
+.recurrence-info-section {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  border-radius: 0.8rem;
+  border: 1px solid #bbdefb;
+  margin-top: -0.5rem;
+}
+
+.recurrence-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.2rem;
+}
+
+.recurrence-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  background: var(--color-primary, #1976d2);
+  color: white;
+  border-radius: 0.6rem;
+  flex-shrink: 0;
+}
+
+.recurrence-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.recurrence-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.status-badge {
+  padding: 0.2rem 0.8rem;
+  border-radius: 1rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  background: #e0e0e0;
+  color: #666;
+}
+
+.status-badge.active {
+  background: #4caf50;
+  color: white;
+}
+
+.recurrence-description {
+  font-size: 1.3rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.recurrence-dates {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary);
+}
+
+.date-separator {
+  color: var(--color-text-tertiary);
+}
+
+.recurrence-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.action-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  padding: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  background: white;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-icon-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgb(25 118 210 / 10%);
+}
+
+.action-icon-btn.danger:hover {
+  border-color: #f44336;
+  color: #f44336;
+  background: rgb(244 67 54 / 10%);
+}
+
+.action-icon-btn.stop:hover {
+  border-color: #ff9800;
+  color: #ff9800;
+  background: rgb(255 152 0 / 10%);
+}
+
+.action-icon-btn.extend:hover {
+  border-color: #4caf50;
+  color: #4caf50;
+  background: rgb(76 175 80 / 10%);
 }
 
 .close-button {

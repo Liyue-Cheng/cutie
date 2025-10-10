@@ -187,16 +187,34 @@ mod logic {
     pub async fn execute(app_state: &AppState, date_str: &str) -> AppResult<GetDailyTasksResponse> {
         // 1. 解析日期为 NaiveDate
         let target_date = validation::parse_date(date_str)?;
+        tracing::info!("Parsed date: {}", target_date);
+        println!("Parsed date: {}", target_date);
 
-        // 2. 查询该日期的所有任务（使用日期字符串匹配）
+        // 2. 实例化循环任务（如果有）
+        use crate::features::recurrences::shared::RecurrenceInstantiationService;
+        let _recurrence_task_ids = RecurrenceInstantiationService::instantiate_for_date(
+            app_state.db_pool(),
+            app_state.id_generator().as_ref(),
+            app_state.clock().as_ref(),
+            &target_date,
+        )
+        .await?;
+
+        tracing::debug!(
+            "Instantiated {} recurrence tasks for date {}",
+            _recurrence_task_ids.len(),
+            date_str
+        );
+
+        // 3. 查询该日期的所有任务（使用日期字符串匹配，包括刚刚实例化的循环任务）
         let tasks = database::find_tasks_for_date(app_state.db_pool(), target_date).await?;
 
         tracing::info!("Found {} tasks for date {}", tasks.len(), date_str);
 
-        // 3. 组装完整的 TaskCards（使用共享装配器）
+        // 4. 组装完整的 TaskCards（使用共享装配器）
         let task_cards = ViewTaskCardAssembler::assemble_batch(tasks, app_state.db_pool()).await?;
 
-        // 4. 返回结果
+        // 5. 返回结果
         Ok(GetDailyTasksResponse {
             count: task_cards.len(),
             date: date_str.to_string(),
