@@ -14,7 +14,6 @@ const dragTransfer = useDragTransfer()
 const selectedTemplateId = ref<string | null>(null)
 const isEditorOpen = ref(false)
 const newTemplateName = ref('')
-const isCreating = ref(false)
 
 // 加载所有模板
 onMounted(async () => {
@@ -62,16 +61,15 @@ async function handleCreateTemplate() {
   const title = newTemplateName.value.trim()
   if (!title) return
 
-  isCreating.value = true
   try {
+    // 先重置表单，给用户即时反馈
+    newTemplateName.value = ''
+
     await templateStore.createTemplate({
       title: title,
     })
 
     logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Template created successfully', { title })
-
-    // 重置表单
-    newTemplateName.value = ''
   } catch (error) {
     logger.error(
       LogTags.COMPONENT_KANBAN_COLUMN,
@@ -79,8 +77,6 @@ async function handleCreateTemplate() {
       error instanceof Error ? error : new Error(String(error))
     )
     alert('创建模板失败')
-  } finally {
-    isCreating.value = false
   }
 }
 </script>
@@ -105,10 +101,8 @@ async function handleCreateTemplate() {
         type="text"
         placeholder="输入模板名称，按回车创建..."
         class="add-task-input"
-        :disabled="isCreating"
         @keyup.enter="handleCreateTemplate"
       />
-      <div v-if="isCreating" class="creating-indicator">创建中...</div>
     </div>
 
     <!-- 模板列表 -->

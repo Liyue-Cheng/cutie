@@ -2,12 +2,14 @@
 import { computed, ref } from 'vue'
 import type { Template } from '@/types/dtos'
 import { useAreaStore } from '@/stores/area'
+import { useContextMenu } from '@/composables/useContextMenu'
 import { logger, LogTags } from '@/services/logger'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import TimeDurationPicker from '@/components/parts/TimeDurationPicker.vue'
+import TemplateCardMenu from './TemplateCardMenu.vue'
 import { useTemplateStore } from '@/stores/template'
 
 const props = defineProps<{
@@ -16,6 +18,7 @@ const props = defineProps<{
 
 const templateStore = useTemplateStore()
 const areaStore = useAreaStore()
+const contextMenu = useContextMenu()
 const emit = defineEmits<{
   openEditor: []
 }>()
@@ -86,10 +89,22 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtasks_template: updatedSubtasks,
   })
 }
+
+// ✅ 显示右键菜单
+function showContextMenu(event: MouseEvent) {
+  contextMenu.show(
+    TemplateCardMenu,
+    {
+      template: props.template,
+      onOpenEditor: () => emit('openEditor'),
+    },
+    event
+  )
+}
 </script>
 
 <template>
-  <CuteCard class="task-card" @click="emit('openEditor')">
+  <CuteCard class="task-card" @click="emit('openEditor')" @contextmenu="showContextMenu">
     <div class="main-content">
       <!-- 第一行：标题 + 预期时间 -->
       <div class="card-header">
