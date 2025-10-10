@@ -36,6 +36,10 @@ mod endpoints {
     pub mod unarchive_task; // POST /tasks/:id/unarchive
     pub mod update_schedule; // PATCH /tasks/:id/schedules/:date
     pub mod update_task; // PATCH /tasks/:id
+
+    // 测试模块
+    #[cfg(test)]
+    pub mod create_task_test;
 }
 
 /// 创建任务功能模块的路由

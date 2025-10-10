@@ -7,12 +7,12 @@ use uuid::Uuid;
 
 /// 任务测试数据构造器
 pub struct TaskFixture {
-    pub id: String,
+    pub id: Uuid,
     pub title: String,
     pub glance_note: Option<String>,
     pub detail_note: Option<String>,
     pub estimated_duration: Option<i32>,
-    pub area_id: Option<String>,
+    pub area_id: Option<Uuid>,
     pub completed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -22,7 +22,7 @@ impl Default for TaskFixture {
     fn default() -> Self {
         let now = Utc::now();
         Self {
-            id: Uuid::new_v4().to_string(),
+            id: Uuid::new_v4(),
             title: "Test Task".to_string(),
             glance_note: None,
             detail_note: None,
@@ -48,8 +48,8 @@ impl TaskFixture {
     }
 
     /// 设置区域
-    pub fn area_id(mut self, area_id: impl Into<String>) -> Self {
-        self.area_id = Some(area_id.into());
+    pub fn area_id(mut self, area_id: Uuid) -> Self {
+        self.area_id = Some(area_id);
         self
     }
 
@@ -95,7 +95,7 @@ impl TaskFixture {
 
 /// 区域测试数据构造器
 pub struct AreaFixture {
-    pub id: String,
+    pub id: Uuid,
     pub name: String,
     pub color: String,
     pub created_at: DateTime<Utc>,
@@ -106,7 +106,7 @@ impl Default for AreaFixture {
     fn default() -> Self {
         let now = Utc::now();
         Self {
-            id: Uuid::new_v4().to_string(),
+            id: Uuid::new_v4(),
             name: "Test Area".to_string(),
             color: "#FF0000".to_string(),
             created_at: now,
@@ -135,11 +135,10 @@ impl AreaFixture {
             id: self.id,
             name: self.name,
             color: self.color,
-            parent_id: None,
-            sort_order: 0.0,
+            parent_area_id: None,
+            is_deleted: false,
             created_at: self.created_at,
             updated_at: self.updated_at,
-            deleted_at: None,
         }
     }
 }

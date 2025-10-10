@@ -3,6 +3,7 @@
 /// 测试 Repository 层的数据访问逻辑
 #[cfg(test)]
 mod tests {
+    use crate::features::shared::TransactionHelper;
     use crate::features::tasks::shared::repositories::TaskRepository;
     use crate::shared::testing::{create_test_db, fixtures::TaskFixture};
 
@@ -15,11 +16,13 @@ mod tests {
             .duration(30)
             .build();
 
-        // Act: 插入任务
-        TaskRepository::insert(test_db.pool(), &task).await.unwrap();
+        // Act: 插入任务（使用事务）
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::insert_in_tx(&mut tx, &task).await.unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
 
         // Assert: 验证可以查询到任务
-        let found_task = TaskRepository::find_by_id(test_db.pool(), &task.id)
+        let found_task = TaskRepository::find_by_id(test_db.pool(), task.id)
             .await
             .unwrap()
             .expect("Task should exist");
@@ -33,16 +36,33 @@ mod tests {
     async fn test_update_task() {
         // Arrange
         let test_db = create_test_db().await.unwrap();
-        let mut task = TaskFixture::new().title("Original Title").build();
+        let task = TaskFixture::new().title("Original Title").build();
 
-        TaskRepository::insert(test_db.pool(), &task).await.unwrap();
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::insert_in_tx(&mut tx, &task).await.unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
 
         // Act: 更新任务
-        task.title = "Updated Title".to_string();
-        TaskRepository::update(test_db.pool(), &task).await.unwrap();
+        let update_request = crate::entities::UpdateTaskRequest {
+            title: Some("Updated Title".to_string()),
+            glance_note: None,
+            detail_note: None,
+            estimated_duration: None,
+            area_id: None,
+            project_id: None,
+            due_date: None,
+            due_date_type: None,
+            subtasks: None,
+        };
+
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::update_in_tx(&mut tx, task.id, &update_request)
+            .await
+            .unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
 
         // Assert: 验证更新生效
-        let updated_task = TaskRepository::find_by_id(test_db.pool(), &task.id)
+        let updated_task = TaskRepository::find_by_id(test_db.pool(), task.id)
             .await
             .unwrap()
             .expect("Task should exist");
@@ -56,15 +76,20 @@ mod tests {
         let test_db = create_test_db().await.unwrap();
         let task = TaskFixture::new().build();
 
-        TaskRepository::insert(test_db.pool(), &task).await.unwrap();
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::insert_in_tx(&mut tx, &task).await.unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
 
         // Act: 软删除任务
-        TaskRepository::soft_delete(test_db.pool(), &task.id)
+        let deleted_at = chrono::Utc::now();
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::soft_delete_in_tx(&mut tx, task.id, deleted_at)
             .await
             .unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
 
         // Assert: 验证任务被标记为删除
-        let deleted_task = TaskRepository::find_by_id(test_db.pool(), &task.id)
+        let deleted_task = TaskRepository::find_by_id(test_db.pool(), task.id)
             .await
             .unwrap();
 
@@ -83,30 +108,34 @@ mod tests {
         let task2 = TaskFixture::new().title("Task 2").build();
         let task3 = TaskFixture::new().title("Task 3").build();
 
-        TaskRepository::insert(test_db.pool(), &task1)
-            .await
-            .unwrap();
-        TaskRepository::insert(test_db.pool(), &task2)
-            .await
-            .unwrap();
-        TaskRepository::insert(test_db.pool(), &task3)
-            .await
-            .unwrap();
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::insert_in_tx(&mut tx, &task1).await.unwrap();
+        TaskRepository::insert_in_tx(&mut tx, &task2).await.unwrap();
+        TaskRepository::insert_in_tx(&mut tx, &task3).await.unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
 
         // 删除其中一个任务
-        TaskRepository::soft_delete(test_db.pool(), &task2.id)
+        let deleted_at = chrono::Utc::now();
+        let mut tx = TransactionHelper::begin(test_db.pool()).await.unwrap();
+        TaskRepository::soft_delete_in_tx(&mut tx, task2.id, deleted_at)
+            .await
+            .unwrap();
+        TransactionHelper::commit(tx).await.unwrap();
+
+        // Act: 验证未删除的任务可以查到
+        let found1 = TaskRepository::find_by_id(test_db.pool(), task1.id)
+            .await
+            .unwrap();
+        let found2 = TaskRepository::find_by_id(test_db.pool(), task2.id)
+            .await
+            .unwrap();
+        let found3 = TaskRepository::find_by_id(test_db.pool(), task3.id)
             .await
             .unwrap();
 
-        // Act: 查询所有未删除的任务
-        let tasks = TaskRepository::list_non_deleted(test_db.pool())
-            .await
-            .unwrap();
-
-        // Assert: 只返回未删除的任务
-        assert_eq!(tasks.len(), 2);
-        assert!(tasks.iter().any(|t| t.id == task1.id));
-        assert!(tasks.iter().any(|t| t.id == task3.id));
-        assert!(!tasks.iter().any(|t| t.id == task2.id));
+        // Assert: 只有未删除的任务可以被找到
+        assert!(found1.is_some(), "Task 1 should exist");
+        assert!(found2.is_none(), "Task 2 should be deleted");
+        assert!(found3.is_some(), "Task 3 should exist");
     }
 }

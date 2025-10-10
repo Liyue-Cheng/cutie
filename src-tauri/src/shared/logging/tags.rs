@@ -151,4 +151,3 @@ mod tests {
         assert_eq!(middleware_tag("request_id"), "MIDDLEWARE:request_id");
     }
 }
-

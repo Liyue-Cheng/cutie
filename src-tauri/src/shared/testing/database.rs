@@ -86,15 +86,17 @@ mod tests {
         let test_db = create_test_db().await.unwrap();
 
         // 插入测试数据
-        sqlx::query("INSERT INTO areas (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-            .bind("test-area-id")
-            .bind("Test Area")
-            .bind("#FF0000")
-            .bind(chrono::Utc::now())
-            .bind(chrono::Utc::now())
-            .execute(test_db.pool())
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO areas (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind("test-area-id")
+        .bind("Test Area")
+        .bind("#FF0000")
+        .bind(chrono::Utc::now())
+        .bind(chrono::Utc::now())
+        .execute(test_db.pool())
+        .await
+        .unwrap();
 
         // 验证数据存在
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM areas")
@@ -114,4 +116,3 @@ mod tests {
         assert_eq!(count.0, 0);
     }
 }
-
