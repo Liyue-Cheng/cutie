@@ -43,6 +43,40 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
   }
 
   /**
+   * 创建任务并添加日程（合并操作）
+   * API: POST /tasks/with-schedule
+   */
+  async function createTaskWithSchedule(
+    payload: CreateTaskPayload & { scheduled_day: string }
+  ): Promise<TaskCard | null> {
+    const correlationId = correlationTracker.startTracking('createTaskWithSchedule')
+
+    return withLoading(async () => {
+      try {
+        correlationTracker.markHttpSent(correlationId, 'createTaskWithSchedule')
+
+        const newTask: TaskCard = await apiPost('/tasks/with-schedule', payload, correlationId)
+
+        correlationTracker.markHttpReceived(correlationId, 'createTaskWithSchedule')
+
+        addOrUpdateTask(newTask)
+        logger.info(LogTags.STORE_TASKS, 'Created task with schedule (HTTP)', {
+          taskId: newTask.id,
+          title: newTask.title,
+          scheduledDay: payload.scheduled_day,
+          correlationId,
+        })
+        return newTask
+      } catch (e) {
+        correlationTracker.cleanupFailedTracking(correlationId)
+        throw e
+      } finally {
+        correlationTracker.finishTracking(correlationId, 10000)
+      }
+    }, 'create task with schedule')
+  }
+
+  /**
    * 更新任务
    * API: PATCH /tasks/:id
    */
@@ -418,6 +452,7 @@ export function createCrudOperations(core: ReturnType<typeof createTaskCore>) {
 
   return {
     createTask,
+    createTaskWithSchedule,
     updateTask,
     fetchTaskDetail,
     deleteTask,

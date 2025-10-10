@@ -57,16 +57,21 @@ pub fn set_sidecar_port(port: u16) {
 }
 
 /// 初始化日志系统
-/// 使用 try_init() 避免重复初始化时的 panic
+/// 使用新的统一日志模块，支持文件落盘、轮转、panic捕获
 fn init_logging() {
-    // 初始化日志系统，设置默认级别
+    // 设置默认日志级别（如果未设置）
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
-    // 使用 try_init() 避免重复初始化时的 panic
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .try_init();
+    
+    // 使用统一日志系统初始化
+    if let Err(e) = shared::logging::init_logging() {
+        eprintln!("⚠️  Failed to initialize logging system: {}", e);
+        // 降级到简单的控制台日志
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .try_init();
+    }
 }
 
 /// 构建基础的 Tauri 应用程序构建器
@@ -76,7 +81,11 @@ fn build_tauri_app() -> tauri::Builder<tauri::Wry> {
     init_logging();
 
     // 记录应用构建日志
-    tracing::info!("Building Cutie application with Tauri");
+    tracing::info!(
+        target: "STARTUP:tauri",
+        version = env!("CARGO_PKG_VERSION"),
+        "Building Cutie application with Tauri"
+    );
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -113,7 +122,10 @@ pub fn run_with_port_discovery_and_cleanup(
     build_tauri_app()
         .setup(move |app| {
             // 记录端口发现模式启动
-            tracing::info!("Starting Cutie application with port discovery mode");
+            tracing::info!(
+                target: "STARTUP:tauri",
+                "Starting Cutie application with port discovery mode"
+            );
 
             // 启动端口监听器
             let app_handle = app.handle().clone();
@@ -121,7 +133,11 @@ pub fn run_with_port_discovery_and_cleanup(
                 // 等待端口发现
                 loop {
                     if let Some(port) = get_sidecar_port() {
-                        tracing::info!("Port discovered: {}, notifying frontend", port);
+                        tracing::info!(
+                            target: "STARTUP:tauri",
+                            port = %port,
+                            "Port discovered, notifying frontend"
+                        );
 
                         // 通知前端端口已发现
                         if let Err(e) = app_handle.emit("sidecar-port-discovered", port) {

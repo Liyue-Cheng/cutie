@@ -16,6 +16,4 @@ pub mod repositories;
 // 重新导出常用类型
 pub use assembler::TaskAssembler;
 pub use assemblers::{LinkedTaskAssembler, TimeBlockAssembler};
-pub use repositories::{
-    TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository,
-};
+pub use repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository};

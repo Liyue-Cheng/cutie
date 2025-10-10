@@ -15,12 +15,17 @@ use crate::startup::AppState;
 // 共享模块（装配器等工具）
 pub mod shared;
 
+// 集成测试模块
+#[cfg(test)]
+mod integration_test;
+
 // 直接声明 endpoints 子模块（无需 pub，只内部使用）
 mod endpoints {
     pub mod add_schedule; // POST /tasks/:id/schedules
     pub mod archive_task; // POST /tasks/:id/archive
     pub mod complete_task; // POST /tasks/:id/completion
     pub mod create_task; // POST /tasks
+    pub mod create_task_with_schedule; // POST /tasks/with-schedule
     pub mod delete_schedule; // DELETE /tasks/:id/schedules/:date
     pub mod delete_task; // DELETE /tasks/:id
     pub mod get_task; // GET /tasks/:id
@@ -41,6 +46,10 @@ pub fn create_routes() -> Router<AppState> {
         // 基本 CRUD 操作
         .route("/", post(endpoints::create_task::handle))
         .route(
+            "/with-schedule",
+            post(endpoints::create_task_with_schedule::handle),
+        )
+        .route(
             "/:id",
             get(endpoints::get_task::handle)
                 .patch(endpoints::update_task::handle)
@@ -48,7 +57,10 @@ pub fn create_routes() -> Router<AppState> {
         )
         // 回收站操作
         .route("/:id/restore", patch(endpoints::restore_task::handle))
-        .route("/:id/permanently", delete(endpoints::permanently_delete_task::handle))
+        .route(
+            "/:id/permanently",
+            delete(endpoints::permanently_delete_task::handle),
+        )
         // 任务状态操作
         .route(
             "/:id/completion",

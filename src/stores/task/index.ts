@@ -74,6 +74,7 @@ export const useTaskStore = defineStore('task', () => {
 
     // CRUD 操作
     createTask: crudOps.createTask,
+    createTaskWithSchedule: crudOps.createTaskWithSchedule,
     updateTask: crudOps.updateTask,
     fetchTaskDetail: crudOps.fetchTaskDetail,
     deleteTask: crudOps.deleteTask,

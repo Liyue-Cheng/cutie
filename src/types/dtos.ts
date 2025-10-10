@@ -173,11 +173,6 @@ export interface TimeBlockView {
 }
 
 /**
- * 模板类别
- */
-export type TemplateCategory = 'GENERAL' | 'RECURRENCE'
-
-/**
  * Template (模板)
  *
  * 用途: 快速创建具有相同结构的任务

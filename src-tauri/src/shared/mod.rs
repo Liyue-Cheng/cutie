@@ -6,11 +6,17 @@
 /// - http: HTTP中间件、错误处理、通用响应
 /// - ports: 外部依赖抽象层（时钟、ID生成器等）
 /// - events: 领域事件与 SSE 基础设施
+/// - logging: 统一日志系统（分层标签、文件轮转、panic捕获）
 pub mod core;
 pub mod database;
 pub mod events;
 pub mod http;
+pub mod logging;
 pub mod ports;
+
+// 测试工具模块（仅在测试时可用）
+#[cfg(test)]
+pub mod testing;
 
 // 显式导出最常用的核心类型，避免 ambiguous glob re-exports 警告
 

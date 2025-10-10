@@ -155,9 +155,33 @@ pub async fn handle(
     State(app_state): State<AppState>,
     Json(request): Json<CreateTaskRequest>,
 ) -> Response {
+    tracing::debug!(
+        target: "ENDPOINT:TASKS:create_task",
+        title = %request.title,
+        area_id = ?request.area_id,
+        has_subtasks = request.subtasks.is_some(),
+        "Creating task"
+    );
+
     match logic::execute(&app_state, request).await {
-        Ok(task_card) => created_response(task_card).into_response(),
-        Err(err) => err.into_response(),
+        Ok(task_card) => {
+            tracing::info!(
+                target: "ENDPOINT:TASKS:create_task",
+                task_id = %task_card.id,
+                title = %task_card.title,
+                schedule_status = ?task_card.schedule_status,
+                "Task created successfully"
+            );
+            created_response(task_card).into_response()
+        }
+        Err(err) => {
+            tracing::error!(
+                target: "ENDPOINT:TASKS:create_task",
+                error = %err,
+                "Failed to create task"
+            );
+            err.into_response()
+        }
     }
 }
 
@@ -234,9 +258,20 @@ mod logic {
         // 2. 开始事务（✅ 使用 TransactionHelper）
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
+        tracing::debug!(
+            target: "SERVICE:TASKS:create_task",
+            "Transaction started"
+        );
+
         // 3. 生成 UUID 和时间戳
         let task_id = app_state.id_generator().new_uuid();
         let now = app_state.clock().now_utc();
+
+        tracing::trace!(
+            target: "SERVICE:TASKS:create_task",
+            task_id = %task_id,
+            "Generated task ID"
+        );
 
         // 4. 创建任务实体
         let task = Task {
@@ -266,8 +301,20 @@ mod logic {
         // 5. 插入任务到数据库（✅ 使用共享 Repository）
         TaskRepository::insert_in_tx(&mut tx, &task).await?;
 
+        tracing::debug!(
+            target: "SERVICE:TASKS:create_task",
+            task_id = %task_id,
+            "Task inserted into database"
+        );
+
         // 6. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
+
+        tracing::debug!(
+            target: "SERVICE:TASKS:create_task",
+            task_id = %task_id,
+            "Transaction committed"
+        );
 
         // 7. 组装返回的 TaskCardDto（✅ area_id 已由 TaskAssembler 填充）
         let mut task_card = TaskAssembler::task_to_card_basic(&task);

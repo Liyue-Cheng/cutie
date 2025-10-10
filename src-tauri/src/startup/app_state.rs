@@ -66,6 +66,19 @@ impl AppState {
         )
     }
 
+    /// 创建测试环境的应用状态（使用默认配置和测试适配器）
+    #[cfg(test)]
+    pub fn new_test(db_pool: SqlitePool) -> Self {
+        let config = AppConfig::default();
+        Self::new(
+            config,
+            db_pool,
+            Arc::new(SystemClock::new()),
+            Arc::new(UuidV4Generator::new()),
+            Arc::new(SseState::new()),
+        )
+    }
+
     /// 获取配置
     pub fn config(&self) -> &AppConfig {
         &self.config

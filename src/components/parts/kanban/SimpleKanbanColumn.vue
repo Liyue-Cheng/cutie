@@ -99,18 +99,14 @@ async function handleAddTask() {
     const isDateView = viewMetadata.type === 'date'
 
     if (isDateView) {
-      // 日期视图：创建任务并立即添加日程
-      const newTask = await taskStore.createTask({ title })
-      if (!newTask) {
-        throw new Error('Task creation returned null')
-      }
-
-      // 获取日期配置
+      // 日期视图：使用合并端点一次性创建任务并添加日程
       const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
       const date = dateConfig.date // YYYY-MM-DD
 
-      // 为任务添加日程
-      await taskStore.addSchedule(newTask.id, date)
+      const newTask = await taskStore.createTaskWithSchedule({ title, scheduled_day: date })
+      if (!newTask) {
+        throw new Error('Task creation returned null')
+      }
 
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created with schedule', {
         title,

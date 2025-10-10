@@ -107,6 +107,14 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
     // 添加中间件
     let mut app = app;
 
+    // 添加请求追踪中间件（包含 req_id 生成与标准字段）
+    if config.server.request_logging {
+        use axum::middleware;
+        app = app.layer(middleware::from_fn(
+            crate::shared::logging::request_tracing_middleware,
+        ));
+    }
+
     // 添加CORS中间件
     if config.server.cors_enabled {
         let cors = CorsLayer::new()
@@ -116,11 +124,6 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
             .max_age(std::time::Duration::from_secs(3600));
 
         app = app.layer(cors);
-    }
-
-    // 添加请求日志中间件
-    if config.server.request_logging {
-        app = app.layer(tower_http::trace::TraceLayer::new_for_http());
     }
 
     // 添加压缩中间件
@@ -189,13 +192,25 @@ pub async fn run_sidecar() -> Result<(), AppError> {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", config.log_level_string());
     }
-    // 使用 try_init 避免重复初始化错误
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .try_init();
 
-    tracing::info!("=== Cutie Sidecar Server Starting (New Architecture) ===");
-    tracing::info!("Configuration loaded successfully");
+    // 使用统一日志系统初始化
+    if let Err(e) = crate::shared::logging::init_logging() {
+        eprintln!("⚠️  Failed to initialize logging system: {}", e);
+        // 降级到简单的控制台日志
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .try_init();
+    }
+
+    tracing::info!(
+        target: "STARTUP:sidecar",
+        version = env!("CARGO_PKG_VERSION"),
+        "=== Cutie Sidecar Server Starting (New Architecture) ==="
+    );
+    tracing::info!(
+        target: "STARTUP:sidecar",
+        "Configuration loaded successfully"
+    );
 
     // 初始化数据库
     let db_pool = crate::startup::database::initialize_database(&config).await?;

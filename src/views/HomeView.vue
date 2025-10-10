@@ -69,34 +69,24 @@ function handleOpenEditor(task: TaskCard) {
 }
 
 async function handleAddTask(title: string, date: string) {
-  logger.info(LogTags.VIEW_HOME, 'Add task', { title, date })
+  logger.info(LogTags.VIEW_HOME, 'Add task with schedule', { title, date })
 
   try {
-    // 1. 创建任务
-    const newTask = await taskStore.createTask({ title })
+    // ✅ 使用新的合并端点，一次请求完成创建任务并添加日程
+    const newTask = await taskStore.createTaskWithSchedule({ title, scheduled_day: date })
     if (!newTask) {
       logger.error(
         LogTags.VIEW_HOME,
-        'Failed to create task',
+        'Failed to create task with schedule',
         new Error('Task creation returned null')
       )
       return
     }
 
-    logger.info(LogTags.VIEW_HOME, 'Task created', { taskId: newTask.id })
-
-    // 2. 立即为任务添加日程
-    const updatedTask = await taskStore.addSchedule(newTask.id, date)
-    if (!updatedTask) {
-      logger.error(
-        LogTags.VIEW_HOME,
-        'Failed to add schedule',
-        new Error('Schedule addition returned null')
-      )
-      return
-    }
-
-    logger.info(LogTags.VIEW_HOME, 'Schedule added for task', { taskId: updatedTask.id, date })
+    logger.info(LogTags.VIEW_HOME, 'Task created with schedule', {
+      taskId: newTask.id,
+      date,
+    })
 
     // ✅ 无需手动刷新！TaskStore 已更新，Vue 响应式系统会自动更新 UI
   } catch (error) {
