@@ -218,7 +218,7 @@ pub async fn run_sidecar() -> Result<(), AppError> {
         let dispatcher = Arc::new(EventDispatcher::new(
             outbox_repo,
             sse_state,
-            100,
+            20, // 20ms 间隔，更快的 SSE 响应
             write_semaphore,
         ));
 
