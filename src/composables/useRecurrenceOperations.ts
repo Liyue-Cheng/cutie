@@ -56,7 +56,7 @@ export function useRecurrenceOperations() {
 
   /**
    * 打开编辑循环规则对话框
-   * 
+   *
    * 通过 UI Store 打开全局的循环规则编辑对话框
    * RecurrenceBoard 组件会监听 UI Store 的状态并显示对话框
    */
@@ -78,6 +78,7 @@ export function useRecurrenceOperations() {
     const confirmed = confirm(
       `确定将所有未完成的循环任务实例更新为与当前任务相同吗？\n` +
         `这将更新标题、笔记、预期时长、子任务、区域等信息。\n` +
+        `同时也会更新循环模板，影响未来生成的新实例。\n` +
         `已完成的任务不会被影响。`
     )
 
@@ -96,15 +97,35 @@ export function useRecurrenceOperations() {
         throw new Error('无法获取任务详情')
       }
 
-      logger.debug(LogTags.COMPOSABLE_RECURRENCE, 'Task detail fetched', {
+      // 2. 获取循环规则信息（用于找到模板ID）
+      let recurrence = recurrenceStore.getRecurrenceById(recurrenceId)
+      if (!recurrence) {
+        // 如果本地 store 没有数据，先从后端获取
+        logger.info(
+          LogTags.COMPOSABLE_RECURRENCE,
+          'Recurrence not found in store, fetching from backend',
+          {
+            recurrenceId,
+          }
+        )
+        await recurrenceStore.fetchAllRecurrences()
+        recurrence = recurrenceStore.getRecurrenceById(recurrenceId)
+
+        if (!recurrence) {
+          throw new Error('无法找到循环规则')
+        }
+      }
+
+      logger.debug(LogTags.COMPOSABLE_RECURRENCE, 'Task detail and recurrence fetched', {
         taskId: sourceTask.id,
         title: taskDetail.title,
         hasDetailNote: !!taskDetail.detail_note,
         subtasksCount: taskDetail.subtasks?.length || 0,
+        templateId: recurrence.template_id,
       })
 
-      // 2. 构造请求体（基于 TaskDetail）
-      const payload = {
+      // 3. 构造请求体（基于 TaskDetail）
+      const instancePayload = {
         title: taskDetail.title,
         glance_note: taskDetail.glance_note,
         detail_note: taskDetail.detail_note,
@@ -113,18 +134,32 @@ export function useRecurrenceOperations() {
         subtasks: taskDetail.subtasks, // 新增：同步子任务
       }
 
-      logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Sending batch update request', {
-        recurrenceId,
-        payload: {
-          ...payload,
-          detail_note: payload.detail_note ? `(${payload.detail_note.length} chars)` : null,
-          subtasks: payload.subtasks ? `(${payload.subtasks.length} items)` : null,
-        },
-      })
+      // 4. 🔥 使用新的统一端点，在同一事务中更新模板和实例
+      const payload = {
+        title: taskDetail.title,
+        glance_note: taskDetail.glance_note,
+        detail_note: taskDetail.detail_note,
+        estimated_duration: taskDetail.estimated_duration,
+        area_id: taskDetail.area_id,
+        subtasks: taskDetail.subtasks,
+      }
 
-      // 3. 调用批量更新端点
+      logger.info(
+        LogTags.COMPOSABLE_RECURRENCE,
+        'Updating template and instances in single transaction',
+        {
+          recurrenceId,
+          payload: {
+            ...payload,
+            detail_note: payload.detail_note ? `(${payload.detail_note.length} chars)` : null,
+            subtasks: payload.subtasks ? `(${payload.subtasks.length} items)` : null,
+          },
+        }
+      )
+
+      // 5. 调用新的统一端点
       const response = await fetch(
-        `${await waitForApiReady()}/recurrences/${recurrenceId}/instances/batch`,
+        `${await waitForApiReady()}/recurrences/${recurrenceId}/template-and-instances`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -132,33 +167,37 @@ export function useRecurrenceOperations() {
         }
       )
 
+      // 6. 检查结果
       if (!response.ok) {
         const errorText = await response.text()
         logger.error(
           LogTags.COMPOSABLE_RECURRENCE,
-          'Batch update request failed',
+          'Batch update template and instances failed',
           new Error(`HTTP ${response.status}`),
           { errorText }
         )
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+        throw new Error(`批量更新失败: HTTP ${response.status}: ${errorText}`)
       }
 
       const result = await response.json()
-      const updatedCount = result.data?.updated_count || result.updated_count || 0
+      const { template_updated, instances_updated_count } = result.data || result
 
-      logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Batch update completed', {
+      logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Template and instances updated successfully', {
         recurrenceId,
-        updatedCount,
+        templateUpdated: template_updated,
+        instancesUpdatedCount: instances_updated_count,
       })
 
-      // 4. 刷新所有已挂载的日视图
+      // 7. 刷新所有已挂载的日视图
       await viewStore.refreshAllMountedDailyViews()
 
-      alert(`成功更新了 ${updatedCount} 个未完成的任务实例。`)
+      alert(
+        `成功更新了模板${template_updated ? '和' : '，'}${instances_updated_count} 个未完成的任务实例。\n未来生成的新实例也会使用更新后的内容。`
+      )
     } catch (error) {
       logger.error(
         LogTags.COMPOSABLE_RECURRENCE,
-        'Failed to update all instances',
+        'Failed to update template and instances',
         error instanceof Error ? error : new Error(String(error)),
         { recurrenceId, sourceTaskId: sourceTask.id }
       )

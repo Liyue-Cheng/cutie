@@ -176,10 +176,10 @@ async function handleSave() {
     // if (startDate.value !== props.recurrence.start_date) {
     //   payload.start_date = startDate.value || null
     // }
-    
+
     // 🔥 只有当 end_date 发生变化时才包含该字段
     if (endDate.value !== props.recurrence.end_date) {
-      payload.end_date = endDate.value || null      // 空字符串转为 null
+      payload.end_date = endDate.value || null // 空字符串转为 null
     }
 
     console.log('Updating recurrence with payload:', payload)
@@ -294,7 +294,13 @@ function setWeekdays() {
         <div class="date-inputs">
           <div class="date-input-wrapper">
             <label>开始日期</label>
-            <input type="date" v-model="startDate" class="date-input" disabled title="开始日期不可修改" />
+            <input
+              type="date"
+              v-model="startDate"
+              class="date-input"
+              disabled
+              title="开始日期不可修改"
+            />
           </div>
           <div class="date-input-wrapper">
             <label>结束日期（可选）</label>

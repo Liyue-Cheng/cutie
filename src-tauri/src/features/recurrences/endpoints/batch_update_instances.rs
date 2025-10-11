@@ -106,7 +106,7 @@ where
 }
 
 // ==================== 业务逻辑层 ====================
-mod logic {
+pub mod logic {
     use super::*;
 
     pub async fn execute(
@@ -210,7 +210,7 @@ mod logic {
     }
 
     /// 批量更新任务
-    async fn batch_update_tasks(
+    pub async fn batch_update_tasks(
         tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         task_ids: &[Uuid],
         request: &BatchUpdateInstancesRequest,

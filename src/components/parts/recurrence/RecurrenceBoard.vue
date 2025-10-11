@@ -68,7 +68,7 @@ async function handleDelete(id: string) {
 function handleEditDialogClose() {
   showEditDialog.value = false
   editingRecurrenceId.value = null
-  
+
   // 🔥 同时清除 UI Store 的全局状态
   uiStore.closeRecurrenceEditDialog()
 }
