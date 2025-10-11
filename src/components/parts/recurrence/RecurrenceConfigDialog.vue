@@ -85,11 +85,11 @@ async function handleSave() {
     // 步骤1: 创建循环模板（基于当前任务）
     const template = await templateStore.createTemplate({
       title: props.task.title,
-      glance_note_template: props.task.glance_note,
-      detail_note_template: null,
-      estimated_duration_template: props.task.estimated_duration,
-      subtasks_template: props.task.subtasks || null,
-      area_id: props.task.area_id || null, // 🔥 修复：直接使用 area_id
+      glance_note_template: props.task.glance_note ?? undefined,
+      detail_note_template: undefined,
+      estimated_duration_template: props.task.estimated_duration ?? undefined,
+      subtasks_template: props.task.subtasks ?? undefined,
+      area_id: props.task.area_id ?? undefined, // 🔥 修复：直接使用 area_id
       category: 'RECURRENCE',
     })
 
