@@ -14,6 +14,7 @@ use crate::startup::AppState;
 // 跨功能模块共享基础设施
 pub mod shared;
 
+pub mod ai;
 pub mod areas;
 pub mod recurrences;
 pub mod tasks;
@@ -33,6 +34,7 @@ pub fn create_api_router() -> Router<AppState> {
     use crate::shared::events::sse;
     
     Router::new()
+        .nest("/ai", ai::create_routes())
         .nest("/areas", areas::create_routes())
         .nest("/recurrences", recurrences::create_routes())
         .nest("/tasks", tasks::create_routes())

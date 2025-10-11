@@ -5,6 +5,7 @@
 /// - 不包含HTTP响应结构（应在shared/http中）
 /// - 不使用shared等通用命名
 // 按业务概念组织的实体
+pub mod ai;
 pub mod area;
 pub mod recurrence_link;
 pub mod schedule;
@@ -15,6 +16,9 @@ pub mod time_block;
 pub mod view_preference;
 
 // 显式导出所有公共类型，避免 ambiguous glob re-exports 警告
+
+// AI 相关类型
+pub use ai::{AiChatRequest, AiChatResponse, MessageImage, TokenUsage, UserMessage};
 
 // Area 相关类型
 pub use area::{Area, AreaDto, AreaRow, AreaTreeDto, CreateAreaRequest, UpdateAreaRequest};
