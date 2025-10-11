@@ -46,13 +46,8 @@ const formattedDuration = computed(() => {
   const hours = Math.floor(minutes / 60)
   const mins = minutes % 60
 
-  if (hours > 0 && mins > 0) {
-    return `${hours}:${mins.toString().padStart(2, '0')}`
-  } else if (hours > 0) {
-    return `${hours}:00`
-  } else {
-    return `${mins} min`
-  }
+  // ✅ 统一格式为 x:xx
+  return `${hours}:${mins.toString().padStart(2, '0')}`
 })
 
 // ✅ 切换时间选择器显示

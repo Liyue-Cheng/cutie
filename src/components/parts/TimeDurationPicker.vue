@@ -49,13 +49,8 @@ const formattedDuration = computed(() => {
   const hours = Math.floor(minutes / 60)
   const mins = minutes % 60
 
-  if (hours > 0 && mins > 0) {
-    return `${hours}:${mins.toString().padStart(2, '0')}`
-  } else if (hours > 0) {
-    return `${hours}:00`
-  } else {
-    return `${mins} min`
-  }
+  // ✅ 统一格式为 x:xx
+  return `${hours}:${mins.toString().padStart(2, '0')}`
 })
 
 function selectDuration(value: number) {
@@ -83,7 +78,12 @@ function clearDuration() {
         v-for="option in timeOptions"
         :key="option.value"
         class="time-option"
-        :class="{ active: option.value === 0 ? (modelValue === 0 || modelValue === null) : modelValue === option.value }"
+        :class="{
+          active:
+            option.value === 0
+              ? modelValue === 0 || modelValue === null
+              : modelValue === option.value,
+        }"
         @click="selectDuration(option.value)"
       >
         {{ option.label }}

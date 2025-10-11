@@ -103,7 +103,11 @@ async function handleAddTask() {
       const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
       const date = dateConfig.date // YYYY-MM-DD
 
-      const newTask = await taskStore.createTaskWithSchedule({ title, scheduled_day: date })
+      const newTask = await taskStore.createTaskWithSchedule({
+        title,
+        scheduled_day: date,
+        estimated_duration: 60, // ✅ 默认1小时
+      })
       if (!newTask) {
         throw new Error('Task creation returned null')
       }
@@ -116,7 +120,10 @@ async function handleAddTask() {
       })
     } else {
       // 非日期视图：只创建任务
-      await taskStore.createTask({ title })
+      await taskStore.createTask({
+        title,
+        estimated_duration: 60, // ✅ 默认1小时
+      })
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', {
         title,
         viewKey: props.viewKey,
@@ -192,7 +199,6 @@ function handleTaskCompleted(completedTaskId: string) {
 
 // ==================== 排序配置管理 ====================
 
-const sortingConfigLoaded = ref(false)
 const previousTaskIds = ref<Set<string>>(new Set())
 
 onMounted(async () => {
@@ -201,14 +207,15 @@ onMounted(async () => {
   if (!alreadyLoaded) {
     await viewStore.fetchViewPreference(props.viewKey)
   }
-  sortingConfigLoaded.value = true
+  // ✅ 移除 sortingConfigLoaded 状态，避免闪烁
 })
 
 // ✅ 自动检测任务列表变化并持久化（使用 effectiveTasks）
 watch(
   () => effectiveTasks.value,
   (newTasks) => {
-    if (!sortingConfigLoaded.value || sameViewDrag.isDragging.value) {
+    // ✅ 移除 sortingConfigLoaded 检查，避免闪烁
+    if (sameViewDrag.isDragging.value) {
       previousTaskIds.value = new Set(newTasks.map((t) => t.id))
       return
     }
@@ -513,7 +520,7 @@ async function handleDrop(event: DragEvent) {
         :disabled="isCreatingTask"
         @keydown.enter="handleAddTask"
       />
-      <div v-if="isCreatingTask" class="creating-indicator">创建中...</div>
+      <!-- ✅ 移除"创建中..."提示，避免闪烁 -->
     </div>
 
     <div ref="taskListRef" class="task-list-scroll-area" @dragover="handleContainerDragOver">
@@ -618,12 +625,7 @@ async function handleDrop(event: DragEvent) {
   cursor: not-allowed;
 }
 
-.creating-indicator {
-  font-size: 1.2rem;
-  color: var(--color-text-secondary);
-  padding: 0.5rem 0.75rem;
-  font-style: italic;
-}
+/* ✅ 移除 .creating-indicator 样式 */
 
 .task-list-scroll-area {
   flex-grow: 1;
