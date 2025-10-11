@@ -281,13 +281,8 @@ const formattedDuration = computed(() => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
 
-    if (hours > 0 && mins > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}`
-    } else if (hours > 0) {
-      return `${hours}:00`
-    } else {
-      return `${mins} min`
-    }
+    // ✅ 统一格式为 x:xx
+    return `${hours}:${mins.toString().padStart(2, '0')}`
   }
 
   // 没有时间片时，显示预期时间
@@ -299,13 +294,8 @@ const formattedDuration = computed(() => {
   const hours = Math.floor(minutes / 60)
   const mins = minutes % 60
 
-  if (hours > 0 && mins > 0) {
-    return `${hours}:${mins.toString().padStart(2, '0')}`
-  } else if (hours > 0) {
-    return `${hours}:00`
-  } else {
-    return `${mins} min`
-  }
+  // ✅ 统一格式为 x:xx
+  return `${hours}:${mins.toString().padStart(2, '0')}`
 })
 
 // ✅ 切换时间选择器显示
@@ -403,21 +393,25 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
       </div>
 
       <div v-if="task.glance_note" class="notes-section">
-        <CuteIcon name="CornerDownRight" :size="14" />
+        <span class="icon-wrapper">
+          <CuteIcon name="CornerDownRight" size="1.4rem" />
+        </span>
         <span class="note-text">{{ task.glance_note }}</span>
       </div>
 
       <!-- 截止时间显示 -->
       <div v-if="task.due_date" class="due-date-section">
-        <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
-        <CuteIcon
-          v-if="task.due_date.type === 'HARD'"
-          name="Flag"
-          :size="14"
-          :color="task.due_date.is_overdue ? '#f44336' : '#999'"
-        />
-        <!-- 软截止：使用波浪号 -->
-        <span v-else class="soft-deadline-icon">~</span>
+        <span class="icon-wrapper">
+          <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
+          <CuteIcon
+            v-if="task.due_date.type === 'HARD'"
+            name="Flag"
+            size="1.4rem"
+            :color="task.due_date.is_overdue ? '#f44336' : '#999'"
+          />
+          <!-- 软截止：使用波浪号 -->
+          <span v-else class="soft-deadline-icon">~</span>
+        </span>
 
         <span
           class="due-date-text"
@@ -432,14 +426,16 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
       <div v-if="subtasks.length > 0" class="subtasks-section">
         <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item">
-          <CuteCheckbox
-            :checked="subtask.is_completed"
-            size="small"
-            @update:checked="
-              (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
-            "
-            @click.stop
-          />
+          <span class="checkbox-wrapper">
+            <CuteCheckbox
+              :checked="subtask.is_completed"
+              size="1.4rem"
+              @update:checked="
+                (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
+              "
+              @click.stop
+            />
+          </span>
           <span class="subtask-title">{{ subtask.title }}</span>
         </div>
       </div>
@@ -595,6 +591,17 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   line-height: 1.4;
 }
 
+/* ✅ 统一的图标/选择框容器 - 确保文字对齐 */
+.icon-wrapper,
+.checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+}
+
 .notes-section {
   display: flex;
   align-items: center;
@@ -607,6 +614,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 /* 截止时间区 */
@@ -617,16 +625,20 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 }
 
 .soft-deadline-icon {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   color: #999;
   font-weight: 400;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .due-date-text {
   font-size: 1.3rem;
   color: #999;
   font-weight: 500;
+  line-height: 1.4;
 }
 
 /* 只有硬截止且逾期时才显示红色 */
@@ -644,12 +656,13 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 .subtask-item {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.5rem;
 }
 
 .subtask-title {
   font-size: 1.4rem;
   color: var(--color-text-primary);
+  line-height: 1.4;
 }
 
 /* 第二行：完成/在场按钮 + Area标签 */

@@ -478,7 +478,7 @@ async function handleToggleRecurrenceActive() {
                 size="normal"
               />
               <div v-else class="no-area-placeholder">
-                <span class="hash-symbol">#</span>
+                <CuteIcon name="Hash" :size="16" />
                 <span>无区域</span>
               </div>
             </div>
@@ -843,10 +843,7 @@ async function handleToggleRecurrenceActive() {
   border-radius: 0.4rem;
 }
 
-.no-area-placeholder .hash-symbol {
-  font-size: 1.4rem;
-  font-weight: 500;
-}
+/* ✅ 移除 .hash-symbol 样式，现在使用 CuteIcon 组件 */
 
 .right-section {
   display: flex;
