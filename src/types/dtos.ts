@@ -233,13 +233,18 @@ export interface CreateTaskRecurrencePayload {
 
 /**
  * UpdateTaskRecurrencePayload (更新循环规则的请求载荷)
+ * 
+ * 注意：后端使用三态字段 Option<Option<T>>，需要区分：
+ * - undefined: 不更新该字段
+ * - null: 清空该字段
+ * - value: 更新为指定值
  */
 export interface UpdateTaskRecurrencePayload {
   template_id?: string
   rule?: string
   time_type?: TimeType
-  start_date?: string | null
-  end_date?: string | null
-  timezone?: string | null
+  start_date?: string | null  // 三态：undefined=不更新, null=清空, string=设置值
+  end_date?: string | null    // 三态：undefined=不更新, null=清空, string=设置值
+  timezone?: string | null    // 三态：undefined=不更新, null=清空, string=设置值
   is_active?: boolean
 }

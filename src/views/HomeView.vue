@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import InfiniteDailyKanban from '@/components/templates/InfiniteDailyKanban.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
+import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
@@ -312,6 +313,7 @@ async function handleLoadAllTasks() {
       :view-key="uiStore.editorViewKey ?? undefined"
       @close="uiStore.closeEditor"
     />
+    <GlobalRecurrenceEditDialog />
     <AiChatDialog v-if="isAiChatOpen" @close="isAiChatOpen = false" />
   </div>
 </template>

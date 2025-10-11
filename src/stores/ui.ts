@@ -7,7 +7,8 @@ import { logger, LogTags } from '@/services/logger'
  *
  * 职责：
  * - 任务编辑器的打开/关闭状态
- * - 传递必要的上下文信息（taskId, viewKey）
+ * - 循环规则编辑对话框的打开/关闭状态
+ * - 传递必要的上下文信息（taskId, viewKey, recurrenceId）
  * - 解耦组件之间的事件传递
  */
 
@@ -30,6 +31,19 @@ export const useUIStore = defineStore('ui', () => {
    * 编辑器是否打开
    */
   const isEditorOpen = computed(() => editorTaskId.value !== null)
+
+  // ==================== 循环规则编辑对话框状态 ====================
+
+  /**
+   * 当前正在编辑的循环规则 ID
+   * null 表示对话框关闭
+   */
+  const recurrenceEditDialogId = ref<string | null>(null)
+
+  /**
+   * 循环规则编辑对话框是否打开
+   */
+  const isRecurrenceEditDialogOpen = computed(() => recurrenceEditDialogId.value !== null)
 
   // ==================== 操作方法 ====================
 
@@ -62,14 +76,45 @@ export const useUIStore = defineStore('ui', () => {
     })
   }
 
+  /**
+   * 打开循环规则编辑对话框
+   * @param recurrenceId 循环规则 ID
+   */
+  function openRecurrenceEditDialog(recurrenceId: string) {
+    recurrenceEditDialogId.value = recurrenceId
+
+    logger.info(LogTags.STORE_UI, 'Opening recurrence edit dialog', {
+      recurrenceId,
+    })
+  }
+
+  /**
+   * 关闭循环规则编辑对话框
+   */
+  function closeRecurrenceEditDialog() {
+    const previousRecurrenceId = recurrenceEditDialogId.value
+
+    recurrenceEditDialogId.value = null
+
+    logger.info(LogTags.STORE_UI, 'Closing recurrence edit dialog', {
+      previousRecurrenceId,
+    })
+  }
+
   return {
-    // State
+    // 任务编辑器状态
     editorTaskId,
     editorViewKey,
     isEditorOpen,
 
-    // Actions
+    // 循环规则编辑对话框状态
+    recurrenceEditDialogId,
+    isRecurrenceEditDialogOpen,
+
+    // 操作方法
     openEditor,
     closeEditor,
+    openRecurrenceEditDialog,
+    closeRecurrenceEditDialog,
   }
 })

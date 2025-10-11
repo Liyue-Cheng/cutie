@@ -166,13 +166,26 @@ async function handleSave() {
   if (!props.recurrence) return
 
   try {
-    // 更新循环规则
-    await recurrenceStore.updateRecurrence(props.recurrence.id, {
+    // 🔥 构造符合后端三态字段要求的 payload
+    const payload: any = {
       rule: ruleString.value,
-      start_date: startDate.value,
-      end_date: endDate.value,
       is_active: isActive.value,
-    })
+    }
+
+    // 🔥 注意：后端禁止修改 start_date，所以不发送该字段
+    // if (startDate.value !== props.recurrence.start_date) {
+    //   payload.start_date = startDate.value || null
+    // }
+    
+    // 🔥 只有当 end_date 发生变化时才包含该字段
+    if (endDate.value !== props.recurrence.end_date) {
+      payload.end_date = endDate.value || null      // 空字符串转为 null
+    }
+
+    console.log('Updating recurrence with payload:', payload)
+
+    // 更新循环规则
+    await recurrenceStore.updateRecurrence(props.recurrence.id, payload)
 
     emit('success')
     emit('close')
@@ -281,7 +294,7 @@ function setWeekdays() {
         <div class="date-inputs">
           <div class="date-input-wrapper">
             <label>开始日期</label>
-            <input type="date" v-model="startDate" class="date-input" />
+            <input type="date" v-model="startDate" class="date-input" disabled title="开始日期不可修改" />
           </div>
           <div class="date-input-wrapper">
             <label>结束日期（可选）</label>

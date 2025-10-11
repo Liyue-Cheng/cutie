@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
 import { useTemplateStore } from '@/stores/template'
+import { useUIStore } from '@/stores/ui'
 import RecurrenceRuleCard from './RecurrenceRuleCard.vue'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import type { TaskRecurrence } from '@/types/dtos'
@@ -10,8 +11,9 @@ import type { TaskRecurrence } from '@/types/dtos'
 const recurrenceStore = useRecurrenceStore()
 const viewStore = useViewStore()
 const templateStore = useTemplateStore()
+const uiStore = useUIStore()
 
-// 编辑对话框状态
+// 编辑对话框状态（本地状态）
 const showEditDialog = ref(false)
 const editingRecurrenceId = ref<string | null>(null)
 
@@ -20,6 +22,18 @@ const editingRecurrence = computed<TaskRecurrence | null>(() => {
   if (!editingRecurrenceId.value) return null
   return recurrenceStore.getRecurrenceById(editingRecurrenceId.value) || null
 })
+
+// 🔥 监听 UI Store 的全局编辑对话框状态
+watch(
+  () => uiStore.recurrenceEditDialogId,
+  (recurrenceId) => {
+    if (recurrenceId) {
+      // UI Store 请求打开编辑对话框
+      editingRecurrenceId.value = recurrenceId
+      showEditDialog.value = true
+    }
+  }
+)
 
 onMounted(async () => {
   // 加载所有模板和循环规则
@@ -54,6 +68,9 @@ async function handleDelete(id: string) {
 function handleEditDialogClose() {
   showEditDialog.value = false
   editingRecurrenceId.value = null
+  
+  // 🔥 同时清除 UI Store 的全局状态
+  uiStore.closeRecurrenceEditDialog()
 }
 
 function handleEditSuccess() {

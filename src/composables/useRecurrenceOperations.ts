@@ -1,6 +1,7 @@
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
 import { useTaskStore } from '@/stores/task'
+import { useUIStore } from '@/stores/ui'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/services/logger'
 import { waitForApiReady } from '@/composables/useApiConfig'
@@ -18,6 +19,7 @@ export function useRecurrenceOperations() {
   const recurrenceStore = useRecurrenceStore()
   const viewStore = useViewStore()
   const taskStore = useTaskStore()
+  const uiStore = useUIStore()
 
   /**
    * 停止重复（设置结束日期为当前任务的原始日期）
@@ -54,16 +56,16 @@ export function useRecurrenceOperations() {
 
   /**
    * 打开编辑循环规则对话框
+   * 
+   * 通过 UI Store 打开全局的循环规则编辑对话框
+   * RecurrenceBoard 组件会监听 UI Store 的状态并显示对话框
    */
-  async function openEditDialog(recurrenceId: string) {
-    // TODO: 实现打开编辑对话框的逻辑
-    // 这需要与 RecurrenceBoard 或其他组件协调
+  function openEditDialog(recurrenceId: string) {
     logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Opening edit dialog for recurrence', {
       recurrenceId,
     })
 
-    // 临时实现：显示提示
-    alert('编辑循环规则功能正在开发中，请前往循环任务管理页面进行编辑。')
+    uiStore.openRecurrenceEditDialog(recurrenceId)
   }
 
   /**
