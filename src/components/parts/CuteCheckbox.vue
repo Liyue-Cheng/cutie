@@ -1,14 +1,17 @@
 <script setup lang="ts">
 // Custom checkbox component with circular style
 // This component forwards all native checkbox attributes and events
+// Supports both preset sizes ('small', 'large') and custom rem values (e.g., '1.6rem')
+
+import { computed } from 'vue'
 
 interface Props {
   checked?: boolean
-  size?: 'small' | 'large'
+  size?: 'small' | 'large' | string // ✅ 支持预设或自定义尺寸
   variant?: 'check' | 'star' // check: 对钩(绿色), star: 星星(蓝色)
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   checked: false,
   size: 'small',
   variant: 'check',
@@ -22,10 +25,25 @@ const handleChange = (event: Event) => {
   const target = event.target as HTMLInputElement
   emit('update:checked', target.checked)
 }
+
+// ✅ 判断是否使用预设尺寸
+const isPresetSize = computed(() => props.size === 'small' || props.size === 'large')
+
+// ✅ 自定义尺寸的 CSS 变量
+const customSizeStyle = computed(() => {
+  if (isPresetSize.value) return {}
+  return {
+    '--checkbox-size': props.size,
+  }
+})
 </script>
 
 <template>
-  <label class="cute-checkbox" :class="[`size-${size}`, `variant-${variant}`]">
+  <label
+    class="cute-checkbox"
+    :class="[isPresetSize ? `size-${size}` : 'size-custom', `variant-${variant}`]"
+    :style="customSizeStyle"
+  >
     <input type="checkbox" :checked="checked" @change="handleChange" />
     <span class="checkmark"></span>
   </label>
@@ -95,6 +113,20 @@ const handleChange = (event: Event) => {
   height: 0.88rem;
 }
 
+/* ✅ Custom size variant - 使用 CSS 变量 */
+.cute-checkbox.size-custom .checkmark {
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+}
+
+.cute-checkbox.size-custom .checkmark::after {
+  /* 根据自定义尺寸动态计算对钩位置和大小 */
+  left: calc(var(--checkbox-size) * 0.3125);
+  top: calc(var(--checkbox-size) * 0.1375);
+  width: calc(var(--checkbox-size) * 0.2188);
+  height: calc(var(--checkbox-size) * 0.4375);
+}
+
 /* ===============================================
  * 星星变体样式
  * =============================================== */
@@ -116,6 +148,11 @@ const handleChange = (event: Event) => {
 /* 星星变体 Large size */
 .cute-checkbox.variant-star.size-large .checkmark::after {
   font-size: 1.3rem;
+}
+
+/* 星星变体 Custom size */
+.cute-checkbox.variant-star.size-custom .checkmark::after {
+  font-size: calc(var(--checkbox-size) * 0.75);
 }
 
 /* 星星变体：鼠标悬停变蓝色 */
