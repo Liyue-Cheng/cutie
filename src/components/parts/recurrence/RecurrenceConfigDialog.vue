@@ -89,7 +89,7 @@ async function handleSave() {
       detail_note_template: null,
       estimated_duration_template: props.task.estimated_duration,
       subtasks_template: props.task.subtasks || null,
-      area_id: props.task.area?.id || null,
+      area_id: props.task.area_id || null, // 🔥 修复：直接使用 area_id
       category: 'RECURRENCE',
     })
 
