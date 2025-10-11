@@ -422,6 +422,37 @@ mod logic {
             scheduled_day
         );
 
+        // 13. ✅ 异步 AI 自动分类（不阻塞返回）
+        // 条件：未指定 area_id 且不是从模板创建
+        if task.area_id.is_none() && task.source_info.is_none() {
+            let task_id = task.id;
+            let task_title = task.title.clone();
+            let pool = app_state.db_pool().clone();
+
+            tracing::debug!(
+                target: "SERVICE:TASKS:create_task_with_schedule",
+                task_id = %task_id,
+                "Spawning AI classification task"
+            );
+
+            // 异步任务：不阻塞当前请求
+            tokio::spawn(async move {
+                use crate::features::tasks::shared::AiClassificationService;
+
+                if let Err(e) =
+                    AiClassificationService::classify_and_update_task(task_id, &task_title, &pool)
+                        .await
+                {
+                    tracing::error!(
+                        target: "SERVICE:TASKS:auto_classify",
+                        task_id = %task_id,
+                        error = %e,
+                        "Failed to auto-classify task"
+                    );
+                }
+            });
+        }
+
         Ok(task_card)
     }
 }

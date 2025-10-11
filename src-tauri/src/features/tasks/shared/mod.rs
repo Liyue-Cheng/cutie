@@ -9,11 +9,13 @@
 /// 注意：
 /// - DTOs 在 entities 模块中定义
 /// - 验证逻辑在各个 endpoint 的 validation 模块中
+pub mod ai_classification_service;
 pub mod assembler;
 pub mod assemblers;
 pub mod repositories;
 
 // 重新导出常用类型
+pub use ai_classification_service::AiClassificationService;
 pub use assembler::TaskAssembler;
 pub use assemblers::{LinkedTaskAssembler, TimeBlockAssembler};
 pub use repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository};
