@@ -46,7 +46,10 @@ function handleOpenEditor(task: TaskCard) {
 
 async function handleAddTask(title: string) {
   // ✅ 使用 TaskOperations 创建任务
-  const taskId = await taskOps.createTask({ title })
+  const taskId = await taskOps.createTask({
+    title,
+    estimated_duration: 60, // ✅ 默认1小时
+  })
   if (taskId) {
     logger.info(LogTags.VIEW_HOME, 'Task created in debug view', { taskId })
     // ✅ 新架构：无需手动添加，任务会自动出现在 stagingTasks 中

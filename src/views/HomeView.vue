@@ -12,6 +12,7 @@ import UpcomingColumn from '@/components/parts/kanban/UpcomingColumn.vue'
 import TemplateKanbanColumn from '@/components/parts/template/TemplateKanbanColumn.vue'
 import UnderConstruction from '@/components/parts/UnderConstruction.vue'
 import TrashView from '@/views/TrashView.vue'
+import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/services/logger'
 
@@ -44,6 +45,7 @@ const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
 const currentVisibleDate = ref<string | null>(null) // 当前可见日期
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右侧面板当前视图
 const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
+const isAiChatOpen = ref(false) // AI 聊天对话框状态
 
 // 获取看板数量
 const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
@@ -73,7 +75,11 @@ async function handleAddTask(title: string, date: string) {
 
   try {
     // ✅ 使用新的合并端点，一次请求完成创建任务并添加日程
-    const newTask = await taskStore.createTaskWithSchedule({ title, scheduled_day: date })
+    const newTask = await taskStore.createTaskWithSchedule({
+      title,
+      scheduled_day: date,
+      estimated_duration: 60, // ✅ 默认1小时
+    })
     if (!newTask) {
       logger.error(
         LogTags.VIEW_HOME,
@@ -107,6 +113,11 @@ function handleVisibleDateChange(date: string) {
 function switchRightPaneView(view: RightPaneView) {
   logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
   currentRightPaneView.value = view
+}
+
+function openAiChat() {
+  logger.debug(LogTags.VIEW_HOME, 'Opening AI chat dialog')
+  isAiChatOpen.value = true
 }
 
 // ==================== 调试功能 ====================
@@ -289,6 +300,12 @@ async function handleLoadAllTasks() {
     </div>
     <div class="toolbar-pane">
       <div class="toolbar-content">
+        <!-- AI 聊天按钮 (置顶) -->
+        <button class="toolbar-button ai-button" title="AI 助手" @click="openAiChat">
+          <CuteIcon name="Sparkles" :size="24" />
+        </button>
+        <div class="toolbar-divider"></div>
+        <!-- 其他视图切换按钮 -->
         <button
           v-for="(config, viewKey) in viewConfig"
           :key="viewKey"
@@ -306,6 +323,7 @@ async function handleLoadAllTasks() {
       :task-id="selectedTaskId"
       @close="isEditorOpen = false"
     />
+    <AiChatDialog v-if="isAiChatOpen" @close="isAiChatOpen = false" />
   </div>
 </template>
 
@@ -437,6 +455,35 @@ async function handleLoadAllTasks() {
 
 .toolbar-button:active {
   transform: scale(0.95);
+}
+
+.toolbar-button.ai-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  animation: ai-pulse 2s ease-in-out infinite;
+}
+
+.toolbar-button.ai-button:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+  transform: scale(1.05);
+}
+
+@keyframes ai-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(102 126 234 / 50%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgb(102 126 234 / 0%);
+  }
+}
+
+.toolbar-divider {
+  width: 80%;
+  height: 1px;
+  background-color: var(--color-border-default);
+  margin: 0.5rem auto;
 }
 
 /* ==================== 看板标题栏 ==================== */

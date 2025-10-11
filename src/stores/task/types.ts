@@ -7,6 +7,7 @@ export interface CreateTaskPayload {
   title: string
   glance_note?: string | null
   detail_note?: string | null
+  estimated_duration?: number | null
   area_id?: string | null
   due_date?: string | null
   due_date_type?: 'SOFT' | 'HARD' | null
