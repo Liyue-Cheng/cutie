@@ -24,3 +24,4 @@ export async function sendChatMessage(request: AiChatRequest): Promise<AiChatRes
 
   return data
 }
+

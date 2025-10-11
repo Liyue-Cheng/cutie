@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata, StatusViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from './SimpleKanbanColumn.vue'
 
-const emit = defineEmits<{
-  openEditor: [task: TaskCard]
-}>()
+// 🗑️ 移除 emit - 不再需要转发事件
 
 // 遵循 VIEW_CONTEXT_KEY_SPEC.md 规范
 const VIEW_KEY = 'misc::archive'
@@ -32,7 +29,6 @@ const viewMetadata: ViewMetadata = {
       :show-add-input="false"
       :view-key="VIEW_KEY"
       :view-metadata="viewMetadata"
-      @open-editor="emit('openEditor', $event)"
     />
   </div>
 </template>

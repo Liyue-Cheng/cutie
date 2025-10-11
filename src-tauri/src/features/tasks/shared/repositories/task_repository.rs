@@ -347,6 +347,27 @@ impl TaskRepository {
         Ok(())
     }
 
+    /// 设置任务的循环字段（recurrence_id 与 recurrence_original_date）
+    pub async fn set_recurrence_fields_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        recurrence_id: Uuid,
+        original_date: &str,
+        now: DateTime<Utc>,
+    ) -> AppResult<()> {
+        let query =
+            "UPDATE tasks SET recurrence_id = ?, recurrence_original_date = ?, updated_at = ? WHERE id = ?";
+        sqlx::query(query)
+            .bind(recurrence_id.to_string())
+            .bind(original_date)
+            .bind(now.to_rfc3339())
+            .bind(task_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+        Ok(())
+    }
+
     /// 重新打开任务（设置 completed_at 为 NULL）
     pub async fn set_reopened_in_tx(
         tx: &mut Transaction<'_, Sqlite>,

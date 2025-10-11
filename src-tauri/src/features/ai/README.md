@@ -200,3 +200,4 @@ console.log(response.usage)
 - [ ] 支持更多模型选择
 - [ ] 函数调用/工具集成
 - [ ] 与任务系统的 RAG 集成
+

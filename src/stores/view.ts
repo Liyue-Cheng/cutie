@@ -41,6 +41,24 @@ export const useViewStore = defineStore('view', () => {
   const error = ref<string | null>(null)
 
   /**
+   * 🆕 已挂载的 daily 视图注册表
+   * key: 'YYYY-MM-DD'
+   * value: 引用计数（有多少列正在使用该日期）
+   */
+  const mountedDailyViews = ref(new Map<string, number>())
+
+  /**
+   * 🆕 刷新防抖/节流状态
+   */
+  let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  let isRefreshing = ref(false)
+
+  /**
+   * 🆕 刷新配置
+   */
+  const REFRESH_DEBOUNCE_DELAY = 300 // ms
+
+  /**
    * 🆕 批量更新防抖机制
    * 缓存待更新的排序，在下一个tick统一应用
    */
@@ -260,11 +278,184 @@ export const useViewStore = defineStore('view', () => {
     logger.debug(LogTags.STORE_VIEW, 'Cleared all sorting')
   }
 
+  // ============================================================
+  // Daily 视图注册与刷新
+  // ============================================================
+
+  function registerDailyView(date: string) {
+    const current = mountedDailyViews.value.get(date) ?? 0
+    mountedDailyViews.value.set(date, current + 1)
+    logger.debug(LogTags.STORE_VIEW, 'Registered daily view', { date, count: current + 1 })
+  }
+
+  function unregisterDailyView(date: string) {
+    const current = mountedDailyViews.value.get(date) ?? 0
+    const next = Math.max(0, current - 1)
+    if (next === 0) {
+      mountedDailyViews.value.delete(date)
+    } else {
+      mountedDailyViews.value.set(date, next)
+    }
+    logger.debug(LogTags.STORE_VIEW, 'Unregistered daily view', { date, count: next })
+  }
+
+  /**
+   * 刷新所有已挂载的 daily 视图（触发后端实例化服务）
+   *
+   * 特性：
+   * - 🚀 并发刷新：使用 Promise.all 同时刷新所有日期
+   * - ⏱️ 防抖机制：300ms 内的重复调用会被合并
+   * - 🔒 防重入：正在刷新时的新调用会被忽略
+   * - 📊 详细日志：记录刷新过程和结果统计
+   */
+  async function refreshAllMountedDailyViews() {
+    // 🔒 防重入：如果正在刷新，直接返回
+    if (isRefreshing.value) {
+      logger.debug(LogTags.STORE_VIEW, 'Refresh already in progress, skipping')
+      return
+    }
+
+    // ⏱️ 防抖：清除之前的定时器，设置新的防抖定时器
+    if (refreshDebounceTimer) {
+      clearTimeout(refreshDebounceTimer)
+    }
+
+    return new Promise<void>((resolve) => {
+      refreshDebounceTimer = setTimeout(async () => {
+        try {
+          isRefreshing.value = true
+          await performConcurrentRefresh()
+        } finally {
+          isRefreshing.value = false
+          refreshDebounceTimer = null
+          resolve()
+        }
+      }, REFRESH_DEBOUNCE_DELAY)
+    })
+  }
+
+  /**
+   * 执行并发刷新的核心逻辑
+   */
+  async function performConcurrentRefresh() {
+    // 延迟导入，避免循环依赖
+    const { useTaskStore } = await import('@/stores/task')
+    const taskStore = useTaskStore()
+
+    const dates = Array.from(mountedDailyViews.value.keys())
+
+    if (dates.length === 0) {
+      logger.debug(LogTags.STORE_VIEW, 'No mounted daily views to refresh')
+      return
+    }
+
+    logger.info(LogTags.STORE_VIEW, 'Starting concurrent refresh of mounted daily views', {
+      dates,
+      count: dates.length,
+    })
+
+    const startTime = performance.now()
+
+    // 🚀 并发刷新所有日期
+    const refreshPromises = dates.map(async (date) => {
+      const dateStartTime = performance.now()
+      try {
+        // 使用 refreshDailyTasks 进行替换式刷新
+        await taskStore.refreshDailyTasks(date)
+
+        const duration = performance.now() - dateStartTime
+        logger.debug(LogTags.STORE_VIEW, 'Successfully refreshed daily view', {
+          date,
+          duration: `${duration.toFixed(1)}ms`,
+        })
+
+        return { date, success: true, duration }
+      } catch (err) {
+        const duration = performance.now() - dateStartTime
+        const error = err instanceof Error ? err : new Error(String(err))
+
+        logger.error(LogTags.STORE_VIEW, 'Failed to refresh daily view', error, {
+          date,
+          duration: `${duration.toFixed(1)}ms`,
+        })
+
+        return { date, success: false, duration, error }
+      }
+    })
+
+    // 等待所有刷新完成
+    const results = await Promise.all(refreshPromises)
+
+    // 统计结果
+    const totalDuration = performance.now() - startTime
+    const successCount = results.filter((r) => r.success).length
+    const failureCount = results.length - successCount
+    const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length
+
+    logger.info(LogTags.STORE_VIEW, 'Completed concurrent refresh of daily views', {
+      totalDates: dates.length,
+      successCount,
+      failureCount,
+      totalDuration: `${totalDuration.toFixed(1)}ms`,
+      avgDuration: `${avgDuration.toFixed(1)}ms`,
+      results: results.map((r) => ({
+        date: r.date,
+        success: r.success,
+        duration: `${r.duration.toFixed(1)}ms`,
+      })),
+    })
+
+    // 如果有失败的刷新，记录警告
+    if (failureCount > 0) {
+      const failedDates = results.filter((r) => !r.success).map((r) => r.date)
+      logger.warn(LogTags.STORE_VIEW, 'Some daily views failed to refresh', {
+        failedDates,
+        failureCount,
+      })
+    }
+  }
+
+  /**
+   * 立即刷新所有已挂载的 daily 视图（绕过防抖，用于紧急情况）
+   *
+   * 使用场景：
+   * - 用户手动触发的刷新操作
+   * - 关键业务操作后需要立即看到结果
+   */
+  async function refreshAllMountedDailyViewsImmediately() {
+    // 取消现有的防抖定时器
+    if (refreshDebounceTimer) {
+      clearTimeout(refreshDebounceTimer)
+      refreshDebounceTimer = null
+    }
+
+    // 如果正在刷新，等待完成
+    if (isRefreshing.value) {
+      logger.debug(
+        LogTags.STORE_VIEW,
+        'Waiting for current refresh to complete before immediate refresh'
+      )
+      // 简单的轮询等待，实际项目中可以用更优雅的方式
+      while (isRefreshing.value) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+    }
+
+    // 立即执行刷新
+    try {
+      isRefreshing.value = true
+      await performConcurrentRefresh()
+    } finally {
+      isRefreshing.value = false
+    }
+  }
+
   return {
     // State
     sortWeights,
     isLoading,
     error,
+    isRefreshing, // 🆕 刷新状态
 
     // Actions
     applySorting,
@@ -275,5 +466,10 @@ export const useViewStore = defineStore('view', () => {
     getSortedTaskIds,
     clearSorting,
     clearAllSorting,
+    // Daily 视图注册与刷新
+    registerDailyView,
+    unregisterDailyView,
+    refreshAllMountedDailyViews,
+    refreshAllMountedDailyViewsImmediately,
   }
 })

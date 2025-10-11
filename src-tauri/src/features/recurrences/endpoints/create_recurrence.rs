@@ -120,6 +120,11 @@ mod validation {
             errors.push("rule cannot be empty");
         }
 
+        // 🔥 验证 start_date 必须存在（用于链接源任务）
+        if request.source_task_id.is_some() && request.start_date.is_none() {
+            errors.push("start_date is required when source_task_id is provided");
+        }
+
         // 🔥 验证 RRULE 中的 UNTIL 与 end_date 一致性
         if let Some(until_date) = extract_until_from_rrule(&request.rule) {
             if let Some(ref end_date) = request.end_date {
@@ -253,7 +258,7 @@ mod logic {
                     start_date
                 );
 
-                // 创建链接（在新事务中）
+                // 创建链接并更新源任务循环字段（在同一新事务中）
                 let mut link_tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
                 use crate::entities::TaskRecurrenceLink;
@@ -263,6 +268,17 @@ mod logic {
                     TaskRecurrenceLink::new(recurrence.id, start_date.clone(), source_task_id, now);
 
                 TaskRecurrenceLinkRepository::insert_in_tx(&mut link_tx, &link).await?;
+
+                // 同步更新源任务的 recurrence 字段，确保前端识别为循环任务的首个实例
+                use crate::features::tasks::shared::repositories::TaskRepository;
+                TaskRepository::set_recurrence_fields_in_tx(
+                    &mut link_tx,
+                    source_task_id,
+                    recurrence.id,
+                    start_date,
+                    now,
+                )
+                .await?;
                 TransactionHelper::commit(link_tx).await?;
 
                 tracing::info!(

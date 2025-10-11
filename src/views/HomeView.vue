@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { TaskCard } from '@/types/dtos'
 import InfiniteDailyKanban from '@/components/templates/InfiniteDailyKanban.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
@@ -14,6 +13,7 @@ import UnderConstruction from '@/components/parts/UnderConstruction.vue'
 import TrashView from '@/views/TrashView.vue'
 import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useTaskStore } from '@/stores/task'
+import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/services/logger'
 
 // ==================== 视图类型 ====================
@@ -30,6 +30,7 @@ type RightPaneView =
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
+const uiStore = useUIStore()
 
 // ==================== 初始化 ====================
 onMounted(async () => {
@@ -39,8 +40,9 @@ onMounted(async () => {
 })
 
 // ==================== 状态 ====================
-const isEditorOpen = ref(false)
-const selectedTaskId = ref<string | null>(null)
+// 🗑️ 移除本地状态 - 由 UI Store 管理
+// const isEditorOpen = ref(false)
+// const selectedTaskId = ref<string | null>(null)
 const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
 const currentVisibleDate = ref<string | null>(null) // 当前可见日期
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右侧面板当前视图
@@ -64,11 +66,7 @@ const viewConfig = {
 } as const
 
 // ==================== 事件处理 ====================
-function handleOpenEditor(task: TaskCard) {
-  selectedTaskId.value = task.id
-  isEditorOpen.value = true
-  logger.info(LogTags.VIEW_HOME, 'Opening editor for task', { taskId: task.id })
-}
+// 🗑️ 移除 handleOpenEditor - 由 KanbanTaskCard 直接调用 UI Store
 
 async function handleAddTask(title: string, date: string) {
   logger.info(LogTags.VIEW_HOME, 'Add task with schedule', { title, date })
@@ -228,7 +226,6 @@ async function handleLoadAllTasks() {
         <template #bottom>
           <InfiniteDailyKanban
             ref="kanbanRef"
-            @open-editor="handleOpenEditor"
             @add-task="handleAddTask"
             @visible-date-change="handleVisibleDateChange"
           />
@@ -261,15 +258,9 @@ async function handleLoadAllTasks() {
             :zoom="calendarZoom"
           />
           <!-- Staging 视图 -->
-          <StagingColumn
-            v-else-if="currentRightPaneView === 'staging'"
-            @open-editor="handleOpenEditor"
-          />
+          <StagingColumn v-else-if="currentRightPaneView === 'staging'" />
           <!-- Upcoming 视图 -->
-          <UpcomingColumn
-            v-else-if="currentRightPaneView === 'upcoming'"
-            @open-editor="handleOpenEditor"
-          />
+          <UpcomingColumn v-else-if="currentRightPaneView === 'upcoming'" />
           <!-- 模板视图 -->
           <TemplateKanbanColumn v-else-if="currentRightPaneView === 'templates'" />
           <!-- 其他视图（开发中） -->
@@ -289,10 +280,7 @@ async function handleLoadAllTasks() {
             description="查看已完成的任务历史"
           />
           <!-- 归档视图 -->
-          <ArchiveColumn
-            v-else-if="currentRightPaneView === 'archive'"
-            @open-editor="handleOpenEditor"
-          />
+          <ArchiveColumn v-else-if="currentRightPaneView === 'archive'" />
           <!-- 回收站视图 -->
           <TrashView v-else-if="currentRightPaneView === 'deleted'" />
         </template>
@@ -319,9 +307,10 @@ async function handleLoadAllTasks() {
       </div>
     </div>
     <KanbanTaskEditorModal
-      v-if="isEditorOpen"
-      :task-id="selectedTaskId"
-      @close="isEditorOpen = false"
+      v-if="uiStore.isEditorOpen"
+      :task-id="uiStore.editorTaskId"
+      :view-key="uiStore.editorViewKey ?? undefined"
+      @close="uiStore.closeEditor"
     />
     <AiChatDialog v-if="isAiChatOpen" @close="isAiChatOpen = false" />
   </div>

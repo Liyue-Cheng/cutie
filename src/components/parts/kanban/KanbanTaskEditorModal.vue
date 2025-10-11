@@ -4,6 +4,7 @@ import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useTemplateStore } from '@/stores/template'
+import { useViewStore } from '@/stores/view'
 import { useTaskOperations } from '@/composables/useTaskOperations'
 import { RRule } from 'rrule'
 import type { TaskDetail } from '@/types/dtos'
@@ -12,6 +13,7 @@ import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
+import { logger, LogTags } from '@/services/logger'
 import { getTodayDateString, parseDateString, toUtcIsoString } from '@/utils/dateUtils'
 
 interface Subtask {
@@ -23,6 +25,7 @@ interface Subtask {
 
 const props = defineProps<{
   taskId: string | null
+  viewKey?: string // View context key (e.g., 'daily::2025-10-10', 'misc::staging')
 }>()
 
 const emit = defineEmits(['close'])
@@ -31,6 +34,7 @@ const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const recurrenceStore = useRecurrenceStore()
 const templateStore = useTemplateStore()
+const viewStore = useViewStore()
 const taskOps = useTaskOperations()
 
 // 本地编辑状态
@@ -399,11 +403,17 @@ async function handleStopRepeating() {
     )
   ) {
     try {
+      logger.info(LogTags.STORE_RECURRENCE, 'Stopping recurrence', {
+        recurrenceId: currentRecurrence.value.id,
+        instanceDate,
+      })
       await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
         end_date: instanceDate,
       })
       // 重新加载以更新状态
       await loadRecurrence()
+      logger.info(LogTags.STORE_VIEW, 'Refreshing mounted daily views')
+      await viewStore.refreshAllMountedDailyViews()
     } catch (error) {
       console.error('Failed to stop repeating:', error)
       alert('操作失败，请重试')
@@ -421,6 +431,7 @@ async function handleExtendRecurrence() {
       })
       // 重新加载以更新状态
       await loadRecurrence()
+      await viewStore.refreshAllMountedDailyViews()
     } catch (error) {
       console.error('Failed to extend recurrence:', error)
       alert('操作失败，请重试')
@@ -435,6 +446,7 @@ async function handleDeleteRecurrence() {
     try {
       await recurrenceStore.deleteRecurrence(currentRecurrence.value.id)
       currentRecurrence.value = null
+      await viewStore.refreshAllMountedDailyViews()
     } catch (error) {
       console.error('Failed to delete recurrence:', error)
       alert('删除失败，请重试')
@@ -451,6 +463,7 @@ async function handleToggleRecurrenceActive() {
     })
     // 重新加载以更新状态
     await loadRecurrence()
+    await viewStore.refreshAllMountedDailyViews()
   } catch (error) {
     console.error('Failed to toggle recurrence:', error)
     alert('操作失败，请重试')
@@ -740,6 +753,7 @@ async function handleToggleRecurrenceActive() {
     <RecurrenceConfigDialog
       v-if="showRecurrenceDialog && task"
       :task="task"
+      :view-key="props.viewKey"
       :open="showRecurrenceDialog"
       @close="showRecurrenceDialog = false"
       @success="handleRecurrenceSuccess"

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
-import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 // import { useTaskStore } from '@/stores/task' // 🗑️ 不再需要
@@ -298,7 +297,6 @@ function getKanbanMetadata(kanban: DailyKanban): ViewMetadata {
 
 // ==================== Props & Events ====================
 const emit = defineEmits<{
-  'open-editor': [task: TaskCard]
   'add-task': [title: string, date: string]
   'visible-date-change': [date: string] // 可见日期变化事件
 }>()
@@ -308,10 +306,7 @@ defineExpose({
   kanbanCount: computed(() => kanbans.value.length),
 })
 
-function handleOpenEditor(task: TaskCard) {
-  emit('open-editor', task)
-}
-
+// 🗑️ 移除 handleOpenEditor - SimpleKanbanColumn 和 KanbanTaskCard 直接调用 UI Store
 // 🗑️ 移除不再需要的事件处理器（SimpleKanbanColumn 内部处理）：
 // function handleAddTask() { ... }
 // async function handleReorder() { ... }
@@ -513,7 +508,6 @@ onBeforeUnmount(() => {
         :view-metadata="getKanbanMetadata(kanban)"
         :show-add-input="true"
         :style="{ width: `${KANBAN_WIDTH}rem`, flexShrink: 0 }"
-        @open-editor="handleOpenEditor"
       />
     </div>
   </div>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { useViewStore } from '@/stores/view'
 import { useTemplateStore } from '@/stores/template'
 import RecurrenceRuleCard from './RecurrenceRuleCard.vue'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import type { TaskRecurrence } from '@/types/dtos'
 
 const recurrenceStore = useRecurrenceStore()
+const viewStore = useViewStore()
 const templateStore = useTemplateStore()
 
 // 编辑对话框状态
@@ -27,6 +29,7 @@ onMounted(async () => {
 async function handleToggleActive(id: string, currentStatus: boolean) {
   try {
     await recurrenceStore.updateRecurrence(id, { is_active: !currentStatus })
+    await viewStore.refreshAllMountedDailyViews()
   } catch (error) {
     console.error('Failed to toggle recurrence:', error)
     alert('操作失败，请重试')
@@ -41,6 +44,7 @@ function handleEdit(id: string) {
 async function handleDelete(id: string) {
   try {
     await recurrenceStore.deleteRecurrence(id)
+    await viewStore.refreshAllMountedDailyViews()
   } catch (error) {
     console.error('Failed to delete recurrence:', error)
     alert('删除失败，请重试')

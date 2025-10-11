@@ -206,6 +206,53 @@ export function createTaskCore() {
     removeMapItem(tasks, id)
   }
 
+  /**
+   * 替换指定日期的所有任务（用于刷新场景）
+   * 先删除该日期的所有旧任务，再添加新任务
+   * @param date 日期字符串 (YYYY-MM-DD)
+   * @param newTasks 新的任务列表
+   */
+  function replaceTasksForDate(date: string, newTasks: (TaskCard | TaskDetail)[]) {
+    // 1. 找出该日期的所有旧任务ID
+    const oldTaskIds = allTasksArray.value
+      .filter((task) => {
+        // 检查任务是否属于该日期
+        return task.schedules?.some((schedule) => schedule.scheduled_day === date)
+      })
+      .map((task) => task.id)
+
+    logger.debug(LogTags.STORE_TASKS, 'Replacing tasks for date', {
+      date,
+      oldTaskCount: oldTaskIds.length,
+      newTaskCount: newTasks.length,
+      oldTaskIds,
+      newTaskIds: newTasks.map((t) => t.id),
+    })
+
+    // 2. 创建新的 Map，先删除旧任务
+    const newMap = new Map(tasks.value)
+    for (const taskId of oldTaskIds) {
+      newMap.delete(taskId)
+    }
+
+    // 3. 添加新任务
+    for (const task of newTasks) {
+      if (!task || !task.id) {
+        logger.warn(LogTags.STORE_TASKS, 'Skipping task without ID during replace', { task })
+        continue
+      }
+      newMap.set(task.id, task)
+    }
+
+    // 4. 更新响应式状态
+    tasks.value = newMap
+
+    logger.info(LogTags.STORE_TASKS, 'Successfully replaced tasks for date', {
+      date,
+      finalTaskCount: newMap.size,
+    })
+  }
+
   return {
     // State
     tasks,
@@ -231,5 +278,6 @@ export function createTaskCore() {
     addOrUpdateTasks,
     addOrUpdateTask,
     removeTask,
+    replaceTasksForDate,
   }
 }

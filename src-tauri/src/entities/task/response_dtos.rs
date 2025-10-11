@@ -45,6 +45,12 @@ pub struct TaskCardDto {
 
     // --- UI提示标志 ---
     pub has_detail_note: bool,
+
+    // --- 循环任务相关字段 ---
+    /// 循环规则ID（如果是循环任务则有值）
+    pub recurrence_id: Option<Uuid>,
+    /// 循环任务的原始日期 (YYYY-MM-DD)
+    pub recurrence_original_date: Option<String>,
 }
 
 /// 任务日程 DTO（包含时间片）

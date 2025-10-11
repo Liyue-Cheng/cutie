@@ -63,6 +63,7 @@ export const useTaskStore = defineStore('task', () => {
     addOrUpdateTasks: core.addOrUpdateTasks,
     addOrUpdateTask: core.addOrUpdateTask,
     removeTask: core.removeTask,
+    replaceTasksForDate: core.replaceTasksForDate,
 
     // 视图操作
     fetchAllTasks: viewOps.fetchAllTasks,
@@ -70,6 +71,7 @@ export const useTaskStore = defineStore('task', () => {
     fetchPlannedTasks: viewOps.fetchPlannedTasks,
     fetchStagingTasks: viewOps.fetchStagingTasks,
     fetchDailyTasks: viewOps.fetchDailyTasks,
+    refreshDailyTasks: viewOps.refreshDailyTasks,
     searchTasks: viewOps.searchTasks,
 
     // CRUD 操作

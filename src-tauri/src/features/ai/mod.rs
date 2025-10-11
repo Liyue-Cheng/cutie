@@ -13,3 +13,4 @@ pub fn create_routes() -> Router<AppState> {
     Router::new().route("/chat", post(endpoints::chat::handle))
 }
 
+

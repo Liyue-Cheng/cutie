@@ -4,6 +4,7 @@ import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
+import { useUIStore } from '@/stores/ui'
 import { useTaskOperations } from '@/composables/useTaskOperations'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { logger, LogTags } from '@/services/logger'
@@ -21,9 +22,9 @@ const props = defineProps<{
 
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
+const uiStore = useUIStore()
 const taskOps = useTaskOperations()
 const emit = defineEmits<{
-  openEditor: []
   taskCompleted: [taskId: string]
 }>()
 
@@ -337,7 +338,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   <CuteCard
     class="task-card"
     :data-completed="task.is_completed"
-    @click="emit('openEditor')"
+    @click="uiStore.openEditor(task.id, viewMetadata?.id)"
     @contextmenu="showContextMenu"
     @mouseleave="handleMouseLeave"
   >

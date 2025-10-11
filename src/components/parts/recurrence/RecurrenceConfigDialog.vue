@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { RRule, Frequency } from 'rrule'
 import type { TaskCard } from '@/types/dtos'
 import { useTemplateStore } from '@/stores/template'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { useViewStore } from '@/stores/view'
+import { getTodayDateString } from '@/utils/dateUtils'
 
 const props = defineProps<{
   task: TaskCard
+  viewKey?: string // View context key (e.g., 'daily::2025-10-10', 'misc::staging')
   open: boolean
 }>()
 
@@ -26,6 +29,29 @@ const endDate = ref<string | null>(null)
 
 const templateStore = useTemplateStore()
 const recurrenceStore = useRecurrenceStore()
+const viewStore = useViewStore()
+
+// 从 viewKey 提取日期（如果是 daily 类型）
+function extractDateFromViewKey(viewKey?: string): string | null {
+  if (!viewKey) return null
+  const parts = viewKey.split('::')
+  if (parts[0] === 'daily' && parts[1]) {
+    return parts[1] // 返回 YYYY-MM-DD 格式的日期
+  }
+  return null
+}
+
+// 监听对话框打开，自动设置 start_date
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      const dateFromView = extractDateFromViewKey(props.viewKey)
+      startDate.value = dateFromView || getTodayDateString()
+    }
+  },
+  { immediate: true }
+)
 
 // 生成 RRULE 字符串
 const ruleString = computed(() => {
@@ -103,6 +129,9 @@ async function handleSave() {
       is_active: true,
       source_task_id: props.task.id, // 🔥 传入原任务ID
     })
+
+    // 🔥 成功后，刷新所有已挂载的 daily 视图，确保最新实例被加载
+    await viewStore.refreshAllMountedDailyViews()
 
     emit('success')
     emit('close')

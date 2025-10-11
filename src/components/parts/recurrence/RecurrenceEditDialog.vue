@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { RRule, Frequency } from 'rrule'
 import type { TaskRecurrence } from '@/types/dtos'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { useViewStore } from '@/stores/view'
 
 const props = defineProps<{
   recurrence: TaskRecurrence | null
@@ -25,6 +26,7 @@ const endDate = ref<string | null>(null)
 const isActive = ref<boolean>(true)
 
 const recurrenceStore = useRecurrenceStore()
+const viewStore = useViewStore()
 
 // 当打开对话框时，从现有规则中解析参数
 watch(
@@ -43,23 +45,56 @@ function parseExistingRule(recurrence: TaskRecurrence) {
     const rule = RRule.fromString(recurrence.rule)
     const options = rule.origOptions
 
-    freq.value = options.freq
+    // 频率/间隔
+    freq.value = options.freq ?? RRule.DAILY
     interval.value = options.interval || 1
-    byweekday.value = options.byweekday
-      ? Array.isArray(options.byweekday)
-        ? options.byweekday.map((d) => (typeof d === 'number' ? d : d.weekday))
-        : [typeof options.byweekday === 'number' ? options.byweekday : options.byweekday.weekday]
-      : []
-    bymonthday.value = options.bymonthday
-      ? Array.isArray(options.bymonthday)
-        ? options.bymonthday[0]
-        : options.bymonthday
-      : null
-    bymonth.value = options.bymonth
-      ? Array.isArray(options.bymonth)
-        ? options.bymonth[0]
-        : options.bymonth
-      : null
+
+    // byweekday 归一化为 number[] (0=MO ... 6=SU)
+    const normalizeWeekday = (d: unknown): number | null => {
+      if (typeof d === 'number') return d
+      if (typeof d === 'string') {
+        const map: Record<string, number> = {
+          MO: 0,
+          TU: 1,
+          WE: 2,
+          TH: 3,
+          FR: 4,
+          SA: 5,
+          SU: 6,
+        }
+        return map[d] ?? null
+      }
+      if (typeof d === 'object' && d !== null && 'weekday' in (d as any)) {
+        return (d as any).weekday ?? null
+      }
+      return null
+    }
+
+    if (options.byweekday) {
+      const raw = Array.isArray(options.byweekday) ? options.byweekday : [options.byweekday]
+      byweekday.value = raw
+        .map((d) => normalizeWeekday(d))
+        .filter((x): x is number => typeof x === 'number')
+    } else {
+      byweekday.value = []
+    }
+
+    // bymonthday / bymonth 归一化
+    if (options.bymonthday) {
+      bymonthday.value = Array.isArray(options.bymonthday)
+        ? (options.bymonthday[0] ?? null)
+        : (options.bymonthday ?? null)
+    } else {
+      bymonthday.value = null
+    }
+
+    if (options.bymonth) {
+      bymonth.value = Array.isArray(options.bymonth)
+        ? (options.bymonth[0] ?? null)
+        : (options.bymonth ?? null)
+    } else {
+      bymonth.value = null
+    }
     startDate.value = recurrence.start_date
     endDate.value = recurrence.end_date
     isActive.value = recurrence.is_active
@@ -141,6 +176,7 @@ async function handleSave() {
 
     emit('success')
     emit('close')
+    await viewStore.refreshAllMountedDailyViews()
   } catch (error) {
     console.error('Failed to update recurrence:', error)
     alert('更新循环规则失败')

@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTaskStore } from '@/stores/task'
+import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/services/logger'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
 
-const emit = defineEmits<{
-  openEditor: [task: TaskCard]
-}>()
+// 🗑️ 移除 emit - 使用 UI Store
 
 const taskStore = useTaskStore()
+const uiStore = useUIStore()
 
 // 获取所有有截止日期的任务，按截止日期排序
 const upcomingTasks = computed(() => {
@@ -34,7 +34,7 @@ const overdueCount = computed(() => {
 })
 
 function handleOpenEditor(task: TaskCard) {
-  emit('openEditor', task)
+  uiStore.openEditor(task.id, 'misc::upcoming')
 }
 
 // 拖动相关：允许拖动但不保存状态

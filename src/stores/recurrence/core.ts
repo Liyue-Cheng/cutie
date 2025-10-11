@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import type { TaskRecurrence } from '@/types/dtos'
+import { logger, LogTags } from '@/services/logger'
 
 // ==================== State ====================
 export const recurrences = ref(new Map<string, TaskRecurrence>())
@@ -30,6 +31,7 @@ export function addOrUpdateRecurrence(recurrence: TaskRecurrence) {
 export function removeRecurrence(id: string) {
   const newMap = new Map(recurrences.value)
   newMap.delete(id)
+  // logger.info(LogTags.STORE_RECURRENCE, 'Removed recurrence', { id })
   recurrences.value = newMap
 }
 

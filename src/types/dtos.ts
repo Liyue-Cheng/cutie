@@ -105,6 +105,10 @@ export interface TaskCard {
 
   // --- UI提示标志 ---
   has_detail_note: boolean
+
+  // --- 循环任务相关字段 ---
+  recurrence_id: string | null // 循环规则ID，null 表示非循环任务
+  recurrence_original_date: string | null // 循环任务的原始日期 (YYYY-MM-DD)
 }
 
 /**

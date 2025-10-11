@@ -23,3 +23,4 @@ export const useAiStore = defineStore('ai', () => {
     sendMessage: actions.sendMessage,
   }
 })
+

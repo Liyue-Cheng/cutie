@@ -53,6 +53,8 @@ impl TaskAssembler {
             }),
             schedules: None, // 需要后续填充（调用 assemble_schedules）
             has_detail_note: task.detail_note.is_some(),
+            recurrence_id: task.recurrence_id,
+            recurrence_original_date: task.recurrence_original_date.clone(),
         }
     }
 

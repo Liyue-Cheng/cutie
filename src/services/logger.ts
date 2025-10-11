@@ -527,6 +527,9 @@ export const LogTags = {
   STORE_AREA: 'Store:Area',
   STORE_TRASH: 'Store:Trash',
   STORE_TEMPLATE: 'Store:Template',
+  STORE_RECURRENCE: 'Store:Recurrence',
+  STORE_UI: 'Store:UI',
+  COMPOSABLE_RECURRENCE: 'Composable:Recurrence',
 
   // 路由相关
   ROUTER: 'Router',

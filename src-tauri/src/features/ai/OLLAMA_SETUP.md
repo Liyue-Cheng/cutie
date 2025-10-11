@@ -174,3 +174,4 @@ New-NetFirewallRule -DisplayName "Ollama" -Direction Inbound -Action Allow -Prot
 ## 🎉 享受本地 AI！
 
 现在你的 Cutie 完全本地运行，无需联网，无需 API Key，完全免费！⚡
+

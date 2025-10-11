@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
 import { useViewStore } from '@/stores/view'
@@ -24,13 +24,7 @@ const props = defineProps<{
   viewMetadata?: ViewMetadata // 可选：可自动推导
 }>()
 
-const emit = defineEmits<{
-  openEditor: [task: TaskCard]
-  // 🗑️ 移除不再需要的事件（内部自动处理）：
-  // addTask: [title: string]
-  // reorderTasks: [newOrder: string[]]
-  // crossViewDrop: [taskId: string, targetViewId: string]
-}>()
+// 🗑️ 移除所有 emit 定义 - 所有操作都内部处理或通过 store
 
 const viewStore = useViewStore()
 
@@ -208,6 +202,18 @@ onMounted(async () => {
     await viewStore.fetchViewPreference(props.viewKey)
   }
   // ✅ 移除 sortingConfigLoaded 状态，避免闪烁
+  // 🆕 注册 daily 视图
+  const parts = props.viewKey.split('::')
+  if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
+    viewStore.registerDailyView(parts[1])
+  }
+})
+
+onBeforeUnmount(() => {
+  const parts = props.viewKey.split('::')
+  if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
+    viewStore.unregisterDailyView(parts[1])
+  }
 })
 
 // ✅ 自动检测任务列表变化并持久化（使用 effectiveTasks）
@@ -539,7 +545,6 @@ async function handleDrop(event: DragEvent) {
           :task="task"
           :view-metadata="effectiveViewMetadata"
           class="kanban-task-card"
-          @open-editor="emit('openEditor', task)"
           @task-completed="handleTaskCompleted"
         />
       </div>

@@ -16,7 +16,7 @@ import { logger, LogTags } from '@/services/logger'
  * 创建视图操作功能
  */
 export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
-  const { addOrUpdateTasks, withLoading } = core
+  const { addOrUpdateTasks, replaceTasksForDate, withLoading } = core
 
   /**
    * 获取所有任务（包括已完成）
@@ -90,6 +90,32 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
   }
 
   /**
+   * 刷新指定日期的任务（替换式更新）
+   * API: GET /views/daily/:date
+   *
+   * 与 fetchDailyTasks 的区别：
+   * - fetchDailyTasks: 追加/更新任务（适合初次加载）
+   * - refreshDailyTasks: 先清理该日期的旧任务，再添加新任务（适合刷新场景）
+   */
+  async function refreshDailyTasks(date: string): Promise<TaskCard[]> {
+    const result = await withLoading(async () => {
+      const response: { tasks: TaskCard[]; date: string; count: number } = await apiGet(
+        `/views/daily/${date}`
+      )
+
+      // 🔥 替换式更新：先清理该日期的旧任务，再添加新任务
+      replaceTasksForDate(date, response.tasks)
+
+      logger.info(LogTags.STORE_TASKS, 'Refreshed and replaced tasks for date', {
+        count: response.tasks.length,
+        date,
+      })
+      return response.tasks
+    }, `refresh tasks for ${date}`)
+    return result ?? []
+  }
+
+  /**
    * 搜索任务
    * API: GET /tasks/search?q=...
    */
@@ -115,6 +141,7 @@ export function createViewOperations(core: ReturnType<typeof createTaskCore>) {
     fetchPlannedTasks,
     fetchStagingTasks,
     fetchDailyTasks,
+    refreshDailyTasks,
     searchTasks,
   }
 }
