@@ -53,7 +53,7 @@ const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
 // 视图配置
 const viewConfig = {
   calendar: { icon: 'Calendar', label: '日历' },
-  staging: { icon: 'Theater', label: 'Staging' },
+  staging: { icon: 'Layers', label: 'Staging' },
   upcoming: { icon: 'Clock', label: '即将到期' },
   templates: { icon: 'FileText', label: '模板' },
   projects: { icon: 'FolderKanban', label: '项目' },
