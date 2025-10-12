@@ -199,58 +199,13 @@ pub async fn handle(
 }
 
 // ==================== 验证层 ====================
-mod validation {
-    use super::*;
-
-    pub fn validate_update_request(request: &UpdateTaskRequest) -> AppResult<()> {
-        tracing::trace!("Entering validation::validate_update_request");
-        println!("Entering validation::validate_update_request");
-        // 检查是否为空更新
-        // if request.is_empty() {
-        //     return Err(AppError::validation_error(
-        //         "request",
-        //         "至少需要更新一个字段",
-        //         "EMPTY_UPDATE",
-        //     ));
-        // }
-
-        // 验证标题
-        if let Some(title) = &request.title {
-            if title.trim().is_empty() {
-                return Err(AppError::validation_error(
-                    "title",
-                    "标题不能为空",
-                    "TITLE_EMPTY",
-                ));
-            }
-            if title.len() > 255 {
-                return Err(AppError::validation_error(
-                    "title",
-                    "标题不能超过255个字符",
-                    "TITLE_TOO_LONG",
-                ));
-            }
-        }
-
-        // 验证子任务数量
-        if let Some(Some(subtasks)) = &request.subtasks {
-            if subtasks.len() > 50 {
-                return Err(AppError::validation_error(
-                    "subtasks",
-                    "子任务数量不能超过50个",
-                    "TOO_MANY_SUBTASKS",
-                ));
-            }
-        }
-
-        Ok(())
-    }
-}
+// ✅ 已迁移到共享验证器：TaskValidator
+// - 使用 TaskValidator::validate_update_request 统一验证逻辑
 
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
-    use crate::features::shared::TransactionHelper;
+    use crate::features::shared::{TaskValidator, TransactionHelper};
 
     pub async fn execute(
         app_state: &AppState,
@@ -258,9 +213,8 @@ mod logic {
         request: UpdateTaskRequest,
         correlation_id: Option<String>,
     ) -> AppResult<UpdateTaskResponse> {
-        // 1. 验证
-        validation::validate_update_request(&request)?;
-        println!("Exiting validation::validate_update_request");
+        // 1. 验证（✅ 使用共享 TaskValidator）
+        TaskValidator::validate_update_request(&request)?;
 
         let now = app_state.clock().now_utc();
 

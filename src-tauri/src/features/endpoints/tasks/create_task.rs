@@ -186,71 +186,20 @@ pub async fn handle(
 }
 
 // ==================== 验证层 ====================
-mod validation {
-    use super::*;
-
-    pub fn validate_create_request(request: &CreateTaskRequest) -> AppResult<()> {
-        // 验证标题
-        if request.title.trim().is_empty() {
-            return Err(AppError::validation_error(
-                "title",
-                "任务标题不能为空",
-                "TITLE_EMPTY",
-            ));
-        }
-
-        if request.title.len() > 255 {
-            return Err(AppError::validation_error(
-                "title",
-                "任务标题不能超过255个字符",
-                "TITLE_TOO_LONG",
-            ));
-        }
-
-        // 验证预估时长
-        if let Some(duration) = request.estimated_duration {
-            if duration < 0 {
-                return Err(AppError::validation_error(
-                    "estimated_duration",
-                    "预估时长不能为负数",
-                    "DURATION_NEGATIVE",
-                ));
-            }
-            if duration > 24 * 60 * 7 {
-                return Err(AppError::validation_error(
-                    "estimated_duration",
-                    "预估时长不能超过一周",
-                    "DURATION_TOO_LONG",
-                ));
-            }
-        }
-
-        // 验证子任务数量
-        if let Some(subtasks) = &request.subtasks {
-            if subtasks.len() > 50 {
-                return Err(AppError::validation_error(
-                    "subtasks",
-                    "子任务数量不能超过50个",
-                    "TOO_MANY_SUBTASKS",
-                ));
-            }
-        }
-
-        Ok(())
-    }
-}
+// ✅ 已迁移到共享验证器：TaskValidator
+// - 使用 TaskValidator::validate_create_request 统一验证逻辑
 
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
-    use crate::features::shared::TransactionHelper;
+    use crate::features::shared::{TaskValidator, TransactionHelper};
 
     pub async fn execute(
         app_state: &AppState,
         request: CreateTaskRequest,
     ) -> AppResult<TaskCardDto> {
-        // 1. 验证请求
-        validation::validate_create_request(&request)?;
+        // 1. 验证请求（✅ 使用共享 TaskValidator）
+        TaskValidator::validate_create_request(&request)?;
 
         // ✅ 获取写入许可，确保写操作串行执行
         let _permit = app_state.acquire_write_permit().await;

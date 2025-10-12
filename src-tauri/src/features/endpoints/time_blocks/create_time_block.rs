@@ -195,63 +195,42 @@ pub async fn handle(
 }
 
 // ==================== 验证层 ====================
-mod validation {
-    use super::*;
-    use chrono::{DateTime, Utc};
-
-    pub fn validate_create_request(request: &CreateTimeBlockRequest) -> AppResult<()> {
-        // 验证时间范围
-        if request.start_time >= request.end_time {
-            return Err(AppError::validation_error(
-                "time_range",
-                "开始时间必须早于结束时间",
-                "INVALID_TIME_RANGE",
-            ));
-        }
-
-        // 验证分时事件不能跨天
-        let is_all_day = request.is_all_day.unwrap_or(false);
-        if !is_all_day && !is_same_day(&request.start_time, &request.end_time) {
-            return Err(AppError::validation_error(
-                "time_range",
-                "分时事件不能跨天，请使用全天事件或将时间块拆分为多个",
-                "CROSS_DAY_TIMED_EVENT",
-            ));
-        }
-
-        // 验证标题长度（如果有）
-        if let Some(title) = &request.title {
-            if title.len() > 255 {
-                return Err(AppError::validation_error(
-                    "title",
-                    "标题不能超过255个字符",
-                    "TITLE_TOO_LONG",
-                ));
-            }
-        }
-
-        Ok(())
-    }
-
-    /// 检查两个时间是否在同一天（系统本地时区）
-    fn is_same_day(time1: &DateTime<Utc>, time2: &DateTime<Utc>) -> bool {
-        use chrono::Local;
-        let local1 = time1.with_timezone(&Local);
-        let local2 = time2.with_timezone(&Local);
-        local1.date_naive() == local2.date_naive()
-    }
-}
+// ✅ 已迁移到共享验证器：TimeBlockValidator
+// - 使用 TimeBlockValidator 提供的验证方法
+// - 时间范围、标题等验证逻辑已统一
 
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
+    use crate::features::shared::TimeBlockValidator;
+    use chrono::Local;
 
     pub async fn execute(
         app_state: &AppState,
         request: CreateTimeBlockRequest,
     ) -> AppResult<TimeBlockViewDto> {
-        // 1. 验证请求
-        validation::validate_create_request(&request)?;
+        // 1. 验证请求（✅ 使用共享 TimeBlockValidator）
+        // 验证时间范围
+        TimeBlockValidator::validate_time_range(request.start_time, request.end_time)?;
+
+        // 验证标题（如果提供）
+        if let Some(ref title) = request.title {
+            TimeBlockValidator::validate_title(title)?;
+        }
+
+        // 验证分时事件不能跨天
+        let is_all_day = request.is_all_day.unwrap_or(false);
+        if !is_all_day {
+            let local_start = request.start_time.with_timezone(&Local);
+            let local_end = request.end_time.with_timezone(&Local);
+            if local_start.date_naive() != local_end.date_naive() {
+                return Err(AppError::validation_error(
+                    "time_range",
+                    "分时事件不能跨天，请使用全天事件或将时间块拆分为多个",
+                    "CROSS_DAY_TIMED_EVENT",
+                ));
+            }
+        }
 
         // 2. 开始事务
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
