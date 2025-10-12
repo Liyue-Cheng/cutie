@@ -157,10 +157,10 @@ async function handleUseTemplate(template: Template) {
         class="template-card"
       >
         <div class="template-header">
-          <h4>{{ template.name }}</h4>
+          <h4>{{ template.title }}</h4>
           <button class="delete-button" @click="handleDeleteTemplate(template.id)">×</button>
         </div>
-        <p class="template-content">{{ template.title_template }}</p>
+        <p class="template-content">{{ template.glance_note_template }}</p>
         <button
           class="use-button"
           :disabled="creatingFromTemplate === template.id"

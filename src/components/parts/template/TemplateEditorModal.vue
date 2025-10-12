@@ -24,13 +24,11 @@ const templateStore = useTemplateStore()
 const areaStore = useAreaStore()
 
 // 本地编辑状态
-const nameInput = ref('')
-const titleTemplateInput = ref('')
+const titleInput = ref('')
 const glanceNoteTemplate = ref('')
 const detailNoteTemplate = ref('')
 const selectedAreaId = ref<string | null>(null)
 const newSubtaskTitle = ref('')
-const isNameEditing = ref(false)
 const showAreaSelector = ref(false)
 const draggingSubtaskId = ref<string | null>(null)
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
@@ -68,8 +66,7 @@ function initTextareaHeights() {
 // 当弹窗打开时，加载模板数据
 onMounted(async () => {
   if (props.templateId && template.value) {
-    nameInput.value = template.value.name
-    titleTemplateInput.value = template.value.title
+    titleInput.value = template.value.title
     glanceNoteTemplate.value = template.value.glance_note_template || ''
     detailNoteTemplate.value = template.value.detail_note_template || ''
     selectedAreaId.value = template.value.area_id || null
@@ -84,8 +81,7 @@ watch(
   () => props.templateId,
   async (newTemplateId) => {
     if (newTemplateId && template.value) {
-      nameInput.value = template.value.name
-      titleTemplateInput.value = template.value.title
+      titleInput.value = template.value.title
       glanceNoteTemplate.value = template.value.glance_note_template || ''
       detailNoteTemplate.value = template.value.detail_note_template || ''
       selectedAreaId.value = template.value.area_id || null
@@ -97,19 +93,10 @@ watch(
   }
 )
 
-async function updateName() {
-  if (!props.templateId || !template.value || nameInput.value === template.value.name) return
+async function updateTitle() {
+  if (!props.templateId || !template.value || titleInput.value === template.value.title) return
   await templateStore.updateTemplate(props.templateId, {
-    name: nameInput.value,
-  })
-  isNameEditing.value = false
-}
-
-async function updateTitleTemplate() {
-  if (!props.templateId || !template.value || titleTemplateInput.value === template.value.title)
-    return
-  await templateStore.updateTemplate(props.templateId, {
-    title: titleTemplateInput.value,
+    title: titleInput.value,
   })
 }
 
@@ -291,34 +278,21 @@ function handleClose() {
           </div>
         </div>
 
-        <!-- 第二栏：模板名称和标题模板栏 -->
+        <!-- 第二栏：标题输入栏 -->
         <div class="title-row">
           <CuteCheckbox :checked="false" size="large" variant="check" :disabled="true" />
-          <div class="title-inputs-wrapper">
-            <input
-              v-model="nameInput"
-              class="name-input"
-              placeholder="模板名称"
-              @blur="updateName"
-              @keydown.enter="updateName"
-            />
-            <input
-              v-model="titleTemplateInput"
-              class="title-template-input"
-              placeholder="标题模板"
-              @blur="updateTitleTemplate"
-              @keydown.enter="updateTitleTemplate"
-            />
-          </div>
+          <input
+            v-model="titleInput"
+            class="title-input"
+            placeholder="模板标题"
+            @blur="updateTitle"
+            @keydown.enter="updateTitle"
+          />
         </div>
 
         <!-- 第三栏：Glance Note Template 区域 -->
         <div class="note-area glance-note-area">
-          <div
-            v-if="!glanceNoteTemplate && !isNameEditing"
-            class="note-placeholder"
-            @click="isNameEditing = true"
-          >
+          <div v-if="!glanceNoteTemplate" class="note-placeholder">
             快速概览笔记模板...
           </div>
           <textarea
@@ -522,23 +496,15 @@ function handleClose() {
   color: var(--color-text-primary);
 }
 
-/* 第二栏：模板名称和标题模板栏 */
+/* 第二栏：标题输入栏 */
 .title-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
 }
 
-.title-inputs-wrapper {
+.title-input {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.name-input,
-.title-template-input {
-  width: 100%;
   font-size: 2rem;
   font-weight: 600;
   color: var(--color-text-primary);
@@ -550,13 +516,7 @@ function handleClose() {
   transition: border-color 0.2s;
 }
 
-.name-input {
-  font-size: 1.6rem;
-  color: var(--color-text-secondary);
-}
-
-.name-input:focus,
-.title-template-input:focus {
+.title-input:focus {
   border-bottom-color: var(--color-primary);
 }
 
