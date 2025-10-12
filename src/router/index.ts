@@ -23,6 +23,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/CalendarView.vue'),
       },
       {
+        path: 'daily-planning',
+        name: 'daily-planning',
+        component: () => import('../views/DailyPlanningView.vue'),
+      },
+      {
         path: 'daily-shutdown',
         name: 'daily-shutdown',
         component: () => import('../views/DailyShutdownView.vue'),

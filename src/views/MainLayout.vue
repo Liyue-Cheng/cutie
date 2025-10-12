@@ -34,6 +34,16 @@
             <li @click="$router.push('/calendar')">
               <CuteIcon name="Calendar" :size="16" /><span>Calendar</span>
             </li>
+          </ul>
+
+          <div class="section-divider">
+            <span class="divider-label">DAILY RITUALS</span>
+          </div>
+
+          <ul class="nav-group">
+            <li @click="$router.push('/daily-planning')">
+              <CuteIcon name="SunMoon" :size="16" /><span>Daily Planning</span>
+            </li>
             <li @click="$router.push('/daily-shutdown')">
               <CuteIcon name="PowerOff" :size="16" /><span>Daily Shutdown</span>
             </li>
@@ -229,6 +239,20 @@ onBeforeUnmount(() => {
 
 .collapsible-section {
   font-size: 1.4rem;
+}
+
+.section-divider {
+  padding: 1rem 1.2rem 0.5rem 1.2rem;
+  margin: 0.5rem 0 1rem 0;
+  border-top: 1px solid var(--color-border-soft, rgba(0, 0, 0, 0.08));
+}
+
+.divider-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--color-text-tertiary, #999999);
+  text-transform: uppercase;
 }
 
 .nav-group {
