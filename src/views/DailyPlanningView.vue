@@ -228,7 +228,6 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   width: 28rem;
   min-width: 28rem;
   height: 100%;
-  border-right: 1px solid var(--color-border-default);
   overflow: auto;
 }
 
@@ -237,7 +236,6 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   width: 28rem;
   min-width: 28rem;
   height: 100%;
-  border-right: 1px solid var(--color-border-default);
   overflow: auto;
 }
 
@@ -246,7 +244,6 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   width: 28rem;
   min-width: 28rem;
   height: 100%;
-  border-right: 1px solid var(--color-border-default);
   overflow: auto;
 }
 
@@ -255,7 +252,6 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   width: 28rem;
   min-width: 28rem;
   height: 100%;
-  border-right: 1px solid var(--color-border-default);
   overflow: auto;
 }
 
