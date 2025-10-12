@@ -1,7 +1,7 @@
 /// 保存视图排序偏好 API - 单文件组件
-/// PUT /view-preferences
+/// PUT /view-preferences/:context_key
 use axum::{
-    extract::State,
+    extract::{Path, State},
     response::{IntoResponse, Response},
     Json,
 };
@@ -23,7 +23,7 @@ CABC for `save_view_preference`
 
 ## 1. 端点签名 (Endpoint Signature)
 
-PUT /api/view-preferences
+PUT /api/view-preferences/:context_key
 
 ## 2. 预期行为简介 (High-Level Behavior)
 
@@ -42,20 +42,21 @@ PUT /api/view-preferences
 
 ### 3.1. 请求 (Request)
 
+**URL Parameters:**
+- `context_key` (String, required): 视图上下文标识
+  - 格式规范:
+    - Staging区: `misc::staging`
+    - 每日视图: `daily::YYYY-MM-DD` (如 `daily::2025-10-03`)
+    - Area视图: `area::{uuid}` (如 `area::a1b2c3d4-...`)
+    - Project视图: `project::{uuid}` (如 `project::a1b2c3d4-...`)
+
 **请求体 (Request Body):** `application/json`
 
 ```json
 {
-  "context_key": "string (required, 视图上下文标识)",
   "sorted_task_ids": ["string"] (required, 任务ID数组,非空)
 }
 ```
-
-**context_key 格式规范:**
-- Staging区: `misc::staging`
-- 每日视图: `daily::YYYY-MM-DD` (如 `daily::2025-10-03`)
-- Area视图: `area::{uuid}` (如 `area::a1b2c3d4-...`)
-- Project视图: `project::{uuid}` (如 `project::a1b2c3d4-...`)
 
 ### 3.2. 响应 (Responses)
 
@@ -157,9 +158,10 @@ PUT /api/view-preferences
 // ==================== HTTP 处理器 ====================
 pub async fn handle(
     State(app_state): State<AppState>,
+    Path(context_key): Path<String>,
     Json(payload): Json<SaveViewPreferenceRequest>,
 ) -> Response {
-    match logic::execute(&app_state, payload).await {
+    match logic::execute(&app_state, context_key, payload).await {
         Ok(preference_dto) => success_response(preference_dto).into_response(),
         Err(err) => err.into_response(),
     }
@@ -171,10 +173,11 @@ mod logic {
 
     pub async fn execute(
         app_state: &AppState,
+        context_key: String,
         payload: SaveViewPreferenceRequest,
     ) -> AppResult<ViewPreferenceDto> {
-        // 1. 验证
-        if payload.context_key.trim().is_empty() {
+        // 1. 验证 context_key（从路径参数获取）
+        if context_key.trim().is_empty() {
             return Err(AppError::validation_error(
                 "context_key",
                 "Context key 不能为空",
@@ -189,7 +192,7 @@ mod logic {
 
         // 2. 构建实体
         let preference = ViewPreference {
-            context_key: payload.context_key,
+            context_key,
             sorted_task_ids: payload.sorted_task_ids,
             updated_at: now,
         };

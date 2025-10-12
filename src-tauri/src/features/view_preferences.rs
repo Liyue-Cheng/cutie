@@ -15,8 +15,8 @@ mod endpoints {
 /// 创建view_preferences相关的路由
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        // 保存视图偏好（根路径，从请求体中获取 context_key）
-        .route("/", put(endpoints::save_view_preference))
-        // 获取视图偏好（通过路径参数指定 context_key）
-        .route("/:view_key", get(endpoints::get_view_preference))
+        // 保存/更新视图偏好（RESTful 风格：context_key 在 URL 中）
+        .route("/:context_key", put(endpoints::save_view_preference))
+        // 获取视图偏好
+        .route("/:context_key", get(endpoints::get_view_preference))
 }

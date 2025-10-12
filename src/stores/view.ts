@@ -129,13 +129,12 @@ export const useViewStore = defineStore('view', () => {
       newMap.set(viewKey, weights)
       sortWeights.value = newMap
 
-      // ✅ 持久化到后端
+      // ✅ 持久化到后端（RESTful 风格：context_key 在 URL 中）
       const requestBody = {
-        context_key: viewKey,
         sorted_task_ids: orderedTaskIds,
       }
 
-      await apiPut('/view-preferences', requestBody)
+      await apiPut(`/view-preferences/${encodeURIComponent(viewKey)}`, requestBody)
       return true
     } catch (err) {
       logger.error(
