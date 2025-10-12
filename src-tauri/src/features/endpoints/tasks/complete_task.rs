@@ -14,12 +14,12 @@ use serde::Serialize;
 
 use crate::{
     entities::{TaskCardDto, TimeBlock},
+    features::shared::repositories::TimeBlockRepository,
     features::shared::{
         assemblers::TimeBlockAssembler,
         repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
         TaskAssembler,
     },
-    features::shared::repositories::TimeBlockRepository,
     infra::{
         core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
@@ -234,8 +234,23 @@ mod logic {
             return Err(AppError::conflict("任务已经完成"));
         }
 
-        // 3. 设置任务为已完成（✅ 使用共享 Repository）
+        // 3. 如果有子任务，将所有子任务标记为已完成
+        let updated_subtasks = if let Some(mut subtasks) = task.subtasks.clone() {
+            for subtask in &mut subtasks {
+                subtask.is_completed = true;
+            }
+            Some(subtasks)
+        } else {
+            None
+        };
+
+        // 4. 设置任务为已完成并更新子任务（✅ 使用共享 Repository）
         TaskRepository::set_completed_in_tx(&mut tx, task_id, now).await?;
+
+        // 如果有子任务需要更新，更新到数据库
+        if updated_subtasks.is_some() {
+            TaskRepository::update_subtasks_in_tx(&mut tx, task_id, updated_subtasks).await?;
+        }
 
         // 4. 处理日程：确保今天有日程并设为完成，删除未来日程
         // 4.1. 检查今天是否有日程

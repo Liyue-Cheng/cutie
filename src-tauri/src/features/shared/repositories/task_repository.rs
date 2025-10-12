@@ -383,4 +383,25 @@ impl TaskRepository {
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
         Ok(())
     }
+
+    /// 更新任务的子任务列表
+    pub async fn update_subtasks_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        subtasks: Option<Vec<crate::entities::Subtask>>,
+    ) -> AppResult<()> {
+        let subtasks_json = subtasks
+            .map(|s| serde_json::to_string(&s))
+            .transpose()
+            .map_err(|e| AppError::StringError(format!("Failed to serialize subtasks: {}", e)))?;
+
+        let query = "UPDATE tasks SET subtasks = ? WHERE id = ?";
+        sqlx::query(query)
+            .bind(subtasks_json)
+            .bind(task_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+        Ok(())
+    }
 }
