@@ -24,7 +24,8 @@ pub fn create_routes() -> Router<AppState> {
         .route("/:id/unarchive", patch(endpoints::unarchive_task))
         .route("/:id/restore", patch(endpoints::restore_task))
         .route("/:id/return-to-staging", patch(endpoints::return_to_staging))
-        .route("/:id/schedule", post(endpoints::add_schedule))
-        .route("/:id/schedule", put(endpoints::update_schedule))
-        .route("/:id/schedule", delete(endpoints::delete_schedule))
+        // Schedule management routes - 使用复数 schedules 和 :date 参数
+        .route("/:id/schedules/:date", post(endpoints::add_schedule))
+        .route("/:id/schedules/:date", patch(endpoints::update_schedule))
+        .route("/:id/schedules/:date", delete(endpoints::delete_schedule))
 }
