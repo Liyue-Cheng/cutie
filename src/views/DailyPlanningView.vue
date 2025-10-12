@@ -127,27 +127,29 @@ function handleCalendarDateChange(date: string) {
 .content-container {
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 2rem;
   height: 100%;
   width: 100%;
   padding: 2rem;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* ==================== 看板容器 ==================== */
 .kanban-wrapper {
-  flex: 1;
-  min-width: 0;
+  width: 28rem;
+  max-width: 28rem;
   height: 100%;
-  max-width: 60rem;
+  min-height: 0;
+  flex-shrink: 0;
 }
 
 /* ==================== 日历容器 ==================== */
 .calendar-wrapper {
   width: 28rem;
-  min-width: 28rem;
+  max-width: 28rem;
   height: 100%;
+  min-height: 0;
   flex-shrink: 0;
 }
 </style>
