@@ -18,7 +18,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/", post(endpoints::create_task))
         .route("/with-schedule", post(endpoints::create_task_with_schedule))
         .route("/:id", get(endpoints::get_task))
-        .route("/:id", patch(endpoints::update_task))  // ✅ 修正：PUT -> PATCH
+        .route("/:id", patch(endpoints::update_task)) // ✅ 修正：PUT -> PATCH
         .route("/:id", delete(endpoints::delete_task))
         .route(
             "/:id/permanently-delete",
