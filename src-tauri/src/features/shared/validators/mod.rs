@@ -1,13 +1,17 @@
 /// 共享验证器层
 /// 
 /// 包含所有功能模块共享的验证逻辑
+/// 
+/// # 设计原则
+/// 
+/// 1. **单一职责**：每个验证器只负责一种实体的验证
+/// 2. **可复用**：验证逻辑可以在不同的 endpoint 中复用
+/// 3. **一致性**：所有验证器都返回统一的错误格式
+/// 4. **可测试**：验证逻辑独立，易于单元测试
 
-// 目前验证逻辑还在各个服务中，后续可以提取到这里
-// 例如：
-// pub mod task_validator;
-// pub mod area_validator;
-// pub mod time_block_validator;
+pub mod task_validator;
+pub mod time_block_validator;
 
-// 占位符，避免空模块错误
-#[allow(dead_code)]
-const _PLACEHOLDER: () = ();
+// 重新导出常用类型
+pub use task_validator::TaskValidator;
+pub use time_block_validator::TimeBlockValidator;
