@@ -1,12 +1,25 @@
-/// Shared模块 - 提供跨功能模块的通用组件
+/// 基础设施模块（Infrastructure Layer）
 ///
-/// 包含：
-/// - core: 核心领域模型、错误类型、工具函数
-/// - database: 数据库连接和通用仓库trait
-/// - http: HTTP中间件、错误处理、通用响应
-/// - ports: 外部依赖抽象层（时钟、ID生成器等）
-/// - events: 领域事件与 SSE 基础设施
-/// - logging: 统一日志系统（分层标签、文件轮转、panic捕获）
+/// 提供与业务无关的技术性基础组件
+///
+/// # 架构定位
+///
+/// 本模块位于分层架构的最底层，为上层业务逻辑提供技术支持。
+/// 不包含任何业务规则，只负责技术实现细节。
+///
+/// # 模块组成
+///
+/// - `core`: 核心基础设施（错误类型、工具函数、构建信息）
+/// - `database`: 数据库连接和事务管理
+/// - `http`: HTTP 基础设施（中间件、响应构建、错误处理）
+/// - `ports`: 外部依赖抽象层（时钟、ID生成器等）
+/// - `events`: 事件系统基础设施（SSE、事件分发、Outbox）
+/// - `logging`: 统一日志系统（分层标签、文件轮转、panic捕获）
+///
+/// # 与业务层的区别
+///
+/// - `infra/`: 技术关注点（如何实现）- 数据库、HTTP、日志等
+/// - `features/shared/`: 业务关注点（做什么）- Repositories、Services、Validators
 pub mod core;
 pub mod database;
 pub mod events;
