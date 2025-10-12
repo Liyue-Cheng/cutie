@@ -68,8 +68,9 @@ function handleCalendarDateChange(date: string) {
               title="Today"
               :subtitle="today"
               :tasks="todayTasks"
-              view-key="daily-planning::today"
+              :view-key="`daily::${today}`"
               drop-mode="schedule"
+              :show-add-input="true"
               @open-task-editor="handleOpenTaskEditor"
             />
           </div>
