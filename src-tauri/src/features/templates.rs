@@ -1,7 +1,7 @@
 /// Templates功能模块
 /// 
 /// 处理模板相关的所有业务逻辑
-use axum::{routing::{get, post, put, delete}, Router};
+use axum::{routing::{get, post, patch, delete}, Router};
 use crate::startup::AppState;
 
 // 引入endpoints
@@ -14,7 +14,7 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/", get(endpoints::list_templates))
         .route("/", post(endpoints::create_template))
-        .route("/:id", put(endpoints::update_template))
+        .route("/:id", patch(endpoints::update_template))  // ✅ 修正：PUT -> PATCH
         .route("/:id", delete(endpoints::delete_template))
         .route("/:id/create-task", post(endpoints::create_task_from_template))
 }

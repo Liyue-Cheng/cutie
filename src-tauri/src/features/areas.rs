@@ -1,7 +1,7 @@
 /// Areas功能模块
 /// 
 /// 处理区域相关的所有业务逻辑
-use axum::{routing::{get, post, put, delete}, Router};
+use axum::{routing::{get, post, patch, delete}, Router};
 use crate::startup::AppState;
 
 // 引入endpoints
@@ -15,6 +15,6 @@ pub fn create_routes() -> Router<AppState> {
         .route("/", get(endpoints::list_areas))
         .route("/", post(endpoints::create_area))
         .route("/:id", get(endpoints::get_area))
-        .route("/:id", put(endpoints::update_area))
+        .route("/:id", patch(endpoints::update_area))  // ✅ 修正：PUT -> PATCH (部分更新)
         .route("/:id", delete(endpoints::delete_area))
 }

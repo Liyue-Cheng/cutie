@@ -15,7 +15,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/", get(endpoints::list_time_blocks))
         .route("/", post(endpoints::create_time_block))
         .route("/from-task", post(endpoints::create_from_task))
-        .route("/:id", put(endpoints::update_time_block))
+        .route("/:id", patch(endpoints::update_time_block))  // ✅ 修正：PUT -> PATCH
         .route("/:id", delete(endpoints::delete_time_block))
         .route("/:id/link-task", patch(endpoints::link_task))
 }
