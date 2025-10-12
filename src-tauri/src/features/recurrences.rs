@@ -17,14 +17,15 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/", get(endpoints::list_recurrences))
         .route("/", post(endpoints::create_recurrence))
-        .route("/:id", patch(endpoints::update_recurrence)) // ✅ 修正：PUT -> PATCH
+        .route("/:id", patch(endpoints::update_recurrence))
         .route("/:id", delete(endpoints::delete_recurrence))
+        // ✅ 修正批量更新路由：需要 :id 参数
         .route(
-            "/batch-update-instances",
+            "/:id/instances/batch",
             patch(endpoints::batch_update_instances),
         )
         .route(
-            "/batch-update-template-and-instances",
+            "/:id/template-and-instances",
             patch(endpoints::batch_update_template_and_instances),
         )
 }
