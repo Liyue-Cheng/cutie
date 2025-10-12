@@ -216,6 +216,8 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
 /* ==================== 下栏容器 ==================== */
 .content-container {
   display: flex;
+  justify-content: center;
+  align-items: flex-start;
   height: 100%;
   width: 100%;
   overflow: hidden;
