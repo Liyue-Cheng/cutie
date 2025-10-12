@@ -114,20 +114,27 @@ function initTextareaHeights() {
 async function loadRecurrence() {
   if (!task.value) return
 
-  // 获取所有循环规则
-  await recurrenceStore.fetchAllRecurrences()
-  await templateStore.fetchAllTemplates()
+  // ✅ 修复：使用 task.recurrence_id 直接查找循环规则
+  if (task.value.recurrence_id) {
+    // 获取所有循环规则
+    await recurrenceStore.fetchAllRecurrences()
 
-  // 查找与当前任务标题匹配的循环模板和规则
-  const matchingTemplate = templateStore.allTemplates.find(
-    (t) => t.title === task.value?.title && t.category === 'RECURRENCE'
-  )
-
-  if (matchingTemplate) {
-    const matchingRecurrence = recurrenceStore.getRecurrencesByTemplateId(matchingTemplate.id)[0]
-    if (matchingRecurrence) {
-      currentRecurrence.value = matchingRecurrence
+    // 直接通过 recurrence_id 查找
+    const recurrence = recurrenceStore.getRecurrenceById(task.value.recurrence_id)
+    if (recurrence) {
+      currentRecurrence.value = recurrence
+      logger.info(LogTags.COMPONENT_KANBAN, 'Loaded recurrence for task', {
+        taskId: task.value.id,
+        recurrenceId: recurrence.id,
+      })
+    } else {
+      logger.warn(LogTags.COMPONENT_KANBAN, 'Recurrence not found', {
+        taskId: task.value.id,
+        recurrenceId: task.value.recurrence_id,
+      })
     }
+  } else {
+    currentRecurrence.value = null
   }
 }
 
