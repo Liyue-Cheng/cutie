@@ -53,33 +53,33 @@ function handleCalendarDateChange(date: string) {
     <TwoRowLayout>
       <!-- 上栏：标题 -->
       <template #top>
-      <div class="header">
-        <h2>Daily Planning</h2>
-        <span class="task-count">{{ todayTasks.length }} tasks today</span>
-      </div>
-    </template>
-
-    <!-- 下栏：Today 看板 + 日历（横向排列） -->
-    <template #bottom>
-      <div class="content-container">
-        <!-- Today 看板 -->
-        <div class="kanban-wrapper">
-          <SimpleKanbanColumn
-            title="Today"
-            :subtitle="today"
-            :tasks="todayTasks"
-            view-key="daily-planning::today"
-            drop-mode="schedule"
-            @open-task-editor="handleOpenTaskEditor"
-          />
+        <div class="header">
+          <h2>Daily Planning</h2>
+          <span class="task-count">{{ todayTasks.length }} tasks today</span>
         </div>
+      </template>
 
-        <!-- 日历 -->
-        <div class="calendar-wrapper">
-          <CuteCalendar :initial-date="today" @date-change="handleCalendarDateChange" />
+      <!-- 下栏：Today 看板 + 日历（横向排列） -->
+      <template #bottom>
+        <div class="content-container">
+          <!-- Today 看板 -->
+          <div class="kanban-wrapper">
+            <SimpleKanbanColumn
+              title="Today"
+              :subtitle="today"
+              :tasks="todayTasks"
+              view-key="daily-planning::today"
+              drop-mode="schedule"
+              @open-task-editor="handleOpenTaskEditor"
+            />
+          </div>
+
+          <!-- 日历 -->
+          <div class="calendar-wrapper">
+            <CuteCalendar :initial-date="today" @date-change="handleCalendarDateChange" />
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
     </TwoRowLayout>
   </div>
 
@@ -127,29 +127,27 @@ function handleCalendarDateChange(date: string) {
 .content-container {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 2rem;
   height: 100%;
   width: 100%;
   padding: 2rem;
-  overflow: auto;
+  overflow: hidden;
 }
 
 /* ==================== 看板容器 ==================== */
 .kanban-wrapper {
-  width: 40rem;
-  max-width: 40rem;
+  flex: 1;
+  min-width: 0;
   height: 100%;
-  min-height: 0;
-  flex-shrink: 0;
+  max-width: 60rem;
 }
 
 /* ==================== 日历容器 ==================== */
 .calendar-wrapper {
-  width: 40rem;
-  max-width: 40rem;
+  width: 28rem;
+  min-width: 28rem;
   height: 100%;
-  min-height: 0;
   flex-shrink: 0;
 }
 </style>
