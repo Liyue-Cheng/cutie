@@ -5,6 +5,7 @@ import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue
 import StagingColumn from '@/components/parts/kanban/StagingColumn.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import DailyRitualPanel from '@/components/parts/DailyRitualPanel.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
@@ -168,6 +169,11 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
               </button>
             </div>
           </div>
+
+          <!-- 每日仪式面板 -->
+          <div class="ritual-pane">
+            <DailyRitualPanel />
+          </div>
         </div>
       </template>
     </TwoRowLayout>
@@ -261,6 +267,14 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   min-width: 6rem;
   display: flex;
   flex-direction: column;
+}
+
+/* ==================== 每日仪式面板 ==================== */
+.ritual-pane {
+  width: 28rem;
+  min-width: 28rem;
+  height: 100%;
+  overflow: hidden;
 }
 
 .toolbar-content {
