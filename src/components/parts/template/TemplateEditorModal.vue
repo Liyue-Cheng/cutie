@@ -292,9 +292,7 @@ function handleClose() {
 
         <!-- 第三栏：Glance Note Template 区域 -->
         <div class="note-area glance-note-area">
-          <div v-if="!glanceNoteTemplate" class="note-placeholder">
-            快速概览笔记模板...
-          </div>
+          <div v-if="!glanceNoteTemplate" class="note-placeholder">快速概览笔记模板...</div>
           <textarea
             ref="glanceNoteTextarea"
             v-model="glanceNoteTemplate"
