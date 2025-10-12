@@ -63,7 +63,7 @@ mod logic {
     pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Task> {
         let now = app_state.clock().now_utc();
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 1. 获取任务
@@ -87,7 +87,7 @@ mod logic {
 
         // 6. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -115,11 +115,11 @@ mod database {
         .bind(task_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Task::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     /// 在事务中重新打开任务
@@ -137,10 +137,10 @@ mod database {
         .bind(task.id.to_string())
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Task::try_from(row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     /// 在事务中重置已完成的日程结局
@@ -157,7 +157,7 @@ mod database {
         .bind(task_id.to_string())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }

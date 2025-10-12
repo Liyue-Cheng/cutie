@@ -358,7 +358,7 @@ TransactionHelper::commit(tx).await?;
 
 ```rust
 // ✅ 正确：使用共享 Repository
-use crate::features::tasks::shared::repositories::TaskRepository;
+use crate::features::shared::repositories::TaskRepository;
 
 let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
 ```
@@ -493,7 +493,7 @@ let now = app_state.clock().now();                // 编译失败
 
 ```rust
 // ✅ 正确：使用 shared 中的工具
-use crate::shared::core::utils::{
+use crate::infra::core::utils::{
     generate_initial_sort_order,  // 生成初始排序字符串
     get_rank_after,                // 在指定位置之后
     get_rank_before,               // 在指定位置之前
@@ -511,7 +511,7 @@ let mut chars: Vec<char> = max.chars().collect();
 
 ```rust
 // ✅ 使用 shared 中的时间工具
-use crate::shared::core::utils::time_utils;
+use crate::infra::core::utils::time_utils;
 ```
 
 #### **常用 shared 工具**

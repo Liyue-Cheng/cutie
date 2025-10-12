@@ -1,14 +1,14 @@
 /// 应用状态模块 - 为sidecar架构设计
 use sqlx::SqlitePool;
 use std::sync::Arc;
-use tokio::sync::{Semaphore, OwnedSemaphorePermit};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use crate::config::AppConfig;
-use crate::shared::core::AppError;
-use crate::shared::events::SseState;
+use crate::infra::core::AppError;
+use crate::infra::events::SseState;
 
 // 导入抽象层接口
-pub use crate::shared::ports::{Clock, IdGenerator, SystemClock, UuidV4Generator};
+pub use crate::infra::ports::{Clock, IdGenerator, SystemClock, UuidV4Generator};
 
 /// 应用状态容器
 ///

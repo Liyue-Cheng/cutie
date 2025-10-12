@@ -1,7 +1,7 @@
 /// AI 自动分类功能
 ///
 /// 异步调用 LLM 为任务选择合适的 Area
-use crate::shared::core::error::AppResult;
+use crate::infra::core::error::AppResult;
 use uuid::Uuid;
 
 use super::client::OpenAIClient;

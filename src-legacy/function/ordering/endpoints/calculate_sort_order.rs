@@ -7,8 +7,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    shared::core::{AppError, AppResult},
-    shared::http::responses::ApiResponse,
+    crate::infra::core::{AppError, AppResult},
+    crate::infra::http::responses::ApiResponse,
     startup::AppState,
 };
 
@@ -91,8 +91,8 @@ mod validation {
 
     pub fn validate_request(
         request: &CalculateQuery,
-    ) -> Result<ValidatedRequest, Vec<crate::shared::core::ValidationError>> {
-        use crate::shared::core::ValidationError;
+    ) -> Result<ValidatedRequest, Vec<crate::infra::core::ValidationError>> {
+        use crate::infra::core::ValidationError;
 
         let mut errors = Vec::new();
 
@@ -151,8 +151,8 @@ mod logic {
     }
 
     fn calculate_sort_order(prev: Option<&str>, next: Option<&str>) -> AppResult<String> {
-        use crate::shared::core::utils::sort_order_utils;
-        use crate::shared::core::ValidationError;
+        use crate::infra::core::utils::sort_order_utils;
+        use crate::infra::core::ValidationError;
 
         match (prev, next) {
             (None, None) => {

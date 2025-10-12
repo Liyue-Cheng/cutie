@@ -131,7 +131,7 @@ mod logic {
             validation::validate_context(&request.context).map_err(AppError::ValidationFailed)?;
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 2. 获取模板
@@ -229,7 +229,7 @@ mod logic {
 
         // 6. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -263,11 +263,11 @@ mod database {
         .bind(template_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Template::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn create_task_in_tx(
@@ -340,10 +340,10 @@ mod database {
         .bind(recurrence_exclusions_json)
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Task::try_from(row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn create_schedule_and_ordering_in_tx(
@@ -376,13 +376,13 @@ mod database {
         .bind(schedule.updated_at.to_rfc3339())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         // 创建排序记录
         // 使用日期的 RFC3339 字符串作为 context_id，而不是时间戳
         let context_id = scheduled_day.to_rfc3339();
         let sort_order =
-            crate::shared::core::utils::sort_order_utils::generate_initial_sort_order();
+            crate::infra::core::utils::sort_order_utils::generate_initial_sort_order();
 
         sqlx::query(
             r#"
@@ -398,7 +398,7 @@ mod database {
         .bind(now.to_rfc3339())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }
@@ -418,7 +418,7 @@ mod database {
         };
 
         let sort_order =
-            crate::shared::core::utils::sort_order_utils::generate_initial_sort_order();
+            crate::infra::core::utils::sort_order_utils::generate_initial_sort_order();
 
         sqlx::query(
             r#"
@@ -434,7 +434,7 @@ mod database {
         .bind(now.to_rfc3339())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }

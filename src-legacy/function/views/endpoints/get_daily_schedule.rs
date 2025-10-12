@@ -10,7 +10,7 @@ use sqlx::{Sqlite, Transaction};
 
 use crate::{
     entities::Task,
-    shared::core::{AppError, AppResult, ValidationError},
+    crate::infra::core::{AppError, AppResult, ValidationError},
     startup::AppState,
 };
 
@@ -77,13 +77,13 @@ mod logic {
         let date = validation::validate_query(&query).map_err(AppError::ValidationFailed)?;
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         let tasks = database::find_tasks_for_day_in_tx(&mut tx, date).await?;
 
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -127,12 +127,12 @@ mod database {
         .bind(day_end) // SQLx自动转换 DateTime<Utc> -> TEXT
         .fetch_all(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         rows.into_iter()
             .map(|r| {
                 Task::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                    AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
                 })
             })
             .collect()

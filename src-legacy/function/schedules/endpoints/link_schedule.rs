@@ -93,7 +93,7 @@ mod validation {
 // ==================== 业务层 (Service/Logic Layer) ====================
 mod logic {
     use super::*;
-    use crate::shared::core::time_utils;
+    use crate::infra::core::time_utils;
 
     pub async fn execute(
         app_state: &AppState,
@@ -108,7 +108,7 @@ mod logic {
         );
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 1. 验证任务
@@ -141,7 +141,7 @@ mod logic {
         database::create_ordering_for_daily_kanban_in_tx(&mut tx, &created_schedule).await?;
 
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -155,7 +155,7 @@ mod database {
     use super::*;
     use crate::{
         entities::{ordering::Ordering, ContextType, Outcome, TaskRow, TaskSchedule},
-        shared::core::utils::sort_order_utils,
+        crate::infra::core::utils::sort_order_utils,
     };
     use chrono::{DateTime, Utc};
 
@@ -171,11 +171,11 @@ mod database {
         .bind(task_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Task::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn find_schedule_by_task_and_day_in_tx(
@@ -209,7 +209,7 @@ mod database {
 
         row.map(|r| TaskSchedule::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn create_schedule_in_tx(
@@ -242,7 +242,7 @@ mod database {
         .map_err(|e| AppError::DatabaseError(e.into()))?;
 
         TaskSchedule::try_from(row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn create_ordering_for_daily_kanban_in_tx(

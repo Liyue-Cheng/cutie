@@ -40,6 +40,7 @@ SELECT * FROM orderings WHERE ...
 **1.2 Check Shared Resources**
 
 Search shared resources list before implementing:
+
 - Repository exists? Use it
 - Assembler exists? Use it
 - Utility exists? Use it
@@ -139,6 +140,7 @@ pub use response_dtos::*;
 ```
 
 Add to `entities/mod.rs`:
+
 ```rust
 pub mod xxx;
 ```
@@ -324,7 +326,7 @@ TransactionHelper::commit(tx).await?;
 
 ```rust
 // ✅ Correct - use shared Repository
-use crate::features::tasks::shared::repositories::TaskRepository;
+use crate::features::shared::repositories::TaskRepository;
 let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
 
 // ❌ Wrong - duplicate implementation
@@ -450,18 +452,14 @@ import { ref, computed } from 'vue'
 
 export const entities = ref(new Map<string, Entity>())
 
-export const allEntities = computed(() =>
-  Array.from(entities.value.values())
-)
+export const allEntities = computed(() => Array.from(entities.value.values()))
 
-export const getEntityById = computed(() => (id: string) =>
-  entities.value.get(id)
-)
+export const getEntityById = computed(() => (id: string) => entities.value.get(id))
 
 export function addOrUpdateEntity(entity: Entity) {
   const newMap = new Map(entities.value)
   newMap.set(entity.id, entity)
-  entities.value = newMap  // Create new object for reactivity
+  entities.value = newMap // Create new object for reactivity
 }
 
 export function removeEntity(id: string) {
@@ -488,7 +486,7 @@ export async function createEntity(payload: CreateEntityPayload): Promise<Entity
     body: JSON.stringify(payload),
   })
   if (!response.ok) throw new Error('Failed to create entity')
-  const entity: Entity = await response.json()  // Parse directly, not .data
+  const entity: Entity = await response.json() // Parse directly, not .data
   addOrUpdateEntity(entity)
   return entity
 }
@@ -521,7 +519,7 @@ import { addOrUpdateEntity, clearAll } from './core'
 export async function fetchAllEntities(): Promise<void> {
   const response = await fetch(`${apiBaseUrl.value}/xxx`)
   if (!response.ok) throw new Error('Failed to fetch entities')
-  const entities: Entity[] = await response.json()  // Parse array directly
+  const entities: Entity[] = await response.json() // Parse array directly
   clearAll()
   entities.forEach(addOrUpdateEntity)
 }
@@ -744,7 +742,7 @@ pub async fn assemble_with_status(task: &Task, pool: &SqlitePool, status: Schedu
 
 ```rust
 // sort_order_utils.rs
-use crate::shared::core::utils::{
+use crate::infra::core::utils::{
     generate_initial_sort_order,
     get_rank_after,
     get_rank_before,
@@ -808,6 +806,7 @@ Vue Components (UI)
 ### Field Addition Checklist
 
 **Backend**:
+
 - [ ] Schema: `migrations/xxx.sql` add field
 - [ ] Entity: `entities/xxx/model.rs` Entity struct
 - [ ] EntityRow: `entities/xxx/model.rs` XxxRow struct
@@ -819,6 +818,7 @@ Vue Components (UI)
 - [ ] Cross-feature check: `grep -rn "DtoName {" src-tauri/src/features`
 
 **Frontend**:
+
 - [ ] DTO: `src/types/dtos.ts`
 - [ ] Store: update payload types
 - [ ] UI: update display and edit logic
@@ -826,11 +826,13 @@ Vue Components (UI)
 ### Cross-Feature Dependencies
 
 TimeBlock cross-feature usage:
+
 - Primary: `features/time_blocks/`
 - Cross-feature assembler: `features/tasks/shared/assemblers/time_block_assembler.rs`
 - Cross-feature repository: `features/tasks/shared/repositories/task_time_block_link_repository.rs`
 
 **Find cross-feature usages**:
+
 ```bash
 grep -rn "TimeBlockViewDto {" src-tauri/src/features
 grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features
@@ -852,6 +854,7 @@ const response = await fetch(`${apiBaseUrl.value}/time-blocks/${id}/link-task`, 
 ### 2. Backend Enum Format Inconsistency
 
 Backend has two enums:
+
 - Input: `Outcome` (UPPERCASE: `PLANNED`, `PRESENCE_LOGGED`)
 - Output: `DailyOutcome` (snake_case: `planned`, `presence_logged`)
 
@@ -869,6 +872,7 @@ await taskStore.updateSchedule(taskId, date, { outcome: newOutcome })
 ### 3. Complete Data Flow Required
 
 Data flow breakpoints:
+
 ```
 Database (tasks.estimated_duration)
   ↓ ✅ Task entity has field
@@ -893,21 +897,25 @@ Database (tasks.estimated_duration)
 **SSE Chain Checklist**:
 
 Backend:
+
 - [ ] Endpoint sends SSE event (EventOutbox)
 - [ ] SSE payload contains complete data, not just ID
 - [ ] Event type naming consistent
 
 Middleware (events.ts):
+
 - [ ] EventSource.addEventListener registered
 - [ ] handleEvent parses and dispatches correctly
 
 Frontend Store:
+
 - [ ] Store implements initEventSubscriptions
 - [ ] Store subscribes to all relevant events
 - [ ] Event handler processes data correctly
 - [ ] useApiConfig.ts calls initEventSubscriptions
 
 Testing:
+
 - [ ] Console shows SSE event logs
 - [ ] Store handler called correctly
 - [ ] UI updates in real-time, no manual refresh
@@ -935,11 +943,13 @@ Ok(false)  // Other sources preserved
 ### Backend
 
 **Pre-Development**:
+
 - [ ] Read schema: `migrations/xxx.sql`
 - [ ] Check shared resources
 - [ ] Select reference implementation
 
 **Entity Layer**:
+
 - [ ] Create Entity struct
 - [ ] Create EntityRow struct
 - [ ] Implement TryFrom<EntityRow>
@@ -948,6 +958,7 @@ Ok(false)  // Other sources preserved
 - [ ] Export modules
 
 **Endpoint (SFC)**:
+
 - [ ] Write complete CABC documentation
 - [ ] Implement HTTP Handler
 - [ ] Implement Validation (if needed)
@@ -961,10 +972,12 @@ Ok(false)  // Other sources preserved
 - [ ] SSE and HTTP return same data
 
 **Route Registration**:
+
 - [ ] Register in feature's mod.rs
 - [ ] Register in features/mod.rs
 
 **Testing**:
+
 - [ ] Run `cargo check`
 - [ ] Run `cargo clippy`
 - [ ] Test API
@@ -974,9 +987,11 @@ Ok(false)  // Other sources preserved
 ### Frontend
 
 **Type Layer**:
+
 - [ ] Add interface to `src/types/dtos.ts`
 
 **Store Layer**:
+
 - [ ] Create core.ts (State & Getters)
 - [ ] Create crud-operations.ts
 - [ ] Create view-operations.ts
@@ -985,15 +1000,18 @@ Ok(false)  // Other sources preserved
 - [ ] Initialize SSE in useApiConfig.ts
 
 **SSE Layer**:
+
 - [ ] Register addEventListener in events.ts
 
 **UI Layer**:
+
 - [ ] Create management/list component
 - [ ] Create edit/detail component
 - [ ] Add routes
 - [ ] Add navigation links
 
 **Testing**:
+
 - [ ] Check linter errors
 - [ ] Test CRUD operations
 - [ ] Test SSE real-time updates
@@ -1002,6 +1020,7 @@ Ok(false)  // Other sources preserved
 ### Data Structure Modification
 
 **Backend**:
+
 - [ ] Schema: migrations/xxx.sql
 - [ ] Entity: entities/xxx/model.rs (Entity + EntityRow + TryFrom)
 - [ ] Request DTO: entities/xxx/request_dtos.rs
@@ -1012,6 +1031,7 @@ Ok(false)  // Other sources preserved
 - [ ] Cross-feature repositories: `grep -rn "SELECT.*FROM xxx" src-tauri/src/features`
 
 **Frontend**:
+
 - [ ] DTO: src/types/dtos.ts
 - [ ] Store: src/stores/xxx.ts
 - [ ] UI: display and edit logic
@@ -1021,14 +1041,17 @@ Ok(false)  // Other sources preserved
 ### Common Errors
 
 **Error 1**: `no column found for name: xxx`
+
 - Cause: Forgot to add field in SQL SELECT
 - Fix: Update all SQL queries for this table
 
 **Error 2**: `missing field 'xxx' in initializer`
+
 - Cause: Assembler or DTO initialization missing field
 - Fix: Update assembler and all DTO initializations
 
 **Error 3**: `method not found in IdGenerator`
+
 - Cause: Wrong method name
 - Fix: Use `new_uuid()` not `generate()`
 
@@ -1057,6 +1080,7 @@ grep -rn "DomainEvent::new" src-tauri/src
 ## Summary
 
 Core development steps:
+
 1. Read Schema
 2. Check shared resources
 3. Reference similar features
@@ -1066,6 +1090,7 @@ Core development steps:
 7. Complete end-to-end testing
 
 Core principles:
+
 - Schema first: read database, don't guess
 - Reuse first: use shared resources, no duplication
 - Data reality: query actual state, no defaults

@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::Task,
-    shared::core::{AppError, AppResult},
+    crate::infra::core::{AppError, AppResult},
     startup::AppState,
 };
 use axum::http::StatusCode;
@@ -64,7 +64,7 @@ mod logic {
     pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<()> {
         // 开启事务
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 1. 查询任务是否存在
@@ -90,7 +90,7 @@ mod logic {
 
         // 5. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -122,11 +122,11 @@ mod database {
         .bind(task_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Task::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn soft_delete_task_in_tx(
@@ -145,7 +145,7 @@ mod database {
         .bind(task_id.to_string())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }

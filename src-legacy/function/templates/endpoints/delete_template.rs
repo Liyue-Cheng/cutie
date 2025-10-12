@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::Template,
-    shared::core::{AppError, AppResult},
+    crate::infra::core::{AppError, AppResult},
     startup::AppState,
 };
 
@@ -51,7 +51,7 @@ mod logic {
 
     pub async fn execute(app_state: &AppState, template_id: Uuid) -> AppResult<()> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 1. 验证模板存在（幂等）
@@ -69,7 +69,7 @@ mod logic {
 
         // 3. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -99,11 +99,11 @@ mod database {
         .bind(template_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Template::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn delete_template_in_tx(
@@ -117,7 +117,7 @@ mod database {
             .execute(&mut **tx)
             .await
             .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
             })?;
 
         Ok(())

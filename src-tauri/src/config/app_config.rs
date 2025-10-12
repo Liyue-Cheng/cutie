@@ -3,7 +3,7 @@ use std::env;
 use std::path::PathBuf;
 
 use super::{DatabaseConfig, ServerConfig};
-use crate::shared::core::AppError;
+use crate::infra::core::AppError;
 
 /// 应用主配置结构
 #[derive(Debug, Clone, Serialize, Deserialize)]

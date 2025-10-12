@@ -167,7 +167,7 @@ mod logic {
             validation::validate_request(&request).map_err(AppError::ValidationFailed)?;
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 2. 获取现有时间块
@@ -216,7 +216,7 @@ mod logic {
 
         // 7. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -246,11 +246,11 @@ mod database {
         .bind(block_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| TimeBlock::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn area_exists_in_tx(
@@ -263,7 +263,7 @@ mod database {
                 .fetch_one(&mut **tx)
                 .await
                 .map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                    AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
                 })?;
 
         Ok(count > 0)
@@ -310,10 +310,10 @@ mod database {
         .bind(block.id.to_string())
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         TimeBlock::try_from(row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 }
 

@@ -8,7 +8,7 @@ use sqlx::{Sqlite, Transaction};
 
 use crate::{
     entities::Area,
-    shared::core::{AppError, AppResult},
+    crate::infra::core::{AppError, AppResult},
     startup::AppState,
 };
 
@@ -48,13 +48,13 @@ mod logic {
 
     pub async fn execute(app_state: &AppState) -> AppResult<Vec<Area>> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         let areas = database::find_all_areas_in_tx(&mut tx).await?;
 
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -79,12 +79,12 @@ mod database {
         )
         .fetch_all(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         rows.into_iter()
             .map(|r| {
                 Area::try_from(r).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                    AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
                 })
             })
             .collect()

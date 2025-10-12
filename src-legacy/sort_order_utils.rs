@@ -1,4 +1,4 @@
-use crate::shared::core::{SortOrderError, SortResult};
+use crate::infra::core::{SortOrderError, SortResult};
 /// 排序工具模块
 ///
 /// 使用 lexorank 库实现确定性的排序字符串生成

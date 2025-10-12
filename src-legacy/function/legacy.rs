@@ -18,7 +18,7 @@ use crate::{
     startup::AppState,
 };
 
-use crate::features::tasks::shared::TaskAssembler;
+use crate::features::shared::TaskAssembler;
 
 // ==================== 文档层 (Documentation Layer) ====================
 /*
@@ -74,7 +74,7 @@ pub mod validation {
 
     /// 验证任务业务规则
     pub fn validate_task_business_rules(task: &Task) -> AppResult<()> {
-        use crate::shared::core::AppError;
+        use crate::infra::core::AppError;
 
         // 验证标题长度
         if task.title.len() > 255 {
@@ -141,7 +141,7 @@ pub mod logic {
 
         // 开始事务
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 1. 检查任务是否存在
@@ -166,7 +166,7 @@ pub mod logic {
 
         // 6. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -202,13 +202,13 @@ pub mod database {
         .fetch_optional(&mut **tx)
         .await
         .map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         match task_row {
             Some(row) => {
                 let task = Task::try_from(row).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                    AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
                 })?;
                 Ok(Some(task))
             }
@@ -234,7 +234,7 @@ pub mod database {
             .bind(task_id.to_string())
             .execute(&mut **tx)
             .await
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?
             .rows_affected();
 
         if rows_affected == 0 {
@@ -274,8 +274,8 @@ pub mod database {
             .execute(&mut **tx)
             .await
             .map_err(|e| {
-                crate::shared::core::AppError::DatabaseError(
-                    crate::shared::core::DbError::ConnectionError(e),
+                crate::infra::core::AppError::DatabaseError(
+                    crate::infra::core::DbError::ConnectionError(e),
                 )
             })?
             .rows_affected();
@@ -312,8 +312,8 @@ pub mod database {
             .execute(&mut **tx)
             .await
             .map_err(|e| {
-                crate::shared::core::AppError::DatabaseError(
-                    crate::shared::core::DbError::ConnectionError(e),
+                crate::infra::core::AppError::DatabaseError(
+                    crate::infra::core::DbError::ConnectionError(e),
                 )
             })?
             .rows_affected();

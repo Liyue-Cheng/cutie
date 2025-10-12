@@ -6,7 +6,7 @@ use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::entities::TimeBlock;
-use crate::shared::core::AppResult;
+use crate::infra::core::AppResult;
 
 /// 时间块仓库接口
 ///

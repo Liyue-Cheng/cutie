@@ -4,7 +4,7 @@ use sqlx::{
 };
 use std::time::Duration;
 
-use crate::shared::core::{AppError, DbError};
+use crate::infra::core::{AppError, DbError};
 use crate::config::{AppConfig, DatabaseConfig};
 
 /// 数据库初始化模块

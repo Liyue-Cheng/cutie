@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::config::AppConfig;
-use crate::shared::core::AppError;
+use crate::infra::core::AppError;
 
 /// 简化的应用状态容器
 ///

@@ -187,7 +187,7 @@ mod logic {
 
         // 3. 开始事务
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 4. 构建任务对象
@@ -215,7 +215,7 @@ mod logic {
 
         // 7. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -291,12 +291,12 @@ mod database {
         .await
         .map_err(|e| {
             tracing::error!("Failed to insert task: {}", e);
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 转换TaskRow到Task
         Task::try_from(task_row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     /// 在事务中为新任务创建排序记录
@@ -323,7 +323,7 @@ mod database {
         .await
         .map_err(|e| {
             tracing::error!("Failed to query max sort_order: {}", e);
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?
         .flatten(); // Option<Option<String>> -> Option<String>
 
@@ -365,7 +365,7 @@ mod database {
         .await
         .map_err(|e| {
             tracing::error!("Failed to insert ordering: {}", e);
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         tracing::info!(

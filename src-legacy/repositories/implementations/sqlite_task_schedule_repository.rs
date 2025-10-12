@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::entities::{Outcome, TaskSchedule};
 use crate::repositories::traits::TaskScheduleRepository;
-use crate::shared::core::{AppResult, DbError};
+use crate::infra::core::{AppResult, DbError};
 
 /// 任务日程仓库的SQLite实现
 #[derive(Clone)]
@@ -155,7 +155,7 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "TaskSchedule",
                 schedule_id.to_string(),
             ));
@@ -196,7 +196,7 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "TaskSchedule",
                 schedule_id.to_string(),
             ));
@@ -220,7 +220,7 @@ impl TaskScheduleRepository for SqliteTaskScheduleRepository {
             .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "TaskSchedule",
                 schedule_id.to_string(),
             ));

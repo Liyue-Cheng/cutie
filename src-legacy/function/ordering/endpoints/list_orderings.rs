@@ -8,8 +8,8 @@ use serde::Deserialize;
 
 use crate::{
     entities::Ordering,
-    shared::core::{AppError, AppResult},
-    shared::http::responses::ApiResponse,
+    crate::infra::core::{AppError, AppResult},
+    crate::infra::http::responses::ApiResponse,
     startup::AppState,
 };
 
@@ -81,8 +81,8 @@ mod validation {
 
     pub fn validate_request(
         request: &ListQuery,
-    ) -> Result<ValidatedRequest, Vec<crate::shared::core::ValidationError>> {
-        use crate::shared::core::ValidationError;
+    ) -> Result<ValidatedRequest, Vec<crate::infra::core::ValidationError>> {
+        use crate::infra::core::ValidationError;
 
         let mut errors = Vec::new();
 
@@ -165,7 +165,7 @@ mod database {
         .fetch_all(pool)
         .await
         .map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 转换 OrderingRow 为 Ordering
@@ -173,7 +173,7 @@ mod database {
             rows.into_iter().map(|row| row.try_into()).collect();
 
         orderings.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::QueryError(format!(
+            AppError::DatabaseError(crate::infra::core::DbError::QueryError(format!(
                 "Failed to convert OrderingRow: {}",
                 e
             )))

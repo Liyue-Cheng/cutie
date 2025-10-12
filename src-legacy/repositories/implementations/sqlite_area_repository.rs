@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::{AppResult, DbError};
+use crate::infra::core::{AppResult, DbError};
 use crate::entities::Area;
 use crate::repositories::traits::AreaRepository;
 
@@ -106,7 +106,7 @@ impl AreaRepository for SqliteAreaRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Area",
                 area.id.to_string(),
             ));
@@ -132,7 +132,7 @@ impl AreaRepository for SqliteAreaRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Area",
                 id.to_string(),
             ));

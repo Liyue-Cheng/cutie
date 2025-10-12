@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::{IpAddr, Ipv4Addr};
 
-use crate::shared::core::AppError;
+use crate::infra::core::AppError;
 
 /// 服务器配置结构
 #[derive(Debug, Clone, Serialize, Deserialize)]

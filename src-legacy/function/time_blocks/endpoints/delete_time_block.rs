@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::TimeBlock,
-    shared::core::{AppError, AppResult},
+    crate::infra::core::{AppError, AppResult},
     startup::AppState,
 };
 
@@ -52,7 +52,7 @@ mod logic {
 
     pub async fn execute(app_state: &AppState, block_id: Uuid) -> AppResult<()> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 1. 验证时间块存在（幂等）
@@ -73,7 +73,7 @@ mod logic {
 
         // 4. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -104,11 +104,11 @@ mod database {
         .bind(block_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| TimeBlock::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn delete_all_links_for_block_in_tx(
@@ -120,7 +120,7 @@ mod database {
             .execute(&mut **tx)
             .await
             .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
             })?;
 
         Ok(())
@@ -137,7 +137,7 @@ mod database {
             .execute(&mut **tx)
             .await
             .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
             })?;
 
         Ok(())

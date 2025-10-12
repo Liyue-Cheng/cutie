@@ -285,7 +285,7 @@ src-tauri/src/features/tasks/endpoints/
 所有端点都应使用 `TaskAssembler` 来转换数据：
 
 ```rust
-use crate::features::tasks::shared::TaskAssembler;
+use crate::features::shared::TaskAssembler;
 
 let task_card = TaskAssembler::task_to_card_basic(&task);
 ```

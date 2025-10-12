@@ -94,7 +94,7 @@ mod logic {
         let new_day = validation::validate_request(&request).map_err(AppError::ValidationFailed)?;
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 2. 验证源日程存在
@@ -136,7 +136,7 @@ mod logic {
 
         // 8. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -162,11 +162,11 @@ mod database {
         .bind(schedule_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| TaskSchedule::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn find_task_by_id(
@@ -186,11 +186,11 @@ mod database {
         .bind(task_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| crate::entities::Task::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn find_schedule_by_task_and_day(
@@ -220,11 +220,11 @@ mod database {
         .bind(day_end_str)
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| TaskSchedule::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn reschedule_in_tx(
@@ -246,10 +246,10 @@ mod database {
         .bind(schedule_id.to_string())
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         TaskSchedule::try_from(row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn delete_ordering_for_schedule(
@@ -272,7 +272,7 @@ mod database {
         .bind(task_id.to_string())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }
@@ -293,14 +293,14 @@ mod database {
         .bind(&context_id)
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         let new_sort_order = match max_sort_order {
-            Some(max) => crate::shared::core::utils::sort_order_utils::get_rank_after(&max)
+            Some(max) => crate::infra::core::utils::sort_order_utils::get_rank_after(&max)
                 .unwrap_or_else(|_| {
-                    crate::shared::core::utils::sort_order_utils::generate_initial_sort_order()
+                    crate::infra::core::utils::sort_order_utils::generate_initial_sort_order()
                 }),
-            None => crate::shared::core::utils::sort_order_utils::generate_initial_sort_order(),
+            None => crate::infra::core::utils::sort_order_utils::generate_initial_sort_order(),
         };
 
         sqlx::query(
@@ -317,7 +317,7 @@ mod database {
         .bind(now.to_rfc3339())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }

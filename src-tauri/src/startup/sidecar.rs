@@ -5,7 +5,7 @@ use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 
 use crate::config::AppConfig;
-use crate::shared::core::{build_info, AppError};
+use crate::infra::core::{build_info, AppError};
 use crate::startup::{AppState, HealthStatus};
 
 /// 启动Sidecar服务器（带优雅关闭）
@@ -111,7 +111,7 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
     if config.server.request_logging {
         use axum::middleware;
         app = app.layer(middleware::from_fn(
-            crate::shared::logging::request_tracing_middleware,
+            crate::infra::logging::request_tracing_middleware,
         ));
     }
 
@@ -194,7 +194,7 @@ pub async fn run_sidecar() -> Result<(), AppError> {
     }
 
     // 使用统一日志系统初始化
-    if let Err(e) = crate::shared::logging::init_logging() {
+    if let Err(e) = crate::infra::logging::init_logging() {
         eprintln!("⚠️  Failed to initialize logging system: {}", e);
         // 降级到简单的控制台日志
         let _ = tracing_subscriber::fmt()
@@ -222,7 +222,7 @@ pub async fn run_sidecar() -> Result<(), AppError> {
 
     // 启动事件分发器（后台任务）
     {
-        use crate::shared::events::{
+        use crate::infra::events::{
             dispatcher::EventDispatcher, outbox::SqlxEventOutboxRepository,
         };
         use std::sync::Arc;

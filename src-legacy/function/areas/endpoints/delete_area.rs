@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::Area,
-    shared::core::{AppError, AppResult, ValidationError},
+    crate::infra::core::{AppError, AppResult, ValidationError},
     startup::AppState,
 };
 
@@ -26,7 +26,7 @@ mod logic {
 
     pub async fn execute(app_state: &AppState, area_id: Uuid) -> AppResult<()> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         let area = match database::find_area_by_id_in_tx(&mut tx, area_id).await? {
@@ -55,7 +55,7 @@ mod logic {
         database::delete_area_in_tx(&mut tx, area.id, now).await?;
 
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -82,11 +82,11 @@ mod database {
         .bind(area_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Area::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     pub async fn count_tasks_in_area(
@@ -99,7 +99,7 @@ mod database {
         .bind(area_id.to_string())
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(count)
     }
@@ -114,7 +114,7 @@ mod database {
         .bind(area_id.to_string())
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(count)
     }
@@ -130,7 +130,7 @@ mod database {
             .execute(&mut **tx)
             .await
             .map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
             })?;
 
         Ok(())

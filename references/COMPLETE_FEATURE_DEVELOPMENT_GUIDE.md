@@ -446,7 +446,7 @@ TransactionHelper::commit(tx).await?;
 
 ```rust
 // ✅ 正确: 使用已有的 Repository
-use crate::features::tasks::shared::repositories::TaskRepository;
+use crate::features::shared::repositories::TaskRepository;
 
 let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
 
@@ -1270,7 +1270,7 @@ pub async fn assemble_with_status(
 **`sort_order_utils.rs`**
 
 ```rust
-use crate::shared::core::utils::{
+use crate::infra::core::utils::{
     generate_initial_sort_order,  // 生成初始排序字符串
     get_rank_after,                // 在指定位置之后
     get_rank_before,               // 在指定位置之前
@@ -1290,7 +1290,7 @@ let mut chars: Vec<char> = max.chars().collect();
 **`time_utils.rs`**
 
 ```rust
-use crate::shared::core::utils::time_utils;
+use crate::infra::core::utils::time_utils;
 
 // 时间处理相关工具函数
 ```

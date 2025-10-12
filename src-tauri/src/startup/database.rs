@@ -2,7 +2,7 @@
 use sqlx::SqlitePool;
 
 use crate::config::AppConfig;
-use crate::shared::{
+use crate::infra::{
     core::AppError,
     database::{initialize_database as shared_initialize_database, DatabaseConfig},
 };
@@ -27,12 +27,12 @@ pub async fn initialize_database(config: &AppConfig) -> Result<SqlitePool, AppEr
 
 /// 运行数据库迁移
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
-    crate::shared::database::run_migrations(pool).await
+    crate::infra::database::run_migrations(pool).await
 }
 
 /// 创建测试数据库
 pub async fn create_test_database() -> Result<SqlitePool, AppError> {
-    crate::shared::database::create_test_database().await
+    crate::infra::database::create_test_database().await
 }
 
 #[cfg(test)]

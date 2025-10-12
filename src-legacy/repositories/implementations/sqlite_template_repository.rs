@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::{AppResult, DbError};
+use crate::infra::core::{AppResult, DbError};
 use crate::entities::{Template, Subtask};
 use crate::repositories::traits::TemplateRepository;
 
@@ -132,7 +132,7 @@ impl TemplateRepository for SqliteTemplateRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Template",
                 template.id.to_string(),
             ));
@@ -158,7 +158,7 @@ impl TemplateRepository for SqliteTemplateRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Template",
                 id.to_string(),
             ));

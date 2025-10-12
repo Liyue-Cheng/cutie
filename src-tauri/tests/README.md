@@ -106,7 +106,7 @@ cargo test --test lib -- --nocapture
 
 ```rust
 use explore_lib::features::shared::TransactionHelper;
-use explore_lib::features::tasks::shared::repositories::TaskRepository;
+use explore_lib::features::shared::repositories::TaskRepository;
 
 mod infrastructure {
     pub use crate::infrastructure::*;
@@ -227,4 +227,3 @@ async fn test_your_business_workflow() {
 - [Rust 测试最佳实践](https://doc.rust-lang.org/book/ch11-00-testing.html)
 - [Tokio 异步测试](https://tokio.rs/tokio/topics/testing)
 - [Axum 测试指南](https://docs.rs/axum/latest/axum/testing/index.html)
-

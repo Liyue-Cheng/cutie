@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::Task,
-    shared::core::{AppError, AppResult},
+    crate::infra::core::{AppError, AppResult},
     startup::AppState,
 };
 
@@ -49,7 +49,7 @@ mod logic {
 
     pub async fn execute(app_state: &AppState, task_id: Uuid) -> AppResult<Task> {
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         let task = database::find_task_by_id_in_tx(&mut tx, task_id)
@@ -57,7 +57,7 @@ mod logic {
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -88,10 +88,10 @@ mod database {
         .bind(task_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Task::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 }

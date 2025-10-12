@@ -6,7 +6,7 @@ use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 use crate::repositories::traits::OrderingRepository;
-use crate::shared::core::{AppResult, DbError};
+use crate::infra::core::{AppResult, DbError};
 use crate::entities::{ContextType, Ordering};
 
 /// 排序仓库的SQLite实现
@@ -209,7 +209,7 @@ impl OrderingRepository for SqliteOrderingRepository {
 
         // 计算新的排序值（放在末尾）
         let sort_order = if count == 0 {
-            crate::shared::core::generate_initial_sort_order()
+            crate::infra::core::generate_initial_sort_order()
         } else {
             // 获取最后一个排序值
             let last_row = sqlx::query(
@@ -228,7 +228,7 @@ impl OrderingRepository for SqliteOrderingRepository {
             let last_sort_order: String = last_row
                 .try_get("sort_order")
                 .unwrap_or_else(|_| "n".to_string());
-            crate::shared::core::get_rank_after(&last_sort_order)?
+            crate::infra::core::get_rank_after(&last_sort_order)?
         };
 
         // 创建排序对象

@@ -101,13 +101,13 @@ pub mod database {
         .fetch_optional(pool)
         .await
         .map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         match task_row {
             Some(row) => {
                 let task = Task::try_from(row).map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::QueryError(e))
+                    AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
                 })?;
                 Ok(Some(task))
             }

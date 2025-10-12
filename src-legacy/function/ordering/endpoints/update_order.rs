@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::{task::ContextType, Ordering},
-    shared::core::{AppError, AppResult, ValidationError},
+    crate::infra::core::{AppError, AppResult, ValidationError},
     startup::AppState,
 };
 
@@ -120,7 +120,7 @@ mod validation {
         }
 
         // 4. 验证 sort_order 格式（使用 LexoRank 验证）
-        if !crate::shared::core::utils::sort_order_utils::is_valid_sort_order(&request.sort_order) {
+        if !crate::infra::core::utils::sort_order_utils::is_valid_sort_order(&request.sort_order) {
             errors.push(ValidationError::new(
                 "sort_order",
                 "Sort order 格式无效，必须是有效的 LexoRank 格式",
@@ -151,7 +151,7 @@ mod logic {
             validation::validate_request(&request).map_err(AppError::ValidationFailed)?;
 
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 2. 验证任务存在
@@ -174,7 +174,7 @@ mod logic {
 
         // 4. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -198,7 +198,7 @@ mod database {
                 .fetch_one(&mut **tx)
                 .await
                 .map_err(|e| {
-                    AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                    AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
                 })?;
 
         Ok(count > 0)
@@ -235,7 +235,7 @@ mod database {
         .bind(updated_at.to_rfc3339())
         .execute(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Ok(())
     }

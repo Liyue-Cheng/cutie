@@ -66,7 +66,7 @@ pub async fn handle(
 /// 更新任务功能专用的验证逻辑
 mod validation {
     use crate::entities::UpdateTaskRequest;
-    use crate::shared::core::ValidationError;
+    use crate::infra::core::ValidationError;
 
     pub fn validate_update_request(
         request: &UpdateTaskRequest,
@@ -151,7 +151,7 @@ mod logic {
         // 0. 检查是否为空更新
         if request.is_empty() {
             let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-                AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+                AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
             })?;
             return database::find_task_by_id_in_tx(&mut tx, task_id)
                 .await?
@@ -163,7 +163,7 @@ mod logic {
 
         let now = app_state.clock().now_utc();
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e))
+            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;
 
         // 2. 获取并合并更新
@@ -207,7 +207,7 @@ mod logic {
 
         // 4. 提交事务
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::shared::core::DbError::TransactionFailed {
+            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
                 message: e.to_string(),
             })
         })?;
@@ -240,11 +240,11 @@ mod database {
         .bind(task_id.to_string())
         .fetch_optional(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         row.map(|r| Task::try_from(r))
             .transpose()
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 
     /// 在事务中更新任务
@@ -299,9 +299,9 @@ mod database {
         .bind(task.id.to_string())
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::ConnectionError(e)))?;
+        .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e)))?;
 
         Task::try_from(row)
-            .map_err(|e| AppError::DatabaseError(crate::shared::core::DbError::QueryError(e)))
+            .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))
     }
 }

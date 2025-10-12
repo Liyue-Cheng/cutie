@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::{AppResult, DbError};
+use crate::infra::core::{AppResult, DbError};
 use crate::entities::{DueDateType, SourceInfo, Subtask, Task};
 use crate::repositories::traits::TaskRepository;
 
@@ -177,7 +177,7 @@ impl TaskRepository for SqliteTaskRepository {
 
         // 返回创建的任务
         self.find_by_id_in_tx(tx, task.id).await?.ok_or_else(|| {
-            crate::shared::core::AppError::DatabaseError(DbError::NotFound {
+            crate::infra::core::AppError::DatabaseError(DbError::NotFound {
                 entity_type: "Task".to_string(),
                 entity_id: task.id.to_string(),
             })
@@ -240,7 +240,7 @@ impl TaskRepository for SqliteTaskRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Task",
                 task.id.to_string(),
             ));
@@ -248,7 +248,7 @@ impl TaskRepository for SqliteTaskRepository {
 
         // 返回更新后的任务
         self.find_by_id_in_tx(tx, task.id).await?.ok_or_else(|| {
-            crate::shared::core::AppError::DatabaseError(DbError::NotFound {
+            crate::infra::core::AppError::DatabaseError(DbError::NotFound {
                 entity_type: "Task".to_string(),
                 entity_id: task.id.to_string(),
             })
@@ -277,7 +277,7 @@ impl TaskRepository for SqliteTaskRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Task",
                 task_id.to_string(),
             ));
@@ -285,7 +285,7 @@ impl TaskRepository for SqliteTaskRepository {
 
         // 返回更新后的任务
         self.find_by_id_in_tx(tx, task_id).await?.ok_or_else(|| {
-            crate::shared::core::AppError::DatabaseError(DbError::NotFound {
+            crate::infra::core::AppError::DatabaseError(DbError::NotFound {
                 entity_type: "Task".to_string(),
                 entity_id: task_id.to_string(),
             })
@@ -309,7 +309,7 @@ impl TaskRepository for SqliteTaskRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "Task",
                 task_id.to_string(),
             ));
@@ -317,7 +317,7 @@ impl TaskRepository for SqliteTaskRepository {
 
         // 返回更新后的任务
         self.find_by_id_in_tx(tx, task_id).await?.ok_or_else(|| {
-            crate::shared::core::AppError::DatabaseError(DbError::NotFound {
+            crate::infra::core::AppError::DatabaseError(DbError::NotFound {
                 entity_type: "Task".to_string(),
                 entity_id: task_id.to_string(),
             })

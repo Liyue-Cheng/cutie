@@ -2,7 +2,7 @@
 ///
 /// 测试 Repository 层的数据访问逻辑
 use explore_lib::features::shared::TransactionHelper;
-use explore_lib::features::tasks::shared::repositories::TaskRepository;
+use explore_lib::features::shared::repositories::TaskRepository;
 
 mod infrastructure {
     pub use crate::infrastructure::*;

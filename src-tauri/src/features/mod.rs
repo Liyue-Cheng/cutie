@@ -23,6 +23,9 @@ pub mod time_blocks;
 pub mod trash;
 pub mod view_preferences;
 pub mod views;
+
+// 引入endpoints模块（包含所有端点实现）
+pub mod endpoints;
 // 其他功能模块（待迁移）
 // pub mod schedules;
 
@@ -30,9 +33,9 @@ pub mod views;
 ///
 /// 这是应用的主路由入口，聚合所有功能模块的路由
 pub fn create_api_router() -> Router<AppState> {
+    use crate::infra::events::sse;
     use axum::routing::get;
-    use crate::shared::events::sse;
-    
+
     Router::new()
         .nest("/ai", ai::create_routes())
         .nest("/areas", areas::create_routes())

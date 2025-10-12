@@ -7,7 +7,7 @@ use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::entities::{Outcome, TaskSchedule};
-use crate::shared::core::AppResult;
+use crate::infra::core::AppResult;
 
 /// 任务日程仓库接口
 ///

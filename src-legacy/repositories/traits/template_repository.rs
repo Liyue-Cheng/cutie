@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::AppResult;
+use crate::infra::core::AppResult;
 use crate::entities::Template;
 
 /// 模板仓库接口

@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
-use crate::shared::core::AppResult;
+use crate::infra::core::AppResult;
 use crate::entities::Task;
 
 /// 任务仓库接口

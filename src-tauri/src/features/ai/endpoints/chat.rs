@@ -88,8 +88,8 @@ use axum::{extract::State, response::IntoResponse, Json};
 
 use crate::{
     entities::ai::{AiChatRequest, AiChatResponse},
-    shared::{
-        core::error::{AppError, AppResult, ValidationError},
+    infra::{
+        core::{AppError, AppResult, ValidationError},
         http::error_handler::success_response,
     },
     startup::AppState,

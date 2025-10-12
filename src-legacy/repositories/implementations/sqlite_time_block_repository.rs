@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::entities::{SourceInfo, TimeBlock};
 use crate::repositories::traits::TimeBlockRepository;
-use crate::shared::core::{AppResult, DbError};
+use crate::infra::core::{AppResult, DbError};
 
 /// 时间块仓库的SQLite实现
 #[derive(Clone)]
@@ -224,7 +224,7 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "TimeBlock",
                 time_block.id.to_string(),
             ));
@@ -250,7 +250,7 @@ impl TimeBlockRepository for SqliteTimeBlockRepository {
         .map_err(DbError::ConnectionError)?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::core::AppError::not_found(
+            return Err(crate::infra::core::AppError::not_found(
                 "TimeBlock",
                 id.to_string(),
             ));

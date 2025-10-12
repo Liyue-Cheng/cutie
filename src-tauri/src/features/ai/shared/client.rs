@@ -1,4 +1,4 @@
-use crate::shared::core::error::{AppError, AppResult};
+use crate::infra::core::error::{AppError, AppResult};
 use async_openai::{
     config::OpenAIConfig,
     types::{

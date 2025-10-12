@@ -5,7 +5,7 @@ use tokio::net::TcpListener;
 // use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
-use crate::shared::core::AppError;
+use crate::infra::core::AppError;
 use crate::config::AppConfig;
 use crate::startup::AppState;
 
