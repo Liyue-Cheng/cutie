@@ -358,4 +358,3 @@ function handleDrop(event: DragEvent, targetId: string) {
   font-style: italic;
 }
 </style>
-
