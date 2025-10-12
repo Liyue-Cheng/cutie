@@ -1,13 +1,12 @@
 /// 共享数据仓库层
 ///
 /// 包含所有功能模块共享的数据访问逻辑
-/// 
+///
 /// # 架构设计
-/// 
+///
 /// - `traits.rs`: 定义 Repository 的通用接口
 /// - `transaction.rs`: 事务辅助工具
 /// - 各个具体的 Repository 实现
-
 // Repository trait 定义
 pub mod traits;
 
@@ -26,7 +25,7 @@ pub mod time_block_repository;
 // 重新导出常用类型
 
 // Repository traits
-pub use traits::{Repository, QueryableRepository, BatchRepository};
+pub use traits::{BatchRepository, QueryableRepository, Repository};
 
 // 事务辅助工具
 pub use transaction::*;

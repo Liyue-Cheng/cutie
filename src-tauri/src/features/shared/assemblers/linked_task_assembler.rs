@@ -2,8 +2,8 @@
 use uuid::Uuid;
 
 use crate::{
-    infra::core::{AppError, AppResult, DbError},
     entities::LinkedTaskSummary,
+    infra::core::{AppError, AppResult, DbError},
 };
 
 pub struct LinkedTaskAssembler;
@@ -41,12 +41,16 @@ impl LinkedTaskAssembler {
 
         let summaries = rows
             .into_iter()
-            .map(|(id, title, completed_at)| LinkedTaskSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                title,
-                is_completed: completed_at.is_some(),
+            .map(|(id, title, completed_at)| {
+                let parsed_id =
+                    Uuid::parse_str(&id).map_err(|e| AppError::StringError(e.to_string()))?;
+                Ok(LinkedTaskSummary {
+                    id: parsed_id,
+                    title,
+                    is_completed: completed_at.is_some(),
+                })
             })
-            .collect();
+            .collect::<AppResult<Vec<_>>>()?;
 
         Ok(summaries)
     }
@@ -72,12 +76,16 @@ impl LinkedTaskAssembler {
 
         let summaries = rows
             .into_iter()
-            .map(|(id, title, completed_at)| LinkedTaskSummary {
-                id: Uuid::parse_str(&id).unwrap(),
-                title,
-                is_completed: completed_at.is_some(),
+            .map(|(id, title, completed_at)| {
+                let parsed_id =
+                    Uuid::parse_str(&id).map_err(|e| AppError::StringError(e.to_string()))?;
+                Ok(LinkedTaskSummary {
+                    id: parsed_id,
+                    title,
+                    is_completed: completed_at.is_some(),
+                })
             })
-            .collect();
+            .collect::<AppResult<Vec<_>>>()?;
 
         Ok(summaries)
     }

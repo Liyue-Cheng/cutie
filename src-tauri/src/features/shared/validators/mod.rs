@@ -12,6 +12,12 @@
 pub mod task_validator;
 pub mod time_block_validator;
 
+// 单元测试模块
+#[cfg(test)]
+mod task_validator_tests;
+#[cfg(test)]
+mod time_block_validator_tests;
+
 // 重新导出常用类型
 pub use task_validator::TaskValidator;
 pub use time_block_validator::TimeBlockValidator;

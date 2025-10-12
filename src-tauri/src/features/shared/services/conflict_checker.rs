@@ -48,13 +48,19 @@ impl TimeBlockConflictChecker {
         "#,
         );
 
-        if let Some(id) = exclude_id {
-            query.push_str(&format!(" AND id != '{}'", id));
+        if exclude_id.is_some() {
+            query.push_str(" AND id != ?");
         }
 
-        let count: i64 = sqlx::query_scalar(&query)
+        let mut q = sqlx::query_scalar(&query)
             .bind(end_time.to_rfc3339())
-            .bind(start_time.to_rfc3339())
+            .bind(start_time.to_rfc3339());
+
+        if let Some(id) = exclude_id {
+            q = q.bind(id.to_string());
+        }
+
+        let count: i64 = q
             .fetch_one(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
