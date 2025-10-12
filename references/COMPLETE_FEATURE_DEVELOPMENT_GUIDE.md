@@ -2,21 +2,22 @@
 
 > 从零到完成一个新功能的完整指南，整合所有开发规范、公共资源列表和经验教训
 
-**版本**: 1.0
-**最后更新**: 2025-10-08
+**版本**: 2.0
+**最后更新**: 2025-10-12
 
 ---
 
 ## 📋 目录
 
 1. [开发前必读](#开发前必读)
-2. [后端开发完整流程](#后端开发完整流程)
-3. [前端开发完整流程](#前端开发完整流程)
-4. [公共资源完整清单](#公共资源完整清单)
-5. [数据结构修改影响分析](#数据结构修改影响分析)
-6. [关键经验教训](#关键经验教训)
-7. [开发检查清单](#开发检查清单)
-8. [常见问题与调试](#常见问题与调试)
+2. [后端架构概览](#后端架构概览)
+3. [后端开发完整流程](#后端开发完整流程)
+4. [前端开发完整流程](#前端开发完整流程)
+5. [公共资源完整清单](#公共资源完整清单)
+6. [数据结构修改影响分析](#数据结构修改影响分析)
+7. [关键经验教训](#关键经验教训)
+8. [开发检查清单](#开发检查清单)
+9. [常见问题与调试](#常见问题与调试)
 
 ---
 
@@ -29,17 +30,233 @@
 3. **SSE 一致性**: SSE 事件和 HTTP 响应必须返回完全相同的数据
 4. **Schema 优先**: 编写任何 SQL 前必须先查看数据库 Schema
 5. **复用优先**: 使用共享资源,禁止重复实现已有功能
+6. **分层清晰**: 理解 `infra/` (基础设施) 和 `features/shared/` (业务共享) 的区别
 
 ### 必须查看的文档
 
 开发新功能前,按顺序阅读:
 
 1. **Schema 定义**: `src-tauri/migrations/20241001000000_initial_schema.sql`
-2. **共享资源清单**: 本文档 [公共资源完整清单](#公共资源完整清单)
-3. **业务逻辑规范**: `notes/业务逻辑.md`
-4. **SFC 开发规范**: `references/SFC_SPEC.md`
-5. **数据结构耦合**: `references/DATA_SCHEMA_COUPLING.md`
-6. **开发经验教训**: `ai-doc/LESSONS_LEARNED.md`
+2. **后端架构**: 本文档 [后端架构概览](#后端架构概览)
+3. **共享资源清单**: 本文档 [公共资源完整清单](#公共资源完整清单)
+4. **业务逻辑规范**: `notes/业务逻辑.md`
+5. **SFC 开发规范**: `references/SFC_SPEC.md`
+6. **数据结构耦合**: `references/DATA_SCHEMA_COUPLING.md`
+7. **开发经验教训**: `ai-doc/LESSONS_LEARNED.md`
+
+---
+
+## 后端架构概览
+
+### 架构分层
+
+Cutie 后端采用**清晰的分层架构**，将技术基础设施与业务逻辑分离：
+
+```
+src-tauri/src/
+├── infra/                    ← 基础设施层 (Infrastructure Layer)
+│   ├── core/                 - 错误处理、工具函数、构建信息
+│   ├── database/             - 数据库连接和事务管理
+│   ├── http/                 - HTTP 基础设施 (中间件、响应、错误处理)
+│   ├── events/               - 事件系统 (SSE、事件分发、Outbox)
+│   ├── logging/              - 统一日志系统
+│   └── ports/                - 外部依赖抽象 (时钟、ID生成器)
+│
+├── features/                 ← 业务逻辑层 (Business Logic Layer)
+│   ├── shared/               ← 业务共享层 (跨功能共享业务逻辑)
+│   │   ├── repositories/     - 数据访问层 (Repository traits + 实现)
+│   │   ├── assemblers/       - 数据组装层 (DTO assemblers)
+│   │   ├── services/         - 业务服务层 (跨功能业务逻辑)
+│   │   └── validators/       - 验证器层 (业务规则验证)
+│   │
+│   ├── endpoints/            ← HTTP 端点层 (所有 API handlers)
+│   │   ├── area/             - Area 相关端点
+│   │   ├── tasks/            - Task 相关端点
+│   │   ├── time_blocks/      - TimeBlock 相关端点
+│   │   └── ...
+│   │
+│   ├── areas.rs              ← 功能模块入口 (路由定义)
+│   ├── tasks.rs
+│   ├── time_blocks.rs
+│   └── ...
+│
+├── entities/                 ← 领域模型层 (Domain Entities & DTOs)
+│   ├── task/
+│   ├── time_block/
+│   └── ...
+│
+├── config/                   ← 配置层
+├── startup/                  ← 应用启动层
+└── lib.rs                    ← 库根文件
+```
+
+### 模块职责
+
+#### 1. `infra/` - 基础设施层
+
+**定位**: 技术关注点（如何实现）
+
+**职责**:
+
+- 提供与业务无关的技术性基础组件
+- 不包含任何业务规则，只负责技术实现细节
+- 位于分层架构的最底层
+
+**关键模块**:
+
+- `core`: 错误类型(`AppError`)、工具函数、构建信息
+- `database`: 数据库连接池、事务管理
+- `http`: HTTP 响应构建、错误处理、中间件
+- `events`: SSE 基础设施、事件分发、Outbox
+- `logging`: 分层日志系统
+- `ports`: 依赖注入抽象 (`Clock`, `IdGenerator`)
+
+**导入示例**:
+
+```rust
+use crate::infra::{
+    core::{AppError, AppResult},
+    http::success_response,
+    ports::{Clock, IdGenerator},
+};
+```
+
+#### 2. `features/shared/` - 业务共享层
+
+**定位**: 业务关注点（做什么）
+
+**职责**:
+
+- 提供跨功能模块的业务逻辑复用
+- 包含业务语义的数据访问、组装、服务和验证
+- 位于业务逻辑层，服务于各个功能模块
+
+**分层架构**:
+
+```
+features/shared/
+├── repositories/        ← 数据访问层
+│   ├── traits.rs        - Repository 抽象接口
+│   ├── transaction.rs   - 事务辅助工具
+│   ├── task_repository.rs
+│   ├── time_block_repository.rs
+│   └── ...
+│
+├── assemblers/          ← 数据组装层
+│   ├── task_assembler.rs
+│   ├── time_block_assembler.rs
+│   └── ...
+│
+├── services/            ← 业务服务层
+│   ├── ai_classification_service.rs
+│   ├── conflict_checker.rs
+│   └── ...
+│
+└── validators/          ← 验证器层
+    ├── task_validator.rs
+    ├── time_block_validator.rs
+    └── ...
+```
+
+**导入示例**:
+
+```rust
+// 方式一：顶层导出（推荐用于简单场景）
+use crate::features::shared::{
+    TaskRepository,
+    TaskAssembler,
+    TaskValidator,
+    TransactionHelper,
+};
+
+// 方式二：带命名空间（推荐用于复杂场景）
+use crate::features::shared::{
+    repositories::{TaskRepository, AreaRepository},
+    assemblers::TaskAssembler,
+    validators::TaskValidator,
+    services::AiClassificationService,
+};
+```
+
+#### 3. `features/endpoints/` - HTTP 端点层
+
+**定位**: API 处理层
+
+**职责**:
+
+- 处理 HTTP 请求和响应
+- 调用业务逻辑层完成功能
+- 采用 SFC (Single File Component) 模式组织代码
+
+**结构**:
+
+```
+features/endpoints/
+├── area/
+│   ├── mod.rs            - 导出所有 handlers
+│   ├── create_area.rs    - POST /api/areas
+│   ├── update_area.rs    - PATCH /api/areas/:id
+│   └── ...
+├── tasks/
+│   ├── mod.rs
+│   ├── create_task.rs
+│   └── ...
+└── ...
+```
+
+每个功能模块（如 `areas.rs`, `tasks.rs`）负责定义路由：
+
+```rust
+// src/features/tasks.rs
+pub fn create_routes() -> Router<AppState> {
+    Router::new()
+        .route("/", get(endpoints::tasks::list_tasks))
+        .route("/", post(endpoints::tasks::create_task))
+        // ...
+}
+```
+
+### 关键区别: `infra/` vs `features/shared/`
+
+| 维度         | `infra/`                                | `features/shared/`                                 |
+| ------------ | --------------------------------------- | -------------------------------------------------- |
+| **关注点**   | 技术实现（How）                         | 业务逻辑（What）                                   |
+| **职责**     | HTTP、数据库、日志、事件                | Repositories、Assemblers、Services、Validators     |
+| **业务语义** | 无业务语义                              | 包含业务语义                                       |
+| **依赖方向** | 被所有层依赖                            | 被端点层依赖                                       |
+| **示例**     | `AppError`, `success_response`, `Clock` | `TaskRepository`, `TaskValidator`, `TaskAssembler` |
+
+### 导入路径规范
+
+**正确示例**:
+
+```rust
+// ✅ 基础设施导入
+use crate::infra::core::{AppError, AppResult};
+use crate::infra::http::success_response;
+use crate::infra::ports::Clock;
+
+// ✅ 业务共享导入
+use crate::features::shared::{
+    TaskRepository,
+    TaskValidator,
+    TransactionHelper,
+};
+
+// ✅ 实体导入
+use crate::entities::task::{Task, CreateTaskRequest, TaskCardDto};
+```
+
+**错误示例**:
+
+```rust
+// ❌ 错误: shared 已重命名为 infra
+use crate::shared::core::AppError;
+
+// ❌ 错误: 混淆业务层和基础设施层
+use crate::features::shared::AppError;  // AppError 在 infra 中
+use crate::infra::TaskRepository;       // TaskRepository 在 features/shared 中
+```
 
 ---
 
@@ -80,19 +297,22 @@ SELECT * FROM orderings WHERE ...  // 表名是 orderings
 
 - [ ] 需要的 Repository 是否已存在?
 - [ ] 需要的 Assembler 是否已存在?
+- [ ] 需要的 Validator 是否已存在?
+- [ ] 需要的 Service 是否已存在?
 - [ ] 需要的工具函数是否已存在?
 
 如果存在,直接使用;如果不存在,在 SFC 的 `database` 模块中实现。
 
-**⚠️ 禁止修改共享资源!** 在开发新功能时,不要修改 `features/shared` 或 `features/xxx/shared` 中的代码。
+**⚠️ 禁止修改共享资源!** 在开发新功能时,不要修改 `features/shared` 中的代码。如果需要新增共享功能，应该单独规划并与团队讨论。
 
 #### 1.3 参考类似功能
 
 根据复杂度选择参考:
 
-- 简单 CRUD → 参考 `features/areas/endpoints/create_area.rs`
-- 复杂业务逻辑 → 参考 `features/tasks/endpoints/complete_task.rs`
-- 跨实体操作 → 参考 `features/time_blocks/endpoints/create_from_task.rs`
+- 简单 CRUD → 参考 `features/endpoints/area/create_area.rs`
+- 复杂业务逻辑 → 参考 `features/endpoints/tasks/complete_task.rs`
+- 跨实体操作 → 参考 `features/endpoints/time_blocks/create_from_task.rs`
+- 使用验证器 → 参考 `features/endpoints/tasks/create_task.rs`
 
 ---
 
@@ -208,7 +428,7 @@ pub mod xxx;  // ← 添加
 
 #### 3.1 SFC 文件结构
 
-**文件**: `src-tauri/src/features/xxx/endpoints/create_xxx.rs`
+**文件**: `src-tauri/src/features/endpoints/xxx/create_xxx.rs`
 
 ```rust
 /// 创建 XXX - 单文件组件
@@ -216,7 +436,7 @@ pub mod xxx;  // ← 添加
 /// ⚠️ 开发前必读:
 /// 1. 查看 Schema: migrations/xxx.sql
 /// 2. 查看共享资源清单: COMPLETE_FEATURE_DEVELOPMENT_GUIDE.md
-/// 3. 使用已有的 Repository/Assembler,禁止重复实现
+/// 3. 使用已有的 Repository/Assembler/Validator,禁止重复实现
 
 // ==================== CABC 文档 ====================
 /*
@@ -289,14 +509,13 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::Deserialize;
 
 use crate::{
     entities::xxx::{Entity, EntityDto, CreateEntityRequest},
     features::shared::TransactionHelper,
-    shared::{
-        core::error::{AppError, AppResult},
-        http::responses::created_response,
+    infra::{
+        core::{AppError, AppResult},
+        http::created_response,
     },
     startup::AppState,
 };
@@ -313,28 +532,37 @@ pub async fn handle(
 }
 
 // ==================== 验证层 ====================
+// ⚠️ 推荐：如果验证逻辑会被多个端点复用，应该创建共享 Validator
+// 参考 features/shared/validators/task_validator.rs
+//
+// 如果只在当前端点使用，可以保留在 validation 模块中
 mod validation {
     use super::*;
+    use crate::infra::core::ValidationError;
 
     pub fn validate_request(request: &CreateEntityRequest) -> AppResult<()> {
         let mut errors = Vec::new();
 
         // 验证 name
         if request.name.trim().is_empty() {
-            errors.push("name cannot be empty");
+            errors.push(ValidationError::new("name", "名称不能为空", "REQUIRED"));
         }
 
         if request.name.len() > 255 {
-            errors.push("name too long");
+            errors.push(ValidationError::new("name", "名称长度不能超过255个字符", "MAX_LENGTH"));
         }
 
         if !errors.is_empty() {
-            return Err(AppError::ValidationFailed(errors.join(", ")));
+            return Err(AppError::ValidationFailed(errors));
         }
 
         Ok(())
     }
 }
+
+// 🔍 如果验证逻辑需要复用，使用共享 Validator：
+// use crate::features::shared::XxxValidator;
+// XxxValidator::validate_create_request(&request)?;
 
 // ==================== 业务逻辑层 ====================
 mod logic {
@@ -446,13 +674,28 @@ TransactionHelper::commit(tx).await?;
 
 ```rust
 // ✅ 正确: 使用已有的 Repository
-use crate::features::shared::repositories::TaskRepository;
+use crate::features::shared::TaskRepository;
 
 let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
+
+// ✅ 正确: 使用已有的 Validator
+use crate::features::shared::TaskValidator;
+
+TaskValidator::validate_create_request(&request)?;
+
+// ✅ 正确: 使用已有的 Assembler
+use crate::features::shared::TaskAssembler;
+
+let task_card = TaskAssembler::task_to_card_full(&task, schedule_status, area, schedule_info);
 
 // ❌ 错误: 重复实现查询
 mod database {
     pub async fn find_task(...) { ... }  // TaskRepository 已经提供了!
+}
+
+// ❌ 错误: 重复实现验证
+mod validation {
+    pub fn validate_task(...) { ... }  // TaskValidator 已经提供了!
 }
 ```
 
@@ -530,45 +773,74 @@ Ok(Response { task: task_card })
 
 ### Step 5: 注册路由
 
-#### 5.1 Feature 路由
+#### 5.1 端点模块导出
 
-**文件**: `src-tauri/src/features/xxx/mod.rs`
+**文件**: `src-tauri/src/features/endpoints/xxx/mod.rs`
 
 ```rust
-use axum::{routing::{get, post, patch, delete}, Router};
-use crate::startup::AppState;
+/// XXX endpoints
+/// XXX 相关的 HTTP 端点
 
-pub mod endpoints {
-    pub mod create_xxx;
-    pub mod list_xxx;
-    pub mod update_xxx;
-    pub mod delete_xxx;
-}
+pub use create_xxx::handle as create_xxx;
+pub use list_xxx::handle as list_xxx;
+pub use update_xxx::handle as update_xxx;
+pub use delete_xxx::handle as delete_xxx;
+
+mod create_xxx;
+mod list_xxx;
+mod update_xxx;
+mod delete_xxx;
+```
+
+#### 5.2 Feature 路由
+
+**文件**: `src-tauri/src/features/xxx.rs`
+
+```rust
+/// XXX 功能模块
+use axum::{
+    routing::{get, post, patch, delete},
+    Router,
+};
+
+use crate::startup::AppState;
+use crate::features::endpoints::xxx as endpoints;
 
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/",
-            get(endpoints::list_xxx::handle)
-                .post(endpoints::create_xxx::handle)
-        )
-        .route("/:id",
-            get(endpoints::get_xxx::handle)
-                .patch(endpoints::update_xxx::handle)
-                .delete(endpoints::delete_xxx::handle)
-        )
+        .route("/", get(endpoints::list_xxx))
+        .route("/", post(endpoints::create_xxx))
+        .route("/:id", get(endpoints::get_xxx))
+        .route("/:id", patch(endpoints::update_xxx))
+        .route("/:id", delete(endpoints::delete_xxx))
 }
 ```
 
-#### 5.2 全局路由
+#### 5.3 全局端点模块
+
+**文件**: `src-tauri/src/features/endpoints/mod.rs`
+
+```rust
+/// 所有 HTTP 端点
+pub mod area;
+pub mod xxx;  // ← 添加
+// ... 其他端点模块
+```
+
+#### 5.4 全局路由
 
 **文件**: `src-tauri/src/features/mod.rs`
 
 ```rust
-pub mod xxx;  // ← 添加
+pub mod areas;
+pub mod xxx;  // ← 添加功能模块
+
+pub mod endpoints;  // 端点模块声明
 
 pub fn create_api_router() -> Router<AppState> {
     Router::new()
-        .nest("/xxx", xxx::create_routes())  // ← 添加
+        .nest("/areas", areas::create_routes())
+        .nest("/xxx", xxx::create_routes())  // ← 添加路由
         // ... 其他路由
 }
 ```
@@ -913,33 +1185,129 @@ async function handleDelete(id: string) {
 
 ## 公共资源完整清单
 
-### 后端共享资源
+### 后端共享资源概览
 
-#### 1. 跨功能共享 (`features/shared`)
+后端共享资源分为两大类：
 
-##### 📦 Repositories
+1. **基础设施层** (`infra/`): 技术性基础组件
+2. **业务共享层** (`features/shared/`): 业务逻辑复用
 
-**`AreaRepository`** (`features/shared/repositories/area_repository.rs`)
+---
+
+### 1. 基础设施层资源 (`infra/`)
+
+#### 📌 核心错误和结果类型 (`infra/core/error.rs`)
 
 ```rust
-// 获取单个 Area 摘要
-pub async fn get_summary(
-    executor: impl sqlx::Executor<'_, Database = Sqlite>,
-    area_id: Uuid,
-) -> AppResult<Option<AreaSummary>>
+use crate::infra::core::{AppError, AppResult, DbError, ValidationError};
 
-// 批量获取 Area 摘要
-pub async fn get_summaries_batch(
-    executor: impl sqlx::Executor<'_, Database = Sqlite>,
-    area_ids: &[Uuid],
-) -> AppResult<Vec<AreaSummary>>
+// AppError - 应用错误枚举
+pub enum AppError {
+    DatabaseError(DbError),
+    ValidationFailed(Vec<ValidationError>),
+    NotFound(String),
+    Conflict(String),
+    // ...
+}
+
+// AppResult - 应用结果类型别名
+pub type AppResult<T> = Result<T, AppError>;
+
+// ValidationError - 验证错误结构
+pub struct ValidationError {
+    pub field: String,
+    pub message: String,
+    pub code: String,
+}
+
+// 便捷方法
+impl AppError {
+    pub fn validation_error(field: &str, message: &str, code: &str) -> Self;
+}
 ```
 
-##### 🔧 Utilities
-
-**`TransactionHelper`** (`features/shared/transaction.rs`)
+#### 📌 HTTP 响应构建 (`infra/http/responses.rs`)
 
 ```rust
+use crate::infra::http::{success_response, created_response};
+
+// 200 OK 响应
+pub fn success_response<T: Serialize>(data: T) -> impl IntoResponse
+
+// 201 Created 响应
+pub fn created_response<T: Serialize>(data: T) -> impl IntoResponse
+
+// ApiResponse 包装结构
+pub struct ApiResponse<T> {
+    pub data: T,
+    pub timestamp: DateTime<Utc>,
+    pub request_id: Option<String>,
+}
+```
+
+#### 📌 依赖注入抽象 (`infra/ports/`)
+
+```rust
+use crate::infra::ports::{Clock, IdGenerator, SystemClock, UuidV4Generator};
+
+// Clock trait - 时钟抽象
+pub trait Clock {
+    fn now_utc(&self) -> DateTime<Utc>;
+}
+
+// IdGenerator trait - ID 生成器抽象
+pub trait IdGenerator {
+    fn new_uuid(&self) -> Uuid;
+}
+
+// 从 AppState 获取
+let id = app_state.id_generator().new_uuid();
+let now = app_state.clock().now_utc();
+```
+
+#### 📌 工具函数 (`infra/core/utils/`)
+
+```rust
+// 排序算法 (LexoRank)
+use crate::infra::core::utils::{
+    generate_initial_sort_order,
+    get_rank_after,
+    get_rank_before,
+    get_mid_lexo_rank,
+};
+
+// 时间工具
+use crate::infra::core::utils::time_utils;
+```
+
+---
+
+### 2. 业务共享层资源 (`features/shared/`)
+
+#### 📦 Repositories (`features/shared/repositories/`)
+
+**Repository Traits** (`traits.rs`)
+
+```rust
+use crate::features::shared::{Repository, QueryableRepository, BatchRepository};
+
+// 基础 CRUD trait
+#[async_trait]
+pub trait Repository<Entity, ID = Uuid> {
+    async fn find_by_id_in_tx(tx: &mut Transaction<'_, Sqlite>, id: ID) -> AppResult<Option<Entity>>;
+    async fn find_by_id(pool: &SqlitePool, id: ID) -> AppResult<Option<Entity>>;
+    async fn insert_in_tx(tx: &mut Transaction<'_, Sqlite>, entity: &Entity) -> AppResult<()>;
+    async fn update_in_tx(tx: &mut Transaction<'_, Sqlite>, entity: &Entity) -> AppResult<()>;
+    async fn soft_delete_in_tx(tx: &mut Transaction<'_, Sqlite>, id: ID) -> AppResult<()>;
+    async fn hard_delete_in_tx(tx: &mut Transaction<'_, Sqlite>, id: ID) -> AppResult<()>;
+}
+```
+
+**Transaction Helper** (`transaction.rs`)
+
+```rust
+use crate::features::shared::TransactionHelper;
+
 // 开始事务 (统一错误处理)
 pub async fn begin(pool: &SqlitePool) -> AppResult<Transaction<'_, Sqlite>>
 
@@ -947,23 +1315,107 @@ pub async fn begin(pool: &SqlitePool) -> AppResult<Transaction<'_, Sqlite>>
 pub async fn commit(tx: Transaction<'_, Sqlite>) -> AppResult<()>
 ```
 
+**具体 Repository 实现**:
+
+- `AreaRepository` - Area 数据访问
+- `TaskRepository` - Task 数据访问
+- `TaskScheduleRepository` - TaskSchedule 数据访问
+- `TaskRecurrenceRepository` - TaskRecurrence 数据访问
+- `TaskRecurrenceLinkRepository` - 循环任务关联
+- `TaskTimeBlockLinkRepository` - 任务-时间块关联
+- `TimeBlockRepository` - TimeBlock 数据访问
+
 **使用示例**:
 
 ```rust
-use crate::features::shared::{repositories::AreaRepository, TransactionHelper};
+use crate::features::shared::{TaskRepository, TransactionHelper};
 
 let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
-// ... 业务逻辑 ...
+let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id).await?;
 TransactionHelper::commit(tx).await?;
+```
+
+#### 🏗️ Assemblers (`features/shared/assemblers/`)
+
+**Assemblers** 负责将数据库记录组装成 DTO
+
+**可用的 Assemblers**:
+
+- `TaskAssembler` - 组装 TaskCardDto、TaskDetailDto
+- `LinkedTaskAssembler` - 组装 LinkedTaskSummary（任务摘要）
+- `TimeBlockAssembler` - 组装 TimeBlockViewDto
+- `ViewTaskCardAssembler` - 批量组装 TaskCard（包括 area、schedule_status）
+
+**使用示例**:
+
+```rust
+use crate::features::shared::{TaskAssembler, TimeBlockAssembler};
+
+// 创建基础 TaskCard
+let task_card = TaskAssembler::task_to_card_basic(&task);
+
+// 创建完整 TaskCard
+let task_card = TaskAssembler::task_to_card_full(&task, schedule_status, area, schedule_info);
+
+// 组装 TimeBlock视图
+let time_block_view = TimeBlockAssembler::assemble_view(&time_block, pool).await?;
+```
+
+#### ✅ Validators (`features/shared/validators/`)
+
+**Validators** 负责数据验证逻辑
+
+**可用的 Validators**:
+
+- `TaskValidator` - Task 创建/更新请求验证
+- `TimeBlockValidator` - TimeBlock 创建/更新请求验证
+
+**使用示例**:
+
+```rust
+use crate::features::shared::{TaskValidator, TimeBlockValidator};
+
+// 验证创建任务请求
+TaskValidator::validate_create_request(&request)?;
+
+// 验证更新任务请求
+TaskValidator::validate_update_request(&request)?;
+
+// 验证时间块请求
+TimeBlockValidator::validate_create_request(&request)?;
+```
+
+#### 🔧 Services (`features/shared/services/`)
+
+**Services** 提供跨功能的业务逻辑
+
+**可用的 Services**:
+
+- `AiClassificationService` - AI 分类服务
+- `RecurrenceInstantiationService` - 循环任务实例化服务
+- `TimeBlockConflictChecker` - 时间块冲突检测
+
+**使用示例**:
+
+```rust
+use crate::features::shared::TimeBlockConflictChecker;
+
+// 检查时间冲突
+TimeBlockConflictChecker::check_in_tx(
+    &mut tx,
+    start_time,
+    end_time,
+    Some(exclude_id),
+).await?;
 ```
 
 ---
 
-#### 2. Tasks 模块共享 (`features/tasks/shared`)
+#### 详细 API 参考
 
-##### 📦 Repositories
+以下是主要 Repositories 的详细 API：
 
-**`TaskRepository`** (`repositories/task_repository.rs`)
+##### `TaskRepository` (`features/shared/repositories/task_repository.rs`)
 
 ```rust
 // 在事务中查询任务
@@ -1104,65 +1556,7 @@ pub async fn count_remaining_tasks_in_block_in_tx(
 ) -> AppResult<i64>
 ```
 
-##### 🏗️ Assemblers
-
-**`TaskAssembler`** (`shared/assembler.rs`)
-
-```rust
-// 从 Task 实体创建基础 TaskCardDto
-pub fn task_to_card_basic(task: &Task) -> TaskCardDto
-
-// 创建完整 TaskCardDto
-pub fn task_to_card_full(
-    task: &Task,
-    schedule_status: ScheduleStatus,
-    area: Option<AreaSummary>,
-    schedule_info: Option<ScheduleInfo>,
-) -> TaskCardDto
-
-// 创建基础 TaskDetailDto
-pub fn task_to_detail_basic(task: &Task) -> TaskDetailDto
-```
-
-**`LinkedTaskAssembler`** (`shared/assemblers/linked_task_assembler.rs`)
-
-```rust
-// 批量获取任务摘要
-pub async fn get_summaries_batch(
-    executor: impl sqlx::Executor<'_, Database = Sqlite>,
-    task_ids: &[Uuid],
-) -> AppResult<Vec<LinkedTaskSummary>>
-
-// 获取时间块关联的任务摘要
-pub async fn get_for_time_block(
-    executor: impl sqlx::Executor<'_, Database = Sqlite>,
-    block_id: Uuid,
-) -> AppResult<Vec<LinkedTaskSummary>>
-```
-
-**`TimeBlockAssembler`** (`shared/assemblers/time_block_assembler.rs`)
-
-```rust
-// 查询并组装完整的 TimeBlockViewDto (用于事件载荷)
-pub async fn assemble_for_event_in_tx(
-    tx: &mut Transaction<'_, Sqlite>,
-    time_block_ids: &[Uuid],
-) -> AppResult<Vec<TimeBlockViewDto>>
-
-// 从 TimeBlock 实体组装视图 (非事务版本)
-pub async fn assemble_view(
-    block: &TimeBlock,
-    pool: &SqlitePool,
-) -> AppResult<TimeBlockViewDto>
-```
-
----
-
-#### 3. TimeBlocks 模块共享 (`features/time_blocks/shared`)
-
-##### 📦 Repositories
-
-**`TimeBlockRepository`** (`repositories/time_block_repository.rs`)
+##### `TimeBlockRepository` (`features/shared/repositories/time_block_repository.rs`)
 
 ```rust
 // 在事务中查询时间块
@@ -1216,83 +1610,6 @@ pub async fn exists_in_tx(
     tx: &mut Transaction<'_, Sqlite>,
     block_id: Uuid,
 ) -> AppResult<bool>
-```
-
-##### 🔍 Utilities
-
-**`TimeBlockConflictChecker`** (`shared/conflict_checker.rs`)
-
-```rust
-// 检查时间冲突
-pub async fn check_in_tx(
-    tx: &mut Transaction<'_, Sqlite>,
-    start_time: DateTime<Utc>,
-    end_time: DateTime<Utc>,
-    exclude_id: Option<Uuid>,
-) -> AppResult<()>
-```
-
----
-
-#### 4. Views 模块共享 (`features/views/shared`)
-
-##### 🏗️ Assemblers
-
-**`ViewTaskCardAssembler`** (`shared/task_card_assembler.rs`)
-
-```rust
-// 为 Task 组装完整 TaskCard (包括 area、schedule_status)
-pub async fn assemble_full(
-    task: &Task,
-    pool: &SqlitePool,
-) -> AppResult<TaskCardDto>
-
-// 批量组装 TaskCards
-pub async fn assemble_batch(
-    tasks: &[Task],
-    pool: &SqlitePool,
-) -> AppResult<Vec<TaskCardDto>>
-
-// 组装 TaskCard 并明确设置 schedule_status
-pub async fn assemble_with_status(
-    task: &Task,
-    pool: &SqlitePool,
-    status: ScheduleStatus,
-) -> AppResult<TaskCardDto>
-```
-
----
-
-#### 5. 通用工具 (`shared/core/utils`)
-
-##### 排序算法 (LexoRank)
-
-**`sort_order_utils.rs`**
-
-```rust
-use crate::infra::core::utils::{
-    generate_initial_sort_order,  // 生成初始排序字符串
-    get_rank_after,                // 在指定位置之后
-    get_rank_before,               // 在指定位置之前
-    get_mid_lexo_rank,             // 在两个位置之间
-};
-
-// ✅ 正确使用
-let sort_order = get_rank_after(&max)?;
-
-// ❌ 错误: 自行实现排序算法
-let mut chars: Vec<char> = max.chars().collect();
-*last_char = ((*last_char as u8) + 1) as char;  // 不符合 LexoRank 规范
-```
-
-##### 时间工具
-
-**`time_utils.rs`**
-
-```rust
-use crate::infra::core::utils::time_utils;
-
-// 时间处理相关工具函数
 ```
 
 ---
@@ -1393,9 +1710,10 @@ grep -rn "SELECT.*FROM time_blocks" src-tauri/src/features
 
 **示例: TimeBlock 的跨功能依赖**
 
-- **主功能**: `features/time_blocks/`
-- **跨功能装配器**: `features/tasks/shared/assemblers/time_block_assembler.rs`
-- **跨功能 Repository**: `features/tasks/shared/repositories/task_time_block_link_repository.rs`
+- **主功能端点**: `features/endpoints/time_blocks/`
+- **共享装配器**: `features/shared/assemblers/time_block_assembler.rs`
+- **共享 Repository**: `features/shared/repositories/time_block_repository.rs`
+- **关联 Repository**: `features/shared/repositories/task_time_block_link_repository.rs`
 
 修改 TimeBlock 实体时,必须同时更新所有这些位置!
 
@@ -1591,18 +1909,18 @@ if (!taskCard.id) {  // ❌ taskCard.id 是 undefined！
 后端统一使用 `ApiResponse<T>` 包装所有成功响应:
 
 ```rust
-// src-tauri/src/shared/http/responses.rs
+// src-tauri/src/infra/http/responses.rs
 pub struct ApiResponse<T> {
     pub data: T,
     pub timestamp: DateTime<Utc>,
     pub request_id: Option<String>,
 }
 
-// src-tauri/src/shared/http/error_handler.rs
+// src-tauri/src/infra/http/responses.rs
 pub fn created_response<T: serde::Serialize>(data: T) -> impl IntoResponse {
     (
         StatusCode::CREATED,
-        Json(super::responses::ApiResponse::success(data)),
+        Json(ApiResponse::success(data)),
     )
 }
 ```
@@ -1746,7 +2064,7 @@ if let Some(ref area_id_opt) = request.area_id {
 - `src-tauri/src/entities/task/request_dtos.rs` - Task 的三态字段实现
 - `src-tauri/src/entities/template/request_dtos.rs` - Template 的三态字段实现
 - `src-tauri/src/entities/time_block/request_dtos.rs` - TimeBlock 的三态字段实现
-- `src-tauri/src/features/tasks/shared/repositories/task_repository.rs` - Task 的绑定逻辑
+- `src-tauri/src/features/shared/repositories/task_repository.rs` - Task 的绑定逻辑
 
 **完整数据流示例**:
 
@@ -1923,7 +2241,7 @@ if let Some(duration) = request.duration {  // 应该是 Some(Some(duration))
 - [ ] Entity: entities/xxx/model.rs (Entity + EntityRow + TryFrom)
 - [ ] Request DTO: entities/xxx/request_dtos.rs
 - [ ] Response DTO: entities/xxx/response_dtos.rs
-- [ ] Assembler: features/xxx/shared/assembler.rs
+- [ ] Assembler: features/shared/assemblers/xxx_assembler.rs (如果使用共享 Assembler)
 - [ ] Repository: 所有 SELECT/INSERT/UPDATE SQL
 - [ ] 跨功能装配器: `grep -rn "XxxDto {" src-tauri/src/features`
 - [ ] 跨功能 Repository: `grep -rn "SELECT.*FROM xxx" src-tauri/src/features`
@@ -2071,35 +2389,141 @@ return entity
 
 ---
 
+### Q8: `infra/` 和 `features/shared/` 有什么区别？
+
+**A**: 两者的核心区别在于**关注点**
+
+**`infra/` - 基础设施层**:
+
+- **关注点**: 技术实现（How）
+- **职责**: HTTP、数据库、日志、事件等技术性组件
+- **无业务语义**: 不包含任何业务规则
+- **示例**: `AppError`, `success_response`, `Clock`, `IdGenerator`
+
+**`features/shared/` - 业务共享层**:
+
+- **关注点**: 业务逻辑（What）
+- **职责**: Repositories、Assemblers、Services、Validators
+- **包含业务语义**: 理解领域概念（Task、TimeBlock 等）
+- **示例**: `TaskRepository`, `TaskValidator`, `TaskAssembler`
+
+**错误示例**:
+
+```rust
+// ❌ 错误: shared 已重命名为 infra
+use crate::shared::core::AppError;
+
+// ❌ 错误: 混淆业务层和基础设施层
+use crate::features::shared::AppError;  // AppError 在 infra 中
+use crate::infra::TaskRepository;       // TaskRepository 在 features/shared 中
+```
+
+**正确示例**:
+
+```rust
+// ✅ 基础设施导入
+use crate::infra::core::{AppError, AppResult};
+use crate::infra::http::success_response;
+
+// ✅ 业务共享导入
+use crate::features::shared::{TaskRepository, TaskValidator};
+```
+
+**快速判断**:
+
+- 如果涉及 Task、TimeBlock、Area 等领域概念 → `features/shared/`
+- 如果是通用错误、HTTP、日志等技术工具 → `infra/`
+
+**相关章节**: 见 [后端架构概览](#后端架构概览)
+
+---
+
 ## 总结
 
 ### 开发新功能的核心步骤
 
-1. **查看 Schema** - 理解数据结构
-2. **查看共享资源** - 避免重复实现
-3. **参考类似功能** - 复用模式
-4. **遵循 SFC 规范** - 统一代码结构
-5. **填充完整数据** - 确保数据真实性
-6. **SSE 一致性** - 与 HTTP 返回相同数据
-7. **完整测试** - 端到端验证
+1. **理解架构** - 清楚 `infra/` 和 `features/shared/` 的区别
+2. **查看 Schema** - 理解数据结构
+3. **查看共享资源** - 避免重复实现
+4. **参考类似功能** - 复用模式
+5. **遵循 SFC 规范** - 统一代码结构
+6. **使用共享层** - Repository、Validator、Assembler
+7. **填充完整数据** - 确保数据真实性
+8. **SSE 一致性** - 与 HTTP 返回相同数据
+9. **完整测试** - 端到端验证
 
 ### 记住这些原则
 
+- ✅ **分层清晰**: `infra/` (技术) vs `features/shared/` (业务)
 - ✅ **Schema 优先**: 先看数据库,不要猜测
 - ✅ **复用优先**: 使用共享资源,不要重复
 - ✅ **数据真实**: 查询实际状态,不用默认值
 - ✅ **SSE 一致**: 先填充数据,再发送事件
 - ✅ **文档驱动**: 代码必须与 CABC 文档一致
 - ✅ **响应提取**: 前端必须从 `responseData.data` 提取数据
+- ✅ **正确导入**: 基础设施从 `infra`，业务逻辑从 `features/shared`
+
+### 架构原则
+
+**Cutie 采用清晰的分层架构**:
+
+```
+infra/              ← 基础设施（技术实现）
+features/
+  ├── shared/       ← 业务共享层（业务逻辑复用）
+  ├── endpoints/    ← HTTP 端点层（API handlers）
+  └── *.rs          ← 功能模块（路由定义）
+entities/           ← 领域模型（DTOs）
+```
+
+**依赖方向**: endpoints → shared → infra
+
+**关键区别**:
+
+- `infra`: AppError, success_response, Clock, IdGenerator
+- `features/shared`: TaskRepository, TaskValidator, TaskAssembler
 
 ### 遇到问题时
 
-1. 查文档 (本手册、SFC_SPEC、LESSONS_LEARNED)
-2. 看代码 (参考类似功能)
-3. 检查清单 (确保没有遗漏步骤)
-4. 查 Schema (确认数据库结构)
-5. 调试数据流 (使用 console.log 和 DevTools)
+1. **查文档** (本手册、后端架构概览、SFC_SPEC、LESSONS_LEARNED)
+2. **看代码** (参考类似功能)
+3. **检查清单** (确保没有遗漏步骤)
+4. **查 Schema** (确认数据库结构)
+5. **理解分层** (确认模块应该放在哪一层)
+6. **调试数据流** (使用 console.log 和 DevTools)
+
+### 快速参考
+
+**基础设施层导入**:
+
+```rust
+use crate::infra::core::{AppError, AppResult};
+use crate::infra::http::{success_response, created_response};
+use crate::infra::ports::{Clock, IdGenerator};
+```
+
+**业务共享层导入**:
+
+```rust
+use crate::features::shared::{
+    TaskRepository,
+    TaskValidator,
+    TaskAssembler,
+    TransactionHelper,
+};
+```
+
+**端点文件位置**:
+
+- 端点实现: `features/endpoints/xxx/create_xxx.rs`
+- 端点导出: `features/endpoints/xxx/mod.rs`
+- 路由定义: `features/xxx.rs`
 
 ---
 
 **记住: Cutie 的架构是经过深思熟虑的,遵循规范可以避免 90% 的问题!** 📚✨
+
+**版本历史**:
+
+- v1.0 (2025-10-08): 初版
+- v2.0 (2025-10-12): 更新架构（`shared` → `infra`，新增 `features/shared/validators`）
