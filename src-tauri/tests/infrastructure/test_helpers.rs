@@ -3,7 +3,7 @@
 /// 提供创建测试环境的便捷函数
 use explore_lib::{
     config::AppConfig,
-    shared::{
+    infra::{
         events::sse::SseState,
         ports::{SystemClock, UuidV4Generator},
     },
@@ -25,4 +25,3 @@ pub fn create_test_app_state(db_pool: SqlitePool) -> AppState {
         Arc::new(SseState::new()),
     )
 }
-
