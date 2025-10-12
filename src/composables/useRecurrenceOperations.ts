@@ -4,7 +4,7 @@ import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/services/logger'
-import { waitForApiReady } from '@/composables/useApiConfig'
+import { apiPatch } from '@/stores/shared'
 
 /**
  * 循环任务操作 Composable
@@ -158,29 +158,10 @@ export function useRecurrenceOperations() {
       )
 
       // 5. 调用新的统一端点
-      const response = await fetch(
-        `${await waitForApiReady()}/recurrences/${recurrenceId}/template-and-instances`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }
-      )
+      const result = await apiPatch(`/recurrences/${recurrenceId}/template-and-instances`, payload)
 
       // 6. 检查结果
-      if (!response.ok) {
-        const errorText = await response.text()
-        logger.error(
-          LogTags.COMPOSABLE_RECURRENCE,
-          'Batch update template and instances failed',
-          new Error(`HTTP ${response.status}`),
-          { errorText }
-        )
-        throw new Error(`批量更新失败: HTTP ${response.status}: ${errorText}`)
-      }
-
-      const result = await response.json()
-      const { template_updated, instances_updated_count } = result.data || result
+      const { template_updated, instances_updated_count } = result
 
       logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Template and instances updated successfully', {
         recurrenceId,

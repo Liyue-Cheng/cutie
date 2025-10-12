@@ -31,7 +31,10 @@
       "Bash(git log --since=\"15 days ago\" --all --oneline --pretty=format:\"%s\")",
       "Bash(git log --since=\"15 days ago\" --all --pretty=format:\"%h|%an|%ad|%s\" --date=short)",
       "Bash(git log --since=\"15 days ago\" --all --pretty=format:\"%s\")",
-      "Bash(cat CLAUDE.md)"
+      "Bash(cat CLAUDE.md)",
+      "WebFetch(domain:tanstack.com)",
+      "WebSearch",
+      "WebFetch(domain:rishpandey.com)"
     ],
     "deny": [],
     "ask": []

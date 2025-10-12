@@ -1,4 +1,4 @@
-import { apiBaseUrl } from '@/composables/useApiConfig'
+import { apiPost, apiPatch, apiDelete } from '@/stores/shared'
 import type {
   CreateTaskRecurrencePayload,
   TaskRecurrence,
@@ -9,19 +9,7 @@ import { addOrUpdateRecurrence, removeRecurrence } from './core'
 export async function createRecurrence(
   payload: CreateTaskRecurrencePayload
 ): Promise<TaskRecurrence> {
-  const response = await fetch(`${apiBaseUrl.value}/recurrences`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to create recurrence')
-  }
-
-  // ✅ 正确：提取 .data 字段
-  const responseData = await response.json()
-  const recurrence: TaskRecurrence = responseData.data
+  const recurrence: TaskRecurrence = await apiPost('/recurrences', payload)
   addOrUpdateRecurrence(recurrence)
   return recurrence
 }
@@ -30,31 +18,12 @@ export async function updateRecurrence(
   id: string,
   payload: UpdateTaskRecurrencePayload
 ): Promise<TaskRecurrence> {
-  const response = await fetch(`${apiBaseUrl.value}/recurrences/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to update recurrence')
-  }
-
-  // ✅ 正确：提取 .data 字段
-  const responseData = await response.json()
-  const recurrence: TaskRecurrence = responseData.data
+  const recurrence: TaskRecurrence = await apiPatch(`/recurrences/${id}`, payload)
   addOrUpdateRecurrence(recurrence)
   return recurrence
 }
 
 export async function deleteRecurrence(id: string): Promise<void> {
-  const response = await fetch(`${apiBaseUrl.value}/recurrences/${id}`, {
-    method: 'DELETE',
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to delete recurrence')
-  }
-
+  await apiDelete(`/recurrences/${id}`)
   removeRecurrence(id)
 }

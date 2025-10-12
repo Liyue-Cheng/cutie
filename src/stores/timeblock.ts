@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TimeBlockView, TimeType } from '@/types/dtos'
-import { waitForApiReady, apiBaseUrl } from '@/composables/useApiConfig'
 import { getEventSubscriber } from '@/services/events'
 import { logger, LogTags } from '@/services/logger'
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/stores/shared'
 
 /**
  * TimeBlock Store
@@ -251,14 +251,10 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     error.value = null
 
     try {
-      const apiBaseUrl = await waitForApiReady()
       const params = new URLSearchParams()
       params.append('start_date', startDate)
       params.append('end_date', endDate)
-      const response = await fetch(`${apiBaseUrl}/time-blocks?${params}`)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
-      const blocks: TimeBlockView[] = result.data
+      const blocks: TimeBlockView[] = await apiGet(`/time-blocks?${params}`)
       addOrUpdateTimeBlocks(blocks)
       logger.info(LogTags.STORE_TIMEBLOCK, 'Fetched time blocks for range', {
         count: blocks.length,
@@ -292,24 +288,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     logger.info(LogTags.STORE_TIMEBLOCK, 'Creating time block from task', { payload })
 
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/from-task`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        logger.error(
-          LogTags.STORE_TIMEBLOCK,
-          'API error creating time block from task',
-          new Error(JSON.stringify(errorData)),
-          { payload }
-        )
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
-      }
-      const result = await response.json()
-      const data: CreateFromTaskResponse = result.data
+      const data: CreateFromTaskResponse = await apiPost('/time-blocks/from-task', payload)
 
       // 更新时间块
       addOrUpdateTimeBlock(data.time_block)
@@ -343,24 +322,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     logger.info(LogTags.STORE_TIMEBLOCK, 'Creating time block', { payload })
 
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        logger.error(
-          LogTags.STORE_TIMEBLOCK,
-          'API error creating time block',
-          new Error(JSON.stringify(errorData)),
-          { payload }
-        )
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
-      }
-      const result = await response.json()
-      const newBlock: TimeBlockView = result.data // 提取 ApiResponse 的 data 字段
+      const newBlock: TimeBlockView = await apiPost('/time-blocks', payload)
       addOrUpdateTimeBlock(newBlock)
       logger.info(LogTags.STORE_TIMEBLOCK, 'Created time block', {
         timeBlockId: newBlock.id,
@@ -394,24 +356,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     logger.info(LogTags.STORE_TIMEBLOCK, 'Updating time block', { id, payload })
 
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        logger.error(
-          LogTags.STORE_TIMEBLOCK,
-          'API error creating time block',
-          new Error(JSON.stringify(errorData)),
-          { payload }
-        )
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`)
-      }
-      const result = await response.json()
-      const updatedBlock: TimeBlockView = result.data // 提取 ApiResponse 的 data 字段
+      const updatedBlock: TimeBlockView = await apiPatch(`/time-blocks/${id}`, payload)
       addOrUpdateTimeBlock(updatedBlock)
       logger.info(LogTags.STORE_TIMEBLOCK, 'Updated time block', {
         timeBlockId: updatedBlock.id,
@@ -441,11 +386,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     error.value = null
 
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/time-blocks/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      await apiDelete(`/time-blocks/${id}`)
       removeTimeBlock(id)
       logger.info(LogTags.STORE_TIMEBLOCK, 'Deleted time block', { timeBlockId: id })
       return true
@@ -675,14 +616,10 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // 重新获取该时间块的完整数据
     try {
-      await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl.value}/time-blocks?ids=${timeBlockId}`)
-      if (response.ok) {
-        const blocks: TimeBlockView[] = await response.json()
-        const block = blocks[0]
-        if (block) {
-          addOrUpdateTimeBlock(block)
-        }
+      const blocks: TimeBlockView[] = await apiGet(`/time-blocks?ids=${timeBlockId}`)
+      const block = blocks[0]
+      if (block) {
+        addOrUpdateTimeBlock(block)
       }
     } catch (error) {
       logger.error(

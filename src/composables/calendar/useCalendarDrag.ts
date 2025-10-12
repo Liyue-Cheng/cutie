@@ -1,9 +1,3 @@
-/**
- * useCalendarDrag - 日历拖拽功能
- *
- * 处理从任务列表拖拽任务到日历，创建时间块
- */
-
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import type { EventInput } from '@fullcalendar/core'
 import type FullCalendar from '@fullcalendar/vue3'
@@ -13,8 +7,8 @@ import type { ViewMetadata, CalendarViewConfig } from '@/types/drag'
 import { useCrossViewDrag, useDragTransfer } from '@/composables/drag'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
-import { apiBaseUrl } from '@/composables/useApiConfig'
 import { logger, LogTags } from '@/services/logger'
+import { apiPost } from '@/stores/shared'
 
 export function useCalendarDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -353,40 +347,22 @@ export function useCalendarDrag(
         })
 
         try {
-          // 调用链接API（使用动态端口）
-          const response = await fetch(
-            `${apiBaseUrl.value}/time-blocks/${eventIdToLink}/link-task`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                task_id: currentDraggedTask.value.id,
-              }),
-            }
-          )
+          // 调用链接API
+          const result = await apiPost(`/time-blocks/${eventIdToLink}/link-task`, {
+            task_id: currentDraggedTask.value.id,
+          })
 
-          if (!response.ok) {
-            const errorData = await response.json()
-            logger.error(
-              LogTags.COMPONENT_CALENDAR,
-              'Failed to link task',
-              new Error(errorData.message || 'Unknown error')
-            )
-            alert('链接任务失败：' + (errorData.message || '未知错误'))
-          } else {
-            const result = await response.json()
-            logger.info(LogTags.COMPONENT_CALENDAR, 'Successfully linked task', { result })
-            // 刷新任务数据会通过SSE事件自动触发
-          }
+          logger.info(LogTags.COMPONENT_CALENDAR, 'Successfully linked task', { result })
+          // 刷新任务数据会通过SSE事件自动触发
         } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : (error as any).message || '未知错误'
           logger.error(
             LogTags.COMPONENT_CALENDAR,
-            'Error linking task',
+            'Failed to link task',
             error instanceof Error ? error : new Error(String(error))
           )
-          alert('链接任务时发生错误')
+          alert('链接任务失败：' + errorMessage)
         } finally {
           // 清理状态
           clearPreviewEvent()

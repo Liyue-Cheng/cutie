@@ -2,7 +2,7 @@ import { waitForApiReady } from '@/composables/useApiConfig'
 
 /**
  * 统一的 API 客户端
- * 
+ *
  * 提供标准化的 API 调用接口，包含：
  * - 自动等待 API 就绪
  * - 统一的错误处理
@@ -27,24 +27,24 @@ export interface ApiResponse<T = any> {
  * @returns 解析后的响应数据
  */
 export async function apiCall<T = any>(
-  endpoint: string, 
+  endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<T> {
   const { correlationId, ...fetchOptions } = options
-  
+
   const apiBaseUrl = await waitForApiReady()
-  
+
   // 添加 Correlation ID 到请求头
   const headers = new Headers(fetchOptions.headers)
   if (correlationId) {
     headers.set('X-Correlation-ID', correlationId)
   }
-  
+
   const response = await fetch(`${apiBaseUrl}${endpoint}`, {
     ...fetchOptions,
     headers,
   })
-  
+
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`
     try {
@@ -55,7 +55,12 @@ export async function apiCall<T = any>(
     }
     throw new Error(errorMessage)
   }
-  
+
+  // 处理 204 No Content 响应（DELETE 操作）
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   const result: ApiResponse<T> = await response.json()
   return result.data
 }
@@ -71,8 +76,8 @@ export async function apiGet<T = any>(endpoint: string, correlationId?: string):
  * POST 请求的便捷方法
  */
 export async function apiPost<T = any>(
-  endpoint: string, 
-  data?: any, 
+  endpoint: string,
+  data?: any,
   correlationId?: string
 ): Promise<T> {
   return apiCall<T>(endpoint, {
@@ -84,11 +89,27 @@ export async function apiPost<T = any>(
 }
 
 /**
+ * PUT 请求的便捷方法
+ */
+export async function apiPut<T = any>(
+  endpoint: string,
+  data?: any,
+  correlationId?: string
+): Promise<T> {
+  return apiCall<T>(endpoint, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: data ? JSON.stringify(data) : undefined,
+    correlationId,
+  })
+}
+
+/**
  * PATCH 请求的便捷方法
  */
 export async function apiPatch<T = any>(
-  endpoint: string, 
-  data?: any, 
+  endpoint: string,
+  data?: any,
   correlationId?: string
 ): Promise<T> {
   return apiCall<T>(endpoint, {
@@ -102,9 +123,6 @@ export async function apiPatch<T = any>(
 /**
  * DELETE 请求的便捷方法
  */
-export async function apiDelete<T = any>(
-  endpoint: string, 
-  correlationId?: string
-): Promise<T> {
+export async function apiDelete<T = any>(endpoint: string, correlationId?: string): Promise<T> {
   return apiCall<T>(endpoint, { method: 'DELETE', correlationId })
 }

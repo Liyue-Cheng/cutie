@@ -1,4 +1,4 @@
-import { apiBaseUrl } from '@/composables/useApiConfig'
+import { apiPost, apiPatch, apiDelete } from '@/stores/shared'
 import type { Template, TemplateCategory, TaskCard } from '@/types/dtos'
 import { addOrUpdateTemplate, removeTemplate } from './core'
 
@@ -33,18 +33,7 @@ export interface UpdateTemplatePayload {
 }
 
 export async function createTemplate(payload: CreateTemplatePayload): Promise<Template> {
-  const response = await fetch(`${apiBaseUrl.value}/templates`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to create template')
-  }
-
-  const responseData = await response.json()
-  const template: Template = responseData.data // 提取 data 字段
+  const template: Template = await apiPost('/templates', payload)
   addOrUpdateTemplate(template)
   return template
 }
@@ -53,31 +42,13 @@ export async function updateTemplate(
   id: string,
   payload: UpdateTemplatePayload
 ): Promise<Template> {
-  const response = await fetch(`${apiBaseUrl.value}/templates/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to update template')
-  }
-
-  const responseData = await response.json()
-  const template: Template = responseData.data // 提取 data 字段
+  const template: Template = await apiPatch(`/templates/${id}`, payload)
   addOrUpdateTemplate(template)
   return template
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  const response = await fetch(`${apiBaseUrl.value}/templates/${id}`, {
-    method: 'DELETE',
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to delete template')
-  }
-
+  await apiDelete(`/templates/${id}`)
   removeTemplate(id)
 }
 
@@ -88,39 +59,11 @@ export async function createTaskFromTemplate(
   console.log('[Template Store] Creating task from template', {
     templateId,
     variables,
-    url: `${apiBaseUrl.value}/templates/${templateId}/create-task`,
+    url: `/templates/${templateId}/create-task`,
   })
 
-  const response = await fetch(`${apiBaseUrl.value}/templates/${templateId}/create-task`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(variables),
-  })
+  const taskCard: TaskCard = await apiPost(`/templates/${templateId}/create-task`, variables)
 
-  console.log('[Template Store] Response status', {
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText,
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('[Template Store] Failed to create task', {
-      status: response.status,
-      errorText,
-    })
-    throw new Error('Failed to create task from template')
-  }
-
-  const responseData = await response.json()
-  console.log('[Template Store] Received response data', {
-    responseData,
-    hasData: !!responseData?.data,
-    dataKeys: responseData?.data ? Object.keys(responseData.data) : [],
-  })
-
-  // 提取 data 字段（后端使用 ApiResponse 包装）
-  const taskCard: TaskCard = responseData.data
   console.log('[Template Store] Extracted task card', {
     taskCard,
     hasId: !!taskCard?.id,

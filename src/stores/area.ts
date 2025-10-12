@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { logger, LogTags } from '@/services/logger'
-import { waitForApiReady } from '@/composables/useApiConfig'
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/stores/shared'
 
 /**
  * Area Store
@@ -94,11 +94,7 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/areas`)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
-      const areaList: Area[] = result.data
+      const areaList: Area[] = await apiGet('/areas')
       addOrUpdateAreas(areaList)
       logger.info(LogTags.STORE_AREA, 'Fetched areas', { count: areaList.length })
     } catch (e) {
@@ -117,15 +113,7 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/areas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
-      const newArea: Area = result.data
+      const newArea: Area = await apiPost('/areas', payload)
       addOrUpdateArea(newArea)
       logger.info(LogTags.STORE_AREA, 'Created area', { areaId: newArea.id, name: newArea.name })
       return newArea
@@ -147,15 +135,7 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/areas/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
-      const updatedArea: Area = result.data
+      const updatedArea: Area = await apiPatch(`/areas/${id}`, payload)
       addOrUpdateArea(updatedArea)
       logger.info(LogTags.STORE_AREA, 'Updated area', {
         areaId: updatedArea.id,
@@ -180,11 +160,7 @@ export const useAreaStore = defineStore('area', () => {
     isLoading.value = true
     error.value = null
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/areas/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      await apiDelete(`/areas/${id}`)
       removeArea(id)
       logger.info(LogTags.STORE_AREA, 'Deleted area', { areaId: id })
       return true

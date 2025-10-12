@@ -1,8 +1,8 @@
 import { ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
-import { waitForApiReady } from '@/composables/useApiConfig'
 import { logger, LogTags } from '@/services/logger'
+import { apiGet, apiPut } from '@/stores/shared'
 
 /**
  * View Store V4.0 - 纯排序系统
@@ -130,27 +130,12 @@ export const useViewStore = defineStore('view', () => {
       sortWeights.value = newMap
 
       // ✅ 持久化到后端
-      const apiBaseUrl = await waitForApiReady()
       const requestBody = {
         context_key: viewKey,
         sorted_task_ids: orderedTaskIds,
       }
 
-      const response = await fetch(`${apiBaseUrl}/view-preferences`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        logger.error(LogTags.STORE_VIEW, 'Failed to save sorting', new Error(errorText), {
-          viewKey,
-        })
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
-      }
-
-      await response.json()
+      await apiPut('/view-preferences', requestBody)
       return true
     } catch (err) {
       logger.error(
@@ -214,30 +199,22 @@ export const useViewStore = defineStore('view', () => {
    */
   async function fetchViewPreference(viewKey: string): Promise<boolean> {
     try {
-      const apiBaseUrl = await waitForApiReady()
-      const response = await fetch(`${apiBaseUrl}/view-preferences/${encodeURIComponent(viewKey)}`)
-
-      if (response.status === 404) {
-        // ✅ 没有保存的配置，使用默认顺序（静默处理）
-        return true
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      const result = await response.json()
-      const data = result.data as {
+      const data = await apiGet<{
         context_key: string
         sorted_task_ids: string[]
         updated_at: string
-      }
+      }>(`/view-preferences/${encodeURIComponent(viewKey)}`)
 
       // 加载排序配置
       loadSorting(viewKey, data.sorted_task_ids)
 
       return true
     } catch (err) {
+      // 404 表示没有保存的配置，静默处理
+      if (err instanceof Error && err.message.includes('404')) {
+        return true
+      }
+
       logger.error(
         LogTags.STORE_VIEW,
         'Failed to fetch preference',
