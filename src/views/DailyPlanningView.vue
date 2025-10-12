@@ -49,42 +49,38 @@ function handleCalendarDateChange(date: string) {
 </script>
 
 <template>
-  <div class="daily-planning-container">
-    <!-- 左侧：Today 看板 -->
-    <div class="today-pane">
-      <TwoRowLayout>
-        <template #top>
-          <div class="pane-header">
-            <h2>Today</h2>
-            <span class="task-count">{{ todayTasks.length }} 个任务</span>
-          </div>
-        </template>
-        <template #bottom>
+  <div class="daily-planning-view">
+    <TwoRowLayout>
+      <!-- 上栏：标题 -->
+      <template #top>
+      <div class="header">
+        <h2>Daily Planning</h2>
+        <span class="task-count">{{ todayTasks.length }} tasks today</span>
+      </div>
+    </template>
+
+    <!-- 下栏：Today 看板 + 日历（横向排列） -->
+    <template #bottom>
+      <div class="content-container">
+        <!-- Today 看板 -->
+        <div class="kanban-wrapper">
           <SimpleKanbanColumn
-            title=""
+            title="Today"
             :subtitle="today"
             :tasks="todayTasks"
             view-key="daily-planning::today"
             drop-mode="schedule"
             @open-task-editor="handleOpenTaskEditor"
           />
-        </template>
-      </TwoRowLayout>
-    </div>
+        </div>
 
-    <!-- 右侧：日历 -->
-    <div class="calendar-pane">
-      <TwoRowLayout>
-        <template #top>
-          <div class="pane-header">
-            <h3>Calendar</h3>
-          </div>
-        </template>
-        <template #bottom>
+        <!-- 日历 -->
+        <div class="calendar-wrapper">
           <CuteCalendar :initial-date="today" @date-change="handleCalendarDateChange" />
-        </template>
-      </TwoRowLayout>
-    </div>
+        </div>
+      </div>
+    </template>
+    </TwoRowLayout>
   </div>
 
   <!-- 任务编辑器弹窗 -->
@@ -96,8 +92,8 @@ function handleCalendarDateChange(date: string) {
 </template>
 
 <style scoped>
-.daily-planning-container {
-  display: flex;
+/* ==================== 视图容器 ==================== */
+.daily-planning-view {
   height: 100%;
   width: 100%;
   background-color: var(--color-background-content);
@@ -105,43 +101,55 @@ function handleCalendarDateChange(date: string) {
   border-radius: 0.8rem;
 }
 
-.today-pane {
-  flex: 1;
-  min-width: 0;
-  border-right: 1px solid var(--color-border-default);
-  box-shadow: inset -4px 0 12px -2px rgb(0 0 0 / 5%);
-  position: relative;
-}
-
-.calendar-pane {
-  width: 28rem;
-  min-width: 0;
-}
-
-.pane-header {
+/* ==================== 上栏标题 ==================== */
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  padding: 0 1rem;
   gap: 1rem;
 }
 
-.pane-header h2,
-.pane-header h3 {
+.header h2 {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.pane-header h3 {
-  font-size: 1.6rem;
-  flex: 1;
-  text-align: center;
-}
-
 .task-count {
   font-size: 1.3rem;
   color: var(--color-text-tertiary);
+}
+
+/* ==================== 下栏容器 ==================== */
+.content-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  height: 100%;
+  width: 100%;
+  padding: 2rem;
+  overflow: auto;
+}
+
+/* ==================== 看板容器 ==================== */
+.kanban-wrapper {
+  width: 40rem;
+  max-width: 40rem;
+  height: 100%;
+  min-height: 0;
+  flex-shrink: 0;
+}
+
+/* ==================== 日历容器 ==================== */
+.calendar-wrapper {
+  width: 40rem;
+  max-width: 40rem;
+  height: 100%;
+  min-height: 0;
+  flex-shrink: 0;
 }
 </style>
