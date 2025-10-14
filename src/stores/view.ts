@@ -1,7 +1,7 @@
 import { ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import { apiGet, apiPut } from '@/stores/shared'
 
 /**

@@ -1,6 +1,6 @@
 import type { Template } from '@/types/dtos'
 import * as core from './core'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== Event Handlers ====================
 
@@ -10,7 +10,7 @@ import { logger, LogTags } from '@/services/logger'
 export function handleTemplateCreated(data: Template) {
   logger.info(LogTags.STORE_TEMPLATE, 'Template created event received', {
     templateId: data.id,
-    title: data.title
+    title: data.title,
   })
   core.addOrUpdateTemplate(data)
 }
@@ -21,7 +21,7 @@ export function handleTemplateCreated(data: Template) {
 export function handleTemplateUpdated(data: Template) {
   logger.info(LogTags.STORE_TEMPLATE, 'Template updated event received', {
     templateId: data.id,
-    title: data.title
+    title: data.title,
   })
   core.addOrUpdateTemplate(data)
 }
@@ -31,7 +31,7 @@ export function handleTemplateUpdated(data: Template) {
  */
 export function handleTemplateDeleted(data: { id: string }) {
   logger.info(LogTags.STORE_TEMPLATE, 'Template deleted event received', {
-    templateId: data.id
+    templateId: data.id,
   })
   core.removeTemplate(data.id)
 }
@@ -73,4 +73,3 @@ function useEventBus() {
   }
   return { eventBus }
 }
-

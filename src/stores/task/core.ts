@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import type { TaskCard, TaskDetail } from '@/types/dtos'
 import { updateMapItem, removeMapItem, createLoadingState } from '@/stores/shared'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * Task Store 核心状态管理
@@ -110,19 +110,21 @@ export function createTaskCore() {
   })
 
   /**
-   * 根据 ID 获取任务（返回当前最完整的信息）
+   * Mux: 根据 ID 获取任务（多路复用器）
+   * 纯函数，不调用 API
    */
-  function getTaskById(id: string): TaskCard | TaskDetail | undefined {
+  function getTaskById_Mux(id: string): TaskCard | TaskDetail | undefined {
     return tasks.value.get(id)
   }
 
   /**
-   * 获取指定日期的任务列表（响应式）
+   * Mux: 获取指定日期的任务列表（多路复用器）
    * ✅ 单一数据源：从 TaskStore 过滤，自动响应变化
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 过滤归档任务：归档的任务不会出现在日期看板
+   * ✅ 纯函数，不调用 API
    */
-  const getTasksByDate = computed(() => (date: string) => {
+  const getTasksByDate_Mux = computed(() => (date: string) => {
     const result = allTasksArray.value.filter((task) => {
       // 🔍 调试：打印每个任务的 schedules 信息
       // if (task.schedules && task.schedules.length > 0) {
@@ -151,20 +153,22 @@ export function createTaskCore() {
   })
 
   /**
-   * 根据项目 ID 获取任务列表
+   * Mux: 根据项目 ID 获取任务列表（多路复用器）
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 纯函数，不调用 API
    */
-  const getTasksByProject = computed(() => {
+  const getTasksByProject_Mux = computed(() => {
     return (projectId: string) => {
       return allTasksArray.value.filter((task) => task.project_id === projectId)
     }
   })
 
   /**
-   * 根据区域 ID 获取任务列表
+   * Mux: 根据区域 ID 获取任务列表（多路复用器）
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 纯函数，不调用 API
    */
-  const getTasksByArea = computed(() => {
+  const getTasksByArea_Mux = computed(() => {
     return (areaId: string) => {
       return allTasksArray.value.filter((task) => task.area_id === areaId)
     }
@@ -260,7 +264,7 @@ export function createTaskCore() {
     error,
     withLoading,
 
-    // Getters
+    // Getters (导线 - Wires)
     allTasks,
     allTasksArray,
     stagingTasks,
@@ -269,10 +273,12 @@ export function createTaskCore() {
     completedTasks,
     archivedTasks,
     scheduledTasks,
-    getTaskById,
-    getTasksByDate,
-    getTasksByProject,
-    getTasksByArea,
+
+    // Getters (多路复用器 - Mux)
+    getTaskById_Mux,
+    getTasksByDate_Mux,
+    getTasksByProject_Mux,
+    getTasksByArea_Mux,
 
     // Actions
     addOrUpdateTasks,

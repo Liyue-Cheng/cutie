@@ -1,10 +1,10 @@
 /**
  * Trash Store - Event Handlers
  */
-import { getEventSubscriber } from '@/services/events'
+import { getEventSubscriber } from '@/infra/events/events'
 import { addOrUpdateTrashedTask, removeTrashedTask } from './core'
-import type { DomainEvent } from '@/services/events'
-import { logger, LogTags } from '@/services/logger'
+import type { DomainEvent } from '@/infra/events/events'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 初始化事件订阅

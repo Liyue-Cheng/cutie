@@ -1,97 +1,107 @@
 import { defineStore } from 'pinia'
 import { createTaskCore } from './core'
-import { createViewOperations } from './view-operations'
-import { createCrudOperations } from './crud-operations'
+import { createLoaders } from './loaders'
+import { createMutations } from './mutations'
 import { createEventHandlers } from './event-handlers'
 
 /**
- * Task Store V2.0 - 模块化重构版本
+ * Task Store V4.0 - 纯状态容器版本
  *
- * 架构原则：
- * - State: 只存储最原始、最规范化的数据
- * - Actions: 负责执行操作、调用API、修改State
- * - Getters: 只负责从State中读取和计算数据，不修改State
+ * 架构演进：
+ * V1: 所有逻辑在 Store 中 (API + State)
+ * V2: 模块化拆分 (core/crud/view/events)
+ * V3: 职责分离 (Handler调用API, Store只管数据)
+ * V4: 彻底清理，Store = 寄存器 + 导线 + 多路复用器 ← 当前版本
  *
- * 模块化结构：
- * - core: 核心状态管理和计算属性
- * - view-operations: 视图相关的 API 调用
- * - crud-operations: 增删改查操作
- * - event-handlers: SSE 事件处理
+ * RTL 架构原则：
+ * - State: 寄存器 (registers)，只存储数据
+ * - Mutations: 寄存器写入操作 (_mut 后缀)
+ * - Getters: 导线 (wires) 和多路复用器 (_Mux 后缀)
+ * - ❌ 不包含 API 调用（由 Command Handler 负责）
+ * - ❌ 不包含业务逻辑（由 Command Handler 负责）
+ *
+ * 数据流：
+ * 组件 → commandBus → Handler → API → Store.mutation
+ *                                    ↓
+ *                               组件响应式更新
+ *
+ * 类比 CPU：
+ * - Store = 寄存器堆 (Register File)
+ * - Mutations = 寄存器写端口 (Write Port)
+ * - Getters/Mux = 寄存器读端口 + 多路复用器 (Read Port + Multiplexer)
+ * - Handler = 执行单元 (Execution Unit)
+ * - CommandBus = 指令译码器 (Instruction Decoder)
  */
 
 export const useTaskStore = defineStore('task', () => {
   // 创建核心状态管理
   const core = createTaskCore()
 
-  // 创建视图操作
-  const viewOps = createViewOperations(core)
+  // 创建纯数据操作方法
+  const mutations = createMutations(core)
 
-  // 创建 CRUD 操作
-  const crudOps = createCrudOperations(core)
+  // 创建数据加载器（仅用于初始化数据加载）
+  const loaders = createLoaders(core)
 
-  // 创建事件处理器
-  const eventHandlers = createEventHandlers(core, crudOps)
+  // 创建事件处理器（SSE 事件处理）
+  const eventHandlers = createEventHandlers(core)
 
   return {
     // ============================================================
-    // STATE & GETTERS - 从核心模块导出
+    // STATE (寄存器) - 只读访问
     // ============================================================
-
-    // State
     tasks: core.tasks,
     isLoading: core.isLoading,
     error: core.error,
 
-    // Getters - 所有视图的数据源
+    // ============================================================
+    // GETTERS (导线 + 多路复用器) - 计算属性和选择器
+    // ============================================================
+
+    // 计算属性（导线 - wires）
     allTasks: core.allTasks,
-    stagingTasks: core.stagingTasks, // ✅ 动态过滤
-    plannedTasks: core.plannedTasks, // ✅ 动态过滤
-    incompleteTasks: core.incompleteTasks, // ✅ 动态过滤
+    stagingTasks: core.stagingTasks,
+    plannedTasks: core.plannedTasks,
+    incompleteTasks: core.incompleteTasks,
     completedTasks: core.completedTasks,
     archivedTasks: core.archivedTasks,
-    scheduledTasks: core.scheduledTasks, // @deprecated
-    getTaskById: core.getTaskById,
-    getTasksByDate: core.getTasksByDate, // ✅ 日期看板专用
-    getTasksByProject: core.getTasksByProject,
-    getTasksByArea: core.getTasksByArea,
+
+    // 选择器（多路复用器 - Mux）
+    getTaskById_Mux: core.getTaskById_Mux,
+    getTasksByDate_Mux: core.getTasksByDate_Mux,
+    getTasksByProject_Mux: core.getTasksByProject_Mux,
+    getTasksByArea_Mux: core.getTasksByArea_Mux,
 
     // ============================================================
-    // ACTIONS - 从各个操作模块导出
+    // MUTATIONS (寄存器写入) - 纯数据操作
     // ============================================================
 
-    // 基础状态操作
-    addOrUpdateTasks: core.addOrUpdateTasks,
-    addOrUpdateTask: core.addOrUpdateTask,
-    removeTask: core.removeTask,
-    replaceTasksForDate: core.replaceTasksForDate,
+    // 任务操作
+    addOrUpdateTask_mut: mutations.addOrUpdateTask_mut,
+    batchAddOrUpdateTasks_mut: mutations.batchAddOrUpdateTasks_mut,
+    removeTask_mut: mutations.removeTask_mut,
+    batchRemoveTasks_mut: mutations.batchRemoveTasks_mut,
+    patchTask_mut: mutations.patchTask_mut,
+    clearAllTasks_mut: mutations.clearAllTasks_mut,
 
-    // 视图操作
-    fetchAllTasks: viewOps.fetchAllTasks,
-    fetchAllIncompleteTasks: viewOps.fetchAllIncompleteTasks,
-    fetchPlannedTasks: viewOps.fetchPlannedTasks,
-    fetchStagingTasks: viewOps.fetchStagingTasks,
-    fetchDailyTasks: viewOps.fetchDailyTasks,
-    refreshDailyTasks: viewOps.refreshDailyTasks,
-    searchTasks: viewOps.searchTasks,
+    // ============================================================
+    // DMA (Direct Memory Access) - 绕过指令流水线的数据传输
+    // ============================================================
 
-    // CRUD 操作
-    createTask: crudOps.createTask,
-    createTaskWithSchedule: crudOps.createTaskWithSchedule,
-    updateTask: crudOps.updateTask,
-    fetchTaskDetail: crudOps.fetchTaskDetail,
-    deleteTask: crudOps.deleteTask,
-    completeTask: crudOps.completeTask,
-    reopenTask: crudOps.reopenTask,
-    archiveTask: crudOps.archiveTask,
-    unarchiveTask: crudOps.unarchiveTask,
+    // DMA 传输方法（应用启动时批量加载数据）
+    fetchAllTasks_DMA: loaders.fetchAllTasks_DMA,
+    fetchAllIncompleteTasks_DMA: loaders.fetchAllIncompleteTasks_DMA,
+    fetchPlannedTasks_DMA: loaders.fetchPlannedTasks_DMA,
+    fetchStagingTasks_DMA: loaders.fetchStagingTasks_DMA,
+    fetchDailyTasks_DMA: loaders.fetchDailyTasks_DMA,
+    refreshDailyTasks_DMA: loaders.refreshDailyTasks_DMA,
+    fetchTaskDetail_DMA: loaders.fetchTaskDetail_DMA,
+    searchTasks_DMA: loaders.searchTasks_DMA,
 
-    // 日程管理操作
-    addSchedule: crudOps.addSchedule,
-    updateSchedule: crudOps.updateSchedule,
-    deleteSchedule: crudOps.deleteSchedule,
-    returnToStaging: crudOps.returnToStaging,
+    // ============================================================
+    // EVENT HANDLING (SSE 事件处理)
+    // ============================================================
 
-    // 事件处理
     initEventSubscriptions: eventHandlers.initEventSubscriptions,
   }
 })

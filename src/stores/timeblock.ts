@@ -1,8 +1,8 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TimeBlockView, TimeType } from '@/types/dtos'
-import { getEventSubscriber } from '@/services/events'
-import { logger, LogTags } from '@/services/logger'
+import { getEventSubscriber } from '@/infra/events/events'
+import { logger, LogTags } from '@/infra/logging/logger'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/stores/shared'
 
 /**
@@ -204,6 +204,46 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     timeBlocks.value = newMap
   }
 
+  // ============================================================
+  // MUTATIONS - 纯数据操作（RTL 命名规范）
+  // ============================================================
+
+  /**
+   * Mutation: 添加或更新时间块（纯数据操作）
+   */
+  function addOrUpdateTimeBlock_mut(block: TimeBlockView) {
+    addOrUpdateTimeBlock(block)
+    logger.debug(LogTags.STORE_TIMEBLOCK, `TimeBlock ${block.id} added/updated in store`)
+  }
+
+  /**
+   * Mutation: 批量添加或更新时间块
+   */
+  function batchAddOrUpdateTimeBlocks_mut(blocks: TimeBlockView[]) {
+    addOrUpdateTimeBlocks(blocks)
+    logger.debug(LogTags.STORE_TIMEBLOCK, `Batch updated ${blocks.length} time blocks`)
+  }
+
+  /**
+   * Mutation: 移除时间块
+   */
+  function removeTimeBlock_mut(id: string) {
+    removeTimeBlock(id)
+    logger.debug(LogTags.STORE_TIMEBLOCK, `TimeBlock ${id} removed from store`)
+  }
+
+  /**
+   * Mutation: 批量移除时间块
+   */
+  function batchRemoveTimeBlocks_mut(ids: string[]) {
+    const newMap = new Map(timeBlocks.value)
+    for (const id of ids) {
+      newMap.delete(id)
+    }
+    timeBlocks.value = newMap
+    logger.debug(LogTags.STORE_TIMEBLOCK, `Batch removed ${ids.length} time blocks`)
+  }
+
   /**
    * 获取指定日期的时间块
    * API: GET /time-blocks?date=YYYY-MM-DD
@@ -381,15 +421,18 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
    * 删除时间块
    * API: DELETE /time-blocks/:id
    */
-  async function deleteTimeBlock(id: string): Promise<boolean> {
+  async function deleteTimeBlock(id: string): Promise<{ updated_tasks?: import('@/types/dtos').TaskCard[] } | null> {
     isLoading.value = true
     error.value = null
 
     try {
-      await apiDelete(`/time-blocks/${id}`)
+      // 接收包含副作用的响应
+      const response = await apiDelete(`/time-blocks/${id}`)
       removeTimeBlock(id)
       logger.info(LogTags.STORE_TIMEBLOCK, 'Deleted time block', { timeBlockId: id })
-      return true
+
+      // 返回副作用数据供调用者处理
+      return response?.side_effects || null
     } catch (e) {
       error.value = `Failed to delete time block ${id}: ${e}`
       logger.error(
@@ -398,7 +441,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
         e instanceof Error ? e : new Error(String(e)),
         { timeBlockId: id }
       )
-      return false
+      return null
     } finally {
       isLoading.value = false
     }
@@ -597,7 +640,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     if (updatedTask) {
       const { useTaskStore } = await import('@/stores/task')
       const taskStore = useTaskStore()
-      taskStore.addOrUpdateTask(updatedTask)
+      taskStore.addOrUpdateTask_mut(updatedTask)
       logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated task schedule_status', {
         taskId: updatedTask.id,
         scheduleStatus: updatedTask.schedule_status,
@@ -667,7 +710,7 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     if (updatedTask) {
       const { useTaskStore } = await import('@/stores/task')
       const taskStore = useTaskStore()
-      taskStore.addOrUpdateTask(updatedTask)
+      taskStore.addOrUpdateTask_mut(updatedTask)
       logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated task schedule_status', {
         taskId: updatedTask.id,
         scheduleStatus: updatedTask.schedule_status,
@@ -707,5 +750,11 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
 
     // Initialization
     initEventSubscriptions,
+
+    // Mutations (RTL 命名规范)
+    addOrUpdateTimeBlock_mut,
+    batchAddOrUpdateTimeBlocks_mut,
+    removeTimeBlock_mut,
+    batchRemoveTimeBlocks_mut,
   }
 })

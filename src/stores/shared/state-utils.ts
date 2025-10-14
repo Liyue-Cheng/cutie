@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 响应式状态管理工具
