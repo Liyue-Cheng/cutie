@@ -2,7 +2,7 @@ import { computed, onMounted } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 根据 viewKey 自动获取和排序任务
@@ -48,13 +48,13 @@ export function useViewTasks(viewKey: string) {
     try {
       switch (type) {
         case 'daily':
-          baseTasks = taskStore.getTasksByDate(id)
+          baseTasks = taskStore.getTasksByDate_Mux(id)
           break
         case 'area':
-          baseTasks = taskStore.getTasksByArea(id)
+          baseTasks = taskStore.getTasksByArea_Mux(id)
           break
         case 'project':
-          baseTasks = taskStore.getTasksByProject(id)
+          baseTasks = taskStore.getTasksByProject_Mux(id)
           break
         case 'misc':
           switch (id) {

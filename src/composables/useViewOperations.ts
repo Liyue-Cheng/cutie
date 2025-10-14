@@ -11,7 +11,7 @@
  */
 
 import { useTaskStore } from '@/stores/task'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 // import { fetchView, type ViewContext } from '@/services/viewAdapter'
 // 注意：fetchView 函数不存在，暂时注释掉避免错误
 
@@ -24,9 +24,9 @@ export function useViewOperations() {
    */
   async function loadView(context: any): Promise<boolean> {
     try {
-      // 🚧 临时实现：直接调用 taskStore.fetchAllTasks()
+      // 🚧 临时实现：直接调用 taskStore.fetchAllTasks_DMA()
       // 因为 fetchView 函数不存在，我们使用现有的 API
-      await taskStore.fetchAllTasks()
+      await taskStore.fetchAllTasks_DMA()
 
       logger.info(LogTags.STORE_VIEW, 'Loaded all tasks (temporary implementation)')
 

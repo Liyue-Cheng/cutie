@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
@@ -95,7 +95,7 @@ async function initializeEventSubscriptions(port: number) {
     const apiUrl = `http://127.0.0.1:${port}/api`
 
     // 动态导入事件服务
-    const { initEventSubscriber } = await import('@/services/events')
+    const { initEventSubscriber } = await import('@/infra/events/events')
     initEventSubscriber(apiUrl)
     logger.info(LogTags.SYSTEM_API, 'Event subscriber initialized')
 

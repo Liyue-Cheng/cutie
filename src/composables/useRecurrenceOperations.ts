@@ -3,7 +3,7 @@ import { useViewStore } from '@/stores/view'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import type { TaskCard } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import { apiPatch } from '@/stores/shared'
 
 /**
@@ -91,7 +91,7 @@ export function useRecurrenceOperations() {
         recurrenceId,
       })
 
-      const taskDetail = await taskStore.fetchTaskDetail(sourceTask.id)
+      const taskDetail = await taskStore.fetchTaskDetail_DMA(sourceTask.id)
 
       if (!taskDetail) {
         throw new Error('无法获取任务详情')

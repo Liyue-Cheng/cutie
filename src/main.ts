@@ -5,12 +5,14 @@ import App from './App.vue'
 import router from './router' // 导入路由
 import i18n from './i18n'
 import { initializeApiConfig } from '@/composables/useApiConfig'
-import { logger, LogLevel, LogTags } from '@/services/logger'
+import { logger, LogLevel, LogTags } from '@/infra/logging/logger'
 import {
   setupGlobalErrorHandling,
   createVueErrorHandler,
   createVueWarnHandler,
-} from '@/services/errorHandler'
+} from '@/infra/errors/errorHandler'
+import { initCommandBus } from '@/commandBus'
+import { enableAutoTracking } from '@/infra/logging/SimpleAutoTracker'
 import './style.css'
 
 // 设置全局错误处理
@@ -26,6 +28,16 @@ app.config.warnHandler = createVueWarnHandler()
 app.use(pinia)
 app.use(i18n)
 app.use(router) // 确保已经 use 了 router
+
+// 初始化命令总线（需要在 pinia 初始化之后）
+initCommandBus()
+
+// 🚀 启用自动指令追踪（零集成！）
+if (import.meta.env.DEV) {
+  enableAutoTracking().then(() => {
+    logger.info('System:Init', '🎯 Automatic instruction tracking enabled - zero integration required!')
+  })
+}
 
 // 设置全局日志控制接口（仅开发环境）
 if (import.meta.env.DEV) {
@@ -53,7 +65,7 @@ if (import.meta.env.DEV) {
       return stats
     },
     applyPreset: (presetName: string) => {
-      import('./services/loggerSettings').then(({ applyPreset }) => {
+      import('@/infra/logging/loggerSettings').then(({ applyPreset }) => {
         const preset = applyPreset(presetName as any)
         if (preset) {
           logger.setLevel(preset.level)
@@ -69,9 +81,11 @@ if (import.meta.env.DEV) {
   appLogger.filterByTag('API')         // 按单个标签过滤
   appLogger.filterByTag(['API', 'Drag']) // 按多个标签过滤
   appLogger.resetFilters()             // 显示所有日志
+  appLogger.trackingOnly()             // 🎯 只显示指令追踪日志（推荐）
   appLogger.setSampling({debug: 0.1})  // 设置采样率 (0-1)
   appLogger.applyPreset('dragOnly')    // 应用预设配置
   appLogger.getStats()                 // 查看当前配置
+  appLogger.getTrackingStats()         // 查看指令追踪统计 🎯
   appLogger.help()                     // 显示此帮助
 
 🎯 可用预设:
@@ -81,9 +95,13 @@ if (import.meta.env.DEV) {
   ${Object.values(LogTags).join(', ')}
 
 💡 快速调试:
-  appLogger.applyPreset('dragOnly')    // 只看拖拽相关日志
+  appLogger.trackingOnly()             // 🎯 清洁模式：只看指令追踪（推荐）
   appLogger.applyPreset('errorsOnly')  // 只看错误和警告
   appLogger.applyPreset('apiOnly')     // 只看API相关日志
+
+🎯 指令追踪已自动启用！现在点击任务完成按钮，然后执行：
+  appLogger.trackingOnly()
+  就能看到干净的四级流水线追踪日志了！
       `)
     },
   }
