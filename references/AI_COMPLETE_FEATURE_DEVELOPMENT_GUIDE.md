@@ -528,7 +528,7 @@ export async function fetchAllEntities(): Promise<void> {
 **2.4 Event Handlers** (`stores/xxx/event-handlers.ts`)
 
 ```typescript
-import { getEventSubscriber } from '@/services/events'
+import { getEventSubscriber } from '@/infra/events/events'
 import { addOrUpdateEntity, removeEntity } from './core'
 
 export function initEventSubscriptions() {
@@ -770,7 +770,7 @@ const response = await fetch(`${apiBaseUrl.value}/tasks`)
 const response = await fetch('http://127.0.0.1:3538/api/tasks')
 
 // events.ts
-import { getEventSubscriber } from '@/services/events'
+import { getEventSubscriber } from '@/infra/events/events'
 const subscriber = getEventSubscriber()
 if (subscriber) {
   subscriber.on('task.created', handleTaskCreatedEvent)

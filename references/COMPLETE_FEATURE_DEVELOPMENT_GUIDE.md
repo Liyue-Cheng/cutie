@@ -1024,7 +1024,7 @@ export async function fetchAllEntities(): Promise<void> {
 **文件**: `src/stores/xxx/event-handlers.ts`
 
 ```typescript
-import { getEventSubscriber } from '@/services/events'
+import { getEventSubscriber } from '@/infra/events/events'
 import { addOrUpdateEntity, removeEntity } from './core'
 
 export function initEventSubscriptions() {
@@ -1635,7 +1635,7 @@ const response = await fetch('http://127.0.0.1:3538/api/tasks')
 **`src/services/events.ts`**
 
 ```typescript
-import { getEventSubscriber } from '@/services/events'
+import { getEventSubscriber } from '@/infra/events/events'
 
 // 在 Store 中订阅事件
 const subscriber = getEventSubscriber()
