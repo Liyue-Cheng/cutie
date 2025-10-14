@@ -316,7 +316,8 @@ mod logic {
             }
 
             // 更新日期
-            database::update_schedule_date(&mut tx, task_id, &original_date, &new_date, now).await?;
+            database::update_schedule_date(&mut tx, task_id, &original_date, &new_date, now)
+                .await?;
         }
 
         // 7. 处理 outcome 更新
@@ -344,19 +345,25 @@ mod logic {
         // 9.5. ✅ 根据 schedules 设置正确的 schedule_status
         // staging 定义：今天和未来没有排期的任务，过去的排期不影响
         use crate::entities::ScheduleStatus;
-        use chrono::Utc;
-        let local_today = Utc::now().date_naive();
+        // ✅ 使用本地时间确定"今天"的日期，避免时区问题
+        let local_today = chrono::Local::now().date_naive();
 
-        let has_future_schedule = task_card.schedules.as_ref().map(|schedules| {
-            schedules.iter().any(|s| {
-                if let Ok(schedule_date) = chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d") {
-                    schedule_date >= local_today
-                } else {
-                    false
-                }
+        let has_future_schedule = task_card
+            .schedules
+            .as_ref()
+            .map(|schedules| {
+                schedules.iter().any(|s| {
+                    if let Ok(schedule_date) =
+                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                    {
+                        schedule_date >= local_today
+                    } else {
+                        false
+                    }
+                })
             })
-        }).unwrap_or(false);
-        
+            .unwrap_or(false);
+
         task_card.schedule_status = if has_future_schedule {
             ScheduleStatus::Scheduled
         } else {

@@ -255,7 +255,9 @@ mod logic {
         // 4. 处理日程：确保今天有日程并设为完成，删除未来日程
         // 4.1. 检查今天是否有日程
         use crate::infra::core::utils::time_utils;
-        let today_date = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
+        // ✅ 使用本地时间确定"今天"的日期，避免时区问题
+        let local_now = chrono::Local::now();
+        let today_date = time_utils::format_date_yyyy_mm_dd(&local_now.date_naive());
         let has_today_schedule =
             TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &today_date)
                 .await?;
@@ -332,8 +334,8 @@ mod logic {
         // 11.5. ✅ 根据 schedules 设置正确的 schedule_status
         // staging 定义：今天和未来没有排期的任务，过去的排期不影响
         use crate::entities::ScheduleStatus;
-        use chrono::Utc;
-        let today = Utc::now().date_naive();
+        // ✅ 使用本地时间确定"今天"的日期，避免时区问题
+        let today = chrono::Local::now().date_naive();
 
         let has_future_schedule = task_card_for_event
             .schedules

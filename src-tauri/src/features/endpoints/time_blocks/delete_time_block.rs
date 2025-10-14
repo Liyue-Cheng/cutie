@@ -158,7 +158,50 @@ mod logic {
         // 3. 删除任务链接（但保留 task_schedules！）（✅ 使用共享 Repository）
         TaskTimeBlockLinkRepository::delete_all_for_block_in_tx(&mut tx, block_id).await?;
 
-        // 4. 写入事件到 outbox（在事务内）
+        // 4. 组装受影响任务的完整数据（在事务内）
+        let mut affected_tasks = Vec::new();
+        if !affected_task_ids.is_empty() {
+            use crate::features::shared::{repositories::TaskRepository, TaskAssembler};
+
+            for task_id in &affected_task_ids {
+                if let Some(task) = TaskRepository::find_by_id_in_tx(&mut tx, *task_id).await? {
+                    let mut task_card = TaskAssembler::task_to_card_basic(&task);
+
+                    // ✅ 填充 schedules 字段（必须在 SSE 之前）
+                    task_card.schedules =
+                        TaskAssembler::assemble_schedules_in_tx(&mut tx, *task_id).await?;
+
+                    // ✅ 设置正确的 schedule_status
+                    use crate::entities::ScheduleStatus;
+                    let today = chrono::Local::now().date_naive();
+                    let has_future_schedule = task_card
+                        .schedules
+                        .as_ref()
+                        .map(|schedules| {
+                            schedules.iter().any(|s| {
+                                if let Ok(schedule_date) =
+                                    chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                                {
+                                    schedule_date >= today
+                                } else {
+                                    false
+                                }
+                            })
+                        })
+                        .unwrap_or(false);
+
+                    task_card.schedule_status = if has_future_schedule {
+                        ScheduleStatus::Scheduled
+                    } else {
+                        ScheduleStatus::Staging
+                    };
+
+                    affected_tasks.push(task_card);
+                }
+            }
+        }
+
+        // 5. 写入事件到 outbox（在事务内）
         if !affected_task_ids.is_empty() {
             use crate::infra::events::{
                 models::DomainEvent,
@@ -170,6 +213,7 @@ mod logic {
             let payload = serde_json::json!({
                 "time_block_id": block_id,
                 "affected_task_ids": affected_task_ids,
+                "affected_tasks": affected_tasks, // ✅ 包含完整的任务数据
             });
 
             let event = DomainEvent::new(

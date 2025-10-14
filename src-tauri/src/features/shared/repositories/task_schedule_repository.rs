@@ -109,7 +109,9 @@ impl TaskScheduleRepository {
         now: DateTime<Utc>,
     ) -> AppResult<()> {
         use crate::infra::core::utils::time_utils;
-        let today = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
+        // ✅ 使用本地时间确定"今天"的日期，避免时区问题
+        let local_now = chrono::Local::now();
+        let today = time_utils::format_date_yyyy_mm_dd(&local_now.date_naive());
         let query = r#"
             UPDATE task_schedules 
             SET outcome = 'COMPLETED_ON_DAY', updated_at = ?
@@ -131,10 +133,12 @@ impl TaskScheduleRepository {
     pub async fn delete_future_schedules_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
-        now: DateTime<Utc>,
+        _now: DateTime<Utc>, // 保留参数但不使用，使用本地时间代替
     ) -> AppResult<()> {
         use crate::infra::core::utils::time_utils;
-        let today = time_utils::format_date_yyyy_mm_dd(&now.date_naive());
+        // ✅ 使用本地时间确定"今天"的日期，避免时区问题
+        let local_now = chrono::Local::now();
+        let today = time_utils::format_date_yyyy_mm_dd(&local_now.date_naive());
         let query = r#"
             DELETE FROM task_schedules
             WHERE task_id = ? AND scheduled_date > ?
