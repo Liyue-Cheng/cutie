@@ -4,7 +4,7 @@
  * 提供标准化的错误处理和日志记录功能
  */
 
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 export interface ErrorContext {
   operation: string

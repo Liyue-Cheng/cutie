@@ -78,13 +78,13 @@ export async function apiGet<T = any>(endpoint: string, correlationId?: string):
 export async function apiPost<T = any>(
   endpoint: string,
   data?: any,
-  correlationId?: string
+  options?: ApiRequestOptions
 ): Promise<T> {
   return apiCall<T>(endpoint, {
+    ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: data ? JSON.stringify(data) : undefined,
-    correlationId,
   })
 }
 
@@ -110,19 +110,22 @@ export async function apiPut<T = any>(
 export async function apiPatch<T = any>(
   endpoint: string,
   data?: any,
-  correlationId?: string
+  options?: ApiRequestOptions
 ): Promise<T> {
   return apiCall<T>(endpoint, {
+    ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: data ? JSON.stringify(data) : undefined,
-    correlationId,
   })
 }
 
 /**
  * DELETE 请求的便捷方法
  */
-export async function apiDelete<T = any>(endpoint: string, correlationId?: string): Promise<T> {
-  return apiCall<T>(endpoint, { method: 'DELETE', correlationId })
+export async function apiDelete<T = any>(
+  endpoint: string,
+  options?: ApiRequestOptions
+): Promise<T> {
+  return apiCall<T>(endpoint, { ...options, method: 'DELETE' })
 }

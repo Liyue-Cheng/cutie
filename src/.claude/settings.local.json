@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm exec vue-tsc --noEmit)",
+      "Read(//c/Users/liyue/Desktop/projects/dashboard/cutie/**)",
+      "Bash(cargo check)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

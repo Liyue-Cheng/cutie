@@ -4,7 +4,7 @@
  * 负责建立与后端 SSE 端点的连接，并将领域事件分发到各个 Store
  */
 
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /// 领域事件接口（与后端保持一致）
 export interface DomainEvent {

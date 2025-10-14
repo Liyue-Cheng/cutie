@@ -542,6 +542,15 @@ export const LogTags = {
   SYSTEM_INIT: 'System:Init',
   SYSTEM_SSE: 'System:SSE',
   SYSTEM_API: 'System:API',
+  SYSTEM_COMMAND: 'System:CommandBus',
+
+  // 命令处理器相关
+  COMMAND_TASK: 'Command:Task',
+  COMMAND_SCHEDULE: 'Command:Schedule',
+  COMMAND_TIMEBLOCK: 'Command:TimeBlock',
+  COMMAND_TEMPLATE: 'Command:Template',
+  COMMAND_RECURRENCE: 'Command:Recurrence',
+  COMMAND_TRASH: 'Command:Trash',
 
   // 性能相关
   PERF: 'Perf',
@@ -551,4 +560,7 @@ export const LogTags = {
 
   // 关键业务
   CRITICAL: 'Critical',
+
+  // 指令追踪器相关
+  INSTRUCTION_TRACKER: 'InstructionTracker',
 } as const
