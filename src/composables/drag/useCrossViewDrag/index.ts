@@ -7,7 +7,7 @@
 import { computed } from 'vue'
 import type { ViewMetadata, StrategyResult, DragStrategy } from '@/types/drag'
 import type { TaskCard } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import { useDragContext } from './context'
 import { findStrategy, hasStrategy, getStrategyPriority } from './finder'
 import {

@@ -11,7 +11,7 @@ import { ref, computed, watch } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
 import { useCrossViewDrag } from './useCrossViewDrag'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 跨看板拖放目标 Composable

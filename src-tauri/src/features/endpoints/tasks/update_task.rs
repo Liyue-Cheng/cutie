@@ -9,7 +9,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{
-    entities::{ScheduleStatus, TaskCardDto, UpdateTaskRequest},
+    entities::{ScheduleStatus, SideEffects, TaskTransactionResult, UpdateTaskRequest},
     features::shared::{
         assemblers::TimeBlockAssembler,
         repositories::{TaskRepository, TaskTimeBlockLinkRepository},
@@ -23,10 +23,11 @@ use crate::{
 };
 
 /// 更新任务的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct UpdateTaskResponse {
-    pub task: TaskCardDto,
-    // 注意：副作用（updated time blocks）已通过 SSE 推送
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== 文档层 ====================
@@ -329,7 +330,21 @@ mod logic {
             ScheduleStatus::Staging
         };
 
-        // 11. 在事务中写入领域事件到 outbox
+        // 11. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card_for_event,
+            side_effects: SideEffects {
+                updated_time_blocks: if updated_blocks.is_empty() {
+                    None
+                } else {
+                    Some(updated_blocks)
+                },
+                ..Default::default()
+            },
+        };
+
+        // 12. 在事务中写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -337,12 +352,9 @@ mod logic {
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
         {
-            let payload = serde_json::json!({
-                "task": task_card_for_event,
-                "side_effects": {
-                    "updated_time_blocks": updated_blocks,
-                }
-            });
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+
             let mut event = DomainEvent::new("task.updated", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
 
@@ -354,13 +366,13 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 12. 提交事务（✅ 使用 TransactionHelper）
+        // 13. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // 13. 返回结果（复用事件中的 task_card）
-        // HTTP 响应与 SSE 事件载荷保持一致
+        // 14. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
         Ok(UpdateTaskResponse {
-            task: task_card_for_event,
+            result: transaction_result,
         })
     }
 }

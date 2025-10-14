@@ -5,7 +5,7 @@ import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue
 // import { useTaskStore } from '@/stores/task' // 🗑️ 不再需要
 import { useViewStore } from '@/stores/view'
 import { useDragTransfer } from '@/composables/drag'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== Stores ====================
 // const taskStore = useTaskStore() // 🗑️ 不再需要：SimpleKanbanColumn 内部处理任务数据
@@ -61,7 +61,7 @@ function addDays(date: Date, days: number): Date {
   return result
 }
 
-import { getTodayDateString, toDateString, isSameDate } from '@/utils/dateUtils'
+import { getTodayDateString, toDateString, isSameDate } from '@/infra/utils/dateUtils'
 // 判断是否是今天
 function isToday(date: Date): boolean {
   return isSameDate(toDateString(date), getTodayDateString())

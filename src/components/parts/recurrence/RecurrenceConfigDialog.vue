@@ -5,7 +5,7 @@ import type { TaskCard } from '@/types/dtos'
 import { useTemplateStore } from '@/stores/template'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
-import { getTodayDateString } from '@/utils/dateUtils'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 const props = defineProps<{
   task: TaskCard

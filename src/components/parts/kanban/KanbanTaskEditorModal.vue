@@ -5,7 +5,7 @@ import { useAreaStore } from '@/stores/area'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useTemplateStore } from '@/stores/template'
 import { useViewStore } from '@/stores/view'
-import { useTaskOperations } from '@/composables/useTaskOperations'
+import { commandBus } from '@/commandBus'
 import { RRule } from 'rrule'
 import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
@@ -13,8 +13,8 @@ import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
-import { logger, LogTags } from '@/services/logger'
-import { getTodayDateString, parseDateString, toUtcIsoString } from '@/utils/dateUtils'
+import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString, parseDateString, toUtcIsoString } from '@/infra/utils/dateUtils'
 
 interface Subtask {
   id: string
@@ -35,7 +35,6 @@ const areaStore = useAreaStore()
 const recurrenceStore = useRecurrenceStore()
 const templateStore = useTemplateStore()
 const viewStore = useViewStore()
-const taskOps = useTaskOperations()
 
 // 本地编辑状态
 const titleInput = ref('')
@@ -56,7 +55,7 @@ const showRecurrenceDialog = ref(false)
 const currentRecurrence = ref<any>(null)
 
 const task = computed(() => {
-  return props.taskId ? taskStore.getTaskById(props.taskId) : null
+  return props.taskId ? taskStore.getTaskById_Mux(props.taskId) : null
 })
 
 const subtasks = computed(() => {
@@ -141,7 +140,7 @@ async function loadRecurrence() {
 // 当弹窗打开时，获取任务详情
 onMounted(async () => {
   if (props.taskId) {
-    const detail = (await taskStore.fetchTaskDetail(props.taskId)) as TaskDetail | null
+    const detail = (await taskStore.fetchTaskDetail_DMA(props.taskId)) as TaskDetail | null
     if (detail) {
       titleInput.value = detail.title
       glanceNote.value = detail.glance_note || ''
@@ -172,7 +171,7 @@ watch(
   () => props.taskId,
   async (newTaskId) => {
     if (newTaskId) {
-      const detail = (await taskStore.fetchTaskDetail(newTaskId)) as TaskDetail | null
+      const detail = (await taskStore.fetchTaskDetail_DMA(newTaskId)) as TaskDetail | null
       if (detail) {
         titleInput.value = detail.title
         glanceNote.value = detail.glance_note || ''
@@ -204,9 +203,9 @@ async function handleCompleteChange(isChecked: boolean) {
   if (!props.taskId) return
 
   if (isChecked) {
-    await taskOps.completeTask(props.taskId)
+    await commandBus.emit('task.complete', { id: props.taskId })
   } else {
-    await taskOps.reopenTask(props.taskId)
+    await commandBus.emit('task.reopen', { id: props.taskId })
   }
 }
 
@@ -216,36 +215,44 @@ async function handlePresenceToggle(isChecked: boolean) {
   // 使用新的勾选状态来决定 outcome
   const newOutcome = isChecked ? 'presence_logged' : undefined
 
-  await taskStore.updateSchedule(props.taskId, todayDate.value, { outcome: newOutcome })
+  await commandBus.emit('schedule.update', {
+    task_id: props.taskId,
+    scheduled_day: todayDate.value,
+    updates: { outcome: newOutcome },
+  })
 }
 
 async function updateTitle() {
   if (!props.taskId || !task.value || titleInput.value === task.value.title) return
-  await taskStore.updateTask(props.taskId, {
-    title: titleInput.value,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { title: titleInput.value },
   })
   isTitleEditing.value = false
 }
 
 async function updateGlanceNote() {
   if (!props.taskId || !task.value) return
-  await taskStore.updateTask(props.taskId, {
-    glance_note: glanceNote.value || null,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { glance_note: glanceNote.value || null },
   })
 }
 
 async function updateDetailNote() {
   if (!props.taskId || !task.value) return
-  await taskStore.updateTask(props.taskId, {
-    detail_note: detailNote.value || null,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { detail_note: detailNote.value || null },
   })
 }
 
 async function updateArea(areaId: string | null) {
   if (!props.taskId || !task.value) return
   selectedAreaId.value = areaId
-  await taskStore.updateTask(props.taskId, {
-    area_id: areaId,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { area_id: areaId },
   })
   showAreaSelector.value = false
 }
@@ -260,9 +267,12 @@ async function saveDueDate() {
     Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0)
   )
 
-  await taskStore.updateTask(props.taskId, {
-    due_date: toUtcIsoString(utcDate),
-    due_date_type: dueDateType.value,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: {
+      due_date: toUtcIsoString(utcDate),
+      due_date_type: dueDateType.value,
+    },
   })
 
   showDueDatePicker.value = false
@@ -272,9 +282,12 @@ async function saveDueDate() {
 async function clearDueDate() {
   if (!props.taskId || !task.value) return
 
-  await taskStore.updateTask(props.taskId, {
-    due_date: null,
-    due_date_type: null,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: {
+      due_date: null,
+      due_date_type: null,
+    },
   })
 
   dueDateInput.value = ''
@@ -294,8 +307,9 @@ async function handleAddSubtask() {
 
   const updatedSubtasks = [...subtasks.value, newSubtask]
 
-  await taskStore.updateTask(props.taskId, {
-    subtasks: updatedSubtasks,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { subtasks: updatedSubtasks },
   })
 
   newSubtaskTitle.value = ''
@@ -308,8 +322,9 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
 
-  await taskStore.updateTask(props.taskId, {
-    subtasks: updatedSubtasks,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { subtasks: updatedSubtasks },
   })
 }
 
@@ -318,8 +333,9 @@ async function handleDeleteSubtask(subtaskId: string) {
 
   const updatedSubtasks = subtasks.value.filter((subtask) => subtask.id !== subtaskId)
 
-  await taskStore.updateTask(props.taskId, {
-    subtasks: updatedSubtasks,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { subtasks: updatedSubtasks },
   })
 }
 
@@ -362,8 +378,9 @@ async function handleDrop(event: DragEvent, targetSubtaskId: string) {
     sort_order: `subtask_${Date.now()}_${index}`,
   }))
 
-  await taskStore.updateTask(props.taskId, {
-    subtasks: updatedSubtasks,
+  await commandBus.emit('task.update', {
+    id: props.taskId,
+    updates: { subtasks: updatedSubtasks },
   })
 
   draggingSubtaskId.value = null

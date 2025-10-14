@@ -12,7 +12,7 @@ use uuid::Uuid;
 use serde::Serialize;
 
 use crate::{
-    entities::TimeBlock,
+    entities::{SideEffects, TaskTransactionResult, TimeBlock},
     features::shared::{
         assemblers::TimeBlockAssembler,
         repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
@@ -26,10 +26,11 @@ use crate::{
 };
 
 /// 删除任务的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct DeleteTaskResponse {
-    pub success: bool,
-    // 注意：deleted_time_block_ids 已通过 SSE 推送
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== 文档层 ====================
@@ -233,7 +234,21 @@ mod logic {
             TimeBlockRepository::soft_delete_in_tx(&mut tx, block.id).await?;
         }
 
-        // 9. 在事务中写入领域事件到 outbox
+        // 9. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects {
+                deleted_time_blocks: if deleted_blocks.is_empty() {
+                    None
+                } else {
+                    Some(deleted_blocks)
+                },
+                ..Default::default()
+            },
+        };
+
+        // 10. 在事务中写入领域事件到 outbox
         // ✅ 一个业务事务 = 一个领域事件（包含所有副作用的完整数据）
         use crate::infra::events::{
             models::DomainEvent,
@@ -242,13 +257,9 @@ mod logic {
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
         {
-            let payload = serde_json::json!({
-                "task": task_card,  // ✅ 完整 TaskCard
-                "deleted_at": now.to_rfc3339(),
-                "side_effects": {
-                    "deleted_time_blocks": deleted_blocks,  // ✅ 完整对象
-                }
-            });
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+
             let mut event = DomainEvent::new("task.trashed", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
 
@@ -260,11 +271,14 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 10. 提交事务（✅ 使用 TransactionHelper）
+        // 11. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // HTTP 响应不再包含副作用列表，副作用通过 SSE 推送
-        Ok(DeleteTaskResponse { success: true })
+        // 12. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(DeleteTaskResponse {
+            result: transaction_result,
+        })
     }
 
     /// 判断是否应该删除孤儿时间块

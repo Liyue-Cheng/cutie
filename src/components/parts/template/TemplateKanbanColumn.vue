@@ -6,7 +6,7 @@ import type { TemplateDragData } from '@/types/drag'
 import CutePane from '@/components/alias/CutePane.vue'
 import TemplateCard from './TemplateCard.vue'
 import TemplateEditorModal from './TemplateEditorModal.vue'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 const templateStore = useTemplateStore()
 const dragTransfer = useDragTransfer()

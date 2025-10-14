@@ -50,7 +50,7 @@ import { useDecorativeLine } from '@/composables/calendar/useDecorativeLine'
 import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
 import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import { useCalendarDrag } from '@/composables/calendar/useCalendarDrag'
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 

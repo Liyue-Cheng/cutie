@@ -15,7 +15,7 @@ import type {
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,

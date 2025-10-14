@@ -6,7 +6,7 @@
 
 import type { DragStrategy, ViewType, DragMode } from '@/types/drag'
 import { dragStrategies } from './strategies'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 查找策略

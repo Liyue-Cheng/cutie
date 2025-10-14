@@ -11,7 +11,7 @@ use uuid::Uuid;
 use serde::Serialize;
 
 use crate::{
-    entities::TaskCardDto,
+    entities::{SideEffects, TaskTransactionResult},
     features::shared::{repositories::TaskRepository, TaskAssembler},
     infra::{
         core::{AppError, AppResult},
@@ -21,9 +21,11 @@ use crate::{
 };
 
 /// 取消归档任务的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct UnarchiveTaskResponse {
-    pub task: TaskCardDto,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== 文档层 ====================
@@ -223,7 +225,14 @@ mod logic {
             ScheduleStatus::Staging
         };
 
-        // 7. 在事务中写入领域事件到 outbox
+        // 7. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects::empty(),
+        };
+
+        // 8. 在事务中写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -231,9 +240,9 @@ mod logic {
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
         {
-            let payload = serde_json::json!({
-                "task": task_card,
-            });
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+            
             let mut event =
                 DomainEvent::new("task.unarchived", "task", task_id.to_string(), payload)
                     .with_aggregate_version(now.timestamp_millis());
@@ -245,11 +254,14 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 8. 提交事务（✅ 使用 TransactionHelper）
+        // 9. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // 9. 返回结果
-        Ok(UnarchiveTaskResponse { task: task_card })
+        // 10. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(UnarchiveTaskResponse {
+            result: transaction_result,
+        })
     }
 }
 

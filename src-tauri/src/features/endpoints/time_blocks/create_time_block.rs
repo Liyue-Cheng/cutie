@@ -208,7 +208,7 @@ mod logic {
     pub async fn execute(
         app_state: &AppState,
         request: CreateTimeBlockRequest,
-    ) -> AppResult<TimeBlockViewDto> {
+    ) -> AppResult<crate::entities::TimeBlockTransactionResult> {
         // 1. 验证请求（✅ 使用共享 TimeBlockValidator）
         // 验证时间范围
         TimeBlockValidator::validate_time_range(request.start_time, request.end_time)?;
@@ -301,7 +301,7 @@ mod logic {
             })
         })?;
 
-        // 8. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 time_block 获取）
+        // 8. 组装返回的 TimeBlockTransactionResult（统一格式）
         let time_block_view = TimeBlockViewDto {
             id: time_block.id,
             start_time: time_block.start_time,
@@ -319,7 +319,10 @@ mod logic {
             is_recurring: time_block.recurrence_rule.is_some(),
         };
 
-        Ok(time_block_view)
+        Ok(crate::entities::TimeBlockTransactionResult {
+            time_block: time_block_view,
+            side_effects: crate::entities::TimeBlockSideEffects::empty(),
+        })
     }
 }
 

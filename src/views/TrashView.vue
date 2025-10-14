@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useTrashStore } from '@/stores/trash'
 import KanbanTaskCard from '@/components/parts/kanban/KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 const trashStore = useTrashStore()
 

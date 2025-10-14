@@ -11,9 +11,11 @@ use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::TimeBlock,
-    features::shared::repositories::{
-        TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository,
+    entities::{SideEffects, TaskCardDto, TaskTransactionResult, TimeBlock},
+    features::shared::{
+        assemblers::TimeBlockAssembler,
+        repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
+        TaskAssembler, TransactionHelper,
     },
     infra::{
         core::{AppError, AppResult},
@@ -23,9 +25,11 @@ use crate::{
 };
 
 /// 彻底删除任务的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct PermanentlyDeleteTaskResponse {
-    pub success: bool,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== 文档层 ====================
@@ -196,6 +200,10 @@ mod logic {
             ));
         }
 
+        // 2.5 组装任务卡片（在删除前）
+        let mut task_card = TaskAssembler::task_to_card_basic(&task);
+        task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
+
         // 3. 查询任务链接的所有时间块（用于后续孤儿检查）
         let linked_blocks =
             TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
@@ -207,7 +215,8 @@ mod logic {
         // 5. 物理删除任务
         TaskRepository::permanently_delete_in_tx(&mut tx, task_id).await?;
 
-        // 6. 检查并删除孤儿时间块
+        // 6. 检查并删除孤儿时间块，收集被删除的时间块 ID
+        let mut deleted_time_block_ids = Vec::new();
         for block in linked_blocks {
             let should_delete = should_delete_orphan_block(&block, &mut tx).await?;
             if should_delete {
@@ -216,14 +225,33 @@ mod logic {
                     block.id,
                     task_id
                 );
+                deleted_time_block_ids.push(block.id);
                 use crate::features::shared::repositories::TimeBlockRepository;
                 TimeBlockRepository::soft_delete_in_tx(&mut tx, block.id).await?;
             }
         }
 
+        // 7. 查询被删除的时间块的完整数据（用于事件）
+        let deleted_time_blocks =
+            TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids).await?;
+
         let now = app_state.clock().now_utc();
 
-        // 7. 写入领域事件到 outbox
+        // 8. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects {
+                deleted_time_blocks: if deleted_time_blocks.is_empty() {
+                    None
+                } else {
+                    Some(deleted_time_blocks)
+                },
+                ..Default::default()
+            },
+        };
+
+        // 9. 写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -231,9 +259,9 @@ mod logic {
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
         {
-            let payload = serde_json::json!({
-                "task_id": task_id.to_string(),
-            });
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+
             let mut event = DomainEvent::new(
                 "task.permanently_deleted",
                 "task",
@@ -250,10 +278,14 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 8. 提交事务
+        // 10. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        Ok(PermanentlyDeleteTaskResponse { success: true })
+        // 11. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(PermanentlyDeleteTaskResponse {
+            result: transaction_result,
+        })
     }
 
     /// 判断是否应该删除孤儿时间块

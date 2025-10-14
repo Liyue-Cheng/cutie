@@ -3,18 +3,21 @@
 /// 软删除时间块，不影响任务的排期状态
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     response::{IntoResponse, Response},
 };
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{
+    entities::{TimeBlockSideEffects, TimeBlockViewDto},
     features::{
         shared::repositories::TaskTimeBlockLinkRepository,
         shared::repositories::TimeBlockRepository,
     },
     infra::{
         core::{AppError, AppResult},
-        http::error_handler::no_content_response,
+        http::{error_handler::success_response, extractors::extract_correlation_id},
     },
     startup::AppState,
 };
@@ -125,10 +128,30 @@ Cutie 的设计哲学：
 *（无其他已知副作用，不发送 SSE 事件）*
 */
 
+// ==================== 响应结构体 ====================
+/// 删除时间块的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+///
+/// 注意：删除时间块不返回时间块本身（已删除），而是返回受影响的任务列表
+#[derive(Debug, Serialize)]
+pub struct DeleteTimeBlockResponse {
+    /// 删除的时间块 ID
+    pub time_block_id: uuid::Uuid,
+
+    /// 副作用：受影响的任务
+    #[serde(skip_serializing_if = "TimeBlockSideEffects::is_empty")]
+    pub side_effects: TimeBlockSideEffects,
+}
+
 // ==================== HTTP 处理器 ====================
-pub async fn handle(State(app_state): State<AppState>, Path(block_id): Path<Uuid>) -> Response {
-    match logic::execute(&app_state, block_id).await {
-        Ok(()) => no_content_response().into_response(),
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Path(block_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Response {
+    let correlation_id = extract_correlation_id(&headers);
+    match logic::execute(&app_state, block_id, correlation_id).await {
+        Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
 }
@@ -136,11 +159,16 @@ pub async fn handle(State(app_state): State<AppState>, Path(block_id): Path<Uuid
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
+    use crate::features::shared::TransactionHelper;
 
-    pub async fn execute(app_state: &AppState, block_id: Uuid) -> AppResult<()> {
-        let mut tx = app_state.db_pool().begin().await.map_err(|e| {
-            AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
-        })?;
+    pub async fn execute(
+        app_state: &AppState,
+        block_id: Uuid,
+        correlation_id: Option<String>,
+    ) -> AppResult<DeleteTimeBlockResponse> {
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+        let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
         // 1. 检查时间块是否存在（✅ 使用共享 Repository）
         let block_exists = TimeBlockRepository::exists_in_tx(&mut tx, block_id).await?;
@@ -201,39 +229,50 @@ mod logic {
             }
         }
 
-        // 5. 写入事件到 outbox（在事务内）
-        if !affected_task_ids.is_empty() {
-            use crate::infra::events::{
-                models::DomainEvent,
-                outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
-            };
+        // 5. 构建统一的响应结构
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let response = DeleteTimeBlockResponse {
+            time_block_id: block_id,
+            side_effects: TimeBlockSideEffects {
+                updated_tasks: if affected_tasks.is_empty() {
+                    None
+                } else {
+                    Some(affected_tasks.clone())
+                },
+                updated_time_blocks: None,
+            },
+        };
 
-            let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
+        // 6. 写入事件到 outbox（在事务内）
+        use crate::infra::events::{
+            models::DomainEvent,
+            outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
+        };
+        let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
-            let payload = serde_json::json!({
-                "time_block_id": block_id,
-                "affected_task_ids": affected_task_ids,
-                "affected_tasks": affected_tasks, // ✅ 包含完整的任务数据
-            });
-
-            let event = DomainEvent::new(
+        {
+            // ✅ 使用统一的响应结构作为事件载荷
+            let payload = serde_json::to_value(&response)?;
+            
+            let mut event = DomainEvent::new(
                 "time_blocks.deleted",
                 "TimeBlock",
                 block_id.to_string(),
                 payload,
-            );
+            )
+            .with_aggregate_version(app_state.clock().now_utc().timestamp_millis());
+
+            if let Some(cid) = correlation_id {
+                event = event.with_correlation_id(cid);
+            }
 
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 5. 提交事务
-        tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
-                message: e.to_string(),
-            })
-        })?;
+        // 7. 提交事务
+        TransactionHelper::commit(tx).await?;
 
-        Ok(())
+        Ok(response)
     }
 }
 

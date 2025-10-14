@@ -13,6 +13,7 @@ pub mod task;
 pub mod task_recurrence;
 pub mod template;
 pub mod time_block;
+pub mod transaction_result;
 pub mod view_preference;
 
 // 显式导出所有公共类型，避免 ambiguous glob re-exports 警告
@@ -71,4 +72,9 @@ pub use task_recurrence::{
 pub use time_block::{
     CreateTimeBlockRequest, LinkedTaskSummary, TimeBlock, TimeBlockRow, TimeBlockViewDto,
     UpdateTimeBlockRequest,
+};
+
+// TransactionResult 相关类型
+pub use transaction_result::{
+    SideEffects, TaskTransactionResult, TimeBlockSideEffects, TimeBlockTransactionResult,
 };

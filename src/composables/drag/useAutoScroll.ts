@@ -6,7 +6,7 @@
 
 import { ref } from 'vue'
 import type { AutoScrollOptions } from '@/types/drag'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 const DEFAULT_OPTIONS: Required<AutoScrollOptions> = {
   edgeSize: 50, // 边缘触发距离（像素）

@@ -6,7 +6,7 @@
 
 import { useDragTransfer } from './useDragTransfer'
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 export interface TemplateDropResult {
   /** 是否已处理 */

@@ -11,12 +11,12 @@ use uuid::Uuid;
 use crate::{
     entities::TaskCardDto,
     features::{
+        shared::repositories::TimeBlockRepository,
         shared::TransactionHelper,
         shared::{
             repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
             TaskAssembler,
         },
-        shared::repositories::TimeBlockRepository,
     },
     infra::{
         core::{utils::time_utils, AppError, AppResult},
@@ -340,7 +340,7 @@ mod logic {
             is_recurring: false,
         };
 
-        // 12. 发布 SSE 事件（包含完整的时间块数据）
+        // 12. 发布 SSE 事件（包含完整的时间块数据和受影响的任务）
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -353,6 +353,7 @@ mod logic {
             "time_block_id": block_id,
             "linked_task_id": task_id,
             "affected_task_ids": vec![task_id],
+            "affected_tasks": vec![task_card.clone()], // ✅ 克隆以便后续使用
             "time_block": time_block_view, // ✅ 包含完整数据
         });
 

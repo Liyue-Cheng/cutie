@@ -1,5 +1,5 @@
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 解析 viewKey 获取类型和标识符

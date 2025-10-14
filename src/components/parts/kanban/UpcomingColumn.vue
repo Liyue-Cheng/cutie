@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
 

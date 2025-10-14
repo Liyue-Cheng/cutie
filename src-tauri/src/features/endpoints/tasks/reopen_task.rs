@@ -11,10 +11,8 @@ use uuid::Uuid;
 use serde::Serialize;
 
 use crate::{
-    entities::TaskCardDto,
-    features::shared::{
-        repositories::TaskRepository, TaskAssembler,
-    },
+    entities::{SideEffects, TaskTransactionResult},
+    features::shared::{repositories::TaskRepository, TaskAssembler},
     infra::{
         core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
@@ -23,9 +21,11 @@ use crate::{
 };
 
 /// 重新打开任务的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct ReopenTaskResponse {
-    pub task: TaskCardDto,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== 文档层 ====================
@@ -304,7 +304,12 @@ mod logic {
             start_time.elapsed().as_secs_f64() * 1000.0
         );
 
-        Ok(ReopenTaskResponse { task: task_card })
+        Ok(ReopenTaskResponse {
+            result: TaskTransactionResult {
+                task: task_card,
+                side_effects: SideEffects::empty(),
+            },
+        })
     }
 }
 

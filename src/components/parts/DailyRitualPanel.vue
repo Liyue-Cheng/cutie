@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
-import { getTodayDateString } from '@/utils/dateUtils'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 interface RitualItem {
   id: string

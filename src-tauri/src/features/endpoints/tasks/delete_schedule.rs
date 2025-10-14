@@ -12,7 +12,7 @@ use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::{TaskCardDto, TimeBlock},
+    entities::{SideEffects, TaskTransactionResult, TimeBlock},
     features::shared::repositories::TimeBlockRepository,
     features::shared::{
         assemblers::TimeBlockAssembler,
@@ -161,9 +161,12 @@ DELETE /api/tasks/{id}/schedules/{date}
 */
 
 // ==================== 响应结构体 ====================
+/// 删除日程的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct DeleteScheduleResponse {
-    pub task_card: TaskCardDto,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== HTTP 处理器 ====================
@@ -308,40 +311,54 @@ mod logic {
             ScheduleStatus::Staging
         };
 
-        // 14. 写入领域事件到 outbox
+        // 14. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects {
+                deleted_time_blocks: if deleted_time_blocks.is_empty() {
+                    None
+                } else {
+                    Some(deleted_time_blocks)
+                },
+                ..Default::default()
+            },
+        };
+
+        // 15. 写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
-        let payload = serde_json::json!({
-            "task": task_card,
-            "deleted_date": date_str,
-            "side_effects": {
-                "deleted_time_blocks": deleted_time_blocks,
+        {
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+
+            let mut event = DomainEvent::new(
+                "task.schedule_deleted",
+                "task",
+                task_id.to_string(),
+                payload,
+            )
+            .with_aggregate_version(now.timestamp_millis());
+
+            if let Some(cid) = correlation_id {
+                event = event.with_correlation_id(cid);
             }
-        });
 
-        let mut event = DomainEvent::new(
-            "task.schedule_deleted",
-            "task",
-            task_id.to_string(),
-            payload,
-        )
-        .with_aggregate_version(now.timestamp_millis());
-
-        if let Some(cid) = correlation_id {
-            event = event.with_correlation_id(cid);
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        outbox_repo.append_in_tx(&mut tx, &event).await?;
-
-        // 15. 提交事务
+        // 16. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 16. 返回结果
-        Ok(DeleteScheduleResponse { task_card })
+        // 17. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(DeleteScheduleResponse {
+            result: transaction_result,
+        })
     }
 }
 

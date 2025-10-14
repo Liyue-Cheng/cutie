@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import type { TaskRecurrence } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== State ====================
 export const recurrences = ref(new Map<string, TaskRecurrence>())

@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useTemplateStore } from '@/stores/template'
 import { useTaskStore } from '@/stores/task'
 import type { Template } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== Stores ====================
 const templateStore = useTemplateStore()
@@ -93,7 +93,7 @@ async function handleUseTemplate(template: Template) {
     const taskCard = await templateStore.createTaskFromTemplate(template.id)
 
     // 更新 task store
-    taskStore.addOrUpdateTask(taskCard)
+    taskStore.addOrUpdateTask_mut(taskCard)
 
     logger.info(LogTags.GENERAL, 'Task created from template', {
       templateId: template.id,

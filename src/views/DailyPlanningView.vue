@@ -9,8 +9,8 @@ import DailyRitualPanel from '@/components/parts/DailyRitualPanel.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
-import { logger, LogTags } from '@/services/logger'
-import { getTodayDateString } from '@/utils/dateUtils'
+import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
@@ -32,12 +32,12 @@ const currentRightView = ref<'tomorrow' | 'upcoming'>('tomorrow')
 // ==================== 计算属性 ====================
 // 今天的任务列表
 const todayTasks = computed(() => {
-  return taskStore.getTasksByDate(today.value)
+  return taskStore.getTasksByDate_Mux(today.value)
 })
 
 // 明天的任务列表
 const tomorrowTasks = computed(() => {
-  return taskStore.getTasksByDate(tomorrow.value)
+  return taskStore.getTasksByDate_Mux(tomorrow.value)
 })
 
 // 即将到期的任务（未来7天内有截止日期的未完成任务）
@@ -58,7 +58,7 @@ const upcomingTasks = computed(() => {
 // ==================== 初始化 ====================
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Daily Planning: Initializing...')
-  await taskStore.fetchAllTasks()
+  await taskStore.fetchAllTasks_DMA()
   logger.info(LogTags.VIEW_HOME, 'Daily Planning: Loaded tasks', {
     today: today.value,
     todayCount: todayTasks.value.length,

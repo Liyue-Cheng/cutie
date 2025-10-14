@@ -242,16 +242,16 @@ onBeforeUnmount(() => {
 }
 
 .section-divider {
-  padding: 1rem 1.2rem 0.5rem 1.2rem;
-  margin: 0.5rem 0 1rem 0;
-  border-top: 1px solid var(--color-border-soft, rgba(0, 0, 0, 0.08));
+  padding: 1rem 1.2rem 0.5rem;
+  margin: 0.5rem 0 1rem;
+  border-top: 1px solid var(--color-border-soft, rgb(0 0 0 / 8%));
 }
 
 .divider-label {
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: var(--color-text-tertiary, #999999);
+  color: var(--color-text-tertiary, #999);
   text-transform: uppercase;
 }
 

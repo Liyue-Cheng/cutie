@@ -12,8 +12,9 @@ use sqlx::{Sqlite, Transaction};
 
 use crate::{
     entities::TimeBlock,
-    features::shared::repositories::{
-        TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository,
+    features::shared::{
+        repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository},
+        TransactionHelper,
     },
     infra::{
         core::AppResult,
@@ -228,6 +229,9 @@ mod logic {
         let deleted_count = tasks_to_delete.len();
         let mut deleted_task_ids = Vec::new();
 
+        // 收集所有被删除的时间块
+        let mut all_deleted_time_block_ids = Vec::new();
+
         // 对每个任务执行删除
         for task in tasks_to_delete {
             let task_id = task.id;
@@ -247,10 +251,11 @@ mod logic {
             // 物理删除任务
             TaskRepository::permanently_delete_in_tx(&mut tx, task_id).await?;
 
-            // 检查并删除孤儿时间块
+            // 检查并删除孤儿时间块，收集被删除的时间块 ID
             for block in linked_blocks {
                 let should_delete = should_delete_orphan_block(&block, &mut tx).await?;
                 if should_delete {
+                    all_deleted_time_block_ids.push(block.id);
                     use crate::features::shared::repositories::TimeBlockRepository;
                     TimeBlockRepository::soft_delete_in_tx(&mut tx, block.id).await?;
                 }
@@ -258,6 +263,16 @@ mod logic {
 
             TransactionHelper::commit(tx).await?;
         }
+
+        // 查询所有被删除的时间块的完整数据（用于事件）
+        use crate::features::shared::assemblers::TimeBlockAssembler;
+        let mut final_tx = TransactionHelper::begin(app_state.db_pool()).await?;
+        let deleted_time_blocks = TimeBlockAssembler::assemble_for_event_in_tx(
+            &mut final_tx,
+            &all_deleted_time_block_ids,
+        )
+        .await?;
+        TransactionHelper::commit(final_tx).await?;
 
         // 发送 SSE 事件
         if !deleted_task_ids.is_empty() {
@@ -272,6 +287,7 @@ mod logic {
             let payload = serde_json::json!({
                 "deleted_task_ids": deleted_task_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
                 "deleted_count": deleted_count,
+                "deleted_time_blocks": deleted_time_blocks, // ✅ 包含被删除的时间块
             });
 
             let mut event =

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    entities::TaskCardDto,
+    entities::{SideEffects, TaskTransactionResult},
     features::shared::{
         repositories::{TaskRepository, TaskScheduleRepository},
         TaskAssembler,
@@ -180,9 +180,12 @@ pub struct AddScheduleRequest {
     pub scheduled_day: String,
 }
 
+/// 添加日程的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct AddScheduleResponse {
-    pub task_card: TaskCardDto,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== HTTP 处理器 ====================
@@ -296,32 +299,43 @@ mod logic {
             ScheduleStatus::Staging
         };
 
-        // 8. 写入领域事件到 outbox
+        // 8. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects::empty(),
+        };
+
+        // 9. 写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
-        let payload = serde_json::json!({
-            "task": task_card,
-            "scheduled_day": request.scheduled_day,
-        });
+        {
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
 
-        let mut event = DomainEvent::new("task.scheduled", "task", task_id.to_string(), payload)
-            .with_aggregate_version(now.timestamp_millis());
+            let mut event =
+                DomainEvent::new("task.scheduled", "task", task_id.to_string(), payload)
+                    .with_aggregate_version(now.timestamp_millis());
 
-        if let Some(cid) = correlation_id {
-            event = event.with_correlation_id(cid);
+            if let Some(cid) = correlation_id {
+                event = event.with_correlation_id(cid);
+            }
+
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        outbox_repo.append_in_tx(&mut tx, &event).await?;
-
-        // 9. 提交事务
+        // 10. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 10. 返回结果
-        Ok(AddScheduleResponse { task_card })
+        // 11. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(AddScheduleResponse {
+            result: transaction_result,
+        })
     }
 }
 

@@ -15,7 +15,8 @@ import TrashView from '@/views/TrashView.vue'
 import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
+import { commandBus } from '@/commandBus'
 
 // ==================== 视图类型 ====================
 type RightPaneView =
@@ -36,7 +37,7 @@ const uiStore = useUIStore()
 // ==================== 初始化 ====================
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing, loading all tasks...')
-  await taskStore.fetchAllTasks()
+  await taskStore.fetchAllTasks_DMA()
   logger.info(LogTags.VIEW_HOME, 'Loaded tasks', { count: taskStore.allTasks.length })
 })
 
@@ -73,27 +74,19 @@ async function handleAddTask(title: string, date: string) {
   logger.info(LogTags.VIEW_HOME, 'Add task with schedule', { title, date })
 
   try {
-    // ✅ 使用新的合并端点，一次请求完成创建任务并添加日程
-    const newTask = await taskStore.createTaskWithSchedule({
+    // ✅ 使用 CommandBus 创建任务并添加日程
+    await commandBus.emit('task.create_with_schedule', {
       title,
       scheduled_day: date,
       estimated_duration: 60, // ✅ 默认1小时
     })
-    if (!newTask) {
-      logger.error(
-        LogTags.VIEW_HOME,
-        'Failed to create task with schedule',
-        new Error('Task creation returned null')
-      )
-      return
-    }
 
     logger.info(LogTags.VIEW_HOME, 'Task created with schedule', {
-      taskId: newTask.id,
+      title,
       date,
     })
 
-    // ✅ 无需手动刷新！TaskStore 已更新，Vue 响应式系统会自动更新 UI
+    // ✅ 无需手动刷新！TaskStore 会通过 SSE 自动更新，Vue 响应式系统会自动更新 UI
   } catch (error) {
     logger.error(
       LogTags.VIEW_HOME,
@@ -141,7 +134,7 @@ async function handleDeleteAllTasks() {
 
     for (const task of allTasks) {
       try {
-        await taskStore.deleteTask(task.id)
+        await commandBus.emit('task.delete', { id: task.id })
         successCount++
         logger.debug(LogTags.VIEW_HOME, 'Deleted task', {
           successCount,
@@ -178,7 +171,7 @@ async function handleLoadAllTasks() {
   logger.info(LogTags.VIEW_HOME, 'Loading all tasks...')
 
   try {
-    await taskStore.fetchAllTasks()
+    await taskStore.fetchAllTasks_DMA()
     const taskCount = taskStore.allTasks.length
     const archivedCount = taskStore.archivedTasks.length
     logger.info(LogTags.VIEW_HOME, 'Loaded tasks', { taskCount, archivedCount })

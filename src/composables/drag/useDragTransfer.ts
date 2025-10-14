@@ -5,7 +5,7 @@
  */
 
 import type { DragTransferData } from '@/types/drag'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 const DRAG_DATA_TYPE = 'application/x-cutie-task'
 

@@ -14,7 +14,8 @@ import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
+import { commandBus } from '@/commandBus'
 
 const props = defineProps<{
   title: string
@@ -85,9 +86,6 @@ async function handleAddTask() {
   newTaskTitle.value = ''
 
   try {
-    const { useTaskStore } = await import('@/stores/task')
-    const taskStore = useTaskStore()
-
     // 检查是否是日期视图（daily::YYYY-MM-DD）
     const viewMetadata = effectiveViewMetadata.value
     const isDateView = viewMetadata.type === 'date'
@@ -97,24 +95,20 @@ async function handleAddTask() {
       const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
       const date = dateConfig.date // YYYY-MM-DD
 
-      const newTask = await taskStore.createTaskWithSchedule({
+      await commandBus.emit('task.create_with_schedule', {
         title,
         scheduled_day: date,
         estimated_duration: 60, // ✅ 默认1小时
       })
-      if (!newTask) {
-        throw new Error('Task creation returned null')
-      }
 
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created with schedule', {
         title,
-        taskId: newTask.id,
         date,
         viewKey: props.viewKey,
       })
     } else {
       // 非日期视图：只创建任务
-      await taskStore.createTask({
+      await commandBus.emit('task.create', {
         title,
         estimated_duration: 60, // ✅ 默认1小时
       })

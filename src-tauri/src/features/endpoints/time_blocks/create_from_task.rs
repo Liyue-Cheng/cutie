@@ -250,11 +250,6 @@ pub struct CreateFromTaskRequest {
     pub is_all_day: Option<bool>,         // 可选，支持在日历全天槽位创建全天事件
 }
 
-#[derive(Debug, Serialize)]
-pub struct CreateFromTaskResponse {
-    pub time_block: TimeBlockViewDto,
-    pub updated_task: TaskCardDto, // 更新后的任务（schedule_status = 'scheduled'）
-}
 
 // ==================== HTTP 处理器 ====================
 pub async fn handle(
@@ -290,7 +285,7 @@ mod logic {
     pub async fn execute(
         app_state: &AppState,
         request: CreateFromTaskRequest,
-    ) -> AppResult<CreateFromTaskResponse> {
+    ) -> AppResult<crate::entities::TimeBlockTransactionResult> {
         // 1. 验证
         validation::validate_request(&request)?;
 
@@ -450,9 +445,12 @@ mod logic {
         outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
         TransactionHelper::commit(outbox_tx).await?;
 
-        Ok(CreateFromTaskResponse {
+        Ok(crate::entities::TimeBlockTransactionResult {
             time_block: time_block_view,
-            updated_task,
+            side_effects: crate::entities::TimeBlockSideEffects {
+                updated_tasks: Some(vec![updated_task]),
+                updated_time_blocks: None,
+            },
         })
     }
 }

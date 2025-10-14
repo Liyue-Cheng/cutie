@@ -6,7 +6,7 @@
 
 import { ref, type Ref } from 'vue'
 import type FullCalendar from '@fullcalendar/vue3'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 const UPDATE_THROTTLE = 16 // 约60fps
 

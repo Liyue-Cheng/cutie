@@ -10,7 +10,7 @@
 import { defineProps, defineEmits } from 'vue'
 import type { Template } from '@/types/dtos'
 import { useTemplateStore } from '@/stores/template'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 const props = defineProps<{
   template: Template

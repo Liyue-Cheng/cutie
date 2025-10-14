@@ -6,7 +6,7 @@
 
 import { ref, readonly } from 'vue'
 import type { Ref } from 'vue'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== 全局状态 ====================
 // 使用单例模式，确保整个应用共享同一个状态

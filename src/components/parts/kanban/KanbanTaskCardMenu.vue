@@ -25,6 +25,11 @@
     </template>
 
     <div class="divider"></div>
+    <button class="menu-button" @click="handleAction('return-to-staging')">
+      <CuteIcon name="RotateCcw" :size="14" />
+      返回暂存区
+    </button>
+    <div class="divider"></div>
     <button v-if="!task.is_archived" class="menu-button" @click="handleAction('archive')">
       归档任务
     </button>
@@ -37,9 +42,9 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
-import { useTaskOperations } from '@/composables/useTaskOperations'
+import { commandBus } from '@/commandBus'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
@@ -48,7 +53,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 
-const taskOps = useTaskOperations()
+// 循环规则相关操作暂时保留 composable（等后续统一迁移）
 const recurrenceOps = useRecurrenceOperations()
 
 // 检查是否为循环任务
@@ -61,18 +66,18 @@ type ActionType =
   | 'delete'
   | 'archive'
   | 'unarchive'
+  | 'return-to-staging'
   | 'stop-repeating'
   | 'change-frequency'
   | 'update-all-instances'
   | 'delete-all-instances'
 
 const handleAction = async (action: ActionType) => {
+  // ✅ 使用命令总线处理任务操作
   if (action === 'delete') {
     try {
-      const success = await taskOps.deleteTask(props.task.id)
-      if (success) {
-        logger.info(LogTags.COMPONENT_KANBAN, 'Task deleted', { taskTitle: props.task.title })
-      }
+      await commandBus.emit('task.delete', { id: props.task.id })
+      logger.info(LogTags.COMPONENT_KANBAN, 'Task deleted', { taskTitle: props.task.title })
     } catch (error) {
       logger.error(
         LogTags.COMPONENT_KANBAN,
@@ -82,10 +87,8 @@ const handleAction = async (action: ActionType) => {
     }
   } else if (action === 'archive') {
     try {
-      const success = await taskOps.archiveTask(props.task.id)
-      if (success) {
-        logger.info(LogTags.COMPONENT_KANBAN, 'Task archived', { taskTitle: props.task.title })
-      }
+      await commandBus.emit('task.archive', { id: props.task.id })
+      logger.info(LogTags.COMPONENT_KANBAN, 'Task archived', { taskTitle: props.task.title })
     } catch (error) {
       logger.error(
         LogTags.COMPONENT_KANBAN,
@@ -95,14 +98,25 @@ const handleAction = async (action: ActionType) => {
     }
   } else if (action === 'unarchive') {
     try {
-      const success = await taskOps.unarchiveTask(props.task.id)
-      if (success) {
-        logger.info(LogTags.COMPONENT_KANBAN, 'Task unarchived', { taskTitle: props.task.title })
-      }
+      await commandBus.emit('task.unarchive', { id: props.task.id })
+      logger.info(LogTags.COMPONENT_KANBAN, 'Task unarchived', { taskTitle: props.task.title })
     } catch (error) {
       logger.error(
         LogTags.COMPONENT_KANBAN,
         'Failed to unarchive task',
+        error instanceof Error ? error : new Error(String(error))
+      )
+    }
+  } else if (action === 'return-to-staging') {
+    try {
+      await commandBus.emit('task.return_to_staging', { id: props.task.id })
+      logger.info(LogTags.COMPONENT_KANBAN, 'Task returned to staging', {
+        taskTitle: props.task.title,
+      })
+    } catch (error) {
+      logger.error(
+        LogTags.COMPONENT_KANBAN,
+        'Failed to return task to staging',
         error instanceof Error ? error : new Error(String(error))
       )
     }

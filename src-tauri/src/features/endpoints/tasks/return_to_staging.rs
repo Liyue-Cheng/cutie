@@ -11,13 +11,13 @@ use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    entities::{TaskCardDto, TimeBlock},
+    entities::{SideEffects, TaskTransactionResult, TimeBlock},
+    features::shared::repositories::TimeBlockRepository,
     features::shared::{
         assemblers::TimeBlockAssembler,
         repositories::{TaskRepository, TaskTimeBlockLinkRepository},
         TaskAssembler,
     },
-    features::shared::repositories::TimeBlockRepository,
     infra::{
         core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
@@ -71,7 +71,7 @@ POST /api/tasks/{id}/return-to-staging
 
 ```json
 {
-  "task_card": {
+  "task": {
     "id": "uuid",
     "title": "string",
     "schedule_status": "staging",
@@ -159,9 +159,12 @@ POST /api/tasks/{id}/return-to-staging
 */
 
 // ==================== 响应结构体 ====================
+/// 返回暂存区的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct ReturnToStagingResponse {
-    pub task_card: TaskCardDto,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== HTTP 处理器 ====================
@@ -258,39 +261,54 @@ mod logic {
         use crate::entities::ScheduleStatus;
         task_card.schedule_status = ScheduleStatus::Staging;
 
-        // 12. 写入领域事件到 outbox
+        // 12. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects {
+                deleted_time_blocks: if deleted_time_blocks.is_empty() {
+                    None
+                } else {
+                    Some(deleted_time_blocks)
+                },
+                ..Default::default()
+            },
+        };
+
+        // 13. 写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
         };
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
-        let payload = serde_json::json!({
-            "task": task_card,
-            "side_effects": {
-                "deleted_time_blocks": deleted_time_blocks,
+        {
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+
+            let mut event = DomainEvent::new(
+                "task.returned_to_staging",
+                "task",
+                task_id.to_string(),
+                payload,
+            )
+            .with_aggregate_version(now.timestamp_millis());
+
+            if let Some(cid) = correlation_id {
+                event = event.with_correlation_id(cid);
             }
-        });
 
-        let mut event = DomainEvent::new(
-            "task.returned_to_staging",
-            "task",
-            task_id.to_string(),
-            payload,
-        )
-        .with_aggregate_version(now.timestamp_millis());
-
-        if let Some(cid) = correlation_id {
-            event = event.with_correlation_id(cid);
+            outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        outbox_repo.append_in_tx(&mut tx, &event).await?;
-
-        // 13. 提交事务
+        // 14. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 14. 返回结果
-        Ok(ReturnToStagingResponse { task_card })
+        // 15. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(ReturnToStagingResponse {
+            result: transaction_result,
+        })
     }
 }
 

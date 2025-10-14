@@ -11,7 +11,7 @@ use uuid::Uuid;
 use serde::Serialize;
 
 use crate::{
-    entities::TaskCardDto,
+    entities::{SideEffects, TaskTransactionResult},
     features::shared::{repositories::TaskRepository, TaskAssembler},
     infra::{
         core::{AppError, AppResult},
@@ -21,9 +21,11 @@ use crate::{
 };
 
 /// 归档任务的响应
+/// ✅ HTTP 响应和 SSE 事件使用相同的数据结构
 #[derive(Debug, Serialize)]
 pub struct ArchiveTaskResponse {
-    pub task: TaskCardDto,
+    #[serde(flatten)]
+    pub result: TaskTransactionResult,
 }
 
 // ==================== 文档层 ====================
@@ -201,7 +203,8 @@ mod logic {
 
         // 3. 删除当天及之后的所有日程（包括关联的时间块）
         let today = now.date_naive();
-        database::delete_today_and_future_schedules_in_tx(&mut tx, task_id, today).await?;
+        let deleted_time_blocks =
+            database::delete_today_and_future_schedules_in_tx(&mut tx, task_id, today).await?;
 
         // 4. 更新任务的 archived_at 字段
         database::set_archived_in_tx(&mut tx, task_id, now).await?;
@@ -243,7 +246,21 @@ mod logic {
             ScheduleStatus::Staging
         };
 
-        // 8. 在事务中写入领域事件到 outbox
+        // 8. 构建统一的事务结果
+        // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
+        let transaction_result = TaskTransactionResult {
+            task: task_card,
+            side_effects: SideEffects {
+                deleted_time_blocks: if deleted_time_blocks.is_empty() {
+                    None
+                } else {
+                    Some(deleted_time_blocks)
+                },
+                ..Default::default()
+            },
+        };
+
+        // 9. 在事务中写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -251,9 +268,9 @@ mod logic {
         let outbox_repo = SqlxEventOutboxRepository::new(app_state.db_pool().clone());
 
         {
-            let payload = serde_json::json!({
-                "task": task_card,
-            });
+            // ✅ 使用统一的事务结果作为事件载荷
+            let payload = serde_json::to_value(&transaction_result)?;
+
             let mut event = DomainEvent::new("task.archived", "task", task_id.to_string(), payload)
                 .with_aggregate_version(now.timestamp_millis());
 
@@ -264,11 +281,14 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 9. 提交事务（✅ 使用 TransactionHelper）
+        // 10. 提交事务（✅ 使用 TransactionHelper）
         TransactionHelper::commit(tx).await?;
 
-        // 10. 返回结果
-        Ok(ArchiveTaskResponse { task: task_card })
+        // 11. 返回结果
+        // ✅ HTTP 响应与 SSE 事件载荷完全一致
+        Ok(ArchiveTaskResponse {
+            result: transaction_result,
+        })
     }
 }
 
@@ -281,15 +301,21 @@ mod database {
     use sqlx::{Sqlite, Transaction};
 
     /// 删除当天及之后的所有日程（包括清理时间块）
+    /// 返回被删除的时间块列表
     pub async fn delete_today_and_future_schedules_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
         today: NaiveDate,
-    ) -> AppResult<()> {
+    ) -> AppResult<Vec<crate::entities::TimeBlockViewDto>> {
+        use crate::features::shared::assemblers::TimeBlockAssembler;
+
         // 1. 查找当天及之后的所有日程日期
         let future_dates = find_future_schedule_dates(tx, task_id, today).await?;
 
-        // 2. 对每个日期，清理时间块链接和孤儿时间块
+        // 2. 收集将被删除的时间块 ID
+        let mut time_block_ids_to_delete = Vec::new();
+
+        // 3. 对每个日期，清理时间块链接和孤儿时间块
         for scheduled_date in future_dates {
             // 查找该日期的所有时间块
             let time_blocks = find_time_blocks_for_day(tx, task_id, &scheduled_date).await?;
@@ -304,12 +330,21 @@ mod database {
                         .await?;
 
                 if remaining_links == 0 {
-                    TimeBlockRepository::soft_delete_in_tx(tx, block.id).await?;
+                    time_block_ids_to_delete.push(block.id);
                 }
             }
         }
 
-        // 3. 删除所有当天及之后的日程记录
+        // 4. 在删除前查询完整的时间块数据（用于事件）
+        let deleted_time_blocks =
+            TimeBlockAssembler::assemble_for_event_in_tx(tx, &time_block_ids_to_delete).await?;
+
+        // 5. 执行软删除
+        for block_id in &time_block_ids_to_delete {
+            TimeBlockRepository::soft_delete_in_tx(tx, *block_id).await?;
+        }
+
+        // 6. 删除所有当天及之后的日程记录
         use crate::infra::core::utils::time_utils;
         let today_str = time_utils::format_date_yyyy_mm_dd(&today);
         let query = r#"
@@ -324,7 +359,7 @@ mod database {
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;
 
-        Ok(())
+        Ok(deleted_time_blocks)
     }
 
     /// 查找当天及之后的日程日期

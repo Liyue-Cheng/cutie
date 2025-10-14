@@ -5,9 +5,9 @@ import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useUIStore } from '@/stores/ui'
-import { useTaskOperations } from '@/composables/useTaskOperations'
 import { useContextMenu } from '@/composables/useContextMenu'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
+import { commandBus } from '@/commandBus'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
@@ -23,7 +23,6 @@ const props = defineProps<{
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const uiStore = useUIStore()
-const taskOps = useTaskOperations()
 const emit = defineEmits<{
   taskCompleted: [taskId: string]
 }>()
@@ -49,7 +48,7 @@ const isDateKanban = computed(() => {
   return props.viewMetadata?.type === 'date'
 })
 
-import { getTodayDateString } from '@/utils/dateUtils'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 // ✅ 获取当日日期 (YYYY-MM-DD) - 使用本地时区
 const todayDate = computed(() => getTodayDateString())
 
@@ -162,13 +161,13 @@ function showContextMenu(event: MouseEvent) {
 
 async function handleStatusChange(isChecked: boolean) {
   if (isChecked) {
-    // ✅ 完成任务
-    await taskOps.completeTask(props.task.id)
+    // ✅ 完成任务 - 自动追踪！
+    await commandBus.emit('task.complete', { id: props.task.id })
     // 通知父组件任务已完成，以便重新排序
     emit('taskCompleted', props.task.id)
   } else {
-    // ✅ 重新打开任务
-    await taskOps.reopenTask(props.task.id)
+    // ✅ 重新打开任务 - 自动追踪！
+    await commandBus.emit('task.reopen', { id: props.task.id })
   }
 }
 
@@ -193,8 +192,12 @@ async function handlePresenceToggle(newCheckedValue: boolean) {
     // ✅ 标记刚点击过在场按钮，防止完成按钮立即出现在同一位置
     justToggledPresence.value = true
 
-    // 调用后端 API 更新 schedule 的 outcome
-    await taskStore.updateSchedule(props.task.id, kanbanDate, { outcome: newOutcome })
+    // 调用后端 API 更新 schedule 的 outcome - 自动追踪！
+    await commandBus.emit('schedule.update', {
+      task_id: props.task.id,
+      scheduled_day: kanbanDate,
+      updates: { outcome: newOutcome }
+    })
 
     logger.debug(LogTags.COMPONENT_KANBAN, 'Presence toggled successfully')
   } catch (error) {
@@ -308,9 +311,10 @@ function toggleTimePicker(event: Event) {
 // ✅ 更新预期时间
 async function updateEstimatedDuration(duration: number | null) {
   try {
-    await taskStore.updateTask(props.task.id, {
-      estimated_duration: duration,
-    } as any)
+    await commandBus.emit('task.update', {
+      id: props.task.id,
+      updates: { estimated_duration: duration }
+    })
     showTimePicker.value = false
   } catch (error) {
     logger.error(
@@ -327,9 +331,10 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
 
-  // ✅ 更新任务的subtasks（仍然使用 taskStore，因为这是简单的更新操作）
-  await taskStore.updateTask(props.task.id, {
-    subtasks: updatedSubtasks,
+  // ✅ 更新任务的subtasks（使用 commandBus）
+  await commandBus.emit('task.update', {
+    id: props.task.id,
+    updates: { subtasks: updatedSubtasks }
   })
 }
 </script>

@@ -8,7 +8,7 @@ import { ref, readonly, computed } from 'vue'
 import type { Ref } from 'vue'
 import type { DragContext, ViewMetadata, NormalDragMode, SnapDragMode } from '@/types/drag'
 import type { TaskCard } from '@/types/dtos'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== 全局上下文状态 ====================
 

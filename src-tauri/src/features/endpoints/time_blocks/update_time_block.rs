@@ -253,7 +253,7 @@ mod logic {
         app_state: &AppState,
         id: Uuid,
         request: UpdateTimeBlockRequest,
-    ) -> AppResult<TimeBlockViewDto> {
+    ) -> AppResult<crate::entities::TimeBlockTransactionResult> {
         // 1. 验证请求（✅ 使用共享 TimeBlockValidator）
         // 如果同时更新开始和结束时间，验证时间范围
         if let (Some(start), Some(end)) = (request.start_time, request.end_time) {
@@ -329,8 +329,51 @@ mod logic {
         // 9. 更新时间块（✅ 使用共享 Repository）
         TimeBlockRepository::update_in_tx(&mut tx, id, &request, now).await?;
 
-        // 10. 写入事件到 outbox（在事务内，仅当时间变化且有关联任务时）
+        // 9.5 组装受影响任务的完整数据（在事务内）
+        let mut affected_tasks = Vec::new();
         if should_publish_event && !affected_task_ids.is_empty() {
+            use crate::features::shared::{repositories::TaskRepository, TaskAssembler};
+
+            for task_id in &affected_task_ids {
+                if let Some(task) = TaskRepository::find_by_id_in_tx(&mut tx, *task_id).await? {
+                    let mut task_card = TaskAssembler::task_to_card_basic(&task);
+
+                    // ✅ 填充 schedules 字段（必须在 SSE 之前）
+                    task_card.schedules =
+                        TaskAssembler::assemble_schedules_in_tx(&mut tx, *task_id).await?;
+
+                    // ✅ 设置正确的 schedule_status
+                    use crate::entities::ScheduleStatus;
+                    let today = chrono::Local::now().date_naive();
+                    let has_future_schedule = task_card
+                        .schedules
+                        .as_ref()
+                        .map(|schedules| {
+                            schedules.iter().any(|s| {
+                                if let Ok(schedule_date) =
+                                    chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
+                                {
+                                    schedule_date >= today
+                                } else {
+                                    false
+                                }
+                            })
+                        })
+                        .unwrap_or(false);
+
+                    task_card.schedule_status = if has_future_schedule {
+                        ScheduleStatus::Scheduled
+                    } else {
+                        ScheduleStatus::Staging
+                    };
+
+                    affected_tasks.push(task_card);
+                }
+            }
+        }
+
+        // 10. 写入事件到 outbox（在事务内，仅当时间变化且有关联任务时）
+        if should_publish_event && !affected_tasks.is_empty() {
             use crate::infra::events::{
                 models::DomainEvent,
                 outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -341,6 +384,7 @@ mod logic {
             let payload = serde_json::json!({
                 "time_block_id": id,
                 "affected_task_ids": affected_task_ids,
+                "affected_tasks": affected_tasks, // ✅ 完整的任务数据
             });
 
             let event =
@@ -383,7 +427,17 @@ mod logic {
 
         tracing::info!("Updated time block: {}", id);
 
-        Ok(time_block_view)
+        Ok(crate::entities::TimeBlockTransactionResult {
+            time_block: time_block_view,
+            side_effects: if !affected_tasks.is_empty() {
+                crate::entities::TimeBlockSideEffects {
+                    updated_tasks: Some(affected_tasks),
+                    updated_time_blocks: None,
+                }
+            } else {
+                crate::entities::TimeBlockSideEffects::empty()
+            },
+        })
     }
 }
 

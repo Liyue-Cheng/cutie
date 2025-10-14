@@ -11,17 +11,16 @@
 import { defineProps, defineEmits } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import type { EventApi } from '@fullcalendar/core'
-import { useTimeBlockStore } from '@/stores/timeblock'
+import { commandBus } from '@/commandBus'
 
 const props = defineProps<{
   event: EventApi
 }>()
 
 const emit = defineEmits(['close'])
-const timeBlockStore = useTimeBlockStore()
 
 const handleDelete = async () => {
-  await timeBlockStore.deleteTimeBlock(props.event.id)
+  await commandBus.emit('time_block.delete', { id: props.event.id })
   emit('close') // Close the context menu
 }
 </script>

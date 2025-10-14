@@ -10,13 +10,12 @@ import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
 import { useViewOperations } from '@/composables/useViewOperations'
-import { useTaskOperations } from '@/composables/useTaskOperations'
-import { logger, LogTags } from '@/services/logger'
+import { logger, LogTags } from '@/infra/logging/logger'
+import { commandBus } from '@/commandBus'
 
 const taskStore = useTaskStore()
 const viewStore = useViewStore()
 const viewOps = useViewOperations()
-const taskOps = useTaskOperations()
 const isEditorOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 
@@ -45,14 +44,16 @@ function handleOpenEditor(task: TaskCard) {
 }
 
 async function handleAddTask(title: string) {
-  // ✅ 使用 TaskOperations 创建任务
-  const taskId = await taskOps.createTask({
-    title,
-    estimated_duration: 60, // ✅ 默认1小时
-  })
-  if (taskId) {
-    logger.info(LogTags.VIEW_HOME, 'Task created in debug view', { taskId })
-    // ✅ 新架构：无需手动添加，任务会自动出现在 stagingTasks 中
+  // ✅ 使用 CommandBus 创建任务
+  try {
+    await commandBus.emit('task.create', {
+      title,
+      estimated_duration: 60, // ✅ 默认1小时
+    })
+    logger.info(LogTags.VIEW_HOME, 'Task created in debug view', { title })
+    // ✅ 新架构：无需手动添加，任务会自动通过 SSE 出现在 stagingTasks 中
+  } catch (error) {
+    logger.error(LogTags.VIEW_HOME, 'Failed to create task in debug view', error as Error)
   }
 }
 
