@@ -114,6 +114,9 @@ pub mod logic {
         recurrence_id: Uuid,
         request: BatchUpdateInstancesRequest,
     ) -> AppResult<BatchUpdateInstancesResponse> {
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 1. 验证循环规则存在
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

@@ -67,6 +67,9 @@ mod logic {
         let today =
             crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(&now.date_naive());
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 2. 开启事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

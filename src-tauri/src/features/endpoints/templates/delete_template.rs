@@ -85,6 +85,9 @@ mod logic {
         // 1. 🔥 验证：不允许删除循环模板
         check_not_recurrence_template(app_state.db_pool(), id).await?;
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 2. 开启事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

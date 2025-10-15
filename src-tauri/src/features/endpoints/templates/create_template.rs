@@ -170,6 +170,9 @@ mod logic {
         let id = app_state.id_generator().new_uuid();
         let now = app_state.clock().now_utc();
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         // 3. 开启事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 

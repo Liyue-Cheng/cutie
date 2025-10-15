@@ -289,6 +289,9 @@ mod logic {
         // 1. 验证
         validation::validate_request(&request)?;
 
+        // ✅ 获取写入许可，确保写操作串行执行（覆盖所有后续事务）
+        let _permit = app_state.acquire_write_permit().await;
+
         // 2. 开始事务
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
             AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))

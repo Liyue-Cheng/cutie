@@ -170,6 +170,9 @@ mod logic {
         area_id: Uuid,
         request: UpdateAreaRequest,
     ) -> AppResult<AreaDto> {
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         let mut tx = app_state.db_pool().begin().await.map_err(|e| {
             AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
         })?;

@@ -187,6 +187,9 @@ mod logic {
 
         // ✅ 允许空的任务列表（看板可能为空，例如删除了所有任务）
 
+        // ✅ 获取写入许可，确保写操作串行执行
+        let _permit = app_state.acquire_write_permit().await;
+
         let pool = app_state.db_pool();
         let now = app_state.clock().now_utc();
 
