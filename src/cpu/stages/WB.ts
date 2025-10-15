@@ -1,6 +1,6 @@
 /**
  * WB阶段：Write Back（写回）
- * 
+ *
  * 职责：
  * 1. 调用 commit 函数（成功时）
  * 2. 回滚乐观更新（失败时）
@@ -20,13 +20,13 @@ export class WriteBackStage {
    */
   private rollbackOptimisticUpdate(instruction: QueuedInstruction): void {
     const definition = ISA[instruction.type]
-    
+
     if (instruction.optimisticSnapshot && definition?.optimistic?.rollback) {
       logger.warn(LogTags.SYSTEM_PIPELINE, 'WB: 回滚乐观更新', {
         instructionId: instruction.id,
         type: instruction.type,
       })
-      
+
       try {
         definition.optimistic.rollback(instruction.optimisticSnapshot)
       } catch (rollbackError) {
@@ -55,7 +55,7 @@ export class WriteBackStage {
 
     if (success) {
       // ==================== 成功路径 ====================
-      
+
       // 🔥 调用 commit 函数（如果存在）
       if (definition && definition.commit && instruction.result !== undefined) {
         try {
@@ -70,10 +70,10 @@ export class WriteBackStage {
               type: instruction.type,
             }
           )
-          
+
           // commit失败 → 回滚乐观更新
           this.rollbackOptimisticUpdate(instruction)
-          
+
           // 设置为失败状态
           instruction.status = InstructionStatus.FAILED
           instruction.error = error instanceof Error ? error : new Error(String(error))
@@ -91,22 +91,21 @@ export class WriteBackStage {
       // 成功场景
       instruction.status = InstructionStatus.COMMITTED
       instructionTracker.completeInstruction(instruction.id)
-      
+
       logger.info(LogTags.SYSTEM_PIPELINE, 'WB: 指令完成', {
         instructionId: instruction.id,
         type: instruction.type,
       })
-      
     } else {
       // ==================== 失败路径 ====================
-      
+
       // 🔥 回滚乐观更新
       this.rollbackOptimisticUpdate(instruction)
-      
+
       // 设置失败状态
       instruction.status = InstructionStatus.FAILED
       instructionTracker.failInstruction(instruction.id, instruction.error || new Error('未知错误'))
-      
+
       logger.error(
         LogTags.SYSTEM_PIPELINE,
         'WB: 指令失败',

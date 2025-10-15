@@ -1,12 +1,14 @@
 /**
- * 任务指令集
+ * 任务指令集（声明式架构版）
  *
- * 将任务相关的 CommandBus handlers 迁移到 CPU Pipeline
+ * 特点：
+ * 1. 使用声明式 request 配置
+ * 2. 自动处理 correlation-id
+ * 3. 统一的 commit 逻辑
  */
 
 import type { ISADefinition } from './types'
 import type { TaskCard } from '@/types/dtos'
-import { apiPost, apiDelete, apiPatch } from '@/stores/shared'
 import { useTaskStore } from '@/stores/task'
 import {
   transactionProcessor,
@@ -22,6 +24,7 @@ export const TaskISA: ISADefinition = {
       priority: 5,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       if (!payload.title?.trim()) {
         console.warn('❌ 任务标题不能为空')
@@ -29,11 +32,13 @@ export const TaskISA: ISADefinition = {
       }
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPost('/tasks', payload, {
-        headers: { 'X-Correlation-ID': context.correlationId },
-      })
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'POST',
+      url: '/tasks',
     },
+    
     commit: async (result: TaskCard) => {
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask_mut(result)
@@ -48,6 +53,7 @@ export const TaskISA: ISADefinition = {
       priority: 5,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       if (!payload.title?.trim()) {
         console.warn('❌ 任务标题不能为空')
@@ -59,11 +65,13 @@ export const TaskISA: ISADefinition = {
       }
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPost('/tasks/with-schedule', payload, {
-        headers: { 'X-Correlation-ID': context.correlationId },
-      })
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'POST',
+      url: '/tasks/with-schedule',
     },
+    
     commit: async (result: TaskCard) => {
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask_mut(result)
@@ -78,6 +86,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -87,11 +96,14 @@ export const TaskISA: ISADefinition = {
       }
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPatch(`/tasks/${payload.id}`, payload.updates, {
-        headers: { 'X-Correlation-ID': context.correlationId },
-      })
+    
+    // 🔥 声明式请求配置（动态 URL）
+    request: {
+      method: 'PATCH',
+      url: (payload) => `/tasks/${payload.id}`,
+      body: (payload) => payload.updates, // 只发送 updates 部分
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -108,6 +120,7 @@ export const TaskISA: ISADefinition = {
       priority: 7,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -124,15 +137,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPost(
-        `/tasks/${payload.id}/completion`,
-        {},
-        {
-          headers: { 'X-Correlation-ID': context.correlationId },
-        }
-      )
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'POST',
+      url: (payload) => `/tasks/${payload.id}/completion`,
+      body: () => ({}), // 空 body
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -149,6 +161,7 @@ export const TaskISA: ISADefinition = {
       priority: 7,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -165,11 +178,13 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    execute: async (payload, context) => {
-      return await apiDelete(`/tasks/${payload.id}/completion`, {
-        headers: { 'X-Correlation-ID': context.correlationId },
-      })
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'DELETE',
+      url: (payload) => `/tasks/${payload.id}/completion`,
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -186,6 +201,7 @@ export const TaskISA: ISADefinition = {
       priority: 5,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -197,11 +213,13 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    execute: async (payload, context) => {
-      return await apiDelete(`/tasks/${payload.id}`, {
-        headers: { 'X-Correlation-ID': context.correlationId },
-      })
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'DELETE',
+      url: (payload) => `/tasks/${payload.id}`,
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -218,6 +236,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -234,15 +253,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPost(
-        `/tasks/${payload.id}/archive`,
-        {},
-        {
-          headers: { 'X-Correlation-ID': context.correlationId },
-        }
-      )
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'POST',
+      url: (payload) => `/tasks/${payload.id}/archive`,
+      body: () => ({}), // 空 body
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -259,6 +277,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -275,15 +294,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPost(
-        `/tasks/${payload.id}/unarchive`,
-        {},
-        {
-          headers: { 'X-Correlation-ID': context.correlationId },
-        }
-      )
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'POST',
+      url: (payload) => `/tasks/${payload.id}/unarchive`,
+      body: () => ({}), // 空 body
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -300,6 +318,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
+    
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -311,15 +330,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    execute: async (payload, context) => {
-      return await apiPost(
-        `/tasks/${payload.id}/return-to-staging`,
-        {},
-        {
-          headers: { 'X-Correlation-ID': context.correlationId },
-        }
-      )
+    
+    // 🔥 声明式请求配置
+    request: {
+      method: 'POST',
+      url: (payload) => `/tasks/${payload.id}/return-to-staging`,
+      body: () => ({}), // 空 body
     },
+    
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
