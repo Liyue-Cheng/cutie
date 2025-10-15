@@ -13,7 +13,9 @@ export {
   stagingReorderStrategy,
 } from './task-scheduling'
 
+// 日历调度策略
+export { anyToCalendarAllDayStrategy, anyToCalendarTimedStrategy } from './calendar-scheduling'
+
 // 未来可以添加更多策略模块：
 // export * from './task-status'
 // export * from './task-ordering'
-// export * from './calendar-integration'

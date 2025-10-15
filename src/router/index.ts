@@ -52,6 +52,11 @@ const routes: Array<RouteRecordRaw> = [
         name: 'interact-test',
         component: () => import('../views/InteractTestView.vue'),
       },
+      {
+        path: 'cpu-debug',
+        name: 'cpu-debug',
+        component: () => import('../views/CPUDebugView.vue'),
+      },
     ],
   },
 

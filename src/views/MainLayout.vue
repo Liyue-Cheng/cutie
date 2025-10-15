@@ -56,6 +56,9 @@
             <li @click="$router.push('/interact-test')">
               <CuteIcon name="MousePointer2" :size="16" /><span>Interact Test</span>
             </li>
+            <li @click="$router.push('/cpu-debug')">
+              <CuteIcon name="Cpu" :size="16" /><span>CPU Pipeline</span>
+            </li>
           </ul>
 
           <div class="collapsible-section">

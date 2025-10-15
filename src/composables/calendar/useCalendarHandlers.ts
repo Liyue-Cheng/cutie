@@ -12,17 +12,16 @@ import type {
   EventMountArg,
   EventClickArg,
 } from '@fullcalendar/core'
-import { useTimeBlockStore } from '@/stores/timeblock'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { commandBus } from '@/commandBus'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
   currentDateRef: Ref<string | undefined>,
   selectedTimeBlockId: Ref<string | null>
 ) {
-  const timeBlockStore = useTimeBlockStore()
   const contextMenu = useContextMenu()
 
   /**
@@ -83,7 +82,8 @@ export function useCalendarHandlers(
           endTimeLocal = endDate.toTimeString().split(' ')[0] // HH:MM:SS
         }
 
-        await timeBlockStore.createTimeBlock({
+        // ✅ 使用命令系统创建空时间块
+        await commandBus.emit('time_block.create', {
           title,
           start_time: startISO,
           end_time: endISO,
@@ -231,14 +231,18 @@ export function useCalendarHandlers(
         endTimeLocal = endDate.toTimeString().split(' ')[0] // HH:MM:SS
       }
 
-      await timeBlockStore.updateTimeBlock(event.id, {
-        title: event.title,
-        start_time: startTime,
-        end_time: endTime,
-        start_time_local: startTimeLocal,
-        end_time_local: endTimeLocal,
-        time_type: 'FLOATING', // 保持浮动时间类型
-        is_all_day: isNowAllDay, // ✅ 更新全天标志
+      // ✅ 使用命令系统更新时间块
+      await commandBus.emit('time_block.update', {
+        id: event.id,
+        updates: {
+          title: event.title,
+          start_time: startTime,
+          end_time: endTime,
+          start_time_local: startTimeLocal,
+          end_time_local: endTimeLocal,
+          time_type: 'FLOATING', // 保持浮动时间类型
+          is_all_day: isNowAllDay, // ✅ 更新全天标志
+        },
       })
     } catch (error) {
       logger.error(

@@ -118,11 +118,29 @@ export type ScheduleCommand =
 
 export type TimeBlockCommand =
   | {
-      type: 'time_block.create'
+      type: 'time_block.create_from_task'
       payload: {
         task_id: string
         start_time: string // ISO 8601
         end_time: string // ISO 8601
+        start_time_local?: string | null // HH:mm:ss (可选)
+        end_time_local?: string | null // HH:mm:ss (可选)
+        time_type?: 'FLOATING' | 'FIXED' // 可选，默认 FLOATING
+        creation_timezone?: string | null // 可选
+        is_all_day?: boolean // 可选，默认 false
+      }
+    }
+  | {
+      type: 'time_block.create'
+      payload: {
+        title: string
+        start_time: string // ISO 8601
+        end_time: string // ISO 8601
+        start_time_local?: string | null // HH:mm:ss (可选)
+        end_time_local?: string | null // HH:mm:ss (可选)
+        time_type?: 'FLOATING' | 'FIXED' // 可选，默认 FLOATING
+        creation_timezone?: string | null // 可选
+        is_all_day?: boolean // 可选，默认 false
       }
     }
   | {
@@ -130,8 +148,13 @@ export type TimeBlockCommand =
       payload: {
         id: string
         updates: {
+          title?: string
           start_time?: string
           end_time?: string
+          start_time_local?: string | null
+          end_time_local?: string | null
+          time_type?: 'FLOATING' | 'FIXED'
+          is_all_day?: boolean
           task_id?: string
         }
       }

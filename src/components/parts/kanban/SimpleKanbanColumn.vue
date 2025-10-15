@@ -7,6 +7,7 @@ import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { pipeline } from '@/cpu'
 import { commandBus } from '@/commandBus'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
@@ -88,61 +89,53 @@ const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
 const addTaskInputRef = ref<HTMLInputElement | null>(null)
 
-async function handleAddTask() {
+function handleAddTask() {
   const title = newTaskTitle.value.trim()
   if (!title || isCreatingTask.value) return
 
   isCreatingTask.value = true
-  const originalTitle = newTaskTitle.value
   newTaskTitle.value = ''
 
-  try {
-    // 检查是否是日期视图（daily::YYYY-MM-DD）
-    const viewMetadata = effectiveViewMetadata.value
-    const isDateView = viewMetadata.type === 'date'
+  // 检查是否是日期视图（daily::YYYY-MM-DD）
+  const viewMetadata = effectiveViewMetadata.value
+  const isDateView = viewMetadata.type === 'date'
 
-    if (isDateView) {
-      // 日期视图：使用合并端点一次性创建任务并添加日程
-      const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
-      const date = dateConfig.date // YYYY-MM-DD
+  if (isDateView) {
+    // 日期视图：使用合并端点一次性创建任务并添加日程
+    const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
+    const date = dateConfig.date // YYYY-MM-DD
 
-      await commandBus.emit('task.create_with_schedule', {
-        title,
-        scheduled_day: date,
-      })
+    // 🚀 使用 CPU Pipeline 发射指令
+    pipeline.dispatch('task.create_with_schedule', {
+      title,
+      scheduled_day: date,
+    })
 
-      logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created with schedule', {
-        title,
-        date,
-        viewKey: props.viewKey,
-      })
-    } else {
-      // 非日期视图：只创建任务
-      await commandBus.emit('task.create', {
-        title,
-      })
-      logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', {
-        title,
-        viewKey: props.viewKey,
-      })
-    }
-  } catch (error) {
-    logger.error(
-      LogTags.COMPONENT_KANBAN_COLUMN,
-      'Task creation failed',
-      error instanceof Error ? error : new Error(String(error)),
-      { title, viewKey: props.viewKey }
-    )
-    newTaskTitle.value = originalTitle
-  } finally {
-    isCreatingTask.value = false
-    // 重新聚焦到输入框，方便连续添加任务
-    nextTick(() => {
-      if (addTaskInputRef.value) {
-        addTaskInputRef.value.focus()
-      }
+    logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task creation dispatched (with schedule)', {
+      title,
+      date,
+      viewKey: props.viewKey,
+    })
+  } else {
+    // 非日期视图：只创建任务
+    // 🚀 使用 CPU Pipeline 发射指令
+    pipeline.dispatch('task.create', {
+      title,
+    })
+
+    logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task creation dispatched', {
+      title,
+      viewKey: props.viewKey,
     })
   }
+
+  isCreatingTask.value = false
+  // 重新聚焦到输入框，方便连续添加任务
+  nextTick(() => {
+    if (addTaskInputRef.value) {
+      addTaskInputRef.value.focus()
+    }
+  })
 }
 
 // ==================== 任务完成后重新排序 ====================
@@ -191,11 +184,11 @@ function handleTaskCompleted(completedTaskId: string) {
       sorted_task_ids: newOrder,
       original_sorted_task_ids: originalOrder, // 用于失败回滚
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       logger.error(
         LogTags.COMPONENT_KANBAN_COLUMN,
         'Failed to persist completed task reorder',
-        error,
+        error instanceof Error ? error : new Error(String(error)),
         { viewKey: props.viewKey }
       )
     })
@@ -248,11 +241,11 @@ watch(
           sorted_task_ids: currentOrder,
           original_sorted_task_ids: originalOrder,
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           logger.error(
             LogTags.COMPONENT_KANBAN_COLUMN,
             'Failed to auto-persist view tasks',
-            error,
+            error instanceof Error ? error : new Error(String(error)),
             {
               viewKey: props.viewKey,
             }

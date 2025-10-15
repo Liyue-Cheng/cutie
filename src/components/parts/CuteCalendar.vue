@@ -1,12 +1,5 @@
 <template>
-  <div
-    class="calendar-container"
-    :class="`zoom-${currentZoom}x`"
-    @dragenter="drag.handleDragEnter"
-    @dragover="drag.handleDragOver"
-    @dragleave="drag.handleDragLeave"
-    @drop="drag.handleDrop"
-  >
+  <div class="calendar-container" :class="`zoom-${currentZoom}x`">
     <!-- 日期显示栏 -->
     <div class="calendar-header">
       <div class="date-display">
@@ -51,7 +44,7 @@ import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
 import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { useCalendarDrag } from '@/composables/calendar/useCalendarDrag'
+import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInteractDrag'
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
@@ -77,21 +70,18 @@ const selectedTimeBlockId = ref<string | null>(null)
 const { handleAutoScroll, stopAutoScroll } = useAutoScroll()
 
 // 时间位置计算
-const { getTimeFromDropPosition, clearCache, resetCache } = useTimePosition(calendarRef)
+const { getTimeFromDropPosition, clearCache } = useTimePosition(calendarRef)
 
 // 装饰线
 const decorativeLine = useDecorativeLine(calendarRef, currentDateRef)
 decorativeLine.initialize()
 
-// 拖拽功能
-const drag = useCalendarDrag(calendarRef, {
+// 拖拽功能（新的 interact.js 系统）
+const drag = useCalendarInteractDrag(calendarRef, {
   getTimeFromDropPosition,
-  clearCache,
-  resetCache,
   handleAutoScroll,
   stopAutoScroll,
 })
-drag.initialize()
 
 // 日历事件数据
 const { calendarEvents } = useCalendarEvents(drag.previewEvent)
@@ -196,21 +186,11 @@ watch(
 )
 
 onMounted(async () => {
-  // 🔍 检查点2：全局 drop 捕获监听（检测是否被内部拦截）
-  document.addEventListener(
-    'drop',
-    (e) => {
-      const target = e.target as HTMLElement
-      logger.debug(LogTags.COMPONENT_CALENDAR, 'Global drop capture', {
-        targetClass: target?.className,
-        tagName: target?.tagName,
-      })
-    },
-    true
-  ) // 捕获阶段
-
   // 使用 nextTick 确保DOM完全渲染后再获取数据
   await nextTick()
+
+  // 🔥 注册日历为 dropzone（新系统）
+  drag.registerCalendarDropzone()
 
   try {
     // 🔧 FIX: 加载更大的时间范围（前后各 3 个月），避免切换日历时看不到数据

@@ -71,7 +71,9 @@ export const stagingToDailyStrategy: Strategy = {
           original_sorted_task_ids: sourceSorting,
         }
         await commandBus.emit('view.update_sorting', sourceSortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload))
+        operations.push(
+          createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
+        )
 
         // 🎯 步骤 3: 插入到 Daily（更新排序）
         const targetSorting = extractTaskIds(ctx.targetContext)
@@ -82,7 +84,9 @@ export const stagingToDailyStrategy: Strategy = {
           original_sorted_task_ids: targetSorting,
         }
         await commandBus.emit('view.update_sorting', targetSortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload))
+        operations.push(
+          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
+        )
 
         return {
           success: true,
@@ -184,7 +188,9 @@ export const dailyToDailyStrategy: Strategy = {
           original_sorted_task_ids: sourceSorting,
         }
         await commandBus.emit('view.update_sorting', sourceSortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload))
+        operations.push(
+          createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
+        )
 
         // 🎯 步骤 3: 插入到目标 Daily
         const targetSorting = extractTaskIds(ctx.targetContext)
@@ -195,7 +201,9 @@ export const dailyToDailyStrategy: Strategy = {
           original_sorted_task_ids: targetSorting,
         }
         await commandBus.emit('view.update_sorting', targetSortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload))
+        operations.push(
+          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
+        )
 
         return {
           success: true,
@@ -275,7 +283,9 @@ export const dailyToStagingStrategy: Strategy = {
           original_sorted_task_ids: sourceSorting,
         }
         await commandBus.emit('view.update_sorting', sourceSortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload))
+        operations.push(
+          createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
+        )
 
         // 🎯 步骤 3: 插入到 Staging
         const targetSorting = extractTaskIds(ctx.targetContext)
@@ -286,7 +296,9 @@ export const dailyToStagingStrategy: Strategy = {
           original_sorted_task_ids: targetSorting,
         }
         await commandBus.emit('view.update_sorting', targetSortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload))
+        operations.push(
+          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
+        )
 
         return {
           success: true,
