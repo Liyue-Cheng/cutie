@@ -73,6 +73,32 @@
       </div>
     </div>
 
+    <!-- 控制台控制 -->
+    <div class="console-controls">
+      <h2>控制台设置</h2>
+      <div class="control-group">
+        <label>控制台级别：</label>
+        <select v-model="consoleLevel" @change="onConsoleLevelChange">
+          <option :value="0">关闭 (SILENT)</option>
+          <option :value="1">最小 (MINIMAL)</option>
+          <option :value="2">正常 (NORMAL)</option>
+          <option :value="3">详细 (VERBOSE)</option>
+          <option :value="4">调试 (DEBUG)</option>
+        </select>
+        <span class="hint">{{ getConsoleLevelHint() }}</span>
+      </div>
+      <div class="action-buttons">
+        <CuteButton @click="printStats">
+          <CuteIcon name="Activity" :size="16" />
+          打印统计信息
+        </CuteButton>
+        <CuteButton @click="printSeparator">
+          <CuteIcon name="Minus" :size="16" />
+          打印分隔线
+        </CuteButton>
+      </div>
+    </div>
+
     <!-- 快速发射指令 -->
     <div class="quick-actions">
       <h2>快速测试</h2>
@@ -100,6 +126,10 @@
         >
           <CuteIcon name="Lock" :size="16" />
           资源冲突
+        </CuteButton>
+        <CuteButton @click="dispatchInstruction('debug.test_timeout', {})">
+          <CuteIcon name="Timer" :size="16" />
+          测试超时（5秒）
         </CuteButton>
       </div>
       <div class="batch-test">
@@ -245,6 +275,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { pipeline, instructionTracker } from '@/cpu'
+import { cpuConsole, ConsoleLevel } from '@/cpu/logging'
 import type { InstructionTrace } from '@/cpu'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -255,6 +286,9 @@ import { interruptHandler } from '@/cpu/interrupt/InterruptHandler'
 const isRunning = ref(false)
 const traces = ref<InstructionTrace[]>([])
 const filter = ref<'all' | 'committed' | 'failed' | 'executing'>('all')
+
+// 控制台设置
+const consoleLevel = ref<ConsoleLevel>(cpuConsole.getLevel())
 
 // 任务测试相关
 const testTaskTitle = ref('')
@@ -337,6 +371,46 @@ function handleReset() {
   traces.value = []
   filter.value = 'all'
   isRunning.value = false // 同步流水线状态
+}
+
+// 控制台控制
+function onConsoleLevelChange() {
+  cpuConsole.setLevel(consoleLevel.value)
+  console.log(
+    `%c✅ 控制台级别已设置为: ${getConsoleLevelName(consoleLevel.value)}`,
+    'color: #10b981; font-weight: bold'
+  )
+}
+
+function getConsoleLevelName(level: ConsoleLevel): string {
+  const names = ['SILENT', 'MINIMAL', 'NORMAL', 'VERBOSE', 'DEBUG']
+  return names[level] || 'UNKNOWN'
+}
+
+function getConsoleLevelHint(): string {
+  const hints = [
+    '不输出任何内容',
+    '只输出成功/失败',
+    '输出关键阶段',
+    '输出所有细节',
+    '输出调试信息（包括 payload）',
+  ]
+  return hints[consoleLevel.value] || ''
+}
+
+function printStats() {
+  const stats = {
+    total: traces.value.length,
+    success: successCount.value,
+    failed: failCount.value,
+    avgLatency:
+      traces.value.reduce((sum, t) => sum + (t.duration || 0), 0) / traces.value.length || 0,
+  }
+  cpuConsole.printStats(stats)
+}
+
+function printSeparator() {
+  cpuConsole.printSeparator('CPU 流水线调试')
 }
 
 // 发射指令
@@ -557,6 +631,58 @@ function getRowClass(trace: InstructionTrace): string {
   font-size: 24px;
   color: var(--color-text-tertiary);
   user-select: none;
+}
+
+/* 控制台控制 */
+.console-controls {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--color-surface);
+  border-radius: 12px;
+}
+
+.console-controls h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 16px;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.control-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 100px;
+}
+
+.control-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.control-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.control-group .hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 /* 快速操作 */

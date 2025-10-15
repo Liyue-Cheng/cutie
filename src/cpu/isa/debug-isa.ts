@@ -103,4 +103,25 @@ export const DebugISA: ISADefinition = {
       }
     },
   },
+
+  'debug.test_timeout': {
+    meta: {
+      description: '测试超时机制（5秒超时，但执行10秒）',
+      category: 'debug',
+      resourceIdentifier: () => ['timeout:test'],
+      priority: 5,
+      timeout: 5000, // 🔥 5 秒超时
+    },
+    execute: async (payload, context) => {
+      // 故意执行 10 秒（会触发超时）
+      const delay = payload.delay || 10000
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      return {
+        success: true,
+        message: '不应该看到这个（因为会超时）',
+        correlationId: context.correlationId,
+        timestamp: Date.now(),
+      }
+    },
+  },
 }

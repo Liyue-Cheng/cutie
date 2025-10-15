@@ -8,6 +8,7 @@ import { ExecuteStage } from './stages/EX'
 import { ResponseStage } from './stages/RES'
 import { WriteBackStage } from './stages/WB'
 import { instructionTracker } from './tracking/InstructionTracker'
+import { cpuEventCollector, cpuConsole } from './logging'
 import type { QueuedInstruction } from './types'
 import { ref } from 'vue'
 
@@ -39,6 +40,15 @@ export class Pipeline {
     totalFailed: 0,
   })
 
+  // 🔥 Promise resolvers for awaitable dispatch
+  private promiseResolvers = new Map<
+    string,
+    {
+      resolve: (result: any) => void
+      reject: (error: Error) => void
+    }
+  >()
+
   constructor() {
     this.IF = new InstructionFetchStage()
     this.SCH = new SchedulerStage()
@@ -49,35 +59,47 @@ export class Pipeline {
 
   /**
    * 发射指令（外部API）
+   *
+   * @returns Promise that resolves with the instruction result or rejects with error
    */
-  dispatch<TPayload>(
+  dispatch<TPayload, TResult = any>(
     type: string,
     payload: TPayload,
     source: 'user' | 'system' | 'test' = 'user'
-  ): void {
-    // 🔒 检查流水线是否在运行
-    if (!this.isRunning) {
-      console.warn('%c⚠️ 流水线未启动，指令被拒绝', 'color: #FF9800; font-weight: bold', {
-        type,
-        payload,
-      })
-      return
-    }
+  ): Promise<TResult> {
+    return new Promise((resolve, reject) => {
+      // 🔒 检查流水线是否在运行
+      if (!this.isRunning) {
+        console.warn('%c⚠️ 流水线未启动，指令被拒绝', 'color: #FF9800; font-weight: bold', {
+          type,
+          payload,
+        })
+        reject(new Error('Pipeline is not running'))
+        return
+      }
 
-    // IF: 获取指令
-    const instruction = this.IF.fetchInstruction(type, payload, source)
+      // IF: 获取指令
+      const instruction = this.IF.fetchInstruction(type, payload, source)
 
-    // 加入调度队列
-    this.SCH.addInstruction(instruction)
+      // 🔥 保存 Promise resolvers
+      this.promiseResolvers.set(instruction.id, { resolve, reject })
 
-    // 立即尝试调度
-    this.SCH.tick()
+      // 🎯 记录指令创建事件
+      cpuEventCollector.onInstructionCreated(instruction)
+      cpuConsole.onInstructionCreated(instruction)
 
-    // 🔥 立即执行新发射的指令（避免tick延迟）
-    this.processActiveInstructions()
+      // 加入调度队列
+      this.SCH.addInstruction(instruction)
 
-    // 更新状态
-    this.updateStatus()
+      // 立即尝试调度
+      this.SCH.tick()
+
+      // 🔥 立即执行新发射的指令（避免tick延迟）
+      this.processActiveInstructions()
+
+      // 更新状态
+      this.updateStatus()
+    })
   }
 
   /**
@@ -126,6 +148,12 @@ export class Pipeline {
 
     // 清空追踪记录
     instructionTracker.clearTraces()
+
+    // 🔥 Reject all pending promises
+    for (const [, resolver] of this.promiseResolvers.entries()) {
+      resolver.reject(new Error('Pipeline was reset'))
+    }
+    this.promiseResolvers.clear()
 
     // 重置状态
     this.status.value = {
@@ -177,6 +205,28 @@ export class Pipeline {
 
     // 释放资源
     this.SCH.releaseInstruction(instruction.id)
+
+    // 🎯 记录指令完成/失败事件
+    const duration =
+      (instruction.timestamps.WB || Date.now()) - (instruction.timestamps.IF || Date.now())
+    if (success) {
+      cpuEventCollector.onInstructionCommitted(instruction)
+      cpuConsole.onInstructionSuccess(instruction, duration)
+    } else {
+      cpuEventCollector.onInstructionFailed(instruction, error || new Error('未知错误'))
+      cpuConsole.onInstructionFailure(instruction, error || new Error('未知错误'), duration)
+    }
+
+    // 🔥 Resolve/Reject Promise (if awaited)
+    const resolver = this.promiseResolvers.get(instruction.id)
+    if (resolver) {
+      if (success) {
+        resolver.resolve(instruction.result)
+      } else {
+        resolver.reject(error || new Error('未知错误'))
+      }
+      this.promiseResolvers.delete(instruction.id)
+    }
 
     // 更新状态
     this.updateStatus()

@@ -13,6 +13,7 @@ import { instructionTracker } from '../tracking/InstructionTracker'
 import { ISA } from '../isa'
 import { interruptHandler } from '../interrupt/InterruptHandler'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { cpuEventCollector, cpuConsole } from '../logging'
 
 export class WriteBackStage {
   /**
@@ -26,6 +27,17 @@ export class WriteBackStage {
         instructionId: instruction.id,
         type: instruction.type,
       })
+
+      // 🎯 记录乐观更新回滚事件
+      cpuEventCollector.onOptimisticRolledBack(
+        instruction.id,
+        instruction.type,
+        instruction.context.correlationId,
+        instruction.optimisticSnapshot,
+        '指令执行失败',
+        instruction.error
+      )
+      cpuConsole.onOptimisticRolledBack(instruction, '指令执行失败')
 
       try {
         definition.optimistic.rollback(instruction.optimisticSnapshot)

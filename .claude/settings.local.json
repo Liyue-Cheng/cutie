@@ -37,7 +37,8 @@
       "WebFetch(domain:rishpandey.com)",
       "Bash(pnpm exec vue-tsc --noEmit)",
       "Bash(timeout 30 pnpm exec vue-tsc --noEmit)",
-      "Bash(pnpm exec tsc --noEmit src/cpu/import-test.ts)"
+      "Bash(pnpm exec tsc --noEmit src/cpu/import-test.ts)",
+      "Bash(tree src -I node_modules)"
     ],
     "deny": [],
     "ask": []
