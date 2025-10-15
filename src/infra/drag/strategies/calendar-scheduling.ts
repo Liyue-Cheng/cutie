@@ -8,7 +8,7 @@
  */
 
 import type { Strategy } from '../types'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
@@ -47,7 +47,7 @@ export const anyToCalendarAllDayStrategy: Strategy = {
 
         // 🎯 步骤 1: 如果是 tiny 任务，先更新 estimated_duration
         if (ctx.task.estimated_duration === null || ctx.task.estimated_duration === 0) {
-          await commandBus.emit('task.update', {
+          await pipeline.dispatch('task.update', {
             id: ctx.task.id,
             updates: { estimated_duration: 15 },
           })
@@ -65,7 +65,7 @@ export const anyToCalendarAllDayStrategy: Strategy = {
           is_all_day: true,
         }
 
-        await commandBus.emit('time_block.create_from_task', createPayload)
+        await pipeline.dispatch('time_block.create_from_task', createPayload)
 
         logger.info(LogTags.DRAG_STRATEGY, 'Created all-day time block', {
           taskId: ctx.task.id,
@@ -146,7 +146,7 @@ export const anyToCalendarTimedStrategy: Strategy = {
 
         // 🎯 步骤 1: 如果是 tiny 任务，先更新 estimated_duration
         if (ctx.task.estimated_duration === null || ctx.task.estimated_duration === 0) {
-          await commandBus.emit('task.update', {
+          await pipeline.dispatch('task.update', {
             id: ctx.task.id,
             updates: { estimated_duration: 15 },
           })
@@ -164,7 +164,7 @@ export const anyToCalendarTimedStrategy: Strategy = {
           is_all_day: false,
         }
 
-        await commandBus.emit('time_block.create_from_task', createPayload)
+        await pipeline.dispatch('time_block.create_from_task', createPayload)
 
         logger.info(LogTags.DRAG_STRATEGY, 'Created timed time block', {
           taskId: ctx.task.id,

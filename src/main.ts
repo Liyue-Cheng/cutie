@@ -11,7 +11,6 @@ import {
   createVueErrorHandler,
   createVueWarnHandler,
 } from '@/infra/errors/errorHandler'
-import { initCommandBus } from '@/commandBus'
 import { initializeDragStrategies } from '@/infra/drag'
 import './style.css'
 
@@ -30,9 +29,6 @@ app.use(pinia)
 setActivePinia(pinia)
 app.use(i18n)
 app.use(router) // 确保已经 use 了 router
-
-// 初始化命令总线（需要在 pinia 初始化之后）
-initCommandBus()
 
 // 🔥 启动 CPU 流水线（必须在 pinia 之后启动）
 import('@/cpu').then(({ pipeline }) => {

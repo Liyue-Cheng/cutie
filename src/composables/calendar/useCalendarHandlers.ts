@@ -15,7 +15,7 @@ import type {
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
@@ -83,7 +83,7 @@ export function useCalendarHandlers(
         }
 
         // ✅ 使用命令系统创建空时间块
-        await commandBus.emit('time_block.create', {
+        await pipeline.dispatch('time_block.create', {
           title,
           start_time: startISO,
           end_time: endISO,
@@ -232,7 +232,7 @@ export function useCalendarHandlers(
       }
 
       // ✅ 使用命令系统更新时间块
-      await commandBus.emit('time_block.update', {
+      await pipeline.dispatch('time_block.update', {
         id: event.id,
         updates: {
           title: event.title,

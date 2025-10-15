@@ -542,7 +542,7 @@ export const LogTags = {
   SYSTEM_INIT: 'System:Init',
   SYSTEM_SSE: 'System:SSE',
   SYSTEM_API: 'System:API',
-  SYSTEM_COMMAND: 'System:CommandBus',
+  SYSTEM_COMMAND: 'System:Command', // Deprecated, use SYSTEM_PIPELINE
   SYSTEM_PIPELINE: 'System:Pipeline',
 
   // 命令处理器相关

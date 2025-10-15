@@ -21,10 +21,10 @@ import { apiGet } from '@/stores/shared'
  * - 只存储排序权重（持久化由 Command Handler 负责）
  *
  * 数据流：
- * 1. 组件触发命令 → commandBus.emit('view.update_sorting', ...)
- * 2. Command Handler 乐观更新 → viewStore.updateSortingOptimistic_mut(...)
- * 3. Command Handler 调用 API
- * 4. 成功 → 保持乐观更新 | 失败 → 回滚
+ * 1. 组件触发指令 → pipeline.dispatch('viewpreference.update_sorting', ...)
+ * 2. EX 阶段乐观更新 → viewStore.updateSortingOptimistic_mut(...)
+ * 3. EX 阶段调用 API
+ * 4. 成功 → WB commit | 失败 → WB 回滚
  */
 
 export const useViewStore = defineStore('view', () => {
@@ -163,14 +163,14 @@ export const useViewStore = defineStore('view', () => {
 
   /**
    * ❌ 已废弃：旧的 updateSorting 方法
-   * 请使用 commandBus.emit('view.update_sorting', ...) 代替
+   * 请使用 pipeline.dispatch('viewpreference.update_sorting', ...) 代替
    *
-   * @deprecated 使用 Command Bus 代替直接调用
+   * @deprecated 使用 CPU Pipeline 代替直接调用
    */
   async function updateSorting(viewKey: string, orderedTaskIds: string[]): Promise<boolean> {
     logger.warn(
       LogTags.STORE_VIEW,
-      '⚠️ DEPRECATED: Direct updateSorting call detected. Use commandBus.emit("view.update_sorting") instead',
+      '⚠️ DEPRECATED: Direct updateSorting call detected. Use pipeline.dispatch("viewpreference.update_sorting") instead',
       { viewKey }
     )
 
@@ -479,7 +479,7 @@ export const useViewStore = defineStore('view', () => {
     // ============================================================
     // DEPRECATED - 向后兼容
     // ============================================================
-    updateSorting, // ❌ 已废弃，使用 commandBus.emit('view.update_sorting') 代替
+    updateSorting, // ❌ 已废弃，使用 pipeline.dispatch('viewpreference.update_sorting') 代替
 
     // ============================================================
     // Daily 视图注册与刷新

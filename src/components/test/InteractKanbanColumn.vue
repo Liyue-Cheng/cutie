@@ -15,7 +15,7 @@ import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from '@/components/parts/kanban/KanbanTaskCard.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 
 const props = defineProps<{
   title: string
@@ -114,7 +114,7 @@ async function handleAddTask() {
       const dateConfig = viewMetadata.config as import('@/types/drag').DateViewConfig
       const date = dateConfig.date // YYYY-MM-DD
 
-      await commandBus.emit('task.create_with_schedule', {
+      await pipeline.dispatch('task.create_with_schedule', {
         title,
         scheduled_day: date,
       })
@@ -126,7 +126,7 @@ async function handleAddTask() {
       })
     } else {
       // 非日期视图：只创建任务
-      await commandBus.emit('task.create', {
+      await pipeline.dispatch('task.create', {
         title,
       })
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', {

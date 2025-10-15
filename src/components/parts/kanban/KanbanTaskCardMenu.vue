@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
 import { logger, LogTags } from '@/infra/logging/logger'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -76,7 +76,7 @@ const handleAction = async (action: ActionType) => {
   // ✅ 使用命令总线处理任务操作
   if (action === 'delete') {
     try {
-      await commandBus.emit('task.delete', { id: props.task.id })
+      await pipeline.dispatch('task.delete', { id: props.task.id })
       logger.info(LogTags.COMPONENT_KANBAN, 'Task deleted', { taskTitle: props.task.title })
     } catch (error) {
       logger.error(
@@ -87,7 +87,7 @@ const handleAction = async (action: ActionType) => {
     }
   } else if (action === 'archive') {
     try {
-      await commandBus.emit('task.archive', { id: props.task.id })
+      await pipeline.dispatch('task.archive', { id: props.task.id })
       logger.info(LogTags.COMPONENT_KANBAN, 'Task archived', { taskTitle: props.task.title })
     } catch (error) {
       logger.error(
@@ -98,7 +98,7 @@ const handleAction = async (action: ActionType) => {
     }
   } else if (action === 'unarchive') {
     try {
-      await commandBus.emit('task.unarchive', { id: props.task.id })
+      await pipeline.dispatch('task.unarchive', { id: props.task.id })
       logger.info(LogTags.COMPONENT_KANBAN, 'Task unarchived', { taskTitle: props.task.title })
     } catch (error) {
       logger.error(
@@ -109,7 +109,7 @@ const handleAction = async (action: ActionType) => {
     }
   } else if (action === 'return-to-staging') {
     try {
-      await commandBus.emit('task.return_to_staging', { id: props.task.id })
+      await pipeline.dispatch('task.return_to_staging', { id: props.task.id })
       logger.info(LogTags.COMPONENT_KANBAN, 'Task returned to staging', {
         taskTitle: props.task.title,
       })

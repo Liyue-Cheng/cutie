@@ -7,6 +7,7 @@ import { DebugISA } from './debug-isa'
 import { TaskISA } from './task-isa'
 import { ScheduleISA } from './schedule-isa'
 import { TimeBlockISA } from './timeblock-isa'
+import { ViewPreferenceISA } from './viewpreference-isa'
 
 /**
  * 完整的ISA定义
@@ -16,6 +17,7 @@ export const ISA: ISADefinition = {
   ...TaskISA,
   ...ScheduleISA,
   ...TimeBlockISA,
+  ...ViewPreferenceISA,
 }
 
 // 导出类型

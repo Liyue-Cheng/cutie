@@ -18,7 +18,6 @@ import {
   createOperationRecord,
   type OperationRecord,
 } from './strategy-utils'
-import { commandBus } from '@/commandBus'
 import { pipeline } from '@/cpu'
 
 /**
@@ -60,7 +59,7 @@ export const stagingToDailyStrategy: Strategy = {
           area_id: ctx.task.area_id,
           glance_note: ctx.task.glance_note,
         }
-        await commandBus.emit('task.create_with_schedule', createPayload)
+        await pipeline.dispatch('task.create_with_schedule', createPayload)
         operations.push(createOperationRecord('create_schedule', ctx.targetViewId, createPayload))
 
         // 🎯 步骤 2: 从 Staging 移除（更新排序）
@@ -71,7 +70,7 @@ export const stagingToDailyStrategy: Strategy = {
           sorted_task_ids: newSourceSorting,
           original_sorted_task_ids: sourceSorting,
         }
-        await commandBus.emit('view.update_sorting', sourceSortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
         operations.push(
           createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
         )
@@ -84,7 +83,7 @@ export const stagingToDailyStrategy: Strategy = {
           sorted_task_ids: newTargetSorting,
           original_sorted_task_ids: targetSorting,
         }
-        await commandBus.emit('view.update_sorting', targetSortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
         operations.push(
           createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
         )
@@ -156,7 +155,7 @@ export const dailyToDailyStrategy: Strategy = {
             sorted_task_ids: newSorting,
             original_sorted_task_ids: sorting,
           }
-          await commandBus.emit('view.update_sorting', sortPayload)
+          await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
           operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sortPayload))
 
           return {
@@ -189,7 +188,7 @@ export const dailyToDailyStrategy: Strategy = {
           sorted_task_ids: newSourceSorting,
           original_sorted_task_ids: sourceSorting,
         }
-        await commandBus.emit('view.update_sorting', sourceSortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
         operations.push(
           createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
         )
@@ -202,7 +201,7 @@ export const dailyToDailyStrategy: Strategy = {
           sorted_task_ids: newTargetSorting,
           original_sorted_task_ids: targetSorting,
         }
-        await commandBus.emit('view.update_sorting', targetSortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
         operations.push(
           createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
         )
@@ -273,7 +272,7 @@ export const dailyToStagingStrategy: Strategy = {
           task_id: ctx.task.id,
           scheduled_day: sourceDate,
         }
-        await commandBus.emit('schedule.delete', deletePayload)
+        await pipeline.dispatch('schedule.delete', deletePayload)
         operations.push(createOperationRecord('delete_schedule', ctx.sourceViewId, deletePayload))
 
         // 🎯 步骤 2: 从 Daily 移除
@@ -284,7 +283,7 @@ export const dailyToStagingStrategy: Strategy = {
           sorted_task_ids: newSourceSorting,
           original_sorted_task_ids: sourceSorting,
         }
-        await commandBus.emit('view.update_sorting', sourceSortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
         operations.push(
           createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
         )
@@ -297,7 +296,7 @@ export const dailyToStagingStrategy: Strategy = {
           sorted_task_ids: newTargetSorting,
           original_sorted_task_ids: targetSorting,
         }
-        await commandBus.emit('view.update_sorting', targetSortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
         operations.push(
           createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
         )
@@ -367,7 +366,7 @@ export const dailyReorderStrategy: Strategy = {
           sorted_task_ids: newSorting,
           original_sorted_task_ids: sorting,
         }
-        await commandBus.emit('view.update_sorting', sortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
         operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sortPayload))
 
         return {
@@ -426,7 +425,7 @@ export const stagingReorderStrategy: Strategy = {
           sorted_task_ids: newSorting,
           original_sorted_task_ids: sorting,
         }
-        await commandBus.emit('view.update_sorting', sortPayload)
+        await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
         operations.push(createOperationRecord('update_sorting', ctx.targetZone, sortPayload))
 
         return {

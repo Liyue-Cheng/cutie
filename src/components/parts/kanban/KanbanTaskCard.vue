@@ -7,7 +7,7 @@ import { useAreaStore } from '@/stores/area'
 import { useUIStore } from '@/stores/ui'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
@@ -162,12 +162,12 @@ function showContextMenu(event: MouseEvent) {
 async function handleStatusChange(isChecked: boolean) {
   if (isChecked) {
     // ✅ 完成任务 - 自动追踪！
-    await commandBus.emit('task.complete', { id: props.task.id })
+    await pipeline.dispatch('task.complete', { id: props.task.id })
     // 通知父组件任务已完成，以便重新排序
     emit('taskCompleted', props.task.id)
   } else {
     // ✅ 重新打开任务 - 自动追踪！
-    await commandBus.emit('task.reopen', { id: props.task.id })
+    await pipeline.dispatch('task.reopen', { id: props.task.id })
   }
 }
 
@@ -193,10 +193,10 @@ async function handlePresenceToggle(newCheckedValue: boolean) {
     justToggledPresence.value = true
 
     // 调用后端 API 更新 schedule 的 outcome - 自动追踪！
-    await commandBus.emit('schedule.update', {
+    await pipeline.dispatch('schedule.update', {
       task_id: props.task.id,
       scheduled_day: kanbanDate,
-      updates: { outcome: newOutcome }
+      updates: { outcome: newOutcome },
     })
 
     logger.debug(LogTags.COMPONENT_KANBAN, 'Presence toggled successfully')
@@ -311,9 +311,9 @@ function toggleTimePicker(event: Event) {
 // ✅ 更新预期时间
 async function updateEstimatedDuration(duration: number | null) {
   try {
-    await commandBus.emit('task.update', {
+    await pipeline.dispatch('task.update', {
       id: props.task.id,
-      updates: { estimated_duration: duration }
+      updates: { estimated_duration: duration },
     })
     showTimePicker.value = false
   } catch (error) {
@@ -331,10 +331,10 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
 
-  // ✅ 更新任务的subtasks（使用 commandBus）
-  await commandBus.emit('task.update', {
+  // ✅ 更新任务的subtasks（使用 CPU Pipeline）
+  await pipeline.dispatch('task.update', {
     id: props.task.id,
-    updates: { subtasks: updatedSubtasks }
+    updates: { subtasks: updatedSubtasks },
   })
 }
 </script>

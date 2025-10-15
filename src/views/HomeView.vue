@@ -16,7 +16,7 @@ import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 
 // ==================== 视图类型 ====================
 type RightPaneView =
@@ -74,8 +74,8 @@ async function handleAddTask(title: string, date: string) {
   logger.info(LogTags.VIEW_HOME, 'Add task with schedule', { title, date })
 
   try {
-    // ✅ 使用 CommandBus 创建任务并添加日程
-    await commandBus.emit('task.create_with_schedule', {
+    // ✅ 使用 CPU Pipeline 创建任务并添加日程
+    await pipeline.dispatch('task.create_with_schedule', {
       title,
       scheduled_day: date,
       estimated_duration: 60, // ✅ 默认1小时
@@ -134,7 +134,7 @@ async function handleDeleteAllTasks() {
 
     for (const task of allTasks) {
       try {
-        await commandBus.emit('task.delete', { id: task.id })
+        await pipeline.dispatch('task.delete', { id: task.id })
         successCount++
         logger.debug(LogTags.VIEW_HOME, 'Deleted task', {
           successCount,

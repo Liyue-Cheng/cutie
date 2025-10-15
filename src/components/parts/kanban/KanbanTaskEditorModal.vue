@@ -5,7 +5,7 @@ import { useAreaStore } from '@/stores/area'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useTemplateStore } from '@/stores/template'
 import { useViewStore } from '@/stores/view'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 import { RRule } from 'rrule'
 import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
@@ -203,9 +203,9 @@ async function handleCompleteChange(isChecked: boolean) {
   if (!props.taskId) return
 
   if (isChecked) {
-    await commandBus.emit('task.complete', { id: props.taskId })
+    await pipeline.dispatch('task.complete', { id: props.taskId })
   } else {
-    await commandBus.emit('task.reopen', { id: props.taskId })
+    await pipeline.dispatch('task.reopen', { id: props.taskId })
   }
 }
 
@@ -215,7 +215,7 @@ async function handlePresenceToggle(isChecked: boolean) {
   // 使用新的勾选状态来决定 outcome
   const newOutcome = isChecked ? 'presence_logged' : undefined
 
-  await commandBus.emit('schedule.update', {
+  await pipeline.dispatch('schedule.update', {
     task_id: props.taskId,
     scheduled_day: todayDate.value,
     updates: { outcome: newOutcome },
@@ -224,7 +224,7 @@ async function handlePresenceToggle(isChecked: boolean) {
 
 async function updateTitle() {
   if (!props.taskId || !task.value || titleInput.value === task.value.title) return
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { title: titleInput.value },
   })
@@ -233,7 +233,7 @@ async function updateTitle() {
 
 async function updateGlanceNote() {
   if (!props.taskId || !task.value) return
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { glance_note: glanceNote.value || null },
   })
@@ -241,7 +241,7 @@ async function updateGlanceNote() {
 
 async function updateDetailNote() {
   if (!props.taskId || !task.value) return
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { detail_note: detailNote.value || null },
   })
@@ -250,7 +250,7 @@ async function updateDetailNote() {
 async function updateArea(areaId: string | null) {
   if (!props.taskId || !task.value) return
   selectedAreaId.value = areaId
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { area_id: areaId },
   })
@@ -267,7 +267,7 @@ async function saveDueDate() {
     Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0)
   )
 
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: {
       due_date: toUtcIsoString(utcDate),
@@ -282,7 +282,7 @@ async function saveDueDate() {
 async function clearDueDate() {
   if (!props.taskId || !task.value) return
 
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: {
       due_date: null,
@@ -307,7 +307,7 @@ async function handleAddSubtask() {
 
   const updatedSubtasks = [...subtasks.value, newSubtask]
 
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { subtasks: updatedSubtasks },
   })
@@ -322,7 +322,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
 
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { subtasks: updatedSubtasks },
   })
@@ -333,7 +333,7 @@ async function handleDeleteSubtask(subtaskId: string) {
 
   const updatedSubtasks = subtasks.value.filter((subtask) => subtask.id !== subtaskId)
 
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { subtasks: updatedSubtasks },
   })
@@ -378,7 +378,7 @@ async function handleDrop(event: DragEvent, targetSubtaskId: string) {
     sort_order: `subtask_${Date.now()}_${index}`,
   }))
 
-  await commandBus.emit('task.update', {
+  await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { subtasks: updatedSubtasks },
   })

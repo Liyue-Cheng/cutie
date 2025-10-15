@@ -1,8 +1,8 @@
 /**
- * useCrossViewDrag/strategies - 拖放策略注册表（v3.0 - Command Bus 版）
+ * useCrossViewDrag/strategies - 拖放策略注册表（v4.0 - CPU Pipeline 版）
  *
  * 定义和管理所有拖放策略
- * ✅ 完全使用 commandBus，不再直接调用 Store CRUD 方法
+ * ✅ 完全使用 CPU Pipeline，不再直接调用 Store CRUD 方法
  */
 
 import type {
@@ -14,7 +14,7 @@ import type {
   CalendarViewConfig,
 } from '@/types/drag'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 
 // ==================== 策略实现 ====================
 
@@ -38,8 +38,8 @@ const statusToStatus: DragStrategy = async (context, targetView) => {
     logger.info(LogTags.DRAG_STRATEGY, 'Action: Return to staging from status view')
 
     try {
-      // ✅ 使用 commandBus
-      await commandBus.emit('task.return_to_staging', { id: context.task.id })
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('task.return_to_staging', { id: context.task.id })
 
       return {
         success: true,
@@ -111,8 +111,8 @@ const dateToDate: DragStrategy = async (context, targetView) => {
         }
       )
 
-      // ✅ 使用 commandBus
-      await commandBus.emit('schedule.delete', {
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('schedule.delete', {
         task_id: context.task.id,
         scheduled_day: sourceDate,
       })
@@ -130,8 +130,8 @@ const dateToDate: DragStrategy = async (context, targetView) => {
         toDate: targetDate,
       })
 
-      // ✅ 使用 commandBus
-      await commandBus.emit('schedule.update', {
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('schedule.update', {
         task_id: context.task.id,
         scheduled_day: sourceDate,
         updates: {
@@ -218,8 +218,8 @@ const statusToDate: DragStrategy = async (context, targetView) => {
     if (sourceStatus === 'staging') {
       logger.info(LogTags.DRAG_STRATEGY, 'Action: Add schedule for date', { targetDate })
 
-      // ✅ 使用 commandBus
-      await commandBus.emit('schedule.create', {
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('schedule.create', {
         task_id: context.task.id,
         scheduled_day: targetDate,
       })
@@ -273,8 +273,8 @@ const dateToStatus: DragStrategy = async (context, targetView) => {
     logger.info(LogTags.DRAG_STRATEGY, 'Action: Return to staging')
 
     try {
-      // ✅ 使用 commandBus
-      await commandBus.emit('task.return_to_staging', { id: context.task.id })
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('task.return_to_staging', { id: context.task.id })
 
       return {
         success: true,
@@ -335,8 +335,8 @@ const anyToCalendar: DragStrategy = async (context, targetView) => {
     if (estimatedDuration === null || estimatedDuration === 0) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Task is tiny, updating estimated_duration to 15 minutes')
 
-      // ✅ 使用 commandBus
-      await commandBus.emit('task.update', {
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('task.update', {
         id: context.task.id,
         updates: { estimated_duration: 15 },
       })
@@ -437,8 +437,8 @@ const projectToStatus: DragStrategy = async (context, targetView) => {
     logger.info(LogTags.DRAG_STRATEGY, 'Action: Return to staging from project view')
 
     try {
-      // ✅ 使用 commandBus
-      await commandBus.emit('task.return_to_staging', { id: context.task.id })
+      // ✅ 使用 CPU Pipeline
+      await pipeline.dispatch('task.return_to_staging', { id: context.task.id })
 
       return {
         success: true,

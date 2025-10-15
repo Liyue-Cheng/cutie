@@ -11,7 +11,7 @@ import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
 import { useViewOperations } from '@/composables/useViewOperations'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 
 const taskStore = useTaskStore()
 const viewStore = useViewStore()
@@ -44,9 +44,9 @@ function handleOpenEditor(task: TaskCard) {
 }
 
 async function handleAddTask(title: string) {
-  // ✅ 使用 CommandBus 创建任务
+  // ✅ 使用 CPU Pipeline 创建任务
   try {
-    await commandBus.emit('task.create', {
+    await pipeline.dispatch('task.create', {
       title,
       estimated_duration: 60, // ✅ 默认1小时
     })
