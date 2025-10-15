@@ -1,15 +1,16 @@
 /**
- * INT: 中断处理器（Interrupt Handler）
+ * INT: 中断管理器（Interrupt Controller）
  *
  * 职责：
- * 1. 注册本机发起的指令（通过 correlation_id）
- * 2. 拦截所有 SSE 事件
- * 3. 去重：丢弃本机已处理的事件
- * 4. 转发：应用其他机器的操作
+ * 1. 接收所有外部事件（SSE、WebSocket、轮询等）
+ * 2. 去重检查（基于本机操作表）
+ * 3. 根据事件类型分发给对应的 handler
+ * 4. 统一的中断入口点
  *
  * 架构：
- * WB 完成 → INT.register(correlationId)
- * SSE 到达 → INT.handle(event) → 检查 → 应用/丢弃
+ * [SSE] → INT.dispatch(event) → [去重] → [分发] → [Handler]
+ * [WS]  → INT.dispatch(event) → [去重] → [分发] → [Handler]
+ * [WB]  → INT.register(correlationId) → [记录本机操作]
  */
 
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -17,22 +18,30 @@ import { logger, LogTags } from '@/infra/logging/logger'
 /**
  * 中断类型
  */
-export enum InterruptType {
-  SSE = 'sse', // Server-Sent Events
-  WEBSOCKET = 'ws', // WebSocket
-  POLLING = 'polling', // 长轮询
-}
+export const InterruptType = {
+  SSE: 'sse' as const, // Server-Sent Events
+  WEBSOCKET: 'ws' as const, // WebSocket
+  POLLING: 'polling' as const, // 长轮询
+} as const
+
+export type InterruptType = (typeof InterruptType)[keyof typeof InterruptType]
 
 /**
- * 中断事件
+ * 中断事件（标准化格式）
  */
 export interface InterruptEvent {
-  type: InterruptType
+  type: InterruptType // 中断类型
+  eventType: string // 事件类型（如 task.completed）
   correlationId?: string
   eventId?: string
   payload: any
   timestamp: number
 }
+
+/**
+ * 中断处理器（回调函数）
+ */
+export type InterruptEventHandler = (event: InterruptEvent) => void | Promise<void>
 
 /**
  * 中断表条目
@@ -47,11 +56,14 @@ interface InterruptEntry {
 }
 
 /**
- * 中断处理器
+ * 中断管理器（Controller）
  */
 export class InterruptHandler {
   // 中断表：记录本机发起的指令
   private interruptTable = new Map<string, InterruptEntry>()
+
+  // 事件处理器映射：eventType → handlers[]
+  private handlers = new Map<string, InterruptEventHandler[]>()
 
   // TTL：中断表条目的生存时间（10秒）
   private readonly TTL = 10000
@@ -86,40 +98,99 @@ export class InterruptHandler {
   }
 
   /**
-   * 处理中断事件（SSE/WebSocket 等）
+   * 注册事件处理器
    *
-   * @returns true = 应用更新, false = 丢弃（本机已处理）
+   * @param eventType 事件类型（如 task.completed）
+   * @param handler 处理器函数
    */
-  handle(event: InterruptEvent): boolean {
-    const { correlationId, type, payload } = event
-
-    if (!correlationId) {
-      // 没有 correlation_id 的事件，直接应用
-      logger.debug(LogTags.SYSTEM_PIPELINE, 'INT: 无 correlation_id，直接应用', { type })
-      return true
+  on(eventType: string, handler: InterruptEventHandler): void {
+    if (!this.handlers.has(eventType)) {
+      this.handlers.set(eventType, [])
     }
-
-    // 检查中断表
-    const entry = this.interruptTable.get(correlationId)
-
-    if (entry) {
-      // 🔥 本机已处理，丢弃 SSE 事件
-      logger.debug(LogTags.SYSTEM_PIPELINE, 'INT: 丢弃重复事件（本机已处理）', {
-        correlationId,
-        type,
-        originalType: entry.instruction.type,
-        age: Date.now() - entry.timestamp,
-      })
-      return false
-    }
-
-    // 其他机器的操作，应用更新
-    logger.info(LogTags.SYSTEM_PIPELINE, 'INT: 应用远程更新', {
-      correlationId,
-      type,
-      payload,
+    this.handlers.get(eventType)!.push(handler)
+    logger.debug(LogTags.SYSTEM_PIPELINE, 'INT: 注册事件处理器', {
+      eventType,
+      handlerCount: this.handlers.get(eventType)!.length,
     })
-    return true
+  }
+
+  /**
+   * 取消注册事件处理器
+   */
+  off(eventType: string, handler: InterruptEventHandler): void {
+    const handlers = this.handlers.get(eventType)
+    if (handlers) {
+      const index = handlers.indexOf(handler)
+      if (index > -1) {
+        handlers.splice(index, 1)
+      }
+    }
+  }
+
+  /**
+   * 分发中断事件（统一入口）
+   *
+   * 所有外部事件（SSE、WebSocket 等）都通过此方法进入系统
+   */
+  dispatch(event: InterruptEvent): void {
+    const { correlationId, type, eventType } = event
+
+    logger.debug(LogTags.SYSTEM_PIPELINE, 'INT: 收到中断', {
+      type,
+      eventType,
+      correlationId,
+    })
+
+    // 🔥 去重检查
+    if (correlationId) {
+      const entry = this.interruptTable.get(correlationId)
+      if (entry) {
+        logger.debug(LogTags.SYSTEM_PIPELINE, 'INT: 丢弃重复事件（本机已处理）', {
+          correlationId,
+          eventType,
+          originalType: entry.instruction.type,
+          age: Date.now() - entry.timestamp,
+        })
+        return // 丢弃
+      }
+    }
+
+    // 🔥 分发给对应的 handlers
+    const handlers = this.handlers.get(eventType) || []
+    if (handlers.length === 0) {
+      logger.warn(LogTags.SYSTEM_PIPELINE, 'INT: 没有注册的处理器', { eventType })
+      return
+    }
+
+    logger.info(LogTags.SYSTEM_PIPELINE, 'INT: 分发中断', {
+      type,
+      eventType,
+      correlationId,
+      handlerCount: handlers.length,
+    })
+
+    for (const handler of handlers) {
+      try {
+        const result = handler(event)
+        if (result instanceof Promise) {
+          result.catch((err) => {
+            logger.error(
+              LogTags.SYSTEM_PIPELINE,
+              'INT: 处理器错误（async）',
+              err instanceof Error ? err : new Error(String(err)),
+              { eventType }
+            )
+          })
+        }
+      } catch (err) {
+        logger.error(
+          LogTags.SYSTEM_PIPELINE,
+          'INT: 处理器错误（sync）',
+          err instanceof Error ? err : new Error(String(err)),
+          { eventType }
+        )
+      }
+    }
   }
 
   /**

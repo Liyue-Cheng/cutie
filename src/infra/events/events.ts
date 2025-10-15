@@ -166,64 +166,23 @@ export class EventSubscriber {
         correlationId: event.correlation_id,
       })
 
-      // 🔥 INT: 检查是否是本机已处理的操作（去重）
-      if (event.correlation_id) {
-        import('@/cpu/interrupt/InterruptHandler').then(({ interruptHandler, InterruptType }) => {
-          const shouldApply = interruptHandler.handle({
-            type: InterruptType.SSE,
-            correlationId: event.correlation_id!,
-            payload: event.payload,
-            timestamp: Date.now(),
-          })
-
-          if (!shouldApply) {
-            logger.debug(LogTags.SYSTEM_SSE, '🔥 INT: 丢弃 SSE 事件（本机已处理）', {
-              correlationId: event.correlation_id,
-              eventType,
-            })
-            return // 丢弃事件，不再分发
-          }
-
-          // 应用事件
-          this.dispatchToHandlers(eventType, event)
+      // 🔥 转发给中断管理器（INT）
+      import('@/cpu/interrupt/InterruptHandler').then(({ interruptHandler, InterruptType }) => {
+        interruptHandler.dispatch({
+          type: InterruptType.SSE,
+          eventType: eventType,
+          correlationId: event.correlation_id || undefined,
+          eventId: event.event_id,
+          payload: event.payload,
+          timestamp: Date.now(),
         })
-      } else {
-        // 没有 correlation_id，直接应用
-        this.dispatchToHandlers(eventType, event)
-      }
+      })
     } catch (err) {
       logger.error(
         LogTags.SYSTEM_SSE,
         'Failed to parse event data',
         err instanceof Error ? err : new Error(String(err))
       )
-    }
-  }
-
-  /// 分发事件到所有注册的 handlers
-  private dispatchToHandlers(eventType: string, event: DomainEvent): void {
-    const handlers = this.handlers.get(eventType) || []
-    for (const handler of handlers) {
-      try {
-        const result = handler(event)
-        if (result instanceof Promise) {
-          result.catch((err) => {
-            logger.error(
-              LogTags.SYSTEM_SSE,
-              'Handler error (async)',
-              err instanceof Error ? err : new Error(String(err)),
-              { eventType }
-            )
-          })
-        }
-      } catch (err) {
-        logger.error(
-          LogTags.SYSTEM_SSE,
-          'Handler error (sync)',
-          err instanceof Error ? err : new Error(String(err)),
-          { eventType }
-        )
-      }
     }
   }
 }

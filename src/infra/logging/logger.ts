@@ -543,6 +543,7 @@ export const LogTags = {
   SYSTEM_SSE: 'System:SSE',
   SYSTEM_API: 'System:API',
   SYSTEM_COMMAND: 'System:CommandBus',
+  SYSTEM_PIPELINE: 'System:Pipeline',
 
   // 命令处理器相关
   COMMAND_TASK: 'Command:Task',

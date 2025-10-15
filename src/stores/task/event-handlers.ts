@@ -22,32 +22,29 @@ import type { createTaskCore } from './core'
 export function createEventHandlers(core: ReturnType<typeof createTaskCore>) {
   /**
    * 初始化事件订阅（由 main.ts 调用）
+   *
+   * v4.0: 所有事件通过 INT（中断管理器）注册
    */
   function initEventSubscriptions() {
-    import('@/infra/events/events').then(({ getEventSubscriber }) => {
-      const subscriber = getEventSubscriber()
-      if (!subscriber) {
-        logger.warn(LogTags.STORE_TASKS, 'Event subscriber not initialized yet')
-        return
-      }
-
-      // 订阅所有任务事件（统一处理）
-      subscriber.on('task.completed', handleTaskTransactionEvent)
-      subscriber.on('task.updated', handleTaskTransactionEvent)
-      subscriber.on('task.trashed', handleTaskTransactionEvent)
-      subscriber.on('task.archived', handleTaskTransactionEvent)
-      subscriber.on('task.unarchived', handleTaskTransactionEvent)
-      subscriber.on('task.returned_to_staging', handleTaskTransactionEvent)
-      subscriber.on('task.reopened', handleTaskTransactionEvent)
-      subscriber.on('task.permanently_deleted', handleTaskTransactionEvent)
+    import('@/cpu/interrupt/InterruptHandler').then(({ interruptHandler }) => {
+      // 🔥 注册到 INT（中断管理器）
+      // 所有任务事件统一处理
+      interruptHandler.on('task.completed', handleTaskTransactionEvent)
+      interruptHandler.on('task.updated', handleTaskTransactionEvent)
+      interruptHandler.on('task.trashed', handleTaskTransactionEvent)
+      interruptHandler.on('task.archived', handleTaskTransactionEvent)
+      interruptHandler.on('task.unarchived', handleTaskTransactionEvent)
+      interruptHandler.on('task.returned_to_staging', handleTaskTransactionEvent)
+      interruptHandler.on('task.reopened', handleTaskTransactionEvent)
+      interruptHandler.on('task.permanently_deleted', handleTaskTransactionEvent)
 
       // 订阅时间块事件（处理受影响的任务）
-      subscriber.on('time_blocks.deleted', handleTimeBlockEvent)
-      subscriber.on('time_blocks.updated', handleTimeBlockEvent)
-      subscriber.on('time_blocks.linked', handleTimeBlockEvent)
-      subscriber.on('time_blocks.created', handleTimeBlockEvent)
+      interruptHandler.on('time_blocks.deleted', handleTimeBlockEvent)
+      interruptHandler.on('time_blocks.updated', handleTimeBlockEvent)
+      interruptHandler.on('time_blocks.linked', handleTimeBlockEvent)
+      interruptHandler.on('time_blocks.created', handleTimeBlockEvent)
 
-      logger.info(LogTags.STORE_TASKS, 'Task event subscriptions initialized (v3.0)')
+      logger.info(LogTags.STORE_TASKS, 'Task event subscriptions initialized (v4.0 - via INT)')
     })
   }
 
@@ -56,12 +53,14 @@ export function createEventHandlers(core: ReturnType<typeof createTaskCore>) {
    * ✅ 使用 transactionProcessor 自动处理所有逻辑
    * ✅ 自动去重（基于 correlation_id 或 event_id）
    * ✅ 自动应用所有副作用（deleted/truncated/updated time_blocks）
+   *
+   * v4.0: 接收 InterruptEvent 格式
    */
   async function handleTaskTransactionEvent(event: any) {
     try {
       await transactionProcessor.applyTaskTransaction(event.payload, {
-        correlation_id: event.correlation_id,
-        event_id: event.event_id,
+        correlation_id: event.correlationId,
+        event_id: event.eventId,
         source: 'sse',
       })
     } catch (error) {
@@ -70,8 +69,8 @@ export function createEventHandlers(core: ReturnType<typeof createTaskCore>) {
         'Failed to process task transaction event',
         error instanceof Error ? error : new Error(String(error)),
         {
-          eventType: event.event_type,
-          correlationId: event.correlation_id,
+          eventType: event.eventType,
+          correlationId: event.correlationId,
         }
       )
     }
@@ -80,6 +79,8 @@ export function createEventHandlers(core: ReturnType<typeof createTaskCore>) {
   /**
    * 时间块事件处理器
    * ✅ 现在后端已包含完整的 affected_tasks，直接应用即可
+   *
+   * v4.0: 接收 InterruptEvent 格式
    */
   async function handleTimeBlockEvent(event: any) {
     const payload = event.payload
@@ -87,7 +88,7 @@ export function createEventHandlers(core: ReturnType<typeof createTaskCore>) {
 
     if (affectedTasks.length > 0) {
       logger.info(LogTags.STORE_TASKS, 'Applying time block event affected tasks', {
-        eventType: event.event_type,
+        eventType: event.eventType,
         count: affectedTasks.length,
       })
 

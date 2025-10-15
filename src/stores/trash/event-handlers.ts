@@ -1,28 +1,28 @@
 /**
  * Trash Store - Event Handlers
+ *
+ * v2.0: 所有事件通过 INT（中断管理器）注册
  */
-import { getEventSubscriber } from '@/infra/events/events'
 import { addOrUpdateTrashedTask, removeTrashedTask } from './core'
-import type { DomainEvent } from '@/infra/events/events'
+import type { InterruptEvent } from '@/cpu/interrupt/InterruptHandler'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
- * 初始化事件订阅
+ * 初始化事件订阅（v2.0 - via INT）
  */
 export function initEventSubscriptions() {
-  const subscriber = getEventSubscriber()
-  if (!subscriber) {
-    logger.warn(LogTags.STORE_TRASH, 'Event subscriber not initialized')
-    return
-  }
+  import('@/cpu/interrupt/InterruptHandler').then(({ interruptHandler }) => {
+    // 🔥 注册到 INT（中断管理器）
+    interruptHandler.on('task.trashed', handleTaskTrashedEvent)
+    interruptHandler.on('task.restored', handleTaskRestoredEvent)
+    interruptHandler.on('task.permanently_deleted', handleTaskPermanentlyDeletedEvent)
+    interruptHandler.on('trash.emptied', handleTrashEmptiedEvent)
 
-  subscriber.on('task.trashed', handleTaskTrashedEvent)
-  subscriber.on('task.restored', handleTaskRestoredEvent)
-  subscriber.on('task.permanently_deleted', handleTaskPermanentlyDeletedEvent)
-  subscriber.on('trash.emptied', handleTrashEmptiedEvent)
+    logger.info(LogTags.STORE_TRASH, 'Trash event subscriptions initialized (v2.0 - via INT)')
+  })
 }
 
-function handleTaskTrashedEvent(event: DomainEvent) {
+function handleTaskTrashedEvent(event: InterruptEvent) {
   const task = event.payload?.task
   if (task) {
     logger.info(LogTags.STORE_TRASH, 'Task trashed', { taskId: task.id })
@@ -30,7 +30,7 @@ function handleTaskTrashedEvent(event: DomainEvent) {
   }
 }
 
-function handleTaskRestoredEvent(event: DomainEvent) {
+function handleTaskRestoredEvent(event: InterruptEvent) {
   const task = event.payload?.task
   if (task) {
     logger.info(LogTags.STORE_TRASH, 'Task restored', { taskId: task.id })
@@ -38,7 +38,7 @@ function handleTaskRestoredEvent(event: DomainEvent) {
   }
 }
 
-function handleTaskPermanentlyDeletedEvent(event: DomainEvent) {
+function handleTaskPermanentlyDeletedEvent(event: InterruptEvent) {
   const taskId = event.payload?.task_id
   if (taskId) {
     logger.info(LogTags.STORE_TRASH, 'Task permanently deleted', { taskId })
@@ -46,7 +46,7 @@ function handleTaskPermanentlyDeletedEvent(event: DomainEvent) {
   }
 }
 
-function handleTrashEmptiedEvent(event: DomainEvent) {
+function handleTrashEmptiedEvent(event: InterruptEvent) {
   const deletedTaskIds = event.payload?.deleted_task_ids || []
   logger.info(LogTags.STORE_TRASH, 'Trash emptied', { deletedTasksCount: deletedTaskIds.length })
 
