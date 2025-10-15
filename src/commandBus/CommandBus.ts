@@ -39,12 +39,14 @@ class CommandBus {
    *
    * @param type 命令类型
    * @param payload 命令负载
+   * @param options 可选参数（用于追踪器等）
    * @returns Promise<void>
    * @throws Error 如果命令处理失败
    */
   async emit<T extends Command['type']>(
     type: T,
-    payload: Extract<Command, { type: T }>['payload']
+    payload: Extract<Command, { type: T }>['payload'],
+    options?: { correlationId?: string; [key: string]: any }
   ): Promise<void> {
     const handler = this.handlers[type]
 
@@ -61,7 +63,7 @@ class CommandBus {
         LogTags.SYSTEM_COMMAND,
         `Command execution failed: ${type}`,
         error instanceof Error ? error : new Error(String(error)),
-        { payload }
+        { payload, correlationId: options?.correlationId }
       )
       throw error
     }

@@ -249,6 +249,23 @@ export type TrashCommand =
     }
 
 // ============================================================
+// 视图偏好相关命令
+// ============================================================
+
+export type ViewPreferenceCommand = {
+  type: 'view.update_sorting'
+  payload: {
+    view_key: string
+    sorted_task_ids: string[]
+    /**
+     * 🔥 乐观更新支持：用于失败回滚
+     * - original_sorted_task_ids: 原始顺序（用于回滚）
+     */
+    original_sorted_task_ids?: string[]
+  }
+}
+
+// ============================================================
 // 联合类型
 // ============================================================
 
@@ -259,6 +276,7 @@ export type Command =
   | TemplateCommand
   | RecurrenceCommand
   | TrashCommand
+  | ViewPreferenceCommand
 
 /**
  * 命令处理器函数签名

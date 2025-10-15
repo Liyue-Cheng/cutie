@@ -7,10 +7,12 @@
 export * from './taskHandlers'
 export * from './scheduleHandlers'
 export * from './timeBlockHandlers'
+export * from './viewPreferenceHandlers'
 
 import { taskHandlers } from './taskHandlers'
 import { scheduleHandlers } from './scheduleHandlers'
 import { timeBlockHandlers } from './timeBlockHandlers'
+import { viewPreferenceHandlers } from './viewPreferenceHandlers'
 import type { CommandHandlerMap } from '../types'
 
 /**
@@ -20,4 +22,5 @@ export const allHandlers: Partial<CommandHandlerMap> = {
   ...taskHandlers,
   ...scheduleHandlers,
   ...timeBlockHandlers,
+  ...viewPreferenceHandlers,
 }

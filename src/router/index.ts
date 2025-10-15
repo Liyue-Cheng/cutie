@@ -47,6 +47,11 @@ const routes: Array<RouteRecordRaw> = [
         name: 'debug',
         component: () => import('../views/DebugView.vue'),
       },
+      {
+        path: 'interact-test',
+        name: 'interact-test',
+        component: () => import('../views/InteractTestView.vue'),
+      },
     ],
   },
 

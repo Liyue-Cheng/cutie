@@ -23,7 +23,11 @@ class TrackingContext {
   /**
    * 创建新的追踪器
    */
-  createTracker(command: string, input: Record<string, any>, correlationId?: string): InstructionTracker {
+  createTracker(
+    command: string,
+    input: Record<string, any>,
+    correlationId?: string
+  ): InstructionTracker {
     const tracker = new InstructionTracker(`command.${command}`)
       .fetch(input)
       .execute(command, input)
@@ -65,6 +69,20 @@ class TrackingContext {
   }
 
   /**
+   * 获取所有活跃的追踪器（供拦截器使用）
+   */
+  getActiveTrackers(): Map<string, InstructionTracker> {
+    return this.activeTrackers
+  }
+
+  /**
+   * 获取 correlation 映射表（供调试使用）
+   */
+  getCorrelationMap(): Map<string, InstructionTracker> {
+    return this.correlationToTracker
+  }
+
+  /**
    * 清理过期的追踪器（防止内存泄漏）
    */
   cleanup(): void {
@@ -72,9 +90,10 @@ class TrackingContext {
     const now = Date.now()
     const fiveMinutes = 5 * 60 * 1000
 
-    for (const [trackerId, tracker] of this.activeTrackers) {
+    for (const [trackerId] of this.activeTrackers) {
       // 简单的过期检查（实际实现中可以存储创建时间）
-      if (now - parseInt(trackerId.split('-')[1]) > fiveMinutes) {
+      const timestampPart = trackerId.split('-')[1]
+      if (timestampPart && now - parseInt(timestampPart, 10) > fiveMinutes) {
         this.activeTrackers.delete(trackerId)
         logger.warn(LogTags.INSTRUCTION_TRACKER, `Cleaned up expired tracker: ${trackerId}`)
       }
@@ -92,11 +111,12 @@ setInterval(() => trackingContext.cleanup(), 60000) // 每分钟清理一次
  * CommandBus 拦截器
  */
 export function interceptCommandBus(originalEmit: Function) {
-  return async function(command: string, payload: any, options?: any): Promise<any> {
+  return async function (this: any, command: string, payload: any, options?: any): Promise<any> {
     // [IF] + [EX] 自动创建追踪器
-    const correlationId = options?.correlationId ||
-                         options?.headers?.['X-Correlation-ID'] ||
-                         `auto-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
+    const correlationId =
+      options?.correlationId ||
+      options?.headers?.['X-Correlation-ID'] ||
+      `auto-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
 
     const tracker = trackingContext.createTracker(command, payload, correlationId)
 
@@ -104,7 +124,7 @@ export function interceptCommandBus(originalEmit: Function) {
       // 调用原始方法
       const result = await originalEmit.call(this, command, payload, {
         ...options,
-        correlationId
+        correlationId,
       })
 
       return result
@@ -120,9 +140,29 @@ export function interceptCommandBus(originalEmit: Function) {
  * API Client 拦截器
  */
 export function interceptApiClient(originalFetch: Function) {
-  return async function(url: string, options?: any): Promise<any> {
-    const correlationId = options?.headers?.['X-Correlation-ID']
-    const tracker = correlationId ? trackingContext.getTrackerByCorrelation(correlationId) : undefined
+  return async function (this: any, url: string, options?: any): Promise<any> {
+    // 兼容 Headers 和 普通对象两种写法，确保能拿到 Correlation ID
+    let correlationId: string | undefined
+    const hdrs = options?.headers
+    if (hdrs instanceof Headers) {
+      correlationId = hdrs.get('X-Correlation-ID') ?? hdrs.get('x-correlation-id') ?? undefined
+    } else if (hdrs) {
+      correlationId = hdrs['X-Correlation-ID'] ?? hdrs['x-correlation-id'] ?? undefined
+    }
+    let tracker = correlationId ? trackingContext.getTrackerByCorrelation(correlationId) : undefined
+
+    // 如果还没建立映射，尝试使用最近的活跃追踪器并建立关联（兼容 handler 自己生成 correlationId 的场景）
+    if (!tracker && correlationId) {
+      const active = Array.from(trackingContext.getActiveTrackers().values()).sort((a, b) => {
+        const bTimestamp = b.getInstructionId().split('-')[1]
+        const aTimestamp = a.getInstructionId().split('-')[1]
+        return parseInt(bTimestamp || '0', 10) - parseInt(aTimestamp || '0', 10)
+      })
+      tracker = active[0]
+      if (tracker) {
+        trackingContext.getCorrelationMap().set(correlationId, tracker)
+      }
+    }
 
     try {
       // 调用原始 API
@@ -133,8 +173,12 @@ export function interceptApiClient(originalFetch: Function) {
         tracker.result(ResultSource.HTTP, result, Status.SUCCESS, {
           url,
           method: options?.method || 'GET',
-          status: 'success'
+          status: 'success',
         })
+        // 无事务通路的命令在此完成追踪（如 view.update_sorting）
+        if (correlationId) {
+          trackingContext.completeTrackerByCorrelation(correlationId)
+        }
       }
 
       return result
@@ -151,12 +195,19 @@ export function interceptApiClient(originalFetch: Function) {
 /**
  * Store Mutation 拦截器
  */
-export function interceptStoreMutation(storeName: string, mutationName: string, originalMutation: Function) {
-  return function(...args: any[]): any {
+export function interceptStoreMutation(
+  storeName: string,
+  mutationName: string,
+  originalMutation: Function
+) {
+  return function (this: any, ...args: any[]): any {
     // 尝试从当前执行上下文中找到活跃的追踪器
     // 这里使用简单的策略：获取最近创建的追踪器
-    const recentTracker = Array.from(trackingContext.activeTrackers.values())
-      .sort((a, b) => parseInt(b.getInstructionId().split('-')[1]) - parseInt(a.getInstructionId().split('-')[1]))[0]
+    const recentTracker = Array.from(trackingContext.getActiveTrackers().values()).sort((a, b) => {
+      const bTimestamp = b.getInstructionId().split('-')[1]
+      const aTimestamp = a.getInstructionId().split('-')[1]
+      return parseInt(bTimestamp || '0', 10) - parseInt(aTimestamp || '0', 10)
+    })[0]
 
     try {
       // 调用原始 mutation
@@ -183,9 +234,11 @@ export function interceptStoreMutation(storeName: string, mutationName: string, 
  * 事务处理器拦截器
  */
 export function interceptTransactionProcessor(originalApply: Function) {
-  return async function(result: any, context: any): Promise<any> {
+  return async function (this: any, result: any, context: any): Promise<any> {
     const correlationId = context?.correlation_id
-    const tracker = correlationId ? trackingContext.getTrackerByCorrelation(correlationId) : undefined
+    const tracker = correlationId
+      ? trackingContext.getTrackerByCorrelation(correlationId)
+      : undefined
 
     try {
       // [RES] 记录事务结果
@@ -196,7 +249,7 @@ export function interceptTransactionProcessor(originalApply: Function) {
           Status.SUCCESS,
           {
             source: context?.source,
-            transactionType: 'TaskTransaction'
+            transactionType: 'TaskTransaction',
           }
         )
       }
@@ -205,9 +258,13 @@ export function interceptTransactionProcessor(originalApply: Function) {
       const processResult = await originalApply.call(this, result, context)
 
       // [WB] 记录状态更新
-      if (tracker) {
-        const affectedStores = this.getAffectedStores ? this.getAffectedStores(result) : ['TaskStore']
-        const mutations = this.getAppliedMutations ? this.getAppliedMutations(result) : ['addOrUpdateTask_mut']
+      if (tracker && correlationId) {
+        const affectedStores = this.getAffectedStores
+          ? this.getAffectedStores(result)
+          : ['TaskStore']
+        const mutations = this.getAppliedMutations
+          ? this.getAppliedMutations(result)
+          : ['addOrUpdateTask_mut']
 
         tracker.writeBack(affectedStores, mutations, ['processTransaction'])
 
@@ -245,7 +302,6 @@ export function setupAutoTracking() {
     setupTransactionProcessorInterception()
 
     logger.info(LogTags.INSTRUCTION_TRACKER, '✅ Automatic instruction tracking enabled!')
-
   } catch (error) {
     logger.error(LogTags.INSTRUCTION_TRACKER, 'Failed to setup auto tracking', error as Error)
   }
@@ -256,16 +312,18 @@ export function setupAutoTracking() {
  */
 function setupCommandBusInterception() {
   // 动态导入并拦截 CommandBus
-  import('@/commandBus').then((module) => {
-    const commandBus = module.commandBus
-    if (commandBus && commandBus.emit) {
-      const originalEmit = commandBus.emit.bind(commandBus)
-      commandBus.emit = interceptCommandBus(originalEmit)
-      logger.debug(LogTags.INSTRUCTION_TRACKER, 'CommandBus interception enabled')
-    }
-  }).catch(error => {
-    logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to intercept CommandBus', { error })
-  })
+  import('@/commandBus')
+    .then((module) => {
+      const commandBus = module.commandBus
+      if (commandBus && commandBus.emit) {
+        const originalEmit = commandBus.emit.bind(commandBus)
+        commandBus.emit = interceptCommandBus(originalEmit)
+        logger.debug(LogTags.INSTRUCTION_TRACKER, 'CommandBus interception enabled')
+      }
+    })
+    .catch((error) => {
+      logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to intercept CommandBus', { error })
+    })
 }
 
 /**
@@ -273,8 +331,8 @@ function setupCommandBusInterception() {
  */
 function setupApiClientInterception() {
   // 拦截 fetch API
-  const originalFetch = window.fetch
-  window.fetch = interceptApiClient(originalFetch)
+  const originalFetch = window.fetch.bind(window)
+  window.fetch = interceptApiClient(originalFetch) as typeof window.fetch
   logger.debug(LogTags.INSTRUCTION_TRACKER, 'API Client interception enabled')
 }
 
@@ -282,19 +340,44 @@ function setupApiClientInterception() {
  * Store Mutation 拦截设置
  */
 function setupStoreMutationInterception() {
-  // 动态拦截 Pinia stores
-  import('@/stores/task').then((module) => {
-    const useTaskStore = module.useTaskStore
+  // 动态拦截 Pinia stores（按需：当前仅拦截 ViewStore 的乐观更新写入）
+  import('@/stores/view')
+    .then((module) => {
+      const useViewStore = (module as any).useViewStore
+      if (!useViewStore) {
+        logger.warn(LogTags.INSTRUCTION_TRACKER, 'useViewStore not found, skip store interception')
+        return
+      }
 
-    // 创建代理来拦截 mutation 调用
-    const originalStoreFunction = useTaskStore
+      try {
+        const viewStore = useViewStore()
 
-    // 这里需要更复杂的代理逻辑来拦截 mutation
-    // 暂时跳过，因为 Pinia 的拦截比较复杂
-    logger.debug(LogTags.INSTRUCTION_TRACKER, 'Store mutation interception setup (partial)')
-  }).catch(error => {
-    logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to intercept Store mutations', { error })
-  })
+        if (viewStore && typeof viewStore.updateSortingOptimistic_mut === 'function') {
+          const original = viewStore.updateSortingOptimistic_mut
+          viewStore.updateSortingOptimistic_mut = interceptStoreMutation(
+            'ViewStore',
+            'updateSortingOptimistic_mut',
+            original
+          ).bind(viewStore)
+          logger.debug(
+            LogTags.INSTRUCTION_TRACKER,
+            'Store mutation interception enabled for ViewStore.updateSortingOptimistic_mut'
+          )
+        } else {
+          logger.warn(
+            LogTags.INSTRUCTION_TRACKER,
+            'ViewStore.updateSortingOptimistic_mut not found, skip interception'
+          )
+        }
+      } catch (error) {
+        logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to setup ViewStore interception', {
+          error,
+        })
+      }
+    })
+    .catch((error) => {
+      logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to intercept Store mutations', { error })
+    })
 }
 
 /**
@@ -302,16 +385,20 @@ function setupStoreMutationInterception() {
  */
 function setupTransactionProcessorInterception() {
   // 动态拦截 Transaction Processor
-  import('@/infra/transaction/transactionProcessor').then((module) => {
-    const processor = module.transactionProcessor
-    if (processor && processor.applyTaskTransaction) {
-      const originalApply = processor.applyTaskTransaction.bind(processor)
-      processor.applyTaskTransaction = interceptTransactionProcessor(originalApply)
-      logger.debug(LogTags.INSTRUCTION_TRACKER, 'Transaction Processor interception enabled')
-    }
-  }).catch(error => {
-    logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to intercept Transaction Processor', { error })
-  })
+  import('@/infra/transaction/transactionProcessor')
+    .then((module) => {
+      const processor = module.transactionProcessor
+      if (processor && processor.applyTaskTransaction) {
+        const originalApply = processor.applyTaskTransaction.bind(processor)
+        processor.applyTaskTransaction = interceptTransactionProcessor(originalApply)
+        logger.debug(LogTags.INSTRUCTION_TRACKER, 'Transaction Processor interception enabled')
+      }
+    })
+    .catch((error) => {
+      logger.warn(LogTags.INSTRUCTION_TRACKER, 'Failed to intercept Transaction Processor', {
+        error,
+      })
+    })
 }
 
 /**
@@ -326,7 +413,7 @@ export function createAutoTracker(command: string, input: Record<string, any>): 
  */
 export function getTrackingStats() {
   return {
-    activeTrackers: trackingContext.activeTrackers.size,
-    correlationMappings: trackingContext.correlationToTracker.size
+    activeTrackers: trackingContext.getActiveTrackers().size,
+    correlationMappings: trackingContext.getCorrelationMap().size,
   }
 }

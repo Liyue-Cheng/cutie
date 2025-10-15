@@ -2,20 +2,29 @@ import { ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { apiGet, apiPut } from '@/stores/shared'
+import { apiGet } from '@/stores/shared'
 
 /**
- * View Store V4.0 - 纯排序系统
+ * View Store V5.0 - 纯状态容器 (Frontend-as-a-CPU 架构)
  *
- * 职责：只管理视图的排序信息
+ * 📋 架构原则：
+ * - ✅ State: 寄存器 (只存储数据)
+ * - ✅ Mutations: 寄存器写入操作 (_mut 后缀)
+ * - ✅ Getters: 导线/多路复用器 (_Mux 后缀)
+ * - ❌ 不包含 API 调用（由 Command Handler 负责）
+ * - ❌ 不包含业务逻辑（由 Command Handler 负责）
+ *
+ * 职责：
+ * - 只管理视图的排序信息
  * - 不存储任务数据（由 TaskStore 负责）
  * - 不存储任务ID列表（过滤由 TaskStore getter 负责）
- * - 只存储排序权重（持久化到后端）
+ * - 只存储排序权重（持久化由 Command Handler 负责）
  *
- * 架构原则：
- * - 过滤逻辑 → TaskStore 动态计算
- * - 排序信息 → ViewStore 持久化
- * - 完全分离关注点
+ * 数据流：
+ * 1. 组件触发命令 → commandBus.emit('view.update_sorting', ...)
+ * 2. Command Handler 乐观更新 → viewStore.updateSortingOptimistic_mut(...)
+ * 3. Command Handler 调用 API
+ * 4. 成功 → 保持乐观更新 | 失败 → 回滚
  */
 
 export const useViewStore = defineStore('view', () => {
@@ -66,11 +75,11 @@ export const useViewStore = defineStore('view', () => {
   let updateScheduled = false
 
   // ============================================================
-  // ACTIONS - 排序管理
+  // GETTERS (Wires / Multiplexers) - 只读数据选择
   // ============================================================
 
   /**
-   * 应用排序到任务列表
+   * 应用排序到任务列表 (Multiplexer)
    * @param tasks 原始任务列表（已经过滤好的）
    * @param viewKey 视图标识
    * @returns 排序后的任务列表
@@ -112,40 +121,63 @@ export const useViewStore = defineStore('view', () => {
   }
 
   /**
-   * 更新排序（拖拽时调用）
+   * 获取当前视图的排序ID列表（用于持久化）
+   * @param viewKey 视图标识
+   * @param tasks 当前任务列表
+   * @returns 排序后的任务ID数组
+   */
+  function getSortedTaskIds(viewKey: string, tasks: TaskCard[]): string[] {
+    const sorted = applySorting(tasks, viewKey)
+    return sorted.map((t) => t.id)
+  }
+
+  // ============================================================
+  // MUTATIONS (Register Write Operations) - 纯状态更新
+  // ============================================================
+
+  /**
+   * 🔥 乐观更新排序（立即更新本地状态）
    * @param viewKey 视图标识
    * @param orderedTaskIds 新的任务ID顺序
+   *
+   * ⚠️ 此函数只更新本地状态，不调用 API
+   * ⚠️ 应由 Command Handler 调用
+   */
+  function updateSortingOptimistic_mut(viewKey: string, orderedTaskIds: string[]): void {
+    // 构建权重映射
+    const weights = new Map<string, number>()
+    orderedTaskIds.forEach((id, index) => {
+      weights.set(id, index)
+    })
+
+    // 更新本地状态
+    const newMap = new Map(sortWeights.value)
+    newMap.set(viewKey, weights)
+    sortWeights.value = newMap
+
+    logger.debug(LogTags.STORE_VIEW, 'Optimistic sorting update applied', {
+      viewKey,
+      taskCount: orderedTaskIds.length,
+    })
+  }
+
+  /**
+   * ❌ 已废弃：旧的 updateSorting 方法
+   * 请使用 commandBus.emit('view.update_sorting', ...) 代替
+   *
+   * @deprecated 使用 Command Bus 代替直接调用
    */
   async function updateSorting(viewKey: string, orderedTaskIds: string[]): Promise<boolean> {
-    try {
-      // 构建权重映射
-      const weights = new Map<string, number>()
-      orderedTaskIds.forEach((id, index) => {
-        weights.set(id, index)
-      })
+    logger.warn(
+      LogTags.STORE_VIEW,
+      '⚠️ DEPRECATED: Direct updateSorting call detected. Use commandBus.emit("view.update_sorting") instead',
+      { viewKey }
+    )
 
-      // 更新本地状态
-      const newMap = new Map(sortWeights.value)
-      newMap.set(viewKey, weights)
-      sortWeights.value = newMap
-
-      // ✅ 持久化到后端（RESTful 风格：context_key 在 URL 中）
-      const requestBody = {
-        sorted_task_ids: orderedTaskIds,
-      }
-
-      await apiPut(`/view-preferences/${encodeURIComponent(viewKey)}`, requestBody)
-      return true
-    } catch (err) {
-      logger.error(
-        LogTags.STORE_VIEW,
-        'Failed to update sorting',
-        err instanceof Error ? err : new Error(String(err)),
-        { viewKey }
-      )
-      error.value = `Failed to update sorting: ${err}`
-      return false
-    }
+    // 为了向后兼容，临时保留实现
+    // 🔥 TODO: 移除此方法，强制使用 Command Bus
+    updateSortingOptimistic_mut(viewKey, orderedTaskIds)
+    return true
   }
 
   /**
@@ -222,17 +254,6 @@ export const useViewStore = defineStore('view', () => {
       )
       return false
     }
-  }
-
-  /**
-   * 获取当前视图的排序ID列表（用于持久化）
-   * @param viewKey 视图标识
-   * @param tasks 当前任务列表
-   * @returns 排序后的任务ID数组
-   */
-  function getSortedTaskIds(viewKey: string, tasks: TaskCard[]): string[] {
-    const sorted = applySorting(tasks, viewKey)
-    return sorted.map((t) => t.id)
   }
 
   /**
@@ -336,8 +357,8 @@ export const useViewStore = defineStore('view', () => {
     const refreshPromises = dates.map(async (date) => {
       const dateStartTime = performance.now()
       try {
-        // 使用 refreshDailyTasks 进行替换式刷新
-        await taskStore.refreshDailyTasks(date)
+        // 使用 refreshDailyTasks_DMA 进行替换式刷新
+        await taskStore.refreshDailyTasks_DMA(date)
 
         const duration = performance.now() - dateStartTime
         logger.debug(LogTags.STORE_VIEW, 'Successfully refreshed daily view', {
@@ -427,22 +448,42 @@ export const useViewStore = defineStore('view', () => {
   }
 
   return {
-    // State
+    // ============================================================
+    // STATE (Registers) - 只读状态
+    // ============================================================
     sortWeights,
     isLoading,
     error,
-    isRefreshing, // 🆕 刷新状态
+    isRefreshing,
 
-    // Actions
+    // ============================================================
+    // GETTERS (Wires / Multiplexers) - 数据选择
+    // ============================================================
     applySorting,
-    updateSorting,
-    loadSorting,
-    fetchViewPreference,
-    batchFetchViewPreferences, // 🆕 批量加载
     getSortedTaskIds,
+
+    // ============================================================
+    // MUTATIONS (Register Write Operations) - 状态更新
+    // ============================================================
+    updateSortingOptimistic_mut, // 🔥 乐观更新（由 Command Handler 调用）
     clearSorting,
     clearAllSorting,
+    loadSorting, // 从后端加载时调用（批量防抖）
+
+    // ============================================================
+    // DMA (Direct Memory Access) - 数据加载
+    // ============================================================
+    fetchViewPreference, // 从后端加载单个视图
+    batchFetchViewPreferences, // 批量加载多个视图
+
+    // ============================================================
+    // DEPRECATED - 向后兼容
+    // ============================================================
+    updateSorting, // ❌ 已废弃，使用 commandBus.emit('view.update_sorting') 代替
+
+    // ============================================================
     // Daily 视图注册与刷新
+    // ============================================================
     registerDailyView,
     unregisterDailyView,
     refreshAllMountedDailyViews,

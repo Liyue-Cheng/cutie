@@ -98,7 +98,6 @@ async function handleAddTask() {
       await commandBus.emit('task.create_with_schedule', {
         title,
         scheduled_day: date,
-        estimated_duration: 60, // ✅ 默认1小时
       })
 
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created with schedule', {
@@ -110,7 +109,6 @@ async function handleAddTask() {
       // 非日期视图：只创建任务
       await commandBus.emit('task.create', {
         title,
-        estimated_duration: 60, // ✅ 默认1小时
       })
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task created', {
         title,
@@ -174,15 +172,22 @@ function handleTaskCompleted(completedTaskId: string) {
   // 插入到最后一个未完成任务的后面
   newOrder.splice(insertPosition, 0, completedTaskId)
 
-  // 🔥 直接更新排序（不再发出事件）
-  viewStore.updateSorting(props.viewKey, newOrder).catch((error) => {
-    logger.error(
-      LogTags.COMPONENT_KANBAN_COLUMN,
-      'Failed to persist completed task reorder',
-      error,
-      { viewKey: props.viewKey }
-    )
-  })
+  // 🔥 使用 Command Bus 更新排序（乐观更新）
+  const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
+  commandBus
+    .emit('view.update_sorting', {
+      view_key: props.viewKey,
+      sorted_task_ids: newOrder,
+      original_sorted_task_ids: originalOrder, // 用于失败回滚
+    })
+    .catch((error) => {
+      logger.error(
+        LogTags.COMPONENT_KANBAN_COLUMN,
+        'Failed to persist completed task reorder',
+        error,
+        { viewKey: props.viewKey }
+      )
+    })
 }
 
 // ==================== 排序配置管理 ====================
@@ -229,12 +234,24 @@ watch(
       previousTaskIds.value = currentTaskIds
       const currentOrder = newTasks.map((t) => t.id)
 
-      // 🔥 自动持久化排序（所有看板都使用内部数据模式）
-      viewStore.updateSorting(props.viewKey, currentOrder).catch((error) => {
-        logger.error(LogTags.COMPONENT_KANBAN_COLUMN, 'Failed to auto-persist view tasks', error, {
-          viewKey: props.viewKey,
+      // 🔥 使用 Command Bus 自动持久化排序（乐观更新）
+      const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
+      commandBus
+        .emit('view.update_sorting', {
+          view_key: props.viewKey,
+          sorted_task_ids: currentOrder,
+          original_sorted_task_ids: originalOrder,
         })
-      })
+        .catch((error) => {
+          logger.error(
+            LogTags.COMPONENT_KANBAN_COLUMN,
+            'Failed to auto-persist view tasks',
+            error,
+            {
+              viewKey: props.viewKey,
+            }
+          )
+        })
     } else {
       previousTaskIds.value = currentTaskIds
     }
@@ -449,8 +466,15 @@ async function handleDrop(event: DragEvent) {
         const baseOrder = effectiveTasks.value.map((t) => t.id).filter((id) => id !== incomingId)
         const safeIndex = Math.max(0, Math.min(plannedInsertIndex, baseOrder.length))
         baseOrder.splice(safeIndex, 0, incomingId)
-        viewStore
-          .updateSorting(props.viewKey, baseOrder)
+
+        // 🔥 使用 Command Bus 更新排序（乐观更新）
+        const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
+        commandBus
+          .emit('view.update_sorting', {
+            view_key: props.viewKey,
+            sorted_task_ids: baseOrder,
+            original_sorted_task_ids: originalOrder,
+          })
           .catch((err) =>
             logger.error(
               LogTags.COMPONENT_KANBAN_COLUMN,
@@ -477,12 +501,24 @@ async function handleDrop(event: DragEvent) {
   // 2. 同看板拖放
   const finalOrder = sameViewDrag.finishDrag()
   if (finalOrder) {
-    // 🔥 直接更新排序（不再发出事件）
-    viewStore.updateSorting(props.viewKey, finalOrder).catch((error) => {
-      logger.error(LogTags.COMPONENT_KANBAN_COLUMN, 'Failed to persist same-view reorder', error, {
-        viewKey: props.viewKey,
+    // 🔥 使用 Command Bus 更新排序（乐观更新）
+    const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
+    commandBus
+      .emit('view.update_sorting', {
+        view_key: props.viewKey,
+        sorted_task_ids: finalOrder,
+        original_sorted_task_ids: originalOrder,
       })
-    })
+      .catch((error) => {
+        logger.error(
+          LogTags.COMPONENT_KANBAN_COLUMN,
+          'Failed to persist same-view reorder',
+          error,
+          {
+            viewKey: props.viewKey,
+          }
+        )
+      })
   }
 }
 </script>

@@ -34,7 +34,9 @@
       "Bash(cat CLAUDE.md)",
       "WebFetch(domain:tanstack.com)",
       "WebSearch",
-      "WebFetch(domain:rishpandey.com)"
+      "WebFetch(domain:rishpandey.com)",
+      "Bash(pnpm exec vue-tsc --noEmit)",
+      "Bash(timeout 30 pnpm exec vue-tsc --noEmit)"
     ],
     "deny": [],
     "ask": []

@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router' // 导入路由
@@ -12,7 +12,7 @@ import {
   createVueWarnHandler,
 } from '@/infra/errors/errorHandler'
 import { initCommandBus } from '@/commandBus'
-import { enableAutoTracking } from '@/infra/logging/SimpleAutoTracker'
+import { setupAutoTracking, getTrackingStats } from '@/infra/logging/AutoInstructionTracker'
 import './style.css'
 
 // 设置全局错误处理
@@ -26,6 +26,8 @@ app.config.errorHandler = createVueErrorHandler()
 app.config.warnHandler = createVueWarnHandler()
 
 app.use(pinia)
+// 允许在组件外使用 stores（用于自动追踪器拦截 store mutations）
+setActivePinia(pinia)
 app.use(i18n)
 app.use(router) // 确保已经 use 了 router
 
@@ -34,9 +36,7 @@ initCommandBus()
 
 // 🚀 启用自动指令追踪（零集成！）
 if (import.meta.env.DEV) {
-  enableAutoTracking().then(() => {
-    logger.info('System:Init', '🎯 Automatic instruction tracking enabled - zero integration required!')
-  })
+  setupAutoTracking()
 }
 
 // 设置全局日志控制接口（仅开发环境）
@@ -55,6 +55,11 @@ if (import.meta.env.DEV) {
       logger.setTagFilters([])
       console.log('🔧 Logger tag filters reset.')
     },
+    trackingOnly: () => {
+      logger.setLevel(LogLevel.INFO)
+      logger.setTagFilters([LogTags.INSTRUCTION_TRACKER])
+      console.log('🎯 Tracking-only mode enabled! Only instruction tracking logs will be shown.')
+    },
     setSampling: (config: { debug?: number; info?: number; warn?: number; error?: number }) => {
       logger.setSampling(config)
       console.log('🔧 Logger sampling updated:', config)
@@ -62,6 +67,11 @@ if (import.meta.env.DEV) {
     getStats: () => {
       const stats = logger.getStats()
       console.table(stats)
+      return stats
+    },
+    getTrackingStats: () => {
+      const stats = getTrackingStats()
+      console.log('🎯 Instruction Tracking Stats:', stats)
       return stats
     },
     applyPreset: (presetName: string) => {
