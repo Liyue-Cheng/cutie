@@ -71,7 +71,12 @@ export class WriteBackStage {
       // 🔥 调用 commit 函数（如果存在）
       if (definition && definition.commit && instruction.result !== undefined) {
         try {
-          await definition.commit(instruction.result, instruction.payload, instruction.context)
+          await definition.commit(
+            instruction.result,
+            instruction.payload,
+            instruction.context,
+            instruction.optimisticSnapshot // 🔥 传递乐观更新快照
+          )
         } catch (error) {
           logger.error(
             LogTags.SYSTEM_PIPELINE,

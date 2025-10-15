@@ -175,10 +175,10 @@ function handleTaskCompleted(completedTaskId: string) {
   // 插入到最后一个未完成任务的后面
   newOrder.splice(insertPosition, 0, completedTaskId)
 
-  // 🔥 使用 Command Bus 更新排序（乐观更新）
+  // 🔥 使用 CPU Pipeline 更新排序（乐观更新）
   const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
-  commandBus
-    .emit('view.update_sorting', {
+  pipeline
+    .dispatch('viewpreference.update_sorting', {
       view_key: props.viewKey,
       sorted_task_ids: newOrder,
       original_sorted_task_ids: originalOrder, // 用于失败回滚
@@ -232,10 +232,10 @@ watch(
       previousTaskIds.value = currentTaskIds
       const currentOrder = newTasks.map((t) => t.id)
 
-      // 🔥 使用 Command Bus 自动持久化排序（乐观更新）
+      // 🔥 使用 CPU Pipeline 自动持久化排序（乐观更新）
       const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
-      commandBus
-        .emit('view.update_sorting', {
+      pipeline
+        .dispatch('viewpreference.update_sorting', {
           view_key: props.viewKey,
           sorted_task_ids: currentOrder,
           original_sorted_task_ids: originalOrder,

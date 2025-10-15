@@ -20,7 +20,7 @@ const props = defineProps<{
 const emit = defineEmits(['close'])
 
 const handleDelete = async () => {
-  await pipeline.dispatch('timeblock.delete', { id: props.event.id })
+  await pipeline.dispatch('time_block.delete', { id: props.event.id })
   emit('close') // Close the context menu
 }
 </script>

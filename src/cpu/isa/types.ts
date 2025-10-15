@@ -119,8 +119,17 @@ export interface InstructionDefinition<TPayload = any, TResult = any> {
    * 提交结果（写回阶段调用）
    *
    * 用于处理执行结果，如更新 Store
+   * @param result 执行结果
+   * @param payload 指令负载
+   * @param context 指令上下文
+   * @param optimisticSnapshot 乐观更新快照（如果有）
    */
-  commit?: (result: TResult, payload: TPayload, context: InstructionContext) => Promise<void>
+  commit?: (
+    result: TResult,
+    payload: TPayload,
+    context: InstructionContext,
+    optimisticSnapshot?: any
+  ) => Promise<void>
 }
 
 /**
