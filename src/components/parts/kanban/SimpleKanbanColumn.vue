@@ -1,21 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
 import { useViewStore } from '@/stores/view'
-import {
-  useCrossViewDrag,
-  useDragTransfer,
-  useSameViewDrag,
-  useCrossViewDragTarget,
-  useTemplateDrop,
-} from '@/composables/drag'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { commandBus } from '@/commandBus'
+import { useInteractDrag } from '@/composables/drag/useInteractDrag'
+import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+import { dragPreviewState } from '@/infra/drag-interact/preview-state'
 
 const props = defineProps<{
   title: string
@@ -24,8 +19,6 @@ const props = defineProps<{
   viewKey: string // 🔥 必需：所有看板都必须提供 viewKey
   viewMetadata?: ViewMetadata // 可选：可自动推导
 }>()
-
-// 🗑️ 移除所有 emit 定义 - 所有操作都内部处理或通过 store
 
 const viewStore = useViewStore()
 
@@ -54,22 +47,40 @@ const effectiveViewMetadata = computed<ViewMetadata>(() => {
   } as ViewMetadata
 })
 
-// ==================== Composables ====================
+// ==================== 拖放系统 V2 (interact.js + 策略) ====================
 
-// 跨看板拖放（全局）
-const crossViewDrag = useCrossViewDrag()
-const dragTransfer = useDragTransfer()
+const kanbanContainerRef = ref<HTMLElement | null>(null)
+const dragStrategy = useDragStrategy()
 
-// 同看板拖放
-const sameViewDrag = useSameViewDrag(() => effectiveTasks.value)
+const { displayTasks } = useInteractDrag({
+  viewMetadata: effectiveViewMetadata,
+  tasks: effectiveTasks,
+  containerRef: kanbanContainerRef,
+  draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/::/g, '--')}`,
+  onDrop: async (session) => {
+    // 🎯 执行拖放策略（V2：灵活的 JSON 上下文）
+    const result = await dragStrategy.executeDrop(session, props.viewKey, {
+      // 起始组件的上下文数据（从 session.metadata 获取）
+      sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
+      // 结束组件的上下文数据（当前组件提供）
+      targetContext: {
+        taskIds: displayTasks.value.map((t) => t.id),
+        displayTasks: displayTasks.value,
+        dropIndex: dragPreviewState.value?.computed.dropIndex,
+        viewKey: props.viewKey,
+      },
+    })
 
-// 跨看板拖放目标
-// 注意：这里使用初始值，如果 viewMetadata 在运行时变化，可能需要重新考虑
-const initialViewMetadata = effectiveViewMetadata.value
-const crossViewTarget = useCrossViewDragTarget(initialViewMetadata)
-
-// 模板拖放处理
-const templateDrop = useTemplateDrop()
+    if (!result.success) {
+      logger.error(
+        LogTags.COMPONENT_KANBAN_COLUMN,
+        'Drag strategy execution failed',
+        new Error(result.message || 'Unknown error'),
+        { viewKey: props.viewKey }
+      )
+    }
+  },
+})
 
 // ==================== 任务创建 ====================
 
@@ -216,15 +227,10 @@ onBeforeUnmount(() => {
 })
 
 // ✅ 自动检测任务列表变化并持久化（使用 effectiveTasks）
+// 注意：拖放过程中的排序更新已由策略系统处理，这里只处理其他来源的任务列表变化
 watch(
   () => effectiveTasks.value,
   (newTasks) => {
-    // ✅ 移除 sortingConfigLoaded 检查，避免闪烁
-    if (sameViewDrag.isDragging.value) {
-      previousTaskIds.value = new Set(newTasks.map((t) => t.id))
-      return
-    }
-
     const currentTaskIds = new Set(newTasks.map((t) => t.id))
     const hasChanges =
       currentTaskIds.size !== previousTaskIds.value.size ||
@@ -256,330 +262,61 @@ watch(
       previousTaskIds.value = currentTaskIds
     }
   },
-  { deep: false, immediate: true }
+  {
+    deep: false,
+    immediate: true,
+  }
 )
 
-// ==================== 显示任务列表 ====================
-
-const displayTasks = computed(() => {
-  // ✅ 使用 effectiveTasks 替代 props.tasks
-  let taskList = [...effectiveTasks.value]
-
-  // 1. 如果是源看板，且任务正在被拖到其他看板，隐藏幽灵元素
-  const context = crossViewDrag.currentContext.value
-  const targetView = crossViewDrag.targetViewId.value
-  const viewMetadata = effectiveViewMetadata.value
-
-  if (context && context.sourceView.id === viewMetadata.id) {
-    if (targetView && targetView !== viewMetadata.id) {
-      taskList = taskList.filter((t) => t.id !== context.task.id)
-    }
-  }
-
-  // 2. 如果正在接收跨看板拖放，添加幽灵元素
-  taskList = crossViewTarget.getTasksWithGhost(taskList)
-
-  // 3. 同看板内重排序预览
-  // 仅当未发生跨看板（或目标仍为本列）时才返回同列预览
-  const isCrossViewActive = !!context && !!targetView && targetView !== viewMetadata.id
-  if (
-    sameViewDrag.isDragging.value &&
-    !isCrossViewActive &&
-    !crossViewTarget.isReceivingDrag.value
-  ) {
-    return sameViewDrag.reorderedTasks.value
-  }
-
-  return taskList
-})
-
-// ==================== 拖放事件处理 ====================
-
-const taskListRef = ref<HTMLElement | null>(null)
-
-/**
- * 拖动开始
- */
-function handleDragStart(event: DragEvent, task: TaskCard) {
-  if (!event.dataTransfer) return
-
-  // 启动同看板拖放
-  sameViewDrag.startDrag(task.id)
-
-  // 启动跨看板拖放
-  crossViewDrag.startNormalDrag(task, effectiveViewMetadata.value)
-
-  // 设置拖拽数据
-  dragTransfer.setDragData(event, {
-    type: 'task',
-    task,
-    sourceView: effectiveViewMetadata.value,
-    dragMode: { mode: 'normal' },
-  })
-
-  // 设置拖拽效果
-  if (event.target instanceof HTMLElement) {
-    event.target.style.opacity = '0.5'
-  }
-}
-
-/**
- * 拖动结束
- */
-function handleDragEnd(event: DragEvent) {
-  // 恢复样式
-  if (event.target instanceof HTMLElement) {
-    event.target.style.opacity = '1'
-  }
-
-  // 检查是否有跨看板拖放正在执行
-  const context = crossViewDrag.currentContext.value
-  const isDropExecuting = crossViewDrag.isDropInProgress.value
-
-  // 如果 drop 正在执行，延迟清理以避免闪烁
-  if (isDropExecuting) {
-    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Dragend: Drop in progress, delaying cleanup', {
-      viewKey: props.viewKey,
-    })
-    // drop 会在完成后自动清理上下文，这里只清理本地状态
-    sameViewDrag.cancelDrag()
-    crossViewTarget.clearReceivingState()
-    return
-  }
-
-  // 清理同看板拖放状态
-  sameViewDrag.cancelDrag()
-
-  // 清理跨看板拖放状态
-  crossViewTarget.clearReceivingState()
-
-  // 如果 drop 被拒绝（dropEffect === 'none'），清理全局上下文
-  if (context && event.dataTransfer?.dropEffect === 'none') {
-    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Dragend: Drop rejected, clearing context', {
-      viewKey: props.viewKey,
-    })
-    crossViewDrag.cancelDrag()
-  }
-
-  crossViewDrag.setTargetViewId(null)
-}
-
-/**
- * 拖动经过卡片
- */
-function handleDragOver(event: DragEvent, targetIndex: number) {
-  event.preventDefault()
-
-  // 跨看板拖放：交给 crossViewTarget 处理
-  const context = crossViewDrag.currentContext.value
-  if (context && context.sourceView.id !== effectiveViewMetadata.value.id) {
-    return
-  }
-
-  // 同看板拖放
-  sameViewDrag.dragOver(targetIndex)
-}
-
-/**
- * 容器级 dragover（用于跨看板拖放）
- */
-function handleContainerDragOver(event: DragEvent) {
-  if (!crossViewTarget.isReceivingDrag.value) return
-
-  event.preventDefault()
-
-  const container = taskListRef.value
-  if (!container) return
-
-  const wrappers = Array.from(container.querySelectorAll<HTMLElement>('.task-card-wrapper'))
-  crossViewTarget.handleContainerDragOver(event, wrappers)
-}
-
-/**
- * 容器级 dragleave（用于同看板拖放的顺序恢复）
- */
-function handleContainerDragLeave(event: DragEvent) {
-  const context = crossViewDrag.currentContext.value
-
-  // 只处理源看板的同看板拖放
-  if (!context || context.sourceView.id !== effectiveViewMetadata.value.id) return
-  if (!sameViewDrag.isDragging.value) return
-
-  // 检查是否真的离开了容器
-  const container = event.currentTarget as HTMLElement
-  const rect = container.getBoundingClientRect()
-  const x = event.clientX
-  const y = event.clientY
-  const reallyLeft = x < rect.left || x > rect.right || y < rect.top || y > rect.bottom
-
-  if (reallyLeft) {
-    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Drag left column, resetting order', {
-      viewKey: props.viewKey,
-    })
-    sameViewDrag.resetDragOverIndex()
-  }
-}
-
-/**
- * 放置
- */
-async function handleDrop(event: DragEvent) {
-  event.preventDefault()
-
-  // 0. 优先处理模板拖放
-  const templateResult = await templateDrop.handleTemplateDrop(event, effectiveViewMetadata.value)
-  if (templateResult.handled) {
-    if (!templateResult.success) {
-      logger.error(
-        LogTags.COMPONENT_KANBAN_COLUMN,
-        'Template drop failed',
-        new Error(templateResult.error || 'Unknown error')
-      )
-      if (templateResult.error) {
-        alert(templateResult.error)
-      }
-    }
-    return // 模板拖放已处理，直接返回
-  }
-
-  // 1. 尝试跨看板拖放
-  // 预先记录当前预览的插入索引（目标 composable 在 handleDrop 内会清理状态）
-  const plannedInsertIndex =
-    crossViewTarget.targetIndex.value !== null
-      ? (crossViewTarget.targetIndex.value as number)
-      : effectiveTasks.value.length
-
-  const crossViewResult = await crossViewTarget.handleDrop(event)
-
-  if (crossViewResult.isHandled) {
-    if (crossViewResult.success) {
-      // 🔥 跨视图拖放成功（不再发出事件）
-      logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Cross-view drop successful', {
-        taskId: crossViewResult.taskId,
-        viewKey: props.viewKey,
-      })
-
-      // 固化跨列插入位置到 ViewStore，避免回到底部
-      if (props.viewKey && crossViewResult.taskId) {
-        const incomingId = crossViewResult.taskId
-        // ✅ 基于当前列任务构建排序，移除可能已存在的该任务ID
-        const baseOrder = effectiveTasks.value.map((t) => t.id).filter((id) => id !== incomingId)
-        const safeIndex = Math.max(0, Math.min(plannedInsertIndex, baseOrder.length))
-        baseOrder.splice(safeIndex, 0, incomingId)
-
-        // 🔥 使用 Command Bus 更新排序（乐观更新）
-        const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
-        commandBus
-          .emit('view.update_sorting', {
-            view_key: props.viewKey,
-            sorted_task_ids: baseOrder,
-            original_sorted_task_ids: originalOrder,
-          })
-          .catch((err) =>
-            logger.error(
-              LogTags.COMPONENT_KANBAN_COLUMN,
-              'Failed to persist cross-view sort',
-              err,
-              { viewKey: props.viewKey }
-            )
-          )
-      }
-    } else {
-      logger.error(
-        LogTags.COMPONENT_KANBAN_COLUMN,
-        'Cross-view drop failed',
-        crossViewResult.error
-          ? new Error(crossViewResult.error)
-          : new Error('Unknown cross-view drop error'),
-        { viewKey: props.viewKey }
-      )
-    }
-    sameViewDrag.cancelDrag()
-    return
-  }
-
-  // 2. 同看板拖放
-  const finalOrder = sameViewDrag.finishDrag()
-  if (finalOrder) {
-    // 🔥 使用 Command Bus 更新排序（乐观更新）
-    const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
-    commandBus
-      .emit('view.update_sorting', {
-        view_key: props.viewKey,
-        sorted_task_ids: finalOrder,
-        original_sorted_task_ids: originalOrder,
-      })
-      .catch((error) => {
-        logger.error(
-          LogTags.COMPONENT_KANBAN_COLUMN,
-          'Failed to persist same-view reorder',
-          error,
-          {
-            viewKey: props.viewKey,
-          }
-        )
-      })
-  }
-}
+// ==================== 注意 ====================
+// displayTasks 已由 useInteractDrag 自动提供
+// 所有拖放事件处理已由 interact.js 控制器自动管理
+// 不需要手动处理 dragstart/dragover/drop 等事件
 </script>
 
 <template>
-  <CutePane
-    class="simple-kanban-column"
-    @dragenter="crossViewTarget.handleEnter"
-    @dragleave="
-      (e: DragEvent) => {
-        crossViewTarget.handleLeave(e)
-        handleContainerDragLeave(e)
-      }
-    "
-    @drop="handleDrop"
-    @dragover.prevent
-  >
-    <div class="header">
-      <div class="title-section">
-        <h2 class="title">{{ title }}</h2>
-        <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+  <CutePane class="simple-kanban-column">
+    <!-- 🔥 整个看板作为 dropzone（包含 header、input、task list） -->
+    <div ref="kanbanContainerRef" class="kanban-dropzone-wrapper">
+      <div class="header">
+        <div class="title-section">
+          <h2 class="title">{{ title }}</h2>
+          <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+        </div>
+        <div class="task-count">
+          <span class="count">{{ effectiveTasks.length }}</span>
+        </div>
       </div>
-      <div class="task-count">
-        <span class="count">{{ effectiveTasks.length }}</span>
-      </div>
-    </div>
 
-    <div v-if="showAddInput" class="add-task-wrapper">
-      <input
-        ref="addTaskInputRef"
-        v-model="newTaskTitle"
-        type="text"
-        placeholder="+ 添加任务"
-        class="add-task-input"
-        :disabled="isCreatingTask"
-        @keydown.enter="handleAddTask"
-      />
-      <!-- ✅ 移除"创建中..."提示，避免闪烁 -->
-    </div>
-
-    <div ref="taskListRef" class="task-list-scroll-area" @dragover="handleContainerDragOver">
-      <div
-        v-for="(task, index) in displayTasks"
-        :key="task.id"
-        class="task-card-wrapper"
-        :data-task-id="task.id"
-        :data-dragging="sameViewDrag.draggedTaskId.value === task.id"
-        draggable="true"
-        @dragstart="handleDragStart($event, task)"
-        @dragend="handleDragEnd"
-        @dragover="handleDragOver($event, index)"
-      >
-        <KanbanTaskCard
-          :task="task"
-          :view-metadata="effectiveViewMetadata"
-          class="kanban-task-card"
-          @task-completed="handleTaskCompleted"
+      <div v-if="showAddInput" class="add-task-wrapper">
+        <input
+          ref="addTaskInputRef"
+          v-model="newTaskTitle"
+          type="text"
+          placeholder="+ 添加任务"
+          class="add-task-input"
+          :disabled="isCreatingTask"
+          @keydown.enter="handleAddTask"
         />
       </div>
 
-      <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
+      <div class="task-list-scroll-area">
+        <div
+          v-for="task in displayTasks"
+          :key="task.id"
+          :class="`task-card-wrapper task-card-wrapper-${viewKey.replace(/::/g, '--')}`"
+          :data-task-id="task.id"
+        >
+          <KanbanTaskCard
+            :task="task"
+            :view-metadata="effectiveViewMetadata"
+            class="kanban-task-card"
+            @task-completed="handleTaskCompleted"
+          />
+        </div>
+
+        <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
+      </div>
     </div>
   </CutePane>
 </template>
@@ -596,9 +333,18 @@ async function handleDrop(event: DragEvent) {
   padding-right: 0.5rem;
 }
 
+/* 🔥 整个看板作为 dropzone wrapper */
+.kanban-dropzone-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
 .header {
   padding: 1rem 1rem 0.5rem;
   border-bottom: 1px solid var(--color-border-default);
+  flex-shrink: 0;
 }
 
 .title-section {
@@ -632,6 +378,7 @@ async function handleDrop(event: DragEvent) {
 
 .add-task-wrapper {
   padding: 1rem 1rem 0.5rem;
+  flex-shrink: 0;
 }
 
 .add-task-input {
@@ -696,27 +443,13 @@ async function handleDrop(event: DragEvent) {
   background: var(--color-text-tertiary);
 }
 
-/* 拖拽相关样式 */
+/* 🔥 拖拽样式由 interact.js 控制器自动管理 */
 .task-card-wrapper {
   position: relative;
-  cursor: grab;
   transition: transform 0.2s ease;
 }
 
-.task-card-wrapper:active {
-  cursor: grabbing;
-}
-
-.task-card-wrapper[data-dragging='true'] {
-  opacity: 0.5;
-}
-
 .kanban-task-card {
-  cursor: grab;
   pointer-events: auto;
-}
-
-.kanban-task-card:active {
-  cursor: grabbing;
 }
 </style>
