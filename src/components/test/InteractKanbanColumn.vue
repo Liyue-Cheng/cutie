@@ -9,6 +9,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import type { ViewMetadata } from '@/types/drag'
 import { useViewStore } from '@/stores/view'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
+import { dragPreviewState } from '@/infra/drag-interact'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
@@ -53,45 +54,41 @@ const effectiveViewMetadata = computed<ViewMetadata>(() => {
 
 // ==================== 新拖放系统 ====================
 
-const taskListRef = ref<HTMLElement | null>(null)
+const kanbanContainerRef = ref<HTMLElement | null>(null) // 整个看板容器
+const taskListRef = ref<HTMLElement | null>(null) // 任务列表区域（用于计算 dropIndex）
+
+// 🔥 使用新的拖放策略系统
+import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+const dragStrategy = useDragStrategy()
 
 // 🔥 使用新的 interact.js 拖放系统
 const { displayTasks, isDragging, isReceiving, getDebugInfo } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   tasks: computed(() => effectiveTasks.value),
-  containerRef: taskListRef,
+  containerRef: kanbanContainerRef, // 使用整个看板容器作为 dropzone
   draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/:/g, '-')}`,
   onDrop: async (session) => {
-    // 🎯 拖放策略执行
-    console.log('🎯 拖放策略执行:', {
-      from: session.source.viewId,
-      to: props.viewKey,
-      task: session.object.data.title,
-      strategy: getStrategyName(session.source.viewId, props.viewKey),
+    // 🎯 执行拖放策略（V2：灵活的 JSON 上下文）
+    const result = await dragStrategy.executeDrop(session, props.viewKey, {
+      // 起始组件的上下文数据（从 session.metadata 获取）
+      sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
+      // 结束组件的上下文数据（当前组件提供）
+      targetContext: {
+        taskIds: displayTasks.value.map((t) => t.id),
+        displayTasks: displayTasks.value,
+        dropIndex: dragPreviewState.value?.computed.dropIndex,
+        viewKey: props.viewKey,
+        // 🔥 可以自由添加更多数据
+      },
     })
 
-    // 模拟异步操作
-    await new Promise((resolve) => setTimeout(resolve, 300))
-
-    console.log('✅ 拖放完成')
+    if (result.success) {
+      console.log('✅ 策略执行成功:', result.message)
+    } else {
+      console.error('❌ 策略执行失败:', result.error)
+    }
   },
 })
-
-/**
- * 获取策略名称（模拟）
- */
-function getStrategyName(sourceId: string, targetId: string): string {
-  if (sourceId === 'misc::staging' && targetId.startsWith('daily::')) {
-    return 'StagingToDaily'
-  } else if (sourceId.startsWith('daily::') && targetId === 'misc::staging') {
-    return 'DailyToStaging'
-  } else if (sourceId.startsWith('daily::') && targetId.startsWith('daily::')) {
-    return 'DailyToDaily'
-  } else if (sourceId === 'misc::staging' && targetId === 'misc::staging') {
-    return 'StagingSameView'
-  }
-  return 'UnknownStrategy'
-}
 
 // ==================== 任务创建 ====================
 
@@ -283,67 +280,69 @@ watch(
 
 <template>
   <CutePane class="interact-kanban-column">
-    <div class="header">
-      <div class="title-section">
-        <h2 class="title">{{ title }}</h2>
-        <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+    <div ref="kanbanContainerRef" class="kanban-content-wrapper">
+      <div class="header">
+        <div class="title-section">
+          <h2 class="title">{{ title }}</h2>
+          <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+        </div>
+        <div class="task-count">
+          <span class="count">{{ effectiveTasks.length }}</span>
+        </div>
+        <div class="status-indicators">
+          <div v-if="isDragging" class="status-indicator dragging">拖动中</div>
+          <div v-if="isReceiving" class="status-indicator receiving">接收中</div>
+        </div>
       </div>
-      <div class="task-count">
-        <span class="count">{{ effectiveTasks.length }}</span>
-      </div>
-      <div class="status-indicators">
-        <div v-if="isDragging" class="status-indicator dragging">拖动中</div>
-        <div v-if="isReceiving" class="status-indicator receiving">接收中</div>
-      </div>
-    </div>
 
-    <div v-if="showAddInput" class="add-task-wrapper">
-      <input
-        ref="addTaskInputRef"
-        v-model="newTaskTitle"
-        type="text"
-        placeholder="+ 添加任务"
-        class="add-task-input"
-        :disabled="isCreatingTask"
-        @keydown.enter="handleAddTask"
-      />
-    </div>
-
-    <div
-      ref="taskListRef"
-      class="task-list-scroll-area"
-      :class="{
-        'is-dragging': isDragging,
-        'is-receiving': isReceiving,
-      }"
-    >
-      <div
-        v-for="task in displayTasks"
-        :key="task.id"
-        class="task-card-wrapper"
-        :class="[
-          { 'is-preview': (task as any)._isPreview },
-          `task-card-wrapper-${viewKey.replace(/:/g, '-')}`,
-        ]"
-        :data-task-id="task.id"
-      >
-        <KanbanTaskCard
-          :task="task"
-          :view-metadata="effectiveViewMetadata"
-          class="kanban-task-card"
-          @task-completed="handleTaskCompleted"
+      <div v-if="showAddInput" class="add-task-wrapper">
+        <input
+          ref="addTaskInputRef"
+          v-model="newTaskTitle"
+          type="text"
+          placeholder="+ 添加任务"
+          class="add-task-input"
+          :disabled="isCreatingTask"
+          @keydown.enter="handleAddTask"
         />
       </div>
 
-      <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
-    </div>
+      <div
+        ref="taskListRef"
+        class="task-list-scroll-area"
+        :class="{
+          'is-dragging': isDragging,
+          'is-receiving': isReceiving,
+        }"
+      >
+        <div
+          v-for="task in displayTasks"
+          :key="task.id"
+          class="task-card-wrapper"
+          :class="[
+            { 'is-preview': (task as any)._isPreview },
+            `task-card-wrapper-${viewKey.replace(/:/g, '-')}`,
+          ]"
+          :data-task-id="task.id"
+        >
+          <KanbanTaskCard
+            :task="task"
+            :view-metadata="effectiveViewMetadata"
+            class="kanban-task-card"
+            @task-completed="handleTaskCompleted"
+          />
+        </div>
 
-    <!-- 调试信息 -->
-    <div class="debug-info">
-      <details>
-        <summary>调试信息</summary>
-        <pre>{{ JSON.stringify(getDebugInfo(), null, 2) }}</pre>
-      </details>
+        <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
+      </div>
+
+      <!-- 调试信息 -->
+      <div class="debug-info">
+        <details>
+          <summary>调试信息</summary>
+          <pre>{{ JSON.stringify(getDebugInfo(), null, 2) }}</pre>
+        </details>
+      </div>
     </div>
   </CutePane>
 </template>
@@ -358,6 +357,14 @@ watch(
   flex-shrink: 0;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+}
+
+/* 包装器占满整个看板 */
+.kanban-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
 }
 
 .header {

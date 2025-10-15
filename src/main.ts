@@ -13,6 +13,7 @@ import {
 } from '@/infra/errors/errorHandler'
 import { initCommandBus } from '@/commandBus'
 import { setupAutoTracking, getTrackingStats } from '@/infra/logging/AutoInstructionTracker'
+import { initializeDragStrategies } from '@/infra/drag'
 import './style.css'
 
 // 设置全局错误处理
@@ -38,6 +39,9 @@ initCommandBus()
 if (import.meta.env.DEV) {
   setupAutoTracking()
 }
+
+// 🎯 初始化拖放策略系统
+initializeDragStrategies()
 
 // 设置全局日志控制接口（仅开发环境）
 if (import.meta.env.DEV) {

@@ -165,6 +165,13 @@ export function useInteractDrag(options: UseInteractDragOptions) {
       task,
       sourceView: viewMetadata.value,
       index,
+      // 🔥 V2: 传递灵活的上下文数据
+      sourceContext: {
+        taskIds: displayTasks.value.map((t) => t.id),
+        displayTasks: displayTasks.value,
+        viewKey: viewMetadata.value.id,
+        // 可以添加更多数据
+      },
     }
   }
 

@@ -128,7 +128,7 @@ class InteractDragController {
    */
   private createGhost(sourceElement: HTMLElement, mouseX?: number, mouseY?: number) {
     // 移除旧的幽灵元素
-      this.removeGhost()
+    this.removeGhost()
 
     // 克隆源元素
     this.ghost = sourceElement.cloneNode(true) as HTMLElement
@@ -203,23 +203,32 @@ class InteractDragController {
       x: event?.clientX ?? event?.pageX ?? event?.x0 ?? 0,
       y: event?.clientY ?? event?.pageY ?? event?.y0 ?? 0,
     }
-      const dragData = options.getData(sourceElement)
+    const dragData = options.getData(sourceElement)
 
-    // 创建拖放会话
-      const session: DragSession = {
-        source: {
-          viewType: dragData.sourceView.type,
-          viewId: dragData.sourceView.id,
+    // 创建拖放会话（符合新策略系统的结构）
+    const session: DragSession = {
+      id: `drag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      source: {
+        viewId: dragData.sourceView.id,
+        viewType: dragData.sourceView.type,
+        viewKey: dragData.sourceView.id, // viewKey = viewId
+        elementId: sourceElement.getAttribute('data-task-id') || dragData.task.id,
+      },
+      object: {
+        type: 'task',
+        data: { ...dragData.task }, // 深拷贝快照
+        originalIndex: dragData.index,
+      },
+      dragMode: 'normal', // 默认为 normal 模式
+      target: undefined, // 初始时无目标
+      startTime: Date.now(),
+      metadata: {
         date: (dragData.sourceView.config as any).date,
         areaId: dragData.task.area_id || undefined,
-        },
-        object: {
-          type: 'task',
-        data: { ...dragData.task }, // 深拷贝快照
-          originalIndex: dragData.index,
-        },
-        target: null,
-      }
+        // 🔥 V2: 保存源组件的灵活上下文数据
+        sourceContext: dragData.sourceContext,
+      },
+    }
 
     this.enterPhase('PREPARING', { session })
 
@@ -450,8 +459,8 @@ class InteractDragController {
 
           if (!this.state.session) {
             logger.warn(LogTags.DRAG_CROSS_VIEW, 'dragenter: No session found')
-      return
-    }
+            return
+          }
 
           // 保存当前 dropzone 元素引用
           this.currentDropzoneElement = element
@@ -474,8 +483,8 @@ class InteractDragController {
             })
           } else {
             // 日历等非物理区域：触发回弹
-    dragPreviewActions.triggerRebound()
-  }
+            dragPreviewActions.triggerRebound()
+          }
 
           // 进入目标区域状态
           this.enterTarget(
@@ -513,8 +522,8 @@ class InteractDragController {
           logger.debug(LogTags.DRAG_CROSS_VIEW, `[✅ dropzone.drop] zoneId: ${zoneId}`)
 
           if (options.onDrop && this.state.session) {
-        await options.onDrop(this.state.session)
-      } else {
+            await options.onDrop(this.state.session)
+          } else {
             await this.executeDrop()
           }
         },

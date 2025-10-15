@@ -7,6 +7,7 @@
 
 import type { TaskCard } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
+import type { DragSession } from '@/infra/drag/types'
 
 // ==================== 基础类型 ====================
 
@@ -35,42 +36,13 @@ export type DragPhase = (typeof DragPhase)[keyof typeof DragPhase]
 
 /**
  * 拖放会话数据
- * 在拖动开始时捕获完整快照，避免时序竞争
+ *
+ * ⚠️ 统一使用新策略系统的类型定义
+ * 从 @/infra/drag/types 导入 DragSession
+ *
+ * 这里重新导出以保持向后兼容
  */
-export interface DragSession {
-  /** 拖放源信息 */
-  source: {
-    viewType: string
-    viewId: string
-    date?: string
-    areaId?: string
-  }
-
-  /** 被拖放物体信息 */
-  object: {
-    type: 'task'
-    data: TaskCard // 完整的任务数据快照
-    originalIndex: number // 在源列表中的位置
-  }
-
-  /** 拖放目标信息（动态更新） */
-  target: {
-    viewType?: string
-    viewId?: string
-    date?: string
-    dropIndex?: number
-    calendarMeta?: CalendarDropMeta
-  } | null
-}
-
-/**
- * 日历拖放元数据
- */
-export interface CalendarDropMeta {
-  dropTime: Date
-  isAllDay: boolean
-  viewDate: string
-}
+export type { DragSession }
 
 // ==================== 预览状态 ====================
 
@@ -149,6 +121,8 @@ export interface DragData {
   task: TaskCard
   sourceView: ViewMetadata
   index: number
+  // 🔥 V2: 源组件的灵活上下文数据
+  sourceContext: Record<string, any>
 }
 
 /**
