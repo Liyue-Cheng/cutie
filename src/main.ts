@@ -12,7 +12,6 @@ import {
   createVueWarnHandler,
 } from '@/infra/errors/errorHandler'
 import { initCommandBus } from '@/commandBus'
-import { setupAutoTracking, getTrackingStats } from '@/infra/logging/AutoInstructionTracker'
 import { initializeDragStrategies } from '@/infra/drag'
 import './style.css'
 
@@ -40,11 +39,6 @@ import('@/cpu').then(({ pipeline }) => {
   pipeline.start()
   logger.info('System:Init', 'CPU Pipeline started')
 })
-
-// 🚀 启用自动指令追踪（零集成！）
-if (import.meta.env.DEV) {
-  setupAutoTracking()
-}
 
 // 🎯 初始化拖放策略系统
 initializeDragStrategies()
@@ -79,11 +73,6 @@ if (import.meta.env.DEV) {
       console.table(stats)
       return stats
     },
-    getTrackingStats: () => {
-      const stats = getTrackingStats()
-      console.log('🎯 Instruction Tracking Stats:', stats)
-      return stats
-    },
     applyPreset: (presetName: string) => {
       import('@/infra/logging/loggerSettings').then(({ applyPreset }) => {
         const preset = applyPreset(presetName as any)
@@ -105,7 +94,6 @@ if (import.meta.env.DEV) {
   appLogger.setSampling({debug: 0.1})  // 设置采样率 (0-1)
   appLogger.applyPreset('dragOnly')    // 应用预设配置
   appLogger.getStats()                 // 查看当前配置
-  appLogger.getTrackingStats()         // 查看指令追踪统计 🎯
   appLogger.help()                     // 显示此帮助
 
 🎯 可用预设:
@@ -115,13 +103,13 @@ if (import.meta.env.DEV) {
   ${Object.values(LogTags).join(', ')}
 
 💡 快速调试:
-  appLogger.trackingOnly()             // 🎯 清洁模式：只看指令追踪（推荐）
   appLogger.applyPreset('errorsOnly')  // 只看错误和警告
   appLogger.applyPreset('apiOnly')     // 只看API相关日志
 
-🎯 指令追踪已自动启用！现在点击任务完成按钮，然后执行：
-  appLogger.trackingOnly()
-  就能看到干净的四级流水线追踪日志了！
+💡 CPU Pipeline 日志:
+  前往 CPU 调试页面调整控制台级别，或使用：
+  import { cpuConsole, ConsoleLevel } from '@/cpu/logging'
+  cpuConsole.setLevel(ConsoleLevel.VERBOSE)
       `)
     },
   }

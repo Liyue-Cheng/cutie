@@ -8,7 +8,6 @@
 import type { DragSession, StrategyResult, StrategyContext, Strategy } from './types'
 import { strategyRegistry } from './strategy-registry'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { createTracker, ResultSource, Status } from '@/infra/logging/InstructionTracker'
 
 /**
  * 策略执行引擎
@@ -29,18 +28,7 @@ class StrategyExecutor {
       targetContext?: Record<string, any> // 结束组件传入的数据
     }
   ): Promise<StrategyResult> {
-    const tracker = createTracker('drag.strategy.execute').fetch({
-      sessionId: session.id,
-      sourceView: session.source.viewId,
-      targetZone,
-      taskId: session.object.data.id,
-      taskTitle: session.object.data.title,
-    })
-
-    tracker.execute('findAndExecuteStrategy', {
-      dragMode: session.dragMode,
-      taskStatus: session.object.data.schedule_status,
-    })
+    // ✅ 移除旧的 tracker，现在由 CPU Pipeline 统一追踪
 
     try {
       // 1. 查找匹配的策略
@@ -53,8 +41,6 @@ class StrategyExecutor {
           taskStatus: session.object.data.schedule_status,
           dragMode: session.dragMode,
         })
-
-        tracker.result(ResultSource.LOCAL, { reason: 'no-strategy-match' }, Status.FAILED)
 
         return {
           success: false,
@@ -77,12 +63,6 @@ class StrategyExecutor {
             strategyName: strategy.name,
           })
 
-          tracker.result(
-            ResultSource.LOCAL,
-            { reason: 'canExecute-failed', strategyId: strategy.id },
-            Status.FAILED
-          )
-
           return {
             success: false,
             error: `策略 ${strategy.name} 不满足执行条件`,
@@ -90,8 +70,8 @@ class StrategyExecutor {
         }
       }
 
-      // 5. 执行策略（打印模式）
-      logger.info(LogTags.DRAG_STRATEGY, '🚀 Executing strategy (PRINT MODE)', {
+      // 5. 执行策略
+      logger.debug(LogTags.DRAG_STRATEGY, '🚀 Executing strategy', {
         strategyId: strategy.id,
         strategyName: strategy.name,
         actionName: strategy.action.name,
@@ -99,14 +79,7 @@ class StrategyExecutor {
 
       const result = await strategy.action.execute(context)
 
-      tracker.result(ResultSource.LOCAL, result, Status.SUCCESS, {
-        strategyId: strategy.id,
-        strategyName: strategy.name,
-      })
-
-      tracker.writeBack(['StrategyExecuted'], ['printMode'])
-
-      logger.info(LogTags.DRAG_STRATEGY, '✅ Strategy executed successfully (PRINT MODE)', {
+      logger.debug(LogTags.DRAG_STRATEGY, '✅ Strategy executed successfully', {
         strategyId: strategy.id,
         result,
       })
@@ -118,8 +91,6 @@ class StrategyExecutor {
         '❌ Strategy execution error',
         error instanceof Error ? error : new Error(String(error))
       )
-
-      tracker.error(error as Error, 'strategy.execute')
 
       return {
         success: false,
