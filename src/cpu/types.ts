@@ -71,4 +71,6 @@ export interface QueuedInstruction<TPayload = any> {
   result?: any
   /** 错误信息 */
   error?: Error
+  /** 乐观更新快照（用于回滚） */
+  optimisticSnapshot?: any
 }
