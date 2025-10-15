@@ -62,12 +62,7 @@ export class ExecuteStage {
       instruction.result = result
       instructionTracker.recordNetworkResult(instruction.id, result)
     } catch (error) {
-      // 失败时回滚乐观更新
-      if (instruction.optimisticSnapshot && isa.optimistic?.rollback) {
-        isa.optimistic.rollback(instruction.optimisticSnapshot)
-      }
-
-      // 保存错误信息
+      // 保存错误信息（回滚由 WB 阶段统一处理）
       instruction.error = error as Error
       throw error
     }
