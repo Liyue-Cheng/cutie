@@ -35,6 +35,12 @@ app.use(router) // 确保已经 use 了 router
 // 初始化命令总线（需要在 pinia 初始化之后）
 initCommandBus()
 
+// 🔥 启动 CPU 流水线（必须在 pinia 之后启动）
+import('@/cpu').then(({ pipeline }) => {
+  pipeline.start()
+  logger.info('System:Init', 'CPU Pipeline started')
+})
+
 // 🚀 启用自动指令追踪（零集成！）
 if (import.meta.env.DEV) {
   setupAutoTracking()
