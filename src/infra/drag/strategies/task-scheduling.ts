@@ -19,6 +19,7 @@ import {
   type OperationRecord,
 } from './strategy-utils'
 import { commandBus } from '@/commandBus'
+import { pipeline } from '@/cpu'
 
 /**
  * 策略 1：Staging → Daily
@@ -168,7 +169,7 @@ export const dailyToDailyStrategy: Strategy = {
         }
 
         // 🔹 情况 B: 跨日期重新安排
-        // 🎯 步骤 1: 更新日程日期
+        // 🎯 步骤 1: 更新日程日期（使用 CPU Pipeline + 乐观更新）
         const updatePayload = {
           task_id: ctx.task.id,
           scheduled_day: sourceDate,
@@ -176,7 +177,8 @@ export const dailyToDailyStrategy: Strategy = {
             new_date: targetDate,
           },
         }
-        await commandBus.emit('schedule.update', updatePayload)
+        // 🔥 使用 pipeline.dispatch 支持乐观更新
+        pipeline.dispatch('schedule.update', updatePayload)
         operations.push(createOperationRecord('update_schedule', ctx.targetViewId, updatePayload))
 
         // 🎯 步骤 2: 从源 Daily 移除

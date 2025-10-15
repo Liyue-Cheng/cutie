@@ -24,7 +24,7 @@ export const TaskISA: ISADefinition = {
       priority: 5,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       if (!payload.title?.trim()) {
         console.warn('❌ 任务标题不能为空')
@@ -32,13 +32,13 @@ export const TaskISA: ISADefinition = {
       }
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',
       url: '/tasks',
     },
-    
+
     commit: async (result: TaskCard) => {
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask_mut(result)
@@ -53,7 +53,7 @@ export const TaskISA: ISADefinition = {
       priority: 5,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       if (!payload.title?.trim()) {
         console.warn('❌ 任务标题不能为空')
@@ -65,13 +65,13 @@ export const TaskISA: ISADefinition = {
       }
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',
       url: '/tasks/with-schedule',
     },
-    
+
     commit: async (result: TaskCard) => {
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask_mut(result)
@@ -86,7 +86,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -96,14 +96,14 @@ export const TaskISA: ISADefinition = {
       }
       return true
     },
-    
+
     // 🔥 声明式请求配置（动态 URL）
     request: {
       method: 'PATCH',
       url: (payload) => `/tasks/${payload.id}`,
       body: (payload) => payload.updates, // 只发送 updates 部分
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -120,7 +120,7 @@ export const TaskISA: ISADefinition = {
       priority: 7,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -137,14 +137,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',
       url: (payload) => `/tasks/${payload.id}/completion`,
       body: () => ({}), // 空 body
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -161,7 +161,7 @@ export const TaskISA: ISADefinition = {
       priority: 7,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -178,13 +178,13 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'DELETE',
       url: (payload) => `/tasks/${payload.id}/completion`,
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -201,7 +201,7 @@ export const TaskISA: ISADefinition = {
       priority: 5,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -213,13 +213,13 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'DELETE',
       url: (payload) => `/tasks/${payload.id}`,
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -236,7 +236,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -253,14 +253,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',
       url: (payload) => `/tasks/${payload.id}/archive`,
       body: () => ({}), // 空 body
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -277,7 +277,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -294,14 +294,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',
       url: (payload) => `/tasks/${payload.id}/unarchive`,
       body: () => ({}), // 空 body
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
@@ -318,7 +318,7 @@ export const TaskISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
-    
+
     validate: async (payload) => {
       const taskStore = useTaskStore()
       const task = taskStore.getTaskById_Mux(payload.id)
@@ -330,14 +330,14 @@ export const TaskISA: ISADefinition = {
 
       return true
     },
-    
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',
       url: (payload) => `/tasks/${payload.id}/return-to-staging`,
       body: () => ({}), // 空 body
     },
-    
+
     commit: async (result: TaskTransactionResult, _payload, context) => {
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
