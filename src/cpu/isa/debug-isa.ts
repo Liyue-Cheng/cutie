@@ -124,4 +124,59 @@ export const DebugISA: ISADefinition = {
       }
     },
   },
+
+  'debug.login': {
+    meta: {
+      description: '测试登录（可控制成功/失败）',
+      category: 'debug',
+      resourceIdentifier: () => ['auth:login'],
+      priority: 7,
+      timeout: 5000,
+    },
+    execute: async (payload, context) => {
+      // 模拟网络延迟
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // 🔥 根据 payload.shouldSucceed 决定成功或失败
+      const shouldSucceed = payload.shouldSucceed !== false // 默认成功
+
+      if (shouldSucceed) {
+        return {
+          success: true,
+          message: '登录成功',
+          user: {
+            id: 'user_123',
+            name: 'Test User',
+            token: 'token_' + Date.now(),
+          },
+          correlationId: context.correlationId,
+          timestamp: Date.now(),
+        }
+      } else {
+        throw new Error('登录失败：用户名或密码错误')
+      }
+    },
+  },
+
+  'debug.welcome': {
+    meta: {
+      description: '欢迎消息（依赖登录成功）',
+      category: 'debug',
+      resourceIdentifier: (payload) => [`user:${payload.userId}`],
+      priority: 5,
+      timeout: 3000,
+    },
+    execute: async (payload, context) => {
+      // 模拟网络延迟
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      return {
+        success: true,
+        message: `欢迎回来，${payload.userName}！`,
+        tips: ['你有 3 个待办任务', '今天是美好的一天', '保持专注，高效工作！'],
+        correlationId: context.correlationId,
+        timestamp: Date.now(),
+      }
+    },
+  },
 }

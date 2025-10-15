@@ -67,11 +67,7 @@ export class InstructionTracker {
     trace.status = InstructionStatus.COMMITTED
     trace.duration = this.calculateDuration(trace.timestamps)
 
-    console.log(
-      `%c🎯 指令完成: ${trace.type}`,
-      'color: #4CAF50; font-weight: bold',
-      this.formatTraceInfo(trace)
-    )
+    // ✅ 移除旧的 console.log，现在由 CPUConsole 负责打印
   }
 
   /**
@@ -85,12 +81,7 @@ export class InstructionTracker {
     trace.error = error
     trace.duration = this.calculateDuration(trace.timestamps)
 
-    console.error(
-      `%c❌ 指令失败: ${trace.type}`,
-      'color: #F44336; font-weight: bold',
-      this.formatTraceInfo(trace),
-      error
-    )
+    // ✅ 移除旧的 console.error，现在由 CPUConsole 负责打印
   }
 
   /**

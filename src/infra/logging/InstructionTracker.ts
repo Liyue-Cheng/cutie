@@ -226,13 +226,14 @@ export class InstructionTracker {
       ...details
     }
 
-    if (status === Status.FAILED) {
-      logger.error(LogTags.INSTRUCTION_TRACKER, logMessage, new Error(details?.error || 'Unknown error'), logContext)
-    } else if (status === Status.TIMEOUT) {
-      logger.warn(LogTags.INSTRUCTION_TRACKER, logMessage, logContext)
-    } else {
-      logger.info(LogTags.INSTRUCTION_TRACKER, logMessage, logContext)
-    }
+    // ✅ 禁用旧的日志输出，现在由 CPUConsole 负责
+    // if (status === Status.FAILED) {
+    //   logger.error(LogTags.INSTRUCTION_TRACKER, logMessage, new Error(details?.error || 'Unknown error'), logContext)
+    // } else if (status === Status.TIMEOUT) {
+    //   logger.warn(LogTags.INSTRUCTION_TRACKER, logMessage, logContext)
+    // } else {
+    //   logger.info(LogTags.INSTRUCTION_TRACKER, logMessage, logContext)
+    // }
   }
 
   /**
@@ -254,16 +255,17 @@ export class InstructionTracker {
       success: !error && this.stages.every(s => s.status === Status.SUCCESS)
     }
 
-    if (error) {
-      logger.error(
-        LogTags.INSTRUCTION_TRACKER,
-        `指令执行摘要 [${this.instructionId}] - 失败`,
-        error,
-        summary
-      )
-    } else {
-      logger.info(LogTags.INSTRUCTION_TRACKER, `指令执行摘要 [${this.instructionId}] - 完成`, summary)
-    }
+    // ✅ 禁用旧的摘要输出，现在由 CPUConsole 负责
+    // if (error) {
+    //   logger.error(
+    //     LogTags.INSTRUCTION_TRACKER,
+    //     `指令执行摘要 [${this.instructionId}] - 失败`,
+    //     error,
+    //     summary
+    //   )
+    // } else {
+    //   logger.info(LogTags.INSTRUCTION_TRACKER, `指令执行摘要 [${this.instructionId}] - 完成`, summary)
+    // }
   }
 }
 

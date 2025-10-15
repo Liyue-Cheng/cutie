@@ -4,13 +4,12 @@ import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 // import { useTaskStore } from '@/stores/task' // 🗑️ 不再需要
 import { useViewStore } from '@/stores/view'
-import { useDragTransfer } from '@/composables/drag'
+import { controllerDebugState } from '@/infra/drag-interact'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== Stores ====================
 // const taskStore = useTaskStore() // 🗑️ 不再需要：SimpleKanbanColumn 内部处理任务数据
 const viewStore = useViewStore()
-const dragTransfer = useDragTransfer()
 
 // ==================== 配置常量 ====================
 const KANBAN_WIDTH = 23 // 每个看板宽度（rem）
@@ -28,13 +27,16 @@ const TRIGGER_DISTANCE = 3 // 触发加载的距离（距离缓冲区边界几�
 const scrollContainer = ref<HTMLElement | null>(null)
 const isScrolling = ref(false) // 防止滚动补偿时触发额外逻辑
 
-// 拖动滚动状态
+// 拖动滚动状态（看板横向拖动）
 const isDragging = ref(false)
 const dragStartX = ref(0)
 const dragStartScrollLeft = ref(0)
 
-// 任务卡片拖动状态（用于禁用看板拖动）
-const isTaskDragging = ref(false)
+// ✅ 使用 interact.js 的全局拖动状态来检测任务卡片是否正在拖动
+const isTaskDragging = computed(() => {
+  // 当拖动状态不是 IDLE 时，说明有任务正在被拖动
+  return controllerDebugState.value.phase !== 'IDLE'
+})
 
 // ==================== 日期看板系统 ====================
 interface DailyKanban {
@@ -316,23 +318,27 @@ function handleMouseDown(event: MouseEvent) {
   // 只处理左键
   if (event.button !== 0) return
 
-  // ✅ 关键修复：如果任务卡片正在拖动，完全禁用看板拖动
-  if (isTaskDragging.value) {
+  // ✅ 核心修复：检测鼠标是否在任务卡片上
+  const target = event.target as HTMLElement
+
+  // 如果点击的是任务卡片或其内部元素，不启动看板拖动
+  if (target.closest('.task-card-wrapper')) {
     return
   }
 
-  // 如果点击的是看板内部元素（比如任务卡片），不启用拖动
-  const target = event.target as HTMLElement
-  if (target.closest('.simple-kanban-column')) {
-    // 如果点击的是看板列本身内部的可交互元素，跳过
-    if (
-      target.closest('.kanban-card') ||
-      target.closest('input') ||
-      target.closest('button') ||
-      target.closest('[draggable="true"]') // ✅ 检测所有可拖动元素
-    ) {
-      return
-    }
+  // 如果点击的是其他可交互元素（输入框、按钮等），也不启动看板拖动
+  if (
+    target.closest('input') ||
+    target.closest('button') ||
+    target.closest('textarea') ||
+    target.closest('select')
+  ) {
+    return
+  }
+
+  // ✅ 额外检查：如果任务卡片已经在拖动中（防抖阈值期间），也不启动看板拖动
+  if (isTaskDragging.value) {
+    return
   }
 
   isDragging.value = true
@@ -347,6 +353,12 @@ function handleMouseDown(event: MouseEvent) {
 }
 
 function handleMouseMove(event: MouseEvent) {
+  // ✅ 如果任务正在拖动（通过 interact.js），立即停止看板拖动
+  if (isTaskDragging.value && isDragging.value) {
+    handleMouseUp()
+    return
+  }
+
   if (!isDragging.value || !scrollContainer.value) return
 
   event.preventDefault()
@@ -433,19 +445,7 @@ function stopScrollMonitor() {
 }
 
 // ==================== 任务卡片拖动监听 ====================
-// 监听任务卡片的拖动开始和结束，以禁用/启用看板拖动
-function handleTaskDragStart(event: DragEvent) {
-  // 检查是否是任务卡片拖动（使用统一的 dragTransfer 检测）
-  if (dragTransfer.hasDragData(event)) {
-    isTaskDragging.value = true
-    logger.debug(LogTags.COMPONENT_KANBAN, 'Task drag started, disabling kanban drag')
-  }
-}
-
-function handleTaskDragEnd() {
-  isTaskDragging.value = false
-  logger.debug(LogTags.COMPONENT_KANBAN, 'Task drag ended, enabling kanban drag')
-}
+// ✅ 不再需要手动监听拖动事件，使用 interact.js 的全局状态 (controllerDebugState)
 
 // ==================== 生命周期 ====================
 onMounted(async () => {
@@ -462,29 +462,11 @@ onMounted(async () => {
   // 启动滚动监控
   startScrollMonitor()
 
-  // 监听任务卡片拖动事件
-  document.addEventListener('dragstart', handleTaskDragStart)
-  document.addEventListener('dragend', handleTaskDragEnd)
-
-  // 🆕 兜底：当全局 drop 发生时，确保恢复看板拖动能力
-  document.addEventListener(
-    'drop',
-    () => {
-      if (isTaskDragging.value) {
-        isTaskDragging.value = false
-        logger.debug(LogTags.COMPONENT_KANBAN, 'Global drop detected, re-enable kanban drag')
-      }
-    },
-    true
-  )
+  // ✅ 不再需要手动监听拖动事件，interact.js 通过 controllerDebugState 自动同步状态
 })
 
 onBeforeUnmount(() => {
   stopScrollMonitor()
-
-  // 清理事件监听器
-  document.removeEventListener('dragstart', handleTaskDragStart)
-  document.removeEventListener('dragend', handleTaskDragEnd)
 })
 </script>
 

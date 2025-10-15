@@ -214,51 +214,8 @@ class StrategyExecutor {
    * 打印策略信息（核心：展示策略细节）
    */
   private printStrategyInfo(strategy: Strategy, context: StrategyContext): void {
-    console.group(`🎯 Drag Strategy: ${strategy.name} (${strategy.id})`)
-
-    console.log('📋 Strategy Details:')
-    console.table({
-      ID: strategy.id,
-      Name: strategy.name,
-      Action: strategy.action.name,
-      Description: strategy.action.description,
-      Priority: strategy.conditions.priority ?? 0,
-      Tags: strategy.tags?.join(', ') || '-',
-      Enabled: strategy.enabled !== false ? '✓' : '✗',
-    })
-
-    console.log('🔍 Matching Conditions:')
-    console.table({
-      'Source View': context.sourceViewId,
-      'Source Type': context.sourceViewType,
-      'Target View': context.targetViewId,
-      'Target Type': context.targetViewType,
-      'Drag Mode': context.session.dragMode,
-      'Task Status': context.task.schedule_status,
-    })
-
-    console.log('📦 Context Data:')
-    console.table({
-      'Task ID': context.task.id,
-      'Task Title': context.task.title,
-      'Drop Index': context.dropIndex ?? '-',
-      'Area ID': context.task.area_id || '-',
-      'Scheduled Day': context.task.scheduled_day || '-',
-    })
-
-    console.log('⚙️ Strategy Conditions:')
-    console.dir(strategy.conditions, { depth: 3 })
-
-    console.log('🎬 Action to Execute:')
-    console.log(`  Name: ${strategy.action.name}`)
-    console.log(`  Description: ${strategy.action.description}`)
-    console.log(`  Has canExecute: ${strategy.action.canExecute ? 'Yes' : 'No'}`)
-    console.log(`  Has rollback: ${strategy.action.rollback ? 'Yes' : 'No'}`)
-
-    console.groupEnd()
-
-    // 额外：在 logger 中记录
-    logger.info(LogTags.DRAG_STRATEGY, '🎯 Strategy matched and ready', {
+    // ✅ 移除旧的控制台打印噪音，改用简洁日志
+    logger.debug(LogTags.DRAG_STRATEGY, '🎯 Strategy matched and ready', {
       strategyId: strategy.id,
       strategyName: strategy.name,
       actionName: strategy.action.name,

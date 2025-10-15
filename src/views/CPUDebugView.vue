@@ -99,6 +99,41 @@
       </div>
     </div>
 
+    <!-- 链式操作测试 -->
+    <div class="chain-actions">
+      <h2>🔗 链式操作测试（Awaitable Dispatch）</h2>
+      <div class="control-group">
+        <label>登录结果：</label>
+        <div class="toggle-switch">
+          <label class="switch">
+            <input type="checkbox" v-model="loginShouldSucceed" />
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label">{{ loginShouldSucceed ? '✅ 成功' : '❌ 失败' }}</span>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <CuteButton @click="testLoginChain" :disabled="isLoggingIn">
+          <CuteIcon name="LogIn" :size="16" />
+          {{ isLoggingIn ? '登录中...' : '测试登录 → 欢迎' }}
+        </CuteButton>
+      </div>
+      <div class="chain-info">
+        <p>
+          💡 此测试演示：
+          <br />
+          1. 先执行 <code>debug.login</code> 指令并 <strong>await</strong> 结果
+          <br />
+          2. 登录成功后，再执行 <code>debug.welcome</code> 指令
+          <br />
+          3. 如果登录失败，不会执行欢迎指令
+          <br />
+          <br />
+          使用上方开关控制登录是否成功，观察控制台输出！
+        </p>
+      </div>
+    </div>
+
     <!-- 快速发射指令 -->
     <div class="quick-actions">
       <h2>快速测试</h2>
@@ -290,6 +325,10 @@ const filter = ref<'all' | 'committed' | 'failed' | 'executing'>('all')
 // 控制台设置
 const consoleLevel = ref<ConsoleLevel>(cpuConsole.getLevel())
 
+// 链式操作测试
+const loginShouldSucceed = ref(true)
+const isLoggingIn = ref(false)
+
 // 任务测试相关
 const testTaskTitle = ref('')
 const testTaskId = ref('')
@@ -411,6 +450,57 @@ function printStats() {
 
 function printSeparator() {
   cpuConsole.printSeparator('CPU 流水线调试')
+}
+
+// 链式操作测试：登录 → 欢迎
+async function testLoginChain() {
+  isLoggingIn.value = true
+
+  try {
+    cpuConsole.printSeparator('链式操作测试：登录 → 欢迎')
+
+    console.log('%c📋 步骤 1: 开始登录...', 'color: #3b82f6; font-weight: bold')
+
+    // 🔥 步骤 1: 执行登录指令并 await 结果
+    const loginResult = await pipeline.dispatch('debug.login', {
+      shouldSucceed: loginShouldSucceed.value,
+    })
+
+    console.log('%c✅ 步骤 1 完成: 登录成功！', 'color: #10b981; font-weight: bold', loginResult)
+
+    // 🔥 步骤 2: 登录成功后，发送欢迎指令
+    console.log('%c📋 步骤 2: 发送欢迎消息...', 'color: #3b82f6; font-weight: bold')
+
+    const welcomeResult = await pipeline.dispatch('debug.welcome', {
+      userId: loginResult.user.id,
+      userName: loginResult.user.name,
+    })
+
+    console.log(
+      '%c✅ 步骤 2 完成: 欢迎消息已发送！',
+      'color: #10b981; font-weight: bold',
+      welcomeResult
+    )
+
+    console.log(
+      '%c🎉 链式操作完成！登录 → 欢迎',
+      'color: #10b981; font-weight: bold; font-size: 16px'
+    )
+    console.log(`%c${welcomeResult.message}`, 'color: #8b5cf6; font-size: 14px')
+    console.log('%c提示:', 'color: #666; font-weight: bold')
+    welcomeResult.tips.forEach((tip: string) => {
+      console.log(`  • ${tip}`)
+    })
+  } catch (error) {
+    console.log('%c❌ 链式操作失败！', 'color: #ef4444; font-weight: bold; font-size: 16px')
+    console.error('失败原因:', error)
+
+    if ((error as Error).message.includes('登录失败')) {
+      console.log('%c💡 登录失败，欢迎指令不会执行', 'color: #f59e0b; font-weight: bold')
+    }
+  } finally {
+    isLoggingIn.value = false
+  }
 }
 
 // 发射指令
@@ -646,6 +736,100 @@ function getRowClass(trace: InstructionTrace): string {
   font-weight: 600;
   color: var(--color-text-primary);
   margin-bottom: 16px;
+}
+
+/* 链式操作测试 */
+.chain-actions {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border: 2px solid #667eea30;
+  border-radius: 12px;
+}
+
+.chain-actions h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 16px;
+}
+
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ef4444;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.slider::before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #10b981;
+}
+
+input:checked + .slider::before {
+  transform: translateX(24px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.chain-info {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--color-background);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.chain-info p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.chain-info code {
+  padding: 2px 6px;
+  background: #667eea15;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  color: #667eea;
 }
 
 .control-group {
