@@ -113,8 +113,8 @@ export function useInteractDrag(options: UseInteractDragOptions) {
         // 获取今天的日期
         const today = new Date().toISOString().split('T')[0]
         
-        // 使用决策服务
-        const decision = makeDragDecision(ghostTask, sourceDate, targetDate, today)
+        // 使用决策服务（转换为可变类型）
+        const decision = makeDragDecision(ghostTask as TaskCard, sourceDate, targetDate, today)
         
         console.log('🔍 [useInteractDrag] Drag decision:', decision)
         
