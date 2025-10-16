@@ -13,6 +13,7 @@ import { dragPreviewState } from '@/infra/drag-interact/preview-state'
 import { interactManager } from '@/infra/drag-interact/drag-controller'
 import type { DragSession } from '@/infra/drag-interact/types'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { isTaskCard, isTemplate } from '@/types/dtos'
 import { apiPost } from '@/stores/shared'
 import { parseDateString } from '@/infra/utils/dateUtils'
 
@@ -39,8 +40,8 @@ export function useCalendarInteractDrag(
       return
     }
 
-    const { ghostTask } = preview.raw
-    const task = ghostTask
+    // 统一从 draggedObject 读取被拖动任务
+    const task = (preview.raw as any).draggedObject || (preview as any).raw.ghostTask
 
     // 🔥 检查是否在日历容器内
     const calendarContainer = calendarRef.value?.$el as HTMLElement
@@ -50,8 +51,8 @@ export function useCalendarInteractDrag(
     }
 
     // 🔥 获取鼠标位置（从 preview.raw）
-    const mouseX = preview.raw.mousePosition?.x || 0
-    const mouseY = preview.raw.mousePosition?.y || 0
+    const mouseX = (preview.raw as any).mousePosition?.x || 0
+    const mouseY = (preview.raw as any).mousePosition?.y || 0
 
     const target = document.elementFromPoint(mouseX, mouseY) as HTMLElement
 
@@ -108,12 +109,13 @@ export function useCalendarInteractDrag(
       const endDate = new Date(startDate)
       endDate.setDate(endDate.getDate() + 1)
 
-      const area = task.area_id ? areaStore.getAreaById(task.area_id) : null
+      const areaId = task && (task as any).area_id ? (task as any).area_id : undefined
+      const area = areaId ? areaStore.getAreaById(areaId) : null
       const previewColor = area?.color || '#9ca3af'
 
       previewEvent.value = {
         id: 'preview-event',
-        title: task.title,
+        title: ((task as any)?.title ?? (task as any)?.name ?? '任务') as string,
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         allDay: true,
@@ -139,7 +141,8 @@ export function useCalendarInteractDrag(
     }
 
     // 根据任务的 estimated_duration 计算预览时间块长度
-    const durationMinutes = task.estimated_duration || 15
+    const rawDuration = (task && (task as any).estimated_duration) as number | undefined
+    const durationMinutes = typeof rawDuration === 'number' && rawDuration > 0 ? rawDuration : 15
     const durationMs = durationMinutes * 60 * 1000
     let endTime = new Date(dropTime.getTime() + durationMs)
 
@@ -161,12 +164,13 @@ export function useCalendarInteractDrag(
       startTimeForPreview = new Date(adjustedStartMs)
     }
 
-    const area = task.area_id ? areaStore.getAreaById(task.area_id) : null
+    const areaId2 = task && (task as any).area_id ? (task as any).area_id : undefined
+    const area = areaId2 ? areaStore.getAreaById(areaId2) : null
     const previewColor = area?.color || '#9ca3af'
 
     previewEvent.value = {
       id: 'preview-event',
-      title: task.title,
+      title: ((task as any)?.title ?? (task as any)?.name ?? '任务') as string,
       start: startTimeForPreview.toISOString(),
       end: endTime.toISOString(),
       allDay: false,
@@ -291,8 +295,16 @@ export function useCalendarInteractDrag(
             return
           }
 
-          // 根据 estimated_duration 计算结束时间
-          const duration = session.object.data.estimated_duration || 15
+          // 根据对象类型计算持续时间（任务优先，其次模板，默认15分钟）
+          const rawObj: any = session.object.data as any
+          let duration = 15
+          if (isTaskCard(rawObj)) {
+            const est = rawObj.estimated_duration
+            duration = typeof est === 'number' && est > 0 ? est : 15
+          } else if (isTemplate(rawObj)) {
+            const est = rawObj.estimated_duration_template
+            duration = typeof est === 'number' && est > 0 ? est : 15
+          }
           const durationMs = duration * 60 * 1000
           let endTime = new Date(dropTime.getTime() + durationMs)
 

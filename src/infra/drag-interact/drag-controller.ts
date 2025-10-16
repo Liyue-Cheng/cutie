@@ -617,6 +617,17 @@ class InteractDragController {
         drop: async () => {
           logger.debug(LogTags.DRAG_CROSS_VIEW, `[✅ dropzone.drop] zoneId: ${zoneId}`)
 
+          // 🔒 关键检查：必须处于 OVER_TARGET 状态才能执行 drop
+          // 防止在回弹状态下（DRAGGING）误触发 drop
+          if (this.state.phase !== 'OVER_TARGET') {
+            logger.warn(
+              LogTags.DRAG_CROSS_VIEW,
+              `[⛔ dropzone.drop rejected] phase is ${this.state.phase}, expected OVER_TARGET`
+            )
+            this.cancel()
+            return
+          }
+
           if (options.onDrop && this.state.session) {
             // 标记正在处理 drop，避免在 draggable.end 中提前清理预览
             this.isProcessingDrop = true
