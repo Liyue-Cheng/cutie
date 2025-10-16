@@ -37,6 +37,8 @@ export function createEventHandlers(core: ReturnType<typeof createTaskCore>) {
       interruptHandler.on('task.returned_to_staging', handleTaskTransactionEvent)
       interruptHandler.on('task.reopened', handleTaskTransactionEvent)
       interruptHandler.on('task.permanently_deleted', handleTaskTransactionEvent)
+      interruptHandler.on('task.schedule_deleted', handleTaskTransactionEvent) // 🔥 处理日程删除事件
+      interruptHandler.on('task.schedule_updated', handleTaskTransactionEvent) // 🔥 新增：处理日程更新事件
 
       // 订阅时间块事件（处理受影响的任务）
       interruptHandler.on('time_blocks.deleted', handleTimeBlockEvent)

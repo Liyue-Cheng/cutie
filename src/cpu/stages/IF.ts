@@ -13,7 +13,11 @@ export class InstructionFetchStage {
   /**
    * 获取指令（从组件发射的指令）
    */
-  fetchInstruction<TPayload>(type: string, payload: TPayload, source: 'user' | 'system' | 'test' = 'user'): QueuedInstruction<TPayload> {
+  fetchInstruction<TPayload>(
+    type: string,
+    payload: TPayload,
+    source: 'user' | 'system' | 'test' = 'user'
+  ): QueuedInstruction<TPayload> {
     const instructionId = `instr-${Date.now()}-${++this.idCounter}`
     const correlationId = generateCorrelationId()
 
@@ -75,4 +79,3 @@ export class InstructionFetchStage {
     this.buffer = []
   }
 }
-

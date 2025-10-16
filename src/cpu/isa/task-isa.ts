@@ -331,6 +331,67 @@ export const TaskISA: ISADefinition = {
       return true
     },
 
+    // 🔥 乐观更新配置
+    optimistic: {
+      enabled: true,
+      apply: (payload) => {
+        const taskStore = useTaskStore()
+        const task = taskStore.getTaskById_Mux(payload.id)
+
+        if (!task) {
+          return { task_id: payload.id, had_task: false }
+        }
+
+        // 保存原始状态（用于回滚）
+        const snapshot = {
+          task_id: payload.id,
+          had_task: true,
+          original_schedules: task.schedules ? JSON.parse(JSON.stringify(task.schedules)) : null,
+          original_schedule_status: task.schedule_status,
+          original_is_completed: task.is_completed,
+          original_completed_at: task.completed_at,
+        }
+
+        // 🔥 立即清除所有当前和未来的日程
+        // 返回暂存区操作会删除所有 >= today 的日程，只保留过去的
+        const today = new Date().toISOString().split('T')[0]
+        const pastSchedules = task.schedules?.filter(
+          (schedule) => schedule.scheduled_day < today
+        ) || []
+
+        // 🔥 立即更新任务状态
+        // - 清除当前和未来日程
+        // - 设为 staging 状态
+        // - 如果已完成，重新打开
+        taskStore.addOrUpdateTask_mut({
+          ...task,
+          schedules: pastSchedules.length > 0 ? pastSchedules : null,
+          schedule_status: 'staging' as const,
+          is_completed: false, // 后端会自动重新打开
+          completed_at: null,
+        })
+
+        return snapshot
+      },
+      rollback: (snapshot) => {
+        if (!snapshot.had_task) return
+
+        const taskStore = useTaskStore()
+        const task = taskStore.getTaskById_Mux(snapshot.task_id)
+
+        if (task) {
+          // 🔥 恢复原始状态
+          taskStore.addOrUpdateTask_mut({
+            ...task,
+            schedules: snapshot.original_schedules,
+            schedule_status: snapshot.original_schedule_status,
+            is_completed: snapshot.original_is_completed,
+            completed_at: snapshot.original_completed_at,
+          })
+        }
+      },
+    },
+
     // 🔥 声明式请求配置
     request: {
       method: 'POST',

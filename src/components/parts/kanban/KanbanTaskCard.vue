@@ -52,19 +52,29 @@ import { getTodayDateString } from '@/infra/utils/dateUtils'
 // ✅ 获取当日日期 (YYYY-MM-DD) - 使用本地时区
 const todayDate = computed(() => getTodayDateString())
 
+// ✅ 获取看板的日期（对于日期看板）或今天的日期（对于非日期看板）
+const kanbanDate = computed(() => {
+  if (isDateKanban.value && props.viewMetadata?.config) {
+    const config = props.viewMetadata.config as DateViewConfig
+    return config.date
+  }
+  // 对于非日期看板（如暂存区），使用今天的日期
+  return todayDate.value
+})
+
 // ✅ 判断当前看板的日期类型
 const kanbanDateType = computed(() => {
   if (!isDateKanban.value || !props.viewMetadata?.config) return null
 
   const config = props.viewMetadata.config as DateViewConfig
-  const kanbanDate = config.date
+  const kanbanDateValue = config.date
   const today = todayDate.value
 
   if (!today) return null
 
-  if (kanbanDate === today) return 'today'
-  if (kanbanDate < today) return 'past'
-  if (kanbanDate > today) return 'future'
+  if (kanbanDateValue === today) return 'today'
+  if (kanbanDateValue < today) return 'past'
+  if (kanbanDateValue > today) return 'future'
   return null
 })
 
@@ -214,29 +224,29 @@ function handleMouseLeave() {
   justToggledPresence.value = false
 }
 
-// ✅ 获取今天的时间块（按开始时间排序）
+// ✅ 获取看板日期的时间块（按开始时间排序）
 const todayTimeBlocks = computed(() => {
   if (!props.task.schedules) return []
 
-  const today = todayDate.value
-  const todaySchedule = props.task.schedules.find((s) => s.scheduled_day === today)
+  const dateToShow = kanbanDate.value
+  const schedule = props.task.schedules.find((s) => s.scheduled_day === dateToShow)
 
-  if (!todaySchedule || !todaySchedule.time_blocks) {
+  if (!schedule || !schedule.time_blocks) {
     return []
   }
 
   // 按开始时间排序
-  return [...todaySchedule.time_blocks].sort((a, b) => {
+  return [...schedule.time_blocks].sort((a, b) => {
     return a.start_time.localeCompare(b.start_time)
   })
 })
 
-// ✅ 判断今天是否有时间块
+// ✅ 判断看板日期是否有时间块
 const hasTodayTimeBlocks = computed(() => {
   return todayTimeBlocks.value.length > 0
 })
 
-// ✅ 计算今天时间片的总时长（分钟）
+// ✅ 计算看板日期时间片的总时长（分钟）
 const todayTimeBlocksTotalDuration = computed(() => {
   if (!hasTodayTimeBlocks.value) return 0
 
@@ -276,7 +286,7 @@ function formatDueDate(isoString: string): string {
 
 // ✅ 格式化时间显示（根据是否有时间片显示不同内容）
 const formattedDuration = computed(() => {
-  // 如果有今天的时间片，显示时间片总和
+  // 如果有看板日期的时间片，显示时间片总和
   if (hasTodayTimeBlocks.value) {
     const minutes = todayTimeBlocksTotalDuration.value
 
@@ -366,9 +376,9 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
         <!-- 时间片总和显示（不可点击） -->
         <div class="estimated-duration-wrapper">
-          <span class="estimated-duration readonly">
+          <button class="estimated-duration" disabled>
             {{ formattedDuration }}
-          </span>
+          </button>
         </div>
       </div>
 
@@ -554,25 +564,27 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
 .time-tag {
   display: inline-block;
-  padding: 0.2rem 0.6rem;
-  font-size: 1.1rem;
+  padding: 0.18rem 0.54rem;
+  font-size: 1.08rem;
   font-weight: 500;
   color: #fff;
   white-space: nowrap;
-  border-radius: 0.8rem;
+  border-radius: 0.36rem;
   text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
   box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+  line-height: 1.4;
 }
 
 .time-tag-more {
   display: inline-block;
-  padding: 0.2rem 0.6rem;
-  font-size: 1.1rem;
+  padding: 0.18rem 0.54rem;
+  font-size: 1.08rem;
   font-weight: 500;
   color: #666;
   white-space: nowrap;
-  border-radius: 0.8rem;
+  border-radius: 0.27rem;
   background-color: #f0f0f0;
+  line-height: 1.4;
 }
 
 /* 有时间块时的标题行 */
@@ -585,7 +597,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -677,7 +689,6 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  margin-top: 0.5rem;
 }
 
 .estimated-duration-wrapper {
@@ -688,31 +699,30 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 }
 
 .estimated-duration {
-  padding: 0.4rem 0.8rem;
-  background-color: var(--color-bg-secondary, #f5f5f5);
+  padding: 0.18rem 0.54rem;
+  background-color: #f0f0f0;
   border: none;
-  border-radius: 0.4rem;
-  font-size: 1.2rem;
-  color: var(--color-text-secondary);
+  border-radius: 0.36rem;
+  font-size: 1.08rem;
+  font-weight: 500;
+  color: #444;
   cursor: pointer;
   transition: all 0.15s;
+  line-height: 1.4;
 }
 
-.estimated-duration:hover {
-  background-color: var(--color-bg-hover, #e0e0e0);
-  color: var(--color-text-primary);
+/* 禁用状态：不可点击，光标不变 */
+.estimated-duration:disabled {
+  cursor: default;
+  background-color: #f0f0f0;
+  color: #444;
+  opacity: 1;
 }
 
-/* 时间指示器栏中的预期时间按钮 */
-.time-indicator-bar .estimated-duration {
-  background-color: #f5f5f5;
-  color: #666;
-  font-weight: 500;
-}
-
-.time-indicator-bar .estimated-duration:hover {
+/* 可点击状态：hover时变暗 */
+.estimated-duration:not(:disabled):hover {
   background-color: #e8e8e8;
-  color: #333;
+  color: #222;
 }
 
 .time-picker-popup {

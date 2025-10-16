@@ -28,6 +28,7 @@ import type {
 // ==================== 常量 ====================
 
 const DRAG_THRESHOLD = 5 // 拖拽阈值（像素）
+const LEAVE_GRACE_MS = 80 // 离开缓冲（毫秒）
 
 // ==================== 拖放控制器类 ====================
 
@@ -49,6 +50,7 @@ class InteractDragController {
   private registeredElements = new Set<HTMLElement>() // 记录已注册的元素
   private startPointer: Position | null = null // 记录拖拽起点，用于阈值计算
   private currentDropzoneElement: HTMLElement | null = null // 当前所在的 dropzone 元素
+  private pendingLeaveTimer: number | null = null // 离开缓冲计时器
 
   // ==================== 状态管理 ====================
 
@@ -75,6 +77,7 @@ class InteractDragController {
    * 清理所有状态
    */
   private cleanup() {
+    this.cancelPendingLeave()
     this.removeGhost()
     dragPreviewActions.clear()
     this.state.session = null
@@ -186,7 +189,59 @@ class InteractDragController {
     this.updateDebug()
   }
 
+  /**
+   * 安排离开目标区域（带缓冲）
+   * 在缓冲时间内若重新进入任意 dropzone，将取消离开
+   */
+  private scheduleLeaveWithGrace() {
+    if (this.pendingLeaveTimer !== null) return
+    this.pendingLeaveTimer = window.setTimeout(() => {
+      this.pendingLeaveTimer = null
+      // 真正离开并回弹
+      this.currentDropzoneElement = null
+      this.leaveTarget()
+      dragPreviewActions.triggerRebound()
+    }, LEAVE_GRACE_MS)
+  }
+
+  /**
+   * 取消离开缓冲
+   */
+  private cancelPendingLeave() {
+    if (this.pendingLeaveTimer !== null) {
+      clearTimeout(this.pendingLeaveTimer)
+      this.pendingLeaveTimer = null
+    }
+  }
+
   // ==================== 拖放流程 ====================
+
+  /**
+   * 计算坐标下的顶层 dropzone 元素
+   * 基于 elementsFromPoint/elementFromPoint + 最近的 [data-zone-id] 祖先
+   */
+  private getTopmostDropzoneAt(
+    clientX: number,
+    clientY: number
+  ): { element: HTMLElement; zoneId: string; type: 'kanban' | 'calendar' } | null {
+    const pickList: Element[] =
+      (document as any).elementsFromPoint?.(clientX, clientY) ??
+      (() => {
+        const el = document.elementFromPoint(clientX, clientY)
+        return el ? [el] : []
+      })()
+
+    for (const el of pickList) {
+      const dropzoneEl = (el as HTMLElement).closest('[data-zone-id]') as HTMLElement | null
+      if (dropzoneEl && this.registeredElements.has(dropzoneEl)) {
+        const zoneId = dropzoneEl.getAttribute('data-zone-id')!
+        const type =
+          (dropzoneEl.getAttribute('data-zone-type') as 'kanban' | 'calendar') || 'kanban'
+        return { element: dropzoneEl, zoneId, type }
+      }
+    }
+    return null
+  }
 
   /**
    * 开始拖动准备
@@ -387,24 +442,50 @@ class InteractDragController {
             // 在起始 dropzone 内开始拖动时，原生 dragenter 不会触发
             // 需要手动检测并触发进入逻辑
             this.checkInitialDropzone(event.clientX, event.clientY)
-          } else if (
-            this.state.phase === 'OVER_TARGET' &&
-            this.state.targetZone &&
-            this.currentDropzoneElement
-          ) {
-            // 在目标区域内移动，实时更新 dropIndex
-            // 🔥 启用施密特触发器，避免边界抖动
-            const dropIndex = this.calculateDropIndexForZone(
-              event.clientY,
-              this.currentDropzoneElement,
-              true // 使用上一次的索引，启用迟滞比较
-            )
+          } else if (this.state.phase === 'OVER_TARGET') {
+            // 动态检测顶层 dropzone，如发生切换则更新预览与状态
+            const top = this.getTopmostDropzoneAt(event.clientX, event.clientY)
 
-            // 只在 dropIndex 真正改变时才更新
-            if (dropIndex !== this.state.dropIndex) {
-              dragPreviewActions.updateDropIndex(dropIndex)
-              this.state.dropIndex = dropIndex
-              this.updateDebug()
+            if (!top) {
+              // 不在任何 dropzone 上 → 启动离开缓冲，等待可能进入下一列
+              this.scheduleLeaveWithGrace()
+              dragPreviewActions.updateMousePosition({ x: event.clientX, y: event.clientY })
+              return
+            }
+
+            // 若顶层 dropzone 改变，则切换
+            if (!this.currentDropzoneElement || top.element !== this.currentDropzoneElement) {
+              // 在切换/进入新列时取消离开缓冲
+              this.cancelPendingLeave()
+              this.currentDropzoneElement = top.element
+              if (top.type === 'kanban' && this.state.session) {
+                const dropIndex = this.calculateDropIndexForZone(event.clientY, top.element)
+                dragPreviewActions.setKanbanPreview({
+                  ghostTask: this.state.session.object.data,
+                  sourceZoneId: this.state.session.source.viewId,
+                  targetZoneId: top.zoneId,
+                  mousePosition: { x: event.clientX, y: event.clientY },
+                  dropIndex,
+                })
+                this.enterTarget(top.zoneId, dropIndex)
+              } else {
+                dragPreviewActions.triggerRebound()
+                this.enterTarget(top.zoneId, 0)
+              }
+            } else if (this.currentDropzoneElement) {
+              // 在当前列内移动，确保取消任何挂起的离开
+              this.cancelPendingLeave()
+              // 顶层未变，在当前 dropzone 内更新 dropIndex
+              const dropIndex = this.calculateDropIndexForZone(
+                event.clientY,
+                this.currentDropzoneElement,
+                true
+              )
+              if (dropIndex !== this.state.dropIndex) {
+                dragPreviewActions.updateDropIndex(dropIndex)
+                this.state.dropIndex = dropIndex
+                this.updateDebug()
+              }
             }
 
             // 鼠标位置始终更新
@@ -462,13 +543,26 @@ class InteractDragController {
             return
           }
 
-          // 保存当前 dropzone 元素引用
-          this.currentDropzoneElement = element
-
           // 获取鼠标位置（从 dragEvent 中提取）
           const dragEvent = event.dragEvent || event
           const clientX = dragEvent.clientX || 0
           const clientY = dragEvent.clientY || 0
+
+          // 🔥 顶层 dropzone 判定：只允许顶层的 dropzone 响应
+          const top = this.getTopmostDropzoneAt(clientX, clientY)
+          if (!top || top.element !== element) {
+            logger.debug(
+              LogTags.DRAG_CROSS_VIEW,
+              `[⛔ dropzone.dragenter ignored] zoneId: ${zoneId} is not topmost at pointer`
+            )
+            return
+          }
+
+          // 进入目标列，取消任何挂起的离开缓冲
+          this.cancelPendingLeave()
+
+          // 保存当前 dropzone 元素引用
+          this.currentDropzoneElement = element
 
           if (isPhysicalZone) {
             // Kanban 区域：显示实体预览
@@ -504,18 +598,8 @@ class InteractDragController {
         dragleave: () => {
           logger.debug(LogTags.DRAG_CROSS_VIEW, `[dropzone.dragleave] zoneId: ${zoneId}`)
 
-          // 清除当前 dropzone 元素引用
-          this.currentDropzoneElement = null
-
-          // 离开目标区域
-          this.leaveTarget()
-
-          // 触发回弹（如果没有进入其他区域）
-          setTimeout(() => {
-            if (this.state.phase !== 'OVER_TARGET') {
-              dragPreviewActions.triggerRebound()
-            }
-          }, 10)
+          // 不立即离开，安排缓冲期
+          this.scheduleLeaveWithGrace()
         },
 
         drop: async () => {
@@ -579,51 +663,31 @@ class InteractDragController {
     // 只在 DRAGGING 阶段第一次检测
     if (this.state.phase !== 'DRAGGING') return
 
-    // 检查鼠标是否在任何 dropzone 内
-    for (const element of this.registeredElements) {
-      const rect = element.getBoundingClientRect()
-      const isInside =
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top &&
-        clientY <= rect.bottom
+    // 使用顶层 dropzone 判定
+    const top = this.getTopmostDropzoneAt(clientX, clientY)
+    if (!top) {
+      this.currentDropzoneElement = null
+      dragPreviewActions.triggerRebound()
+      return
+    }
 
-      if (isInside) {
-        const zoneId = element.getAttribute('data-zone-id')
-        const type = element.getAttribute('data-zone-type') as 'kanban' | 'calendar'
+    // 手动触发进入逻辑（模拟 dragenter）
+    this.currentDropzoneElement = top.element
+    const isPhysicalZone = top.type === 'kanban'
 
-        if (zoneId) {
-          logger.debug(
-            LogTags.DRAG_CROSS_VIEW,
-            `[🔍 Manual check] Found initial dropzone: ${zoneId}`
-          )
-
-          // 手动触发进入逻辑（模拟 dragenter）
-          this.currentDropzoneElement = element
-          const isPhysicalZone = type === 'kanban'
-
-          if (isPhysicalZone) {
-            const dropIndex = this.calculateDropIndexForZone(clientY, element)
-            dragPreviewActions.setKanbanPreview({
-              ghostTask: this.state.session.object.data,
-              sourceZoneId: this.state.session.source.viewId,
-              targetZoneId: zoneId,
-              mousePosition: { x: clientX, y: clientY },
-              dropIndex,
-            })
-          } else {
-            dragPreviewActions.triggerRebound()
-          }
-
-          this.enterTarget(
-            zoneId,
-            isPhysicalZone ? this.calculateDropIndexForZone(clientY, element) : 0
-          )
-
-          // 找到后立即返回，不再检测其他区域
-          return
-        }
-      }
+    if (isPhysicalZone) {
+      const dropIndex = this.calculateDropIndexForZone(clientY, top.element)
+      dragPreviewActions.setKanbanPreview({
+        ghostTask: this.state.session.object.data,
+        sourceZoneId: this.state.session.source.viewId,
+        targetZoneId: top.zoneId,
+        mousePosition: { x: clientX, y: clientY },
+        dropIndex,
+      })
+      this.enterTarget(top.zoneId, dropIndex)
+    } else {
+      dragPreviewActions.triggerRebound()
+      this.enterTarget(top.zoneId, 0)
     }
   }
 

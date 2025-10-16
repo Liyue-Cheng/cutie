@@ -58,11 +58,34 @@ export function createTaskCore() {
    * Staging 任务（未安排且未完成）
    * ✅ 动态过滤：任务完成后自动消失
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 过滤规则：
+   *    - schedule_status === 'staging'（后端计算的状态）
+   *    - !is_completed（未完成）
+   *    - !is_archived（未归档）
+   *    - !is_deleted（未删除）
+   *    - 无当前或未来日程（防御性检查，避免前后端状态不同步）
    */
   const stagingTasks = computed(() => {
-    return allTasksArray.value.filter(
-      (task) => task.schedule_status === 'staging' && !task.is_completed
-    )
+    const today = new Date().toISOString().split('T')[0]
+
+    return allTasksArray.value.filter((task) => {
+      // 基础状态检查
+      if (
+        task.schedule_status !== 'staging' ||
+        task.is_completed ||
+        task.is_archived ||
+        task.is_deleted
+      ) {
+        return false
+      }
+
+      // 🔥 防御性检查：确保没有当前或未来的日程
+      // 即使 schedule_status 是 'staging'，也要确保没有 >= today 的 schedule
+      const hasFutureOrTodaySchedule =
+        task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+
+      return !hasFutureOrTodaySchedule
+    })
   })
 
   /**
