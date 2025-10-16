@@ -10,14 +10,14 @@
 
 import { ref, computed, readonly } from 'vue'
 import type { DragPreviewState, Position } from './types'
-import type { TaskCard } from '@/types/dtos'
+import type { DragObject, DragObjectType } from '@/types/dtos'
 
 // ==================== 内部状态 ====================
 
 /**
  * 内部预览状态（可变）
  */
-const _previewState = ref<DragPreviewState | null>(null)
+const _previewState = ref<DragPreviewState<any> | null>(null)
 
 // ==================== 导出的只读状态 ====================
 
@@ -54,8 +54,9 @@ export const dragPreviewActions = {
   /**
    * 设置看板预览
    */
-  setKanbanPreview(data: {
-    ghostTask: TaskCard
+  setKanbanPreview<T = DragObject>(data: {
+    draggedObject: T
+    objectType: DragObjectType
     sourceZoneId: string
     targetZoneId: string
     mousePosition: Position
@@ -64,7 +65,8 @@ export const dragPreviewActions = {
     _previewState.value = {
       type: 'kanban',
       raw: {
-        ghostTask: data.ghostTask,
+        draggedObject: data.draggedObject,
+        objectType: data.objectType,
         sourceZoneId: data.sourceZoneId,
         targetZoneId: data.targetZoneId,
         mousePosition: data.mousePosition,
@@ -78,8 +80,9 @@ export const dragPreviewActions = {
   /**
    * 设置日历预览
    */
-  setCalendarPreview(data: {
-    ghostTask: TaskCard
+  setCalendarPreview<T = DragObject>(data: {
+    draggedObject: T
+    objectType: DragObjectType
     sourceZoneId: string
     mousePosition: Position
     calendarMeta: {
@@ -93,7 +96,8 @@ export const dragPreviewActions = {
     _previewState.value = {
       type: 'calendar',
       raw: {
-        ghostTask: data.ghostTask,
+        draggedObject: data.draggedObject,
+        objectType: data.objectType,
         sourceZoneId: data.sourceZoneId,
         targetZoneId: 'calendar',
         mousePosition: data.mousePosition,
@@ -169,14 +173,18 @@ export function getPreviewDebugInfo() {
     return { status: 'no-preview' }
   }
 
+  // 安全地获取标题（支持多种对象类型）
+  const objectTitle = (preview.raw.draggedObject as any)?.title || 'Unknown'
+
   return {
     status: 'active',
     type: preview.type,
+    objectType: preview.raw.objectType,
     sourceZoneId: preview.raw.sourceZoneId,
     targetZoneId: preview.raw.targetZoneId,
     isRebounding: preview.raw.targetZoneId === null,
     dropIndex: preview.computed.dropIndex,
-    taskTitle: preview.raw.ghostTask.title,
+    objectTitle,
     mousePosition: preview.raw.mousePosition,
   }
 }

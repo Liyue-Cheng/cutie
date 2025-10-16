@@ -51,6 +51,7 @@ class InteractDragController {
   private startPointer: Position | null = null // 记录拖拽起点，用于阈值计算
   private currentDropzoneElement: HTMLElement | null = null // 当前所在的 dropzone 元素
   private pendingLeaveTimer: number | null = null // 离开缓冲计时器
+  private isProcessingDrop: boolean = false // 标记是否正在处理 drop（用于避免提前清理与重复执行）
 
   // ==================== 状态管理 ====================
 
@@ -260,26 +261,29 @@ class InteractDragController {
     }
     const dragData = options.getData(sourceElement)
 
-    // 创建拖放会话（符合新策略系统的结构）
-    const session: DragSession = {
+    // 创建拖放会话（符合新策略系统的结构，支持泛型）
+    const session: DragSession<any> = {
       id: `drag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       source: {
         viewId: dragData.sourceView.id,
         viewType: dragData.sourceView.type,
         viewKey: dragData.sourceView.id, // viewKey = viewId
-        elementId: sourceElement.getAttribute('data-task-id') || dragData.task.id,
+        elementId:
+          sourceElement.getAttribute('data-task-id') ||
+          sourceElement.getAttribute('data-object-id') ||
+          (dragData.data as any).id,
       },
       object: {
-        type: 'task',
-        data: { ...dragData.task }, // 深拷贝快照
+        type: dragData.type,
+        data: { ...dragData.data }, // 深拷贝快照
         originalIndex: dragData.index,
       },
       dragMode: 'normal', // 默认为 normal 模式
       target: undefined, // 初始时无目标
       startTime: Date.now(),
       metadata: {
-        date: (dragData.sourceView.config as any).date,
-        areaId: dragData.task.area_id || undefined,
+        date: (dragData.sourceView.config as any)?.date,
+        areaId: (dragData.data as any).area_id || undefined,
         // 🔥 V2: 保存源组件的灵活上下文数据
         sourceContext: dragData.sourceContext,
       },
@@ -461,7 +465,8 @@ class InteractDragController {
               if (top.type === 'kanban' && this.state.session) {
                 const dropIndex = this.calculateDropIndexForZone(event.clientY, top.element)
                 dragPreviewActions.setKanbanPreview({
-                  ghostTask: this.state.session.object.data,
+                  draggedObject: this.state.session.object.data,
+                  objectType: this.state.session.object.type,
                   sourceZoneId: this.state.session.source.viewId,
                   targetZoneId: top.zoneId,
                   mousePosition: { x: event.clientX, y: event.clientY },
@@ -495,7 +500,12 @@ class InteractDragController {
 
         end: (event) => {
           event.preventDefault()
+          // 如果 dropzone 正在处理 onDrop，避免重复执行或提前清理
+          if (this.isProcessingDrop) {
+            return
+          }
           if (this.state.phase === 'OVER_TARGET') {
+            // 非自定义 onDrop 情况才会走 executeDrop
             this.executeDrop()
           } else {
             this.cancel()
@@ -531,7 +541,8 @@ class InteractDragController {
     const isPhysicalZone = type === 'kanban'
 
     interact(element).dropzone({
-      accept: '.task-card-wrapper', // 接受所有任务卡片包装元素
+      // 接受任务与模板两类卡片包装元素（支持跨类型拖放）
+      accept: '.task-card-wrapper, .template-card-wrapper',
       overlap: 'pointer', // 指针模式：鼠标进入即触发
 
       listeners: {
@@ -569,7 +580,8 @@ class InteractDragController {
             const dropIndex = this.calculateDropIndexForZone(clientY, element)
 
             dragPreviewActions.setKanbanPreview({
-              ghostTask: this.state.session.object.data,
+              draggedObject: this.state.session.object.data,
+              objectType: this.state.session.object.type,
               sourceZoneId: this.state.session.source.viewId,
               targetZoneId: zoneId,
               mousePosition: { x: clientX, y: clientY },
@@ -606,7 +618,15 @@ class InteractDragController {
           logger.debug(LogTags.DRAG_CROSS_VIEW, `[✅ dropzone.drop] zoneId: ${zoneId}`)
 
           if (options.onDrop && this.state.session) {
-            await options.onDrop(this.state.session)
+            // 标记正在处理 drop，避免在 draggable.end 中提前清理预览
+            this.isProcessingDrop = true
+            try {
+              await options.onDrop(this.state.session)
+            } finally {
+              // 在 onDrop 完成后再清理预览，避免视觉闪烁
+              this.enterPhase('IDLE')
+              this.isProcessingDrop = false
+            }
           } else {
             await this.executeDrop()
           }
@@ -647,7 +667,10 @@ class InteractDragController {
     element: HTMLElement,
     useLastIndex: boolean = false
   ): number {
-    const wrappers = Array.from(element.querySelectorAll('.task-card-wrapper')) as HTMLElement[]
+    // 支持任务与模板两类卡片元素
+    const wrappers = Array.from(
+      element.querySelectorAll('.task-card-wrapper, .template-card-wrapper')
+    ) as HTMLElement[]
     // 🔥 传入上一次的 dropIndex，启用施密特触发器
     const lastDropIndex = useLastIndex ? (this.state.dropIndex ?? undefined) : undefined
     return calculateDropIndex(pointerY, wrappers, lastDropIndex)
@@ -678,7 +701,8 @@ class InteractDragController {
     if (isPhysicalZone) {
       const dropIndex = this.calculateDropIndexForZone(clientY, top.element)
       dragPreviewActions.setKanbanPreview({
-        ghostTask: this.state.session.object.data,
+        draggedObject: this.state.session.object.data,
+        objectType: this.state.session.object.type,
         sourceZoneId: this.state.session.source.viewId,
         targetZoneId: top.zoneId,
         mousePosition: { x: clientX, y: clientY },
