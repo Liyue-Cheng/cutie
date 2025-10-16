@@ -105,19 +105,19 @@ export function useInteractDrag(options: UseInteractDragOptions) {
       // 🔥 使用决策服务判断是否保留源元素
       const sourceViewKey = viewMetadata.value.id
       const targetViewKey = targetZoneId
-      
+
       const sourceDate = sourceViewKey.startsWith('daily::') ? sourceViewKey.split('::')[1] : null
       const targetDate = targetViewKey.startsWith('daily::') ? targetViewKey.split('::')[1] : null
 
       if (sourceDate && targetDate) {
         // 获取今天的日期
         const today = new Date().toISOString().split('T')[0]!
-        
+
         // 使用决策服务（转换为可变类型）
         const decision = makeDragDecision(ghostTask as TaskCard, sourceDate, targetDate, today)
-        
+
         console.log('🔍 [useInteractDrag] Drag decision:', decision)
-        
+
         if (decision.keepSourceElement) {
           // 保留源元素，不移除
           return currentTasks

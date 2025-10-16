@@ -121,118 +121,78 @@ function initKanbans() {
   })
 }
 
-// 向右滚动：在右侧添加未来日期，在左侧移除过去日期
-function shiftKanbansRight() {
+// 批量移动看板：一次性添加/移除多个并做一次滚动补偿
+function shiftKanbansBatch(direction: 'left' | 'right', steps: number) {
   if (isScrolling.value || kanbans.value.length === 0) return
+  if (steps <= 0) return
 
-  // console.log('[InfiniteDailyKanban] ➡️ Shifting kanbans right (adding future, removing past)')
   isScrolling.value = true
-
   const currentScrollLeft = scrollContainer.value?.scrollLeft || 0
 
-  // 移除最左侧的看板（用户看不到的区域）
-  kanbans.value.shift()
+  if (direction === 'right') {
+    for (let i = 0; i < steps; i++) {
+      // 移除最左侧
+      kanbans.value.shift()
 
-  // 在右侧添加新看板（未来日期）
-  const lastKanban = kanbans.value[kanbans.value.length - 1]
-  if (!lastKanban) return
+      // 在右侧添加新看板（未来日期）
+      const lastKanban = kanbans.value[kanbans.value.length - 1]
+      if (!lastKanban) break
 
-  const newDate = addDays(lastKanban.date, 1)
-  const dateStr = formatDate(newDate)
-  kanbans.value.push({
-    id: dateStr,
-    date: newDate,
-    viewKey: `daily::${dateStr}`,
-    offset: lastKanban.offset + 1,
-  })
+      const newDate = addDays(lastKanban.date, 1)
+      const dateStr = formatDate(newDate)
+      kanbans.value.push({
+        id: dateStr,
+        date: newDate,
+        viewKey: `daily::${dateStr}`,
+        offset: lastKanban.offset + 1,
+      })
+    }
+  } else {
+    for (let i = 0; i < steps; i++) {
+      // 移除最右侧
+      kanbans.value.pop()
 
-  // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取
+      // 在左侧添加新看板（过去日期）
+      const firstKanban = kanbans.value[0]
+      if (!firstKanban) break
 
-  // console.log('[InfiniteDailyKanban] ✅ New kanban added:', dateStr)
-
-  // 调整滚动位置：因为左侧移除了一个看板，需要减少scrollLeft以保持视窗不变
-  // 使用同步方式立即调整，避免视觉闪烁
-  if (scrollContainer.value) {
-    // 临时禁用滚动动画，确保瞬间完成
-    const originalBehavior = scrollContainer.value.style.scrollBehavior
-    scrollContainer.value.style.scrollBehavior = 'auto'
-
-    // 在 nextTick 中调整位置（等待 DOM 更新）
-    nextTick(() => {
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollLeft = currentScrollLeft - KANBAN_TOTAL_WIDTH_PX
-        // console.log('[InfiniteDailyKanban] 📍 Adjusted scroll (removed left):', {
-        //   before: currentScrollLeft,
-        //   after: scrollContainer.value.scrollLeft,
-        // })
-
-        // 恢复原始滚动行为
-        scrollContainer.value.style.scrollBehavior = originalBehavior
-
-        // 锁定时间：防止在补偿期间重复触发shift
-        setTimeout(() => {
-          isScrolling.value = false
-        }, 150)
-      }
-    })
+      const newDate = addDays(firstKanban.date, -1)
+      const dateStr = formatDate(newDate)
+      kanbans.value.unshift({
+        id: dateStr,
+        date: newDate,
+        viewKey: `daily::${dateStr}`,
+        offset: firstKanban.offset - 1,
+      })
+    }
   }
-}
 
-// 向左滚动：在左侧添加过去日期，在右侧移除未来日期
-function shiftKanbansLeft() {
-  if (isScrolling.value || kanbans.value.length === 0) return
-
-  // console.log('[InfiniteDailyKanban] ⬅️ Shifting kanbans left (adding past, removing future)')
-  isScrolling.value = true
-
-  const currentScrollLeft = scrollContainer.value?.scrollLeft || 0
-
-  // 移除最右侧的看板（用户看不到的区域）
-  kanbans.value.pop()
-
-  // 在左侧添加新看板（过去日期）
-  const firstKanban = kanbans.value[0]
-  if (!firstKanban) return
-
-  const newDate = addDays(firstKanban.date, -1)
-  const dateStr = formatDate(newDate)
-  kanbans.value.unshift({
-    id: dateStr,
-    date: newDate,
-    viewKey: `daily::${dateStr}`,
-    offset: firstKanban.offset - 1,
-  })
-
-  // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取
-
-  // console.log('[InfiniteDailyKanban] ✅ New kanban added:', dateStr)
-
-  // 调整滚动位置：因为左侧添加了一个看板，需要增加scrollLeft以保持视窗不变
-  // 使用同步方式立即调整，避免视觉闪烁
-  if (scrollContainer.value) {
-    // 临时禁用滚动动画，确保瞬间完成
-    const originalBehavior = scrollContainer.value.style.scrollBehavior
-    scrollContainer.value.style.scrollBehavior = 'auto'
-
-    // 在 nextTick 中调整位置（等待 DOM 更新）
-    nextTick(() => {
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollLeft = currentScrollLeft + KANBAN_TOTAL_WIDTH_PX
-        // console.log('[InfiniteDailyKanban] 📍 Adjusted scroll (added left):', {
-        //   before: currentScrollLeft,
-        //   after: scrollContainer.value.scrollLeft,
-        // })
-
-        // 恢复原始滚动行为
-        scrollContainer.value.style.scrollBehavior = originalBehavior
-
-        // 锁定时间：防止在补偿期间重复触发shift
-        setTimeout(() => {
-          isScrolling.value = false
-        }, 150)
-      }
-    })
+  if (!scrollContainer.value) {
+    isScrolling.value = false
+    return
   }
+
+  const originalBehavior = scrollContainer.value.style.scrollBehavior
+  scrollContainer.value.style.scrollBehavior = 'auto'
+
+  nextTick(() => {
+    if (!scrollContainer.value) {
+      isScrolling.value = false
+      return
+    }
+
+    const compensation = steps * KANBAN_TOTAL_WIDTH_PX
+    scrollContainer.value.scrollLeft =
+      direction === 'right' ? currentScrollLeft - compensation : currentScrollLeft + compensation
+
+    // 恢复原始滚动行为
+    scrollContainer.value.style.scrollBehavior = originalBehavior
+
+    // 短暂锁定，避免重复触发
+    setTimeout(() => {
+      isScrolling.value = false
+    }, 1)
+  })
 }
 
 // 计算可见区域最左边的看板日期（露出一半才算可见）
@@ -345,9 +305,9 @@ function handleMouseDown(event: MouseEvent) {
   dragStartX.value = event.pageX
   dragStartScrollLeft.value = scrollContainer.value?.scrollLeft || 0
 
-  // 改变光标样式
+  // 改变光标样式：按下时显示grab
   if (scrollContainer.value) {
-    scrollContainer.value.style.cursor = 'grabbing'
+    scrollContainer.value.style.cursor = 'grab'
     scrollContainer.value.style.userSelect = 'none'
   }
 }
@@ -363,6 +323,11 @@ function handleMouseMove(event: MouseEvent) {
 
   event.preventDefault()
 
+  // 开始拖动时，改变光标为grabbing
+  if (scrollContainer.value.style.cursor !== 'grabbing') {
+    scrollContainer.value.style.cursor = 'grabbing'
+  }
+
   const deltaX = event.pageX - dragStartX.value
   scrollContainer.value.scrollLeft = dragStartScrollLeft.value - deltaX
 }
@@ -372,9 +337,9 @@ function handleMouseUp() {
 
   isDragging.value = false
 
-  // 恢复光标样式
+  // 恢复光标样式为pointer
   if (scrollContainer.value) {
-    scrollContainer.value.style.cursor = 'grab'
+    scrollContainer.value.style.cursor = 'pointer'
     scrollContainer.value.style.userSelect = ''
   }
 }
@@ -409,9 +374,6 @@ function startScrollMonitor() {
     const leftTrigger = (BUFFER_SIZE - TRIGGER_DISTANCE) * KANBAN_TOTAL_WIDTH_PX
     const rightTrigger = maxScrollLeft - (BUFFER_SIZE - TRIGGER_DISTANCE) * KANBAN_TOTAL_WIDTH_PX
 
-    const shouldShiftLeft = scrollLeft < leftTrigger
-    const shouldShiftRight = scrollLeft > rightTrigger
-
     // 调试日志（每次检查都输出）
     // console.log('[InfiniteDailyKanban] 🔍 Monitor:', {
     //   scrollLeft: scrollLeft.toFixed(0),
@@ -420,21 +382,26 @@ function startScrollMonitor() {
     //   rightTrigger: rightTrigger.toFixed(0),
     //   distanceToLeft: (scrollLeft - leftTrigger).toFixed(0),
     //   distanceToRight: (rightTrigger - scrollLeft).toFixed(0),
-    //   shouldShiftLeft,
-    //   shouldShiftRight,
+    //   overflowLeftPx: (leftTrigger - scrollLeft).toFixed(0),
+    //   overflowRightPx: (scrollLeft - rightTrigger).toFixed(0),
     //   isScrolling: isScrolling.value,
     //   kanbanRange: `${kanbans.value[0]?.id} ~ ${kanbans.value[kanbans.value.length - 1]?.id}`,
     // })
 
-    // 触发shift操作
-    if (shouldShiftLeft) {
-      // console.log('[InfiniteDailyKanban] 🎯 Triggering LEFT shift (entering left buffer zone)')
-      shiftKanbansLeft()
-    } else if (shouldShiftRight) {
-      // console.log('[InfiniteDailyKanban] 🎯 Triggering RIGHT shift (entering right buffer zone)')
-      shiftKanbansRight()
+    // 触发批量 shift 操作（一次性计算步数并执行）
+    const overflowLeftPx = leftTrigger - scrollLeft
+    const overflowRightPx = scrollLeft - rightTrigger
+
+    if (overflowLeftPx > 0) {
+      const steps = Math.ceil(overflowLeftPx / KANBAN_TOTAL_WIDTH_PX)
+      // console.log('[InfiniteDailyKanban] 🎯 BATCH LEFT shift steps:', steps)
+      shiftKanbansBatch('left', steps)
+    } else if (overflowRightPx > 0) {
+      const steps = Math.ceil(overflowRightPx / KANBAN_TOTAL_WIDTH_PX)
+      // console.log('[InfiniteDailyKanban] 🎯 BATCH RIGHT shift steps:', steps)
+      shiftKanbansBatch('right', steps)
     }
-  }, 100) // 每100ms检查一次，快速响应
+  }, 500) // 每100ms检查一次，快速响应
 }
 
 function stopScrollMonitor() {
@@ -506,7 +473,7 @@ onBeforeUnmount(() => {
   min-height: 0;
 
   /* 拖动滚动样式 */
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
 }
 

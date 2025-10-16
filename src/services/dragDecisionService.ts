@@ -298,11 +298,7 @@ function handlePastToTodayOrFuture(
  * - 如果源日期有PRESENCE记录（worked或completed），保留源元素
  * - 如果源日期仅为PLANNED，不保留源元素
  */
-function handlePastToPast(
-  task: TaskCard,
-  sourceDate: string,
-  targetDate: string
-): DragDecision {
+function handlePastToPast(task: TaskCard, sourceDate: string, targetDate: string): DragDecision {
   const workStatus = getTaskWorkStatus(task, sourceDate)
 
   console.log('🎯 [DragDecision] Past to past:', {
@@ -465,7 +461,11 @@ function handleTodayToPast(): DragDecision {
  * 根据业务逻辑：
  * - 情况 4.1：任意状态 → 删除源schedule + 创建新日程
  */
-function handleFutureToToday(_task: TaskCard, _sourceDate: string, _targetDate: string): DragDecision {
+function handleFutureToToday(
+  _task: TaskCard,
+  _sourceDate: string,
+  _targetDate: string
+): DragDecision {
   return {
     allowed: true,
     keepSourceSchedule: false,
