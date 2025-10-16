@@ -24,7 +24,7 @@ import { pipeline } from '@/cpu'
  * 策略 1：Staging → Daily
  *
  * 操作链：
- * 1. 创建日程 (task.create_with_schedule)
+ * 1. 为现有任务创建日程 (schedule.create)
  * 2. 从 Staging 移除 (view.update_sorting)
  * 3. 插入到 Daily (view.update_sorting)
  */
@@ -52,14 +52,12 @@ export const stagingToDailyStrategy: Strategy = {
       const operations: OperationRecord[] = []
 
       try {
-        // 🎯 步骤 1: 创建日程
+        // 🎯 步骤 1: 为现有任务创建日程
         const createPayload = {
-          title: ctx.task.title,
+          task_id: ctx.task.id,
           scheduled_day: targetDate,
-          area_id: ctx.task.area_id,
-          glance_note: ctx.task.glance_note,
         }
-        await pipeline.dispatch('task.create_with_schedule', createPayload)
+        await pipeline.dispatch('schedule.create', createPayload)
         operations.push(createOperationRecord('create_schedule', ctx.targetViewId, createPayload))
 
         // 🎯 步骤 2: 从 Staging 移除（更新排序）
@@ -111,13 +109,19 @@ export const stagingToDailyStrategy: Strategy = {
 /**
  * 策略 2：Daily → Daily
  *
- * 两种情况：
+ * 三种情况：
  *
  * A. 同日期（重新排序）：
  *    1. 更新 Daily 排序 (view.update_sorting)
  *
- * B. 跨日期（重新安排）：
- *    1. 更新日程日期 (schedule.update)
+ * B. 过去 → 今天/未来（保留历史）：
+ *    1. 保留源日程（不删除、不更新）
+ *    2. 创建目标日程 (schedule.create)
+ *    3. 从源 Daily 移除 (view.update_sorting)
+ *    4. 插入到目标 Daily (view.update_sorting)
+ *
+ * C. 其他跨日期（标准改期）：
+ *    1. 更新/删除源日程
  *    2. 从源 Daily 移除 (view.update_sorting)
  *    3. 插入到目标 Daily (view.update_sorting)
  */
@@ -128,7 +132,9 @@ export const dailyToDailyStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,
-      taskStatus: 'scheduled',
+      // 🔥 允许 scheduled 和 staging 状态
+      // staging 状态表示任务只在过去有日程（今天及未来无日程）
+      taskStatus: ['scheduled', 'staging'],
     },
     target: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,
@@ -167,18 +173,112 @@ export const dailyToDailyStrategy: Strategy = {
           }
         }
 
-        // 🔹 情况 B: 跨日期重新安排
-        // 🎯 步骤 1: 更新日程日期（使用 CPU Pipeline + 乐观更新）
-        const updatePayload = {
-          task_id: ctx.task.id,
-          scheduled_day: sourceDate,
-          updates: {
-            new_date: targetDate,
-          },
+        // 🔹 获取今天的日期
+        const today = new Date().toISOString().split('T')[0]!
+
+        // 🔹 判断是否是"过去 → 今天/未来"的场景
+        const isFromPast = sourceDate < today
+        const isToTodayOrFuture = targetDate >= today
+        const isPastToFuture = isFromPast && isToTodayOrFuture
+
+        // 🔹 情况 B: 过去 → 今天/未来（保留历史）
+        if (isPastToFuture) {
+          // 🔥 检查目标日期是否已有日程
+          const hasTargetSchedule =
+            ctx.task.schedules?.some((schedule) => schedule.scheduled_day === targetDate) ?? false
+
+          if (!hasTargetSchedule) {
+            // 🎯 步骤 1: 创建目标日程（保留源日程）
+            const createPayload = {
+              task_id: ctx.task.id,
+              scheduled_day: targetDate,
+            }
+            await pipeline.dispatch('schedule.create', createPayload)
+            operations.push(
+              createOperationRecord('create_schedule', ctx.targetViewId, createPayload)
+            )
+          }
+          // 如果目标已有日程，跳过创建，只更新排序
+
+          // 🎯 步骤 2: 从源 Daily 移除
+          const sourceSorting = extractTaskIds(ctx.sourceContext)
+          const newSourceSorting = removeTaskFrom(sourceSorting, ctx.task.id)
+          const sourceSortPayload = {
+            view_key: ctx.sourceViewId,
+            sorted_task_ids: newSourceSorting,
+            original_sorted_task_ids: sourceSorting,
+          }
+          await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
+          operations.push(
+            createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
+          )
+
+          // 🎯 步骤 3: 插入到目标 Daily
+          const targetSorting = extractTaskIds(ctx.targetContext)
+          const newTargetSorting = insertTaskAt(targetSorting, ctx.task.id, ctx.dropIndex)
+          const targetSortPayload = {
+            view_key: ctx.targetViewId,
+            sorted_task_ids: newTargetSorting,
+            original_sorted_task_ids: targetSorting,
+          }
+          await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
+          operations.push(
+            createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
+          )
+
+          return {
+            success: true,
+            message: hasTargetSchedule
+              ? `✅ Moved from ${sourceDate} to ${targetDate} (past schedule preserved)`
+              : `✅ Moved from ${sourceDate} to ${targetDate} (past schedule preserved, new schedule created)`,
+            operations,
+            affectedViews: [ctx.sourceViewId, ctx.targetViewId],
+          }
         }
-        // 🔥 使用 pipeline.dispatch 支持乐观更新
-        pipeline.dispatch('schedule.update', updatePayload)
-        operations.push(createOperationRecord('update_schedule', ctx.targetViewId, updatePayload))
+
+        // 🔹 情况 C: 其他跨日期（标准改期）
+        // 包括：今天 → 未来、未来 → 今天、未来 → 未来、今天 → 今天（已在情况A处理）
+
+        // 🔥 判断是否需要保留源日程（今天 → 未来 且有实际工作记录）
+        const sourceSchedule = ctx.task.schedules?.find((s) => s.scheduled_day === sourceDate)
+        const isFromToday = sourceDate === today
+        const isToFuture = targetDate > today
+        const hasWorkRecord = sourceSchedule?.outcome !== 'planned' // PRESENCE_LOGGED 或 COMPLETED_ON_DAY
+        const shouldKeepSource = isFromToday && isToFuture && hasWorkRecord
+
+        // 🔥 先检查目标日期是否已有日程
+        const hasTargetSchedule =
+          ctx.task.schedules?.some((schedule) => schedule.scheduled_day === targetDate) ?? false
+
+        if (shouldKeepSource && !hasTargetSchedule) {
+          // 保留源日程 + 创建新日程
+          const createPayload = {
+            task_id: ctx.task.id,
+            scheduled_day: targetDate,
+          }
+          await pipeline.dispatch('schedule.create', createPayload)
+          operations.push(createOperationRecord('create_schedule', ctx.targetViewId, createPayload))
+        } else if (hasTargetSchedule) {
+          // 🎯 目标日期已有日程，删除源日程（避免冲突）
+          const deletePayload = {
+            task_id: ctx.task.id,
+            scheduled_day: sourceDate,
+          }
+          await pipeline.dispatch('schedule.delete', deletePayload)
+          operations.push(createOperationRecord('delete_schedule', ctx.sourceViewId, deletePayload))
+        } else {
+          // 🎯 目标日期无日程，正常更新日程日期
+          const updatePayload = {
+            task_id: ctx.task.id,
+            scheduled_day: sourceDate,
+            updates: {
+              new_date: targetDate,
+            },
+          }
+          // 🔥 使用 pipeline.dispatch 支持乐观更新
+          pipeline.dispatch('schedule.update', updatePayload)
+          operations.push(createOperationRecord('update_schedule', ctx.targetViewId, updatePayload))
+        }
 
         // 🎯 步骤 2: 从源 Daily 移除
         const sourceSorting = extractTaskIds(ctx.sourceContext)
@@ -208,7 +308,11 @@ export const dailyToDailyStrategy: Strategy = {
 
         return {
           success: true,
-          message: `✅ Rescheduled from ${sourceDate} to ${targetDate}`,
+          message: shouldKeepSource
+            ? `✅ Rescheduled from ${sourceDate} to ${targetDate} (work record preserved)`
+            : hasTargetSchedule
+              ? `✅ Moved from ${sourceDate} to ${targetDate} (replaced existing schedule)`
+              : `✅ Rescheduled from ${sourceDate} to ${targetDate}`,
           operations,
           affectedViews: [ctx.sourceViewId, ctx.targetViewId],
         }
@@ -230,7 +334,7 @@ export const dailyToDailyStrategy: Strategy = {
  * 策略 3：Daily → Staging
  *
  * 操作链：
- * 1. 删除日程 (schedule.delete)
+ * 1. 返回暂存区 (task.return_to_staging) - 后端自动处理所有清理
  * 2. 从 Daily 移除 (view.update_sorting)
  * 3. 插入到 Staging (view.update_sorting)
  */
@@ -251,14 +355,11 @@ export const dailyToStagingStrategy: Strategy = {
 
   action: {
     name: 'return_to_staging',
-    description: '将任务退回暂存区（3步操作）',
+    description: '将任务退回暂存区（后端统一处理）',
 
     async canExecute(ctx) {
-      // 已完成的任务不能退回
-      if (ctx.task.is_completed) {
-        console.warn(`⚠️ Cannot return completed task to staging`)
-        return false
-      }
+      // 已完成的任务可以退回（后端会自动重新打开）
+      // 移除客户端检查，让后端统一处理
       return true
     },
 
@@ -267,13 +368,17 @@ export const dailyToStagingStrategy: Strategy = {
       const operations: OperationRecord[] = []
 
       try {
-        // 🎯 步骤 1: 删除日程
-        const deletePayload = {
-          task_id: ctx.task.id,
-          scheduled_day: sourceDate,
+        // 🎯 步骤 1: 使用后端统一的"返回暂存区"指令
+        // 后端会自动：
+        // - 删除所有 >= today 的日程
+        // - 删除所有 >= today 的时间块链接
+        // - 软删除孤儿时间块
+        // - 如果已完成，自动重新打开
+        const returnPayload = {
+          id: ctx.task.id,
         }
-        await pipeline.dispatch('schedule.delete', deletePayload)
-        operations.push(createOperationRecord('delete_schedule', ctx.sourceViewId, deletePayload))
+        await pipeline.dispatch('task.return_to_staging', returnPayload)
+        operations.push(createOperationRecord('return_to_staging', ctx.sourceViewId, returnPayload))
 
         // 🎯 步骤 2: 从 Daily 移除
         const sourceSorting = extractTaskIds(ctx.sourceContext)
@@ -303,7 +408,7 @@ export const dailyToStagingStrategy: Strategy = {
 
         return {
           success: true,
-          message: `✅ Returned from ${sourceDate} to staging`,
+          message: `✅ Returned to staging (all future schedules cleared)`,
           operations,
           affectedViews: [ctx.sourceViewId, ctx.targetViewId],
         }
@@ -338,7 +443,8 @@ export const dailyReorderStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,
-      taskStatus: 'scheduled',
+      // 🔥 允许 scheduled 和 staging 状态
+      taskStatus: ['scheduled', 'staging'],
     },
     target: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,

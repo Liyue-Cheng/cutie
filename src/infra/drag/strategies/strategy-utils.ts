@@ -96,7 +96,12 @@ export function isSameDay(viewKey1: string, viewKey2: string): boolean {
  * 操作记录（用于日志和回滚）
  */
 export interface OperationRecord {
-  type: 'create_schedule' | 'update_schedule' | 'delete_schedule' | 'update_sorting'
+  type:
+    | 'create_schedule'
+    | 'update_schedule'
+    | 'delete_schedule'
+    | 'update_sorting'
+    | 'return_to_staging'
   target: string
   payload?: any
   timestamp: number

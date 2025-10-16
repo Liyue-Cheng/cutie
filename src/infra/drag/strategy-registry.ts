@@ -88,6 +88,40 @@ class StrategyRegistry {
       }
     }
 
+    // 🔍 打印详细的匹配失败信息
+    console.group('❌ No matching strategy found')
+    console.log('📦 Session Info:', {
+      sourceViewId: session.source.viewId,
+      sourceViewKey: session.source.viewKey,
+      sourceViewType: session.source.viewType,
+      targetZone,
+      dragMode: session.dragMode,
+      taskStatus: session.object.data.schedule_status,
+    })
+    console.log('📋 Available Strategies:', this.sortedStrategies.length)
+    console.table(
+      this.sortedStrategies.map((s) => ({
+        ID: s.id,
+        Name: s.name,
+        Priority: s.conditions.priority ?? 0,
+        Enabled: s.enabled !== false ? '✓' : '✗',
+        SourceViewKey:
+          typeof s.conditions.source?.viewKey === 'string'
+            ? s.conditions.source.viewKey
+            : s.conditions.source?.viewKey instanceof RegExp
+              ? s.conditions.source.viewKey.source
+              : '-',
+        TargetViewKey:
+          typeof s.conditions.target?.viewKey === 'string'
+            ? s.conditions.target.viewKey
+            : s.conditions.target?.viewKey instanceof RegExp
+              ? s.conditions.target.viewKey.source
+              : '-',
+        TaskStatus: s.conditions.source?.taskStatus || '-',
+      }))
+    )
+    console.groupEnd()
+
     logger.warn(LogTags.DRAG_STRATEGY, 'No matching strategy found', {
       sourceView: session.source.viewId,
       targetZone,

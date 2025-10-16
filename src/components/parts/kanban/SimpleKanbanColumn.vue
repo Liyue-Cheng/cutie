@@ -58,6 +58,29 @@ const { displayTasks } = useInteractDrag({
   containerRef: kanbanContainerRef,
   draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/::/g, '--')}`,
   onDrop: async (session) => {
+    // 🔍 打印完整的拖放会话信息（调试用）
+    console.group('🎯 Drop Event - Full Session Info')
+    console.log('📦 Session:', {
+      id: session.id,
+      source: session.source,
+      object: session.object,
+      dragMode: session.dragMode,
+      target: session.target,
+      metadata: session.metadata,
+    })
+    console.log('🎨 Source Context:', session.metadata?.sourceContext)
+    console.log('🎯 Target View Key:', props.viewKey)
+    console.log(
+      '📋 Display Tasks:',
+      displayTasks.value.map((t) => ({
+        id: t.id,
+        title: t.title,
+        schedule_status: t.schedule_status,
+      }))
+    )
+    console.log('📍 Drop Index:', dragPreviewState.value?.computed.dropIndex)
+    console.groupEnd()
+
     // 🎯 执行拖放策略（V2：灵活的 JSON 上下文）
     const result = await dragStrategy.executeDrop(session, props.viewKey, {
       // 起始组件的上下文数据（从 session.metadata 获取）
@@ -72,11 +95,24 @@ const { displayTasks } = useInteractDrag({
     })
 
     if (!result.success) {
+      const errorMessage = result.message || result.error || 'Unknown error'
+
+      // 🔍 打印策略匹配失败的详细信息
+      console.group('❌ Strategy Execution Failed')
+      console.log('Error Message:', errorMessage)
+      console.log('Result:', result)
+      console.log('Session Source ViewKey:', session.source.viewKey)
+      console.log('Session Source ViewType:', session.source.viewType)
+      console.log('Target Zone:', props.viewKey)
+      console.log('Task Schedule Status:', session.object.data.schedule_status)
+      console.log('Task Schedules:', session.object.data.schedules)
+      console.groupEnd()
+
       logger.error(
         LogTags.COMPONENT_KANBAN_COLUMN,
         'Drag strategy execution failed',
-        new Error(result.message || 'Unknown error'),
-        { viewKey: props.viewKey }
+        new Error(errorMessage),
+        { viewKey: props.viewKey, result, session }
       )
     }
   },
@@ -107,6 +143,7 @@ function handleAddTask() {
     // 🚀 使用 CPU Pipeline 发射指令
     pipeline.dispatch('task.create_with_schedule', {
       title,
+      estimated_duration: 60, // 🔥 默认 60 分钟
       scheduled_day: date,
     })
 
@@ -120,6 +157,7 @@ function handleAddTask() {
     // 🚀 使用 CPU Pipeline 发射指令
     pipeline.dispatch('task.create', {
       title,
+      estimated_duration: 60, // 🔥 默认 60 分钟
     })
 
     logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task creation dispatched', {
@@ -321,8 +359,6 @@ watch(
   background-color: var(--color-background-content);
   width: 23rem;
   flex-shrink: 0;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
 }
 
 /* 🔥 整个看板作为 dropzone wrapper */
@@ -331,6 +367,11 @@ watch(
   flex-direction: column;
   height: 100%;
   width: 100%;
+
+  /* 将列的左右内边距转移到真正的 dropzone 包裹层，
+     确保可放置区域覆盖视觉上的整列，避免列与列之间出现不可放置的空隙 */
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .header {
