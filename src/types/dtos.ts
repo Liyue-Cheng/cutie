@@ -248,3 +248,40 @@ export interface UpdateTaskRecurrencePayload {
   timezone?: string | null    // 三态：undefined=不更新, null=清空, string=设置值
   is_active?: boolean
 }
+
+// --- Drag & Drop Type System ---
+
+/**
+ * DragObjectType (拖放对象类型)
+ * 
+ * 定义系统中可以被拖放的对象类型
+ */
+export type DragObjectType = 'task' | 'template' | 'project' | 'area' | 'time-block' | 'other'
+
+/**
+ * DragObject (拖放对象联合类型)
+ * 
+ * 所有可以被拖放的对象的联合类型，用于泛型约束
+ */
+export type DragObject = TaskCard | Template | TimeBlockView
+
+/**
+ * 类型守卫：检查是否为 TaskCard
+ */
+export function isTaskCard(obj: DragObject): obj is TaskCard {
+  return obj && typeof obj === 'object' && 'schedule_status' in obj
+}
+
+/**
+ * 类型守卫：检查是否为 Template
+ */
+export function isTemplate(obj: DragObject): obj is Template {
+  return obj && typeof obj === 'object' && 'estimated_duration_template' in obj
+}
+
+/**
+ * 类型守卫：检查是否为 TimeBlockView
+ */
+export function isTimeBlockView(obj: DragObject): obj is TimeBlockView {
+  return obj && typeof obj === 'object' && 'time_type' in obj && 'is_all_day' in obj
+}

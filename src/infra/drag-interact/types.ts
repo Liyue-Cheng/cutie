@@ -5,7 +5,7 @@
  * 支持双重视觉元素、非破坏性预览、越界即时回弹
  */
 
-import type { TaskCard } from '@/types/dtos'
+import type { DragObject, DragObjectType } from '@/types/dtos'
 import type { ViewMetadata } from '@/types/drag'
 import type { DragSession } from '@/infra/drag/types'
 
@@ -49,13 +49,16 @@ export type { DragSession }
 /**
  * 拖放预览状态
  * 驱动所有组件的响应式渲染
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface DragPreviewState {
+export interface DragPreviewState<T = DragObject> {
   type: 'kanban' | 'calendar'
 
   /** 原始数据 */
   raw: {
-    ghostTask: TaskCard // 被拖动的任务
+    draggedObject: T // 被拖动的对象（泛型）
+    objectType: DragObjectType // 对象类型
     sourceZoneId: string // 拖动开始时的列表ID
     targetZoneId: string | null // 当前悬停的目标列表ID (null = 越界回弹)
     mousePosition: Position // 鼠标位置
@@ -93,7 +96,7 @@ export interface DragManagerState {
  */
 export interface DraggableOptions {
   /** 获取拖拽数据的函数 */
-  getData: (element: HTMLElement) => DragData
+  getData: (element: HTMLElement) => DragData<any>
 }
 
 /**
@@ -107,18 +110,20 @@ export interface DropzoneOptions {
   type: 'kanban' | 'calendar'
 
   /** 计算预览位置的函数（可选，由控制器提供标准实现） */
-  computePreview?: (rawData: DragPreviewRawData, element: HTMLElement) => DragPreviewComputed
+  computePreview?: (rawData: DragPreviewRawData<any>, element: HTMLElement) => DragPreviewComputed
 
   /** 放置处理函数 */
-  onDrop?: (session: DragSession) => Promise<void>
+  onDrop?: (session: DragSession<any>) => Promise<void>
 }
 
 /**
  * 拖拽数据
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface DragData {
-  type: 'task'
-  task: TaskCard
+export interface DragData<T = DragObject> {
+  type: DragObjectType
+  data: T // 泛型数据，替代原来的 task 字段
   sourceView: ViewMetadata
   index: number
   // 🔥 V2: 源组件的灵活上下文数据
@@ -127,10 +132,13 @@ export interface DragData {
 
 /**
  * 预览原始数据
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface DragPreviewRawData {
+export interface DragPreviewRawData<T = DragObject> {
   mousePosition: Position
-  ghostTask: TaskCard
+  draggedObject: T // 改为泛型
+  objectType: DragObjectType
   targetZoneId: string
   sourceZoneId: string
 }

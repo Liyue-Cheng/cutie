@@ -8,15 +8,17 @@
  * - 可组合和可测试
  */
 
-import type { TaskCard } from '@/types/dtos'
+import type { DragObject, DragObjectType } from '@/types/dtos'
 import type { ViewType } from '@/types/drag'
 
 // ==================== 拖放会话 ====================
 
 /**
  * 拖放会话 - 描述一次完整的拖放操作
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface DragSession {
+export interface DragSession<T = DragObject> {
   id: string
 
   // 源信息
@@ -29,8 +31,8 @@ export interface DragSession {
 
   // 被拖放对象
   object: {
-    type: 'task' | 'time-block' | 'other'
-    data: TaskCard // 任务数据快照
+    type: DragObjectType
+    data: T // 泛型数据，支持任意拖放对象
     originalIndex: number
   }
 
@@ -62,8 +64,11 @@ export interface SourceCondition {
   // 视图键匹配（支持字符串或正则）
   viewKey?: string | RegExp
 
-  // 任务状态匹配
-  taskStatus?: TaskCard['schedule_status'] | TaskCard['schedule_status'][]
+  // 拖放对象类型匹配（新增）
+  objectType?: DragObjectType | DragObjectType[]
+
+  // 任务状态匹配（仅当拖放对象为 task 时有效）
+  taskStatus?: 'scheduled' | 'staging' | ('scheduled' | 'staging')[]
 
   // 自定义检查函数
   customCheck?: (session: DragSession) => boolean
@@ -79,8 +84,8 @@ export interface TargetCondition {
   // 视图键匹配（支持字符串或正则）
   viewKey?: string | RegExp
 
-  // 接受的任务状态
-  acceptsStatus?: TaskCard['schedule_status'][]
+  // 接受的任务状态（仅当拖放对象为 task 时有效）
+  acceptsStatus?: ('scheduled' | 'staging')[]
 
   // 自定义检查函数
   customCheck?: (targetZone: string, session: DragSession) => boolean
@@ -112,14 +117,16 @@ export interface StrategyCondition {
  * - ❌ 策略不应该查询 Store
  * - ✅ 组件通过 Context 传入所有必要数据
  *
- * V2 设计：灵活的 JSON 上下文
+ * V2 设计：灵活的 JSON 上下文 + 泛型支持
  * - sourceContext: 起始组件自由传入的数据（任意结构）
  * - targetContext: 结束组件自由传入的数据（任意结构）
  * - 策略自行解包需要的字段，类型安全由策略保证
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface StrategyContext {
+export interface StrategyContext<T = DragObject> {
   // 拖放会话
-  session: DragSession
+  session: DragSession<T>
 
   // 目标区域
   targetZone: string
@@ -129,7 +136,7 @@ export interface StrategyContext {
   sourceViewType: ViewType
   targetViewId: string
   targetViewType: ViewType
-  task: TaskCard
+  draggedObject: T // 改为泛型，不再假设是 TaskCard
   dropIndex?: number
 
   // 🔥 灵活的上下文数据（V2 设计）
@@ -144,15 +151,19 @@ export interface StrategyContext {
  * 常见的上下文数据结构（供参考，非强制）
  */
 export interface CommonSourceContext {
-  taskIds?: string[] // 任务ID列表
-  displayTasks?: TaskCard[] // 完整的任务列表
+  taskIds?: string[] // 任务ID列表（兼容旧代码）
+  itemIds?: string[] // 对象ID列表（通用）
+  displayTasks?: any[] // 显示的任务列表（兼容旧代码）
+  displayItems?: any[] // 显示的对象列表（通用）
   viewConfig?: Record<string, any> // 视图配置
   [key: string]: any // 允许任意扩展
 }
 
 export interface CommonTargetContext {
-  taskIds?: string[] // 任务ID列表
-  displayTasks?: TaskCard[] // 完整的任务列表
+  taskIds?: string[] // 任务ID列表（兼容旧代码）
+  itemIds?: string[] // 对象ID列表（通用）
+  displayTasks?: any[] // 显示的任务列表（兼容旧代码）
+  displayItems?: any[] // 显示的对象列表（通用）
   dropIndex?: number // 插入位置
   viewConfig?: Record<string, any> // 视图配置
   [key: string]: any // 允许任意扩展
@@ -178,8 +189,10 @@ export interface StrategyResult {
 
 /**
  * 策略动作定义
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface StrategyAction {
+export interface StrategyAction<T = DragObject> {
   // 动作名称
   name: string
 
@@ -187,19 +200,21 @@ export interface StrategyAction {
   description: string
 
   // 前置检查（可选）
-  canExecute?: (ctx: StrategyContext) => Promise<boolean> | boolean
+  canExecute?: (ctx: StrategyContext<T>) => Promise<boolean> | boolean
 
   // 执行逻辑（打印模式：只打印不执行）
-  execute: (ctx: StrategyContext) => Promise<StrategyResult>
+  execute: (ctx: StrategyContext<T>) => Promise<StrategyResult>
 
   // 回滚逻辑（可选，预留）
-  rollback?: (ctx: StrategyContext) => Promise<void>
+  rollback?: (ctx: StrategyContext<T>) => Promise<void>
 }
 
 /**
  * 策略定义
+ * 
+ * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface Strategy {
+export interface Strategy<T = DragObject> {
   // 唯一标识
   id: string
 
@@ -210,7 +225,7 @@ export interface Strategy {
   conditions: StrategyCondition
 
   // 执行动作
-  action: StrategyAction
+  action: StrategyAction<T>
 
   // 标签（用于分类和调试）
   tags?: string[]
