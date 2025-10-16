@@ -38,7 +38,11 @@
       "Bash(pnpm exec vue-tsc --noEmit)",
       "Bash(timeout 30 pnpm exec vue-tsc --noEmit)",
       "Bash(pnpm exec tsc --noEmit src/cpu/import-test.ts)",
-      "Bash(tree src -I node_modules)"
+      "Bash(tree src -I node_modules)",
+      "Bash(awk:*)",
+      "Bash(git log:*)",
+      "Bash(sort:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
