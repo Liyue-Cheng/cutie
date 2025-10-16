@@ -16,6 +16,7 @@ import type { TaskCard } from '@/types/dtos'
  */
 export type TimeRelation =
   | 'past-to-today-or-future' // 过去 → 今天/未来
+  | 'past-to-past' // 过去 → 过去
   | 'today-to-future' // 今天 → 未来
   | 'today-to-past' // 今天 → 过去（拒绝）
   | 'future-to-today' // 未来 → 今天
@@ -99,6 +100,9 @@ export function makeDragDecision(
     case 'past-to-today-or-future':
       return handlePastToTodayOrFuture(task, sourceDate, targetDate)
 
+    case 'past-to-past':
+      return handlePastToPast(task, sourceDate, targetDate)
+
     case 'today-to-future':
       return handleTodayToFuture(task, sourceDate, targetDate)
 
@@ -145,6 +149,11 @@ function determineTimeRelation(
   // 过去 → 今天/未来
   if (isSourcePast && (isTargetToday || isTargetFuture)) {
     return 'past-to-today-or-future'
+  }
+
+  // 过去 → 过去
+  if (isSourcePast && isTargetPast) {
+    return 'past-to-past'
   }
 
   // 今天 → 未来
@@ -210,7 +219,7 @@ function getTaskWorkStatus(task: TaskCard, date: string): TaskWorkStatus {
 /**
  * 场景：同一天内重排序
  */
-function handleSameDay(task: TaskCard, date: string): DragDecision {
+function handleSameDay(_task: TaskCard, _date: string): DragDecision {
   return {
     allowed: true,
     keepSourceSchedule: true,
@@ -279,6 +288,88 @@ function handlePastToTodayOrFuture(
 
     default:
       return createRejectedDecision('无法判断任务状态', 'past-to-future-unknown')
+  }
+}
+
+/**
+ * 场景：过去 → 过去
+ *
+ * 根据业务逻辑：
+ * - 如果源日期有PRESENCE记录（worked或completed），保留源元素
+ * - 如果源日期仅为PLANNED，不保留源元素
+ */
+function handlePastToPast(
+  task: TaskCard,
+  sourceDate: string,
+  targetDate: string
+): DragDecision {
+  const workStatus = getTaskWorkStatus(task, sourceDate)
+
+  console.log('🎯 [DragDecision] Past to past:', {
+    taskId: task.id,
+    sourceDate,
+    targetDate,
+    workStatus,
+    isCompleted: task.is_completed,
+  })
+
+  switch (workStatus) {
+    case 'completed':
+      // 已完成任务
+      return {
+        allowed: true,
+        keepSourceSchedule: true, // 保留源schedule（历史记录）
+        deleteSourceSchedule: false,
+        createTargetSchedule: true, // 创建新日程
+        updateScheduleDate: false,
+        reopenTask: true, // 重开任务
+        keepSourceElement: true, // 保留源元素显示
+        reason: '过去日期间拖已完成任务：保留历史 + 重开 + 创建新日程',
+        scenario: 'past-to-past-completed',
+      }
+
+    case 'worked':
+      // 未完成但有工作记录
+      return {
+        allowed: true,
+        keepSourceSchedule: true, // 保留源schedule（工作记录）
+        deleteSourceSchedule: false,
+        createTargetSchedule: true, // 创建新日程
+        updateScheduleDate: false,
+        reopenTask: false,
+        keepSourceElement: true, // 保留源元素显示（有PRESENCE记录）
+        reason: '过去日期间拖有工作记录的任务：保留工作记录 + 创建新日程',
+        scenario: 'past-to-past-worked',
+      }
+
+    case 'planned':
+      // 仅计划
+      return {
+        allowed: true,
+        keepSourceSchedule: false,
+        deleteSourceSchedule: true, // 删除源schedule（标准改期）
+        createTargetSchedule: true, // 创建新日程
+        updateScheduleDate: false,
+        reopenTask: false,
+        keepSourceElement: false, // 不保留源元素（仅计划）
+        reason: '过去日期间拖仅计划的任务：删除源日程 + 创建新日程（标准改期）',
+        scenario: 'past-to-past-planned',
+      }
+
+    case 'unknown':
+    default:
+      // 默认：标准改期
+      return {
+        allowed: true,
+        keepSourceSchedule: false,
+        deleteSourceSchedule: false,
+        createTargetSchedule: false,
+        updateScheduleDate: true, // 更新日期
+        reopenTask: false,
+        keepSourceElement: false,
+        reason: '过去日期间拖任务：更新日程日期',
+        scenario: 'past-to-past-default',
+      }
   }
 }
 
@@ -374,7 +465,7 @@ function handleTodayToPast(): DragDecision {
  * 根据业务逻辑：
  * - 情况 4.1：任意状态 → 删除源schedule + 创建新日程
  */
-function handleFutureToToday(task: TaskCard, sourceDate: string, targetDate: string): DragDecision {
+function handleFutureToToday(_task: TaskCard, _sourceDate: string, _targetDate: string): DragDecision {
   return {
     allowed: true,
     keepSourceSchedule: false,
@@ -402,9 +493,9 @@ function handleFutureToPast(): DragDecision {
  * - 情况 6.1：任意状态 → 删除源schedule + 创建新日程
  */
 function handleFutureToFuture(
-  task: TaskCard,
-  sourceDate: string,
-  targetDate: string
+  _task: TaskCard,
+  _sourceDate: string,
+  _targetDate: string
 ): DragDecision {
   return {
     allowed: true,
