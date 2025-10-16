@@ -14,21 +14,23 @@
 import { computed, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { interactManager, dragPreviewState } from '@/infra/drag-interact'
 import type { ViewMetadata } from '@/types/drag'
-import type { TaskCard } from '@/types/dtos'
+import type { DragObject, DragObjectType, TaskCard } from '@/types/dtos'
 import type { DragData } from '@/infra/drag-interact/types'
 import { makeDragDecision } from '@/services/dragDecisionService'
 
 /**
  * useInteractDrag 配置选项
+ * 
+ * @template T 拖放对象的类型，默认为 DragObject 联合类型
  */
-export interface UseInteractDragOptions {
+export interface UseInteractDragOptions<T = DragObject> {
   /** 视图元数据 */
   viewMetadata: Ref<ViewMetadata>
 
-  /** 任务列表 */
-  tasks: Ref<TaskCard[]>
+  /** 对象列表（替代 tasks） */
+  items: Ref<T[]>
 
-  /** 任务列表容器元素引用 */
+  /** 对象列表容器元素引用 */
   containerRef: Ref<HTMLElement | null>
 
   /** 可拖拽元素选择器 */
@@ -37,64 +39,82 @@ export interface UseInteractDragOptions {
   /** 拖放区类型 */
   dropzoneType?: 'kanban' | 'calendar'
 
+  /** 对象类型标识 */
+  objectType: DragObjectType
+
+  /** 获取对象ID的函数 */
+  getObjectId: (item: T) => string
+
   /** 自定义放置处理函数 */
   onDrop?: (session: any) => Promise<void>
 }
 
 /**
  * useInteractDrag Composable
+ * 
+ * @template T 拖放对象的类型，默认为 DragObject 联合类型
  */
-export function useInteractDrag(options: UseInteractDragOptions) {
+export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<T>) {
   const {
     viewMetadata,
-    tasks,
+    items,
     containerRef,
     draggableSelector,
     dropzoneType = 'kanban',
+    objectType,
+    getObjectId,
     onDrop,
   } = options
 
   // ==================== 响应式状态 ====================
 
   /**
-   * 显示的任务列表（包含预览逻辑）
+   * 显示的对象列表（包含预览逻辑）
    * 这是核心的响应式计算，实现了需求文档中的"实体元素"预览
    */
-  const displayTasks = computed(() => {
+  const displayItems = computed<T[]>(() => {
     const preview = dragPreviewState.value
-    const currentTasks = tasks.value
+    const currentItems = items.value
     const currentViewId = viewMetadata.value.id
 
     // 没有预览 → 显示原始列表
     if (!preview) {
-      return currentTasks
+      return currentItems
     }
 
-    const { ghostTask, sourceZoneId, targetZoneId } = preview.raw
+    const { draggedObject, objectType: previewObjectType, sourceZoneId, targetZoneId } = preview.raw
     const { dropIndex } = preview.computed
+
+    // 只处理匹配的对象类型
+    if (previewObjectType !== objectType) {
+      return currentItems
+    }
 
     // 🔥 场景C: 越界回弹 (targetZoneId === null)
     // 所有列表都回到原始状态
     if (targetZoneId === null) {
-      return currentTasks
+      return currentItems
     }
+
+    // 获取拖动对象的ID
+    const draggedId = getObjectId(draggedObject as T)
 
     // 场景A: 实体元素在本列表中预览
     if (targetZoneId === currentViewId) {
-      // 先移除被拖动的任务（如果在本列表中）
-      const withoutDragged = currentTasks.filter((t) => t.id !== ghostTask.id)
+      // 先移除被拖动的对象（如果在本列表中）
+      const withoutDragged = currentItems.filter((item) => getObjectId(item) !== draggedId)
 
       if (dropIndex !== undefined) {
         // 插入预览位置
-        const preview = [...withoutDragged]
-        const safeIndex = Math.max(0, Math.min(dropIndex, preview.length))
+        const previewList = [...withoutDragged]
+        const safeIndex = Math.max(0, Math.min(dropIndex, previewList.length))
 
-        preview.splice(safeIndex, 0, {
-          ...ghostTask,
+        previewList.splice(safeIndex, 0, {
+          ...draggedObject,
           _isPreview: true, // 标记为预览状态
-        } as TaskCard & { _isPreview?: boolean })
+        } as T & { _isPreview?: boolean })
 
-        return preview
+        return previewList
       }
 
       return withoutDragged
@@ -102,34 +122,32 @@ export function useInteractDrag(options: UseInteractDragOptions) {
 
     // 场景B: 实体元素在其他列表中预览（从本列表移除）
     if (sourceZoneId === currentViewId && targetZoneId !== currentViewId) {
-      // 🔥 使用决策服务判断是否保留源元素
-      const sourceViewKey = viewMetadata.value.id
-      const targetViewKey = targetZoneId
+      // 🔥 特殊逻辑：仅对任务类型使用决策服务
+      if (objectType === 'task') {
+        const sourceViewKey = viewMetadata.value.id
+        const targetViewKey = targetZoneId
 
-      const sourceDate = sourceViewKey.startsWith('daily::') ? sourceViewKey.split('::')[1] : null
-      const targetDate = targetViewKey.startsWith('daily::') ? targetViewKey.split('::')[1] : null
+        const sourceDate = sourceViewKey.startsWith('daily::') ? sourceViewKey.split('::')[1] : null
+        const targetDate = targetViewKey.startsWith('daily::') ? targetViewKey.split('::')[1] : null
 
-      if (sourceDate && targetDate) {
-        // 获取今天的日期
-        const today = new Date().toISOString().split('T')[0]!
+        if (sourceDate && targetDate) {
+          const today = new Date().toISOString().split('T')[0]!
+          const decision = makeDragDecision(draggedObject as any as TaskCard, sourceDate, targetDate, today)
 
-        // 使用决策服务（转换为可变类型）
-        const decision = makeDragDecision(ghostTask as TaskCard, sourceDate, targetDate, today)
+          console.log('🔍 [useInteractDrag] Drag decision:', decision)
 
-        console.log('🔍 [useInteractDrag] Drag decision:', decision)
-
-        if (decision.keepSourceElement) {
-          // 保留源元素，不移除
-          return currentTasks
+          if (decision.keepSourceElement) {
+            return currentItems
+          }
         }
       }
 
       // 否则移除源元素（标准行为）
-      return currentTasks.filter((t) => t.id !== ghostTask.id)
+      return currentItems.filter((item) => getObjectId(item) !== draggedId)
     }
 
     // 其他情况：显示原始列表
-    return currentTasks
+    return currentItems
   })
 
   /**
@@ -157,44 +175,47 @@ export function useInteractDrag(options: UseInteractDragOptions) {
   /**
    * 获取拖拽数据的函数
    *
-   * 重要：我们必须从原始的 tasks.value 中查找任务，
-   * 因为 displayTasks 可能已经被预览状态修改了
+   * 重要：我们必须从原始的 items.value 中查找对象，
+   * 因为 displayItems 可能已经被预览状态修改了
    */
-  const getDragData = (element: HTMLElement): DragData => {
-    const taskId = element.getAttribute('data-task-id')
-    if (!taskId) {
-      throw new Error('Task ID not found on draggable element')
+  const getDragData = (element: HTMLElement): DragData<T> => {
+    const objectId = element.getAttribute('data-object-id') || element.getAttribute('data-task-id')
+    if (!objectId) {
+      throw new Error('Object ID not found on draggable element')
     }
 
-    // 🔥 关键修复：只在原始任务列表中查找
-    // 不要在 displayTasks 中查找，因为它可能已经被预览状态修改
-    const task = tasks.value.find((t) => t.id === taskId)
+    // 🔥 关键修复：只在原始对象列表中查找
+    // 不要在 displayItems 中查找，因为它可能已经被预览状态修改
+    const item = items.value.find((item) => getObjectId(item) === objectId)
 
-    if (!task) {
-      console.error('Task lookup failed:', {
-        taskId,
-        originalTasksIds: tasks.value.map((t) => t.id),
-        displayTasksIds: displayTasks.value.map((t) => t.id),
+    if (!item) {
+      console.error('Object lookup failed:', {
+        objectId,
+        objectType,
+        originalItemIds: items.value.map(getObjectId),
+        displayItemIds: displayItems.value.map(getObjectId),
         viewId: viewMetadata.value.id,
         message:
-          'Task not found in original tasks list. This might indicate a timing issue with DOM updates.',
+          'Object not found in original items list. This might indicate a timing issue with DOM updates.',
       })
-      throw new Error(`Task not found: ${taskId}. Check if task exists in original list.`)
+      throw new Error(`Object not found: ${objectId}. Check if object exists in original list.`)
     }
 
-    const index = tasks.value.indexOf(task)
+    const index = items.value.indexOf(item)
 
     return {
-      type: 'task',
-      task,
+      type: objectType,
+      data: item,
       sourceView: viewMetadata.value,
       index,
       // 🔥 V2: 传递灵活的上下文数据
       sourceContext: {
-        taskIds: displayTasks.value.map((t) => t.id),
-        displayTasks: displayTasks.value,
+        itemIds: displayItems.value.map(getObjectId),
+        displayItems: displayItems.value,
+        // 向后兼容：也提供 taskIds 和 displayTasks 字段
+        taskIds: displayItems.value.map(getObjectId),
+        displayTasks: displayItems.value,
         viewKey: viewMetadata.value.id,
-        // 可以添加更多数据
       },
     }
   }
@@ -247,7 +268,7 @@ export function useInteractDrag(options: UseInteractDragOptions) {
 
   return {
     // 响应式状态
-    displayTasks,
+    displayItems,
     isDragging,
     isReceiving,
 
@@ -258,8 +279,9 @@ export function useInteractDrag(options: UseInteractDragOptions) {
     // 调试信息
     getDebugInfo: () => ({
       viewId: viewMetadata.value.id,
-      taskCount: tasks.value.length,
-      displayTaskCount: displayTasks.value.length,
+      itemCount: items.value.length,
+      displayItemCount: displayItems.value.length,
+      objectType,
       isDragging: isDragging.value,
       isReceiving: isReceiving.value,
       previewState: dragPreviewState.value,
