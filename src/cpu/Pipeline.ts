@@ -7,8 +7,7 @@ import { SchedulerStage } from './stages/SCH'
 import { ExecuteStage } from './stages/EX'
 import { ResponseStage } from './stages/RES'
 import { WriteBackStage } from './stages/WB'
-import { instructionTracker } from './tracking/InstructionTracker'
-import { cpuEventCollector, cpuConsole } from './logging'
+import { cpuEventCollector, cpuConsole, cpuLogger } from './logging'
 import type { QueuedInstruction } from './types'
 import { ref } from 'vue'
 
@@ -146,8 +145,8 @@ export class Pipeline {
     this.IF.clear()
     this.SCH.clear()
 
-    // 清空追踪记录
-    instructionTracker.clearTraces()
+    // 清空日志记录
+    // cpuLogger.clear() // 可选：是否清空日志取决于需求
 
     // 🔥 Reject all pending promises
     for (const [, resolver] of this.promiseResolvers.entries()) {
@@ -236,14 +235,14 @@ export class Pipeline {
    * 更新流水线状态
    */
   private updateStatus(): void {
-    const traces = instructionTracker.getAllTraces()
+    const quickStats = cpuLogger.getQuickStats()
 
     this.status.value = {
       ifBufferSize: this.IF.getBufferSize(),
       schPendingSize: this.SCH.getPendingQueueSize(),
       schActiveSize: this.SCH.getActiveCount(),
-      totalCompleted: traces.filter((t) => t.status === 'committed').length,
-      totalFailed: traces.filter((t) => t.status === 'failed').length,
+      totalCompleted: quickStats.totalCompleted,
+      totalFailed: quickStats.totalFailed,
     }
   }
 

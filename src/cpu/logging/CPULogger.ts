@@ -363,11 +363,32 @@ export class CPULogger {
   }
 
   /**
+   * 快速统计（用于 Pipeline status）
+   */
+  getQuickStats(): { totalCompleted: number; totalFailed: number } {
+    let totalCompleted = 0
+    let totalFailed = 0
+
+    // 遍历所有指令，统计成功和失败次数
+    for (const events of this.eventsByInstruction.values()) {
+      const lastEvent = events[events.length - 1]
+      if (lastEvent?.type === 'instruction_completed') {
+        totalCompleted++
+      } else if (lastEvent?.type === 'instruction_failed') {
+        totalFailed++
+      }
+    }
+
+    return { totalCompleted, totalFailed }
+  }
+
+  /**
    * 获取统计信息
    */
   getStats() {
     return {
       ...this.stats,
+      ...this.getQuickStats(), // 🔥 包含快速统计
       totalInstructions: this.eventsByInstruction.size,
       totalCorrelations: this.eventsByCorrelation.size,
       storageUsage: this.events.length,

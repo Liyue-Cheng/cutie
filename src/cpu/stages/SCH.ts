@@ -3,9 +3,8 @@
  */
 
 import type { QueuedInstruction } from '../types'
-import { InstructionStatus, PipelineStage } from '../types'
+import { InstructionStatus } from '../types'
 import { ISA } from '../isa'
-import { instructionTracker } from '../tracking/InstructionTracker'
 
 export class SchedulerStage {
   private pendingQueue: QueuedInstruction[] = []
@@ -73,9 +72,6 @@ export class SchedulerStage {
     // 标记为issued
     instruction.status = InstructionStatus.ISSUED
     instruction.timestamps.SCH = Date.now()
-
-    // 记录追踪
-    instructionTracker.markPhase(instruction.id, PipelineStage.SCH)
 
     // 加入active列表
     this.activeInstructions.set(instruction.id, instruction)

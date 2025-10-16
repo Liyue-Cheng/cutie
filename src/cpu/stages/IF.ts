@@ -4,7 +4,6 @@
 
 import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
-import { instructionTracker } from '../tracking/InstructionTracker'
 import { generateCorrelationId } from '@/infra/correlation/correlationId'
 
 export class InstructionFetchStage {
@@ -34,9 +33,6 @@ export class InstructionFetchStage {
         IF: Date.now(),
       },
     }
-
-    // 开始追踪
-    instructionTracker.startInstruction(instructionId, type, payload, correlationId)
 
     // 放入缓冲区
     this.enqueue(instruction)

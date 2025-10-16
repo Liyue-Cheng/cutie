@@ -8,8 +8,7 @@
  */
 
 import type { QueuedInstruction } from '../types'
-import { InstructionStatus, PipelineStage } from '../types'
-import { instructionTracker } from '../tracking/InstructionTracker'
+import { InstructionStatus } from '../types'
 import { ISA } from '../isa'
 import { interruptHandler } from '../interrupt/InterruptHandler'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -61,7 +60,6 @@ export class WriteBackStage {
   async writeBack(instruction: QueuedInstruction, success: boolean): Promise<void> {
     // 标记WB阶段
     instruction.timestamps.WB = Date.now()
-    instructionTracker.markPhase(instruction.id, PipelineStage.WB)
 
     const definition = ISA[instruction.type]
 
@@ -94,7 +92,6 @@ export class WriteBackStage {
           // 设置为失败状态
           instruction.status = InstructionStatus.FAILED
           instruction.error = error instanceof Error ? error : new Error(String(error))
-          instructionTracker.failInstruction(instruction.id, instruction.error)
           return
         }
       }
@@ -107,7 +104,6 @@ export class WriteBackStage {
 
       // 成功场景
       instruction.status = InstructionStatus.COMMITTED
-      instructionTracker.completeInstruction(instruction.id)
 
       logger.info(LogTags.SYSTEM_PIPELINE, 'WB: 指令完成', {
         instructionId: instruction.id,
@@ -121,7 +117,6 @@ export class WriteBackStage {
 
       // 设置失败状态
       instruction.status = InstructionStatus.FAILED
-      instructionTracker.failInstruction(instruction.id, instruction.error || new Error('未知错误'))
 
       logger.error(
         LogTags.SYSTEM_PIPELINE,

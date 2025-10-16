@@ -4,13 +4,10 @@
 
 export { Pipeline } from './Pipeline'
 export { ISA } from './isa'
-export { instructionTracker } from './tracking/InstructionTracker'
-export type { InstructionTrace } from './tracking/types'
 export type { QueuedInstruction, InstructionContext, InstructionStatus, PipelineStage } from './types'
 
 // 创建全局单例
 import { Pipeline } from './Pipeline'
-import { instructionTracker as tracker } from './tracking/InstructionTracker'
 
 export const pipeline = new Pipeline()
 
@@ -23,7 +20,6 @@ if (import.meta.env.DEV) {
     stop: () => pipeline.stop(),
     reset: () => pipeline.reset(),
     getStatus: () => pipeline.getStatus(),
-    getTraces: () => tracker.getAllTraces(),
     help: () => {
       console.log(`
 🎯 CPU流水线调试指南

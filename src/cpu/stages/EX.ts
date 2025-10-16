@@ -9,9 +9,8 @@
  */
 
 import type { QueuedInstruction } from '../types'
-import { InstructionStatus, PipelineStage } from '../types'
+import { InstructionStatus } from '../types'
 import { ISA } from '../isa'
-import { instructionTracker } from '../tracking/InstructionTracker'
 import { executeRequest } from '../utils/request'
 import { cpuEventCollector, cpuConsole } from '../logging'
 
@@ -55,7 +54,6 @@ export class ExecuteStage {
       // 步骤3: 标记 EX 阶段开始
       instruction.status = InstructionStatus.EXECUTING
       instruction.timestamps.EX = Date.now()
-      instructionTracker.markPhase(instruction.id, PipelineStage.EX)
 
       // 步骤4: 执行网络请求/操作（带超时控制）
       let result: any
@@ -89,7 +87,6 @@ export class ExecuteStage {
 
       // 保存结果
       instruction.result = result
-      instructionTracker.recordNetworkResult(instruction.id, result)
     } catch (error) {
       // 保存错误信息（回滚由 WB 阶段统一处理）
       instruction.error = error as Error

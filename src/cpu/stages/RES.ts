@@ -3,8 +3,7 @@
  */
 
 import type { QueuedInstruction } from '../types'
-import { InstructionStatus, PipelineStage } from '../types'
-import { instructionTracker } from '../tracking/InstructionTracker'
+import { InstructionStatus } from '../types'
 
 export class ResponseStage {
   /**
@@ -17,7 +16,6 @@ export class ResponseStage {
     // 标记RES阶段
     instruction.status = InstructionStatus.RESPONDED
     instruction.timestamps.RES = Date.now()
-    instructionTracker.markPhase(instruction.id, PipelineStage.RES)
 
     if (error) {
       // 失败处理（简化版：不实现重试）
