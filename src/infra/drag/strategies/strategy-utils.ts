@@ -70,13 +70,15 @@ export function removeTaskFrom(taskIds: string[], taskId: string): string[] {
 
 /**
  * 在指定位置插入任务
+ * 🔥 如果任务已存在，先移除再插入（避免重复）
  */
 export function insertTaskAt(taskIds: string[], taskId: string, index?: number): string[] {
-  const result = [...taskIds]
-  const insertIndex = index ?? result.length
-  const safeIndex = Math.max(0, Math.min(insertIndex, result.length))
-  result.splice(safeIndex, 0, taskId)
-  return result
+  // 先移除任务（如果已存在）
+  const withoutTask = taskIds.filter((id) => id !== taskId)
+  const insertIndex = index ?? withoutTask.length
+  const safeIndex = Math.max(0, Math.min(insertIndex, withoutTask.length))
+  withoutTask.splice(safeIndex, 0, taskId)
+  return withoutTask
 }
 
 /**

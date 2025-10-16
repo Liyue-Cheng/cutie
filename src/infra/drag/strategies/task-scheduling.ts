@@ -19,6 +19,7 @@ import {
   type OperationRecord,
 } from './strategy-utils'
 import { pipeline } from '@/cpu'
+import { isTaskCard } from '@/types/dtos'
 
 /**
  * 策略 1：Staging → Daily
@@ -35,6 +36,7 @@ export const stagingToDailyStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: 'misc::staging',
+      objectType: 'task',
       taskStatus: 'staging',
     },
     target: {
@@ -48,13 +50,19 @@ export const stagingToDailyStrategy: Strategy = {
     description: '将暂存区任务安排到指定日期（3步操作）',
 
     async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       const targetDate = extractDate(ctx.targetZone)!
       const operations: OperationRecord[] = []
 
       try {
         // 🎯 步骤 1: 为现有任务创建日程
         const createPayload = {
-          task_id: ctx.task.id,
+          task_id: task.id,
           scheduled_day: targetDate,
         }
         await pipeline.dispatch('schedule.create', createPayload)
@@ -62,7 +70,7 @@ export const stagingToDailyStrategy: Strategy = {
 
         // 🎯 步骤 2: 从 Staging 移除（更新排序）
         const sourceSorting = extractTaskIds(ctx.sourceContext)
-        const newSourceSorting = removeTaskFrom(sourceSorting, ctx.task.id)
+        const newSourceSorting = removeTaskFrom(sourceSorting, task.id)
         const sourceSortPayload = {
           view_key: ctx.sourceViewId,
           sorted_task_ids: newSourceSorting,
@@ -75,7 +83,7 @@ export const stagingToDailyStrategy: Strategy = {
 
         // 🎯 步骤 3: 插入到 Daily（更新排序）
         const targetSorting = extractTaskIds(ctx.targetContext)
-        const newTargetSorting = insertTaskAt(targetSorting, ctx.task.id, ctx.dropIndex)
+        const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
         const targetSortPayload = {
           view_key: ctx.targetViewId,
           sorted_task_ids: newTargetSorting,
@@ -132,6 +140,7 @@ export const dailyToDailyStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,
+      objectType: 'task',
       // 🔥 允许 scheduled 和 staging 状态
       // staging 状态表示任务只在过去有日程（今天及未来无日程）
       taskStatus: ['scheduled', 'staging'],
@@ -147,6 +156,12 @@ export const dailyToDailyStrategy: Strategy = {
     description: '在不同日期之间移动任务或同日期内重新排序',
 
     async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       const sourceDate = extractDate(ctx.sourceViewId)!
       const targetDate = extractDate(ctx.targetZone)!
       const operations: OperationRecord[] = []
@@ -155,7 +170,7 @@ export const dailyToDailyStrategy: Strategy = {
         // 🔹 情况 A: 同日期重新排序
         if (isSameDay(ctx.sourceViewId, ctx.targetZone)) {
           const sorting = extractTaskIds(ctx.sourceContext)
-          const newSorting = moveTaskWithin(sorting, ctx.task.id, ctx.dropIndex ?? sorting.length)
+          const newSorting = moveTaskWithin(sorting, task.id, ctx.dropIndex ?? sorting.length)
           const sortPayload = {
             view_key: ctx.sourceViewId,
             sorted_task_ids: newSorting,
@@ -185,12 +200,12 @@ export const dailyToDailyStrategy: Strategy = {
         if (isPastToFuture) {
           // 🔥 检查目标日期是否已有日程
           const hasTargetSchedule =
-            ctx.task.schedules?.some((schedule) => schedule.scheduled_day === targetDate) ?? false
+            task.schedules?.some((schedule) => schedule.scheduled_day === targetDate) ?? false
 
           if (!hasTargetSchedule) {
             // 🎯 步骤 1: 创建目标日程（保留源日程）
             const createPayload = {
-              task_id: ctx.task.id,
+              task_id: task.id,
               scheduled_day: targetDate,
             }
             await pipeline.dispatch('schedule.create', createPayload)
@@ -200,22 +215,11 @@ export const dailyToDailyStrategy: Strategy = {
           }
           // 如果目标已有日程，跳过创建，只更新排序
 
-          // 🎯 步骤 2: 从源 Daily 移除
-          const sourceSorting = extractTaskIds(ctx.sourceContext)
-          const newSourceSorting = removeTaskFrom(sourceSorting, ctx.task.id)
-          const sourceSortPayload = {
-            view_key: ctx.sourceViewId,
-            sorted_task_ids: newSourceSorting,
-            original_sorted_task_ids: sourceSorting,
-          }
-          await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
-          operations.push(
-            createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
-          )
+          // ✅ 保留历史：不从源 Daily 移除排序，避免任务仍因历史存在而在源列表掉到底部
 
           // 🎯 步骤 3: 插入到目标 Daily
           const targetSorting = extractTaskIds(ctx.targetContext)
-          const newTargetSorting = insertTaskAt(targetSorting, ctx.task.id, ctx.dropIndex)
+          const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
           const targetSortPayload = {
             view_key: ctx.targetViewId,
             sorted_task_ids: newTargetSorting,
@@ -240,7 +244,7 @@ export const dailyToDailyStrategy: Strategy = {
         // 包括：今天 → 未来、未来 → 今天、未来 → 未来、今天 → 今天（已在情况A处理）
 
         // 🔥 判断是否需要保留源日程（今天 → 未来 且有实际工作记录）
-        const sourceSchedule = ctx.task.schedules?.find((s) => s.scheduled_day === sourceDate)
+        const sourceSchedule = task.schedules?.find((s) => s.scheduled_day === sourceDate)
         const isFromToday = sourceDate === today
         const isToFuture = targetDate > today
         const hasWorkRecord = sourceSchedule?.outcome !== 'planned' // PRESENCE_LOGGED 或 COMPLETED_ON_DAY
@@ -248,12 +252,12 @@ export const dailyToDailyStrategy: Strategy = {
 
         // 🔥 先检查目标日期是否已有日程
         const hasTargetSchedule =
-          ctx.task.schedules?.some((schedule) => schedule.scheduled_day === targetDate) ?? false
+          task.schedules?.some((schedule) => schedule.scheduled_day === targetDate) ?? false
 
         if (shouldKeepSource && !hasTargetSchedule) {
           // 保留源日程 + 创建新日程
           const createPayload = {
-            task_id: ctx.task.id,
+            task_id: task.id,
             scheduled_day: targetDate,
           }
           await pipeline.dispatch('schedule.create', createPayload)
@@ -261,7 +265,7 @@ export const dailyToDailyStrategy: Strategy = {
         } else if (hasTargetSchedule) {
           // 🎯 目标日期已有日程，删除源日程（避免冲突）
           const deletePayload = {
-            task_id: ctx.task.id,
+            task_id: task.id,
             scheduled_day: sourceDate,
           }
           await pipeline.dispatch('schedule.delete', deletePayload)
@@ -269,7 +273,7 @@ export const dailyToDailyStrategy: Strategy = {
         } else {
           // 🎯 目标日期无日程，正常更新日程日期
           const updatePayload = {
-            task_id: ctx.task.id,
+            task_id: task.id,
             scheduled_day: sourceDate,
             updates: {
               new_date: targetDate,
@@ -280,22 +284,24 @@ export const dailyToDailyStrategy: Strategy = {
           operations.push(createOperationRecord('update_schedule', ctx.targetViewId, updatePayload))
         }
 
-        // 🎯 步骤 2: 从源 Daily 移除
-        const sourceSorting = extractTaskIds(ctx.sourceContext)
-        const newSourceSorting = removeTaskFrom(sourceSorting, ctx.task.id)
-        const sourceSortPayload = {
-          view_key: ctx.sourceViewId,
-          sorted_task_ids: newSourceSorting,
-          original_sorted_task_ids: sourceSorting,
+        // 🎯 步骤 2: 仅当不需要保留源日程时，才从源 Daily 移除
+        if (!shouldKeepSource) {
+          const sourceSorting = extractTaskIds(ctx.sourceContext)
+          const newSourceSorting = removeTaskFrom(sourceSorting, task.id)
+          const sourceSortPayload = {
+            view_key: ctx.sourceViewId,
+            sorted_task_ids: newSourceSorting,
+            original_sorted_task_ids: sourceSorting,
+          }
+          await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
+          operations.push(
+            createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
+          )
         }
-        await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
-        )
 
         // 🎯 步骤 3: 插入到目标 Daily
         const targetSorting = extractTaskIds(ctx.targetContext)
-        const newTargetSorting = insertTaskAt(targetSorting, ctx.task.id, ctx.dropIndex)
+        const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
         const targetSortPayload = {
           view_key: ctx.targetViewId,
           sorted_task_ids: newTargetSorting,
@@ -345,6 +351,7 @@ export const dailyToStagingStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,
+      objectType: 'task',
       taskStatus: 'scheduled',
     },
     target: {
@@ -357,14 +364,19 @@ export const dailyToStagingStrategy: Strategy = {
     name: 'return_to_staging',
     description: '将任务退回暂存区（后端统一处理）',
 
-    async canExecute(ctx) {
+    async canExecute() {
       // 已完成的任务可以退回（后端会自动重新打开）
       // 移除客户端检查，让后端统一处理
       return true
     },
 
     async execute(ctx) {
-      const sourceDate = extractDate(ctx.sourceViewId)!
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       const operations: OperationRecord[] = []
 
       try {
@@ -375,14 +387,14 @@ export const dailyToStagingStrategy: Strategy = {
         // - 软删除孤儿时间块
         // - 如果已完成，自动重新打开
         const returnPayload = {
-          id: ctx.task.id,
+          id: task.id,
         }
         await pipeline.dispatch('task.return_to_staging', returnPayload)
         operations.push(createOperationRecord('return_to_staging', ctx.sourceViewId, returnPayload))
 
         // 🎯 步骤 2: 从 Daily 移除
         const sourceSorting = extractTaskIds(ctx.sourceContext)
-        const newSourceSorting = removeTaskFrom(sourceSorting, ctx.task.id)
+        const newSourceSorting = removeTaskFrom(sourceSorting, task.id)
         const sourceSortPayload = {
           view_key: ctx.sourceViewId,
           sorted_task_ids: newSourceSorting,
@@ -395,7 +407,7 @@ export const dailyToStagingStrategy: Strategy = {
 
         // 🎯 步骤 3: 插入到 Staging
         const targetSorting = extractTaskIds(ctx.targetContext)
-        const newTargetSorting = insertTaskAt(targetSorting, ctx.task.id, ctx.dropIndex)
+        const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
         const targetSortPayload = {
           view_key: ctx.targetViewId,
           sorted_task_ids: newTargetSorting,
@@ -443,6 +455,7 @@ export const dailyReorderStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: /^daily::\d{4}-\d{2}-\d{2}$/,
+      objectType: 'task',
       // 🔥 允许 scheduled 和 staging 状态
       taskStatus: ['scheduled', 'staging'],
     },
@@ -461,12 +474,18 @@ export const dailyReorderStrategy: Strategy = {
     description: '在同一天内重新排序（1步操作）',
 
     async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       const date = extractDate(ctx.sourceViewId)!
       const operations: OperationRecord[] = []
 
       try {
         const sorting = extractTaskIds(ctx.sourceContext)
-        const newSorting = moveTaskWithin(sorting, ctx.task.id, ctx.dropIndex ?? sorting.length)
+        const newSorting = moveTaskWithin(sorting, task.id, ctx.dropIndex ?? sorting.length)
         const sortPayload = {
           view_key: ctx.sourceViewId,
           sorted_task_ids: newSorting,
@@ -509,6 +528,7 @@ export const stagingReorderStrategy: Strategy = {
   conditions: {
     source: {
       viewKey: 'misc::staging',
+      objectType: 'task',
     },
     target: {
       viewKey: 'misc::staging',
@@ -521,11 +541,17 @@ export const stagingReorderStrategy: Strategy = {
     description: '在暂存区内重新排序（1步操作）',
 
     async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       const operations: OperationRecord[] = []
 
       try {
         const sorting = extractTaskIds(ctx.targetContext)
-        const newSorting = moveTaskWithin(sorting, ctx.task.id, ctx.dropIndex ?? sorting.length)
+        const newSorting = moveTaskWithin(sorting, task.id, ctx.dropIndex ?? sorting.length)
         const sortPayload = {
           view_key: ctx.targetZone,
           sorted_task_ids: newSorting,
