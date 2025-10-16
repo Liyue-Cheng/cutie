@@ -19,27 +19,46 @@
  */
 
 /**
- * 🔥 V2: 从上下文中提取任务ID列表
+ * 🔥 V2: 从上下文中提取对象ID列表（泛型版本）
  *
  * 灵活性：支持多种数据格式
- * - taskIds: string[]
- * - displayTasks: TaskCard[]
+ * - itemIds: string[]
+ * - taskIds: string[] (向后兼容)
+ * - displayItems: any[]
+ * - displayTasks: any[] (向后兼容)
  * - 自动回退到空数组
  */
-export function extractTaskIds(context: Record<string, any>): string[] {
-  // 优先使用 taskIds
+export function extractObjectIds(context: Record<string, any>): string[] {
+  // 优先使用 itemIds (新格式)
+  if (Array.isArray(context.itemIds)) {
+    return context.itemIds
+  }
+
+  // 向后兼容：taskIds
   if (Array.isArray(context.taskIds)) {
     return context.taskIds
   }
 
-  // 回退：从 displayTasks 提取
+  // 回退：从 displayItems 提取
+  if (Array.isArray(context.displayItems)) {
+    return context.displayItems.map((item: any) => item.id)
+  }
+
+  // 向后兼容：从 displayTasks 提取
   if (Array.isArray(context.displayTasks)) {
     return context.displayTasks.map((t: any) => t.id)
   }
 
   // 最后回退：空数组
-  console.warn('[strategy-utils] No taskIds found in context', context)
+  console.warn('[strategy-utils] No object IDs found in context', context)
   return []
+}
+
+/**
+ * 向后兼容的别名：extractTaskIds
+ */
+export function extractTaskIds(context: Record<string, any>): string[] {
+  return extractObjectIds(context)
 }
 
 /**

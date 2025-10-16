@@ -38,7 +38,8 @@ class StrategyExecutor {
         logger.warn(LogTags.DRAG_STRATEGY, '❌ No matching strategy found', {
           sourceView: session.source.viewId,
           targetZone,
-          taskStatus: session.object.data.schedule_status,
+          objectType: session.object.type,
+          taskStatus: session.object.type === 'task' ? (session.object.data as any).schedule_status : undefined,
           dragMode: session.dragMode,
         })
 
@@ -162,7 +163,7 @@ class StrategyExecutor {
       sourceViewType: session.source.viewType,
       targetViewId: targetZone,
       targetViewType,
-      task: session.object.data,
+      draggedObject: session.object.data,
       dropIndex: targetContext.dropIndex ?? session.target?.dropIndex,
       sourceContext,
       targetContext,
@@ -186,13 +187,15 @@ class StrategyExecutor {
    */
   private printStrategyInfo(strategy: Strategy, context: StrategyContext): void {
     // ✅ 移除旧的控制台打印噪音，改用简洁日志
+    const objectTitle = (context.draggedObject as any)?.title || 'Unknown'
     logger.debug(LogTags.DRAG_STRATEGY, '🎯 Strategy matched and ready', {
       strategyId: strategy.id,
       strategyName: strategy.name,
       actionName: strategy.action.name,
       sourceView: context.sourceViewId,
       targetView: context.targetViewId,
-      taskTitle: context.task.title,
+      objectTitle,
+      objectType: context.session.object.type,
     })
   }
 

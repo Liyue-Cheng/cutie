@@ -87,15 +87,27 @@ function matchSource(condition: SourceCondition, session: DragSession): boolean 
     }
   }
 
-  // 匹配任务状态
-  if (condition.taskStatus) {
+  // 匹配对象类型
+  if (condition.objectType) {
+    const types = Array.isArray(condition.objectType) ? condition.objectType : [condition.objectType]
+    if (!types.includes(session.object.type)) {
+      logger.debug(LogTags.DRAG_STRATEGY, 'Source objectType not matched', {
+        expected: types,
+        actual: session.object.type,
+      })
+      return false
+    }
+  }
+
+  // 匹配任务状态（仅当对象类型为 task 时有效）
+  if (condition.taskStatus && session.object.type === 'task') {
     const statuses = Array.isArray(condition.taskStatus)
       ? condition.taskStatus
       : [condition.taskStatus]
-    if (!statuses.includes(session.object.data.schedule_status)) {
+    if (!statuses.includes((session.object.data as any).schedule_status)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Source taskStatus not matched', {
         expected: statuses,
-        actual: session.object.data.schedule_status,
+        actual: (session.object.data as any).schedule_status,
       })
       return false
     }
@@ -155,12 +167,12 @@ function matchTarget(
     }
   }
 
-  // 匹配接受的任务状态
-  if (condition.acceptsStatus) {
-    if (!condition.acceptsStatus.includes(session.object.data.schedule_status)) {
+  // 匹配接受的任务状态（仅当对象类型为 task 时有效）
+  if (condition.acceptsStatus && session.object.type === 'task') {
+    if (!condition.acceptsStatus.includes((session.object.data as any).schedule_status)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Target acceptsStatus not matched', {
         acceptsStatus: condition.acceptsStatus,
-        taskStatus: session.object.data.schedule_status,
+        taskStatus: (session.object.data as any).schedule_status,
       })
       return false
     }
