@@ -12,9 +12,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    entities::{Outcome, SideEffects, TaskTransactionResult},
+    entities::{Outcome, SideEffects, TaskTransactionResult, TimeBlock},
     features::shared::{
-        repositories::{TaskRepository, TaskScheduleRepository},
+        assemblers::TimeBlockAssembler,
+        repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository, TimeBlockRepository},
         TaskAssembler,
     },
     infra::{
@@ -73,15 +74,30 @@ PATCH /api/tasks/{id}/schedules/{date}
 
 ```json
 {
-  "task_card": {
+  "task": {
     "id": "uuid",
     "title": "string",
     "schedule_status": "scheduled",
     "schedules": [...],
     ...
+  },
+  "side_effects": {
+    "deleted_time_blocks": [
+      {
+        "id": "uuid",
+        "title": "string",
+        "start_time": "2025-01-01T09:00:00Z",
+        "end_time": "2025-01-01T10:00:00Z",
+        ...
+      }
+    ]
   }
 }
 ```
+
+**注意：**
+- 当改期到不同日期时，原日期的孤儿浮动时间片会被删除并包含在 `side_effects.deleted_time_blocks` 中
+- HTTP 响应和 SSE 事件使用完全相同的数据结构
 
 **404 Not Found:**
 
@@ -303,6 +319,8 @@ mod logic {
         }
 
         // 6. 处理更新逻辑
+        let mut deleted_time_blocks = Vec::new();
+
         if let Some(ref new_date_str) = request.new_date {
             // 解析新日期
             let new_date = validation::parse_date(new_date_str)?;
@@ -316,9 +334,34 @@ mod logic {
                 if has_new_date_schedule {
                     return Err(AppError::conflict("目标日期已有日程安排"));
                 }
+
+                // 🔥 改期到不同日期时的正确逻辑：删除原日程，创建新日程
+                // 1. 查找原日期的所有浮动时间片
+                let time_blocks = database::find_floating_time_blocks_for_day(&mut tx, task_id, &original_date).await?;
+
+                // 2. 删除时间片链接
+                let time_block_ids: Vec<Uuid> = time_blocks.iter().map(|b| b.id).collect();
+                for &block_id in &time_block_ids {
+                    database::delete_task_time_block_link(&mut tx, task_id, block_id).await?;
+                }
+
+                // 3. 软删除孤儿浮动时间片
+                let mut deleted_time_block_ids = Vec::new();
+                for block in &time_blocks {
+                    let remaining_links = TaskTimeBlockLinkRepository::count_remaining_tasks_in_block_in_tx(&mut tx, block.id).await?;
+
+                    // 只有当时间片没有任何剩余任务链接时才删除（孤儿检查）
+                    if remaining_links == 0 {
+                        TimeBlockRepository::soft_delete_in_tx(&mut tx, block.id).await?;
+                        deleted_time_block_ids.push(block.id);
+                    }
+                }
+
+                // 4. 查询被删除的时间片的完整数据（用于副作用）
+                deleted_time_blocks = TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids).await?;
             }
 
-            // 更新日期
+            // 更新日期（直接更新现有日程记录）
             database::update_schedule_date(&mut tx, task_id, &original_date, &new_date, now)
                 .await?;
         }
@@ -377,7 +420,14 @@ mod logic {
         // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
         let transaction_result = TaskTransactionResult {
             task: task_card,
-            side_effects: SideEffects::empty(),
+            side_effects: SideEffects {
+                deleted_time_blocks: if deleted_time_blocks.is_empty() {
+                    None
+                } else {
+                    Some(deleted_time_blocks)
+                },
+                ..Default::default()
+            },
         };
 
         // 11. 写入领域事件到 outbox
@@ -421,6 +471,76 @@ mod logic {
 mod database {
     use super::*;
     use sqlx::{Sqlite, Transaction};
+
+    /// 查找任务在指定日期的所有 floating 时间片（只有 floating 类型可以被删除）
+    pub async fn find_floating_time_blocks_for_day(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
+    ) -> AppResult<Vec<TimeBlock>> {
+        // 🔥 正确的查询：先获取所有浮动时间片，然后在代码中按本地日期过滤
+        let query = r#"
+            SELECT tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time,
+                   tb.start_time_local, tb.end_time_local, tb.time_type, tb.creation_timezone,
+                   tb.is_all_day, tb.source_info, tb.external_source_id, tb.external_source_provider,
+                   tb.external_source_metadata,
+                   tb.area_id, tb.recurrence_rule, tb.recurrence_parent_id, tb.recurrence_original_date,
+                   tb.created_at, tb.updated_at, tb.is_deleted
+            FROM time_blocks tb
+            JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
+            WHERE ttbl.task_id = ?
+              AND tb.time_type = 'FLOATING'
+              AND tb.is_deleted = false
+        "#;
+
+        let rows = sqlx::query_as::<_, crate::entities::TimeBlockRow>(query)
+            .bind(task_id.to_string())
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        let mut time_blocks = Vec::new();
+
+        // 🔥 在代码中按本地日期过滤（与 TaskAssembler 相同的逻辑）
+        for row in rows {
+            let time_block = TimeBlock::try_from(row).map_err(|e| {
+                AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
+            })?;
+
+            // 🔥 使用系统本地时区转换 UTC 时间到本地日期
+            use chrono::Local;
+            let local_start = time_block.start_time.with_timezone(&Local);
+            let formatted_date = crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
+
+            // 只保留匹配日期的时间片
+            if formatted_date == scheduled_date {
+                time_blocks.push(time_block);
+            }
+        }
+
+        Ok(time_blocks)
+    }
+
+    /// 删除任务到时间块的链接
+    pub async fn delete_task_time_block_link(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        time_block_id: Uuid,
+    ) -> AppResult<()> {
+        let query = r#"
+            DELETE FROM task_time_block_links
+            WHERE task_id = ? AND time_block_id = ?
+        "#;
+
+        sqlx::query(query)
+            .bind(task_id.to_string())
+            .bind(time_block_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.into()))?;
+
+        Ok(())
+    }
 
     /// 更新日程的日期
     pub async fn update_schedule_date(

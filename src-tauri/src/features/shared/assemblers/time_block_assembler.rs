@@ -29,14 +29,15 @@ impl TimeBlockAssembler {
 
         for block_id in time_block_ids {
             // 1. 查询时间块（✅ 完整字段列表）
+            // 🔥 事件装配器需要获取所有时间块数据，包括刚被软删除的（用于副作用）
             let query = r#"
-                SELECT id, title, glance_note, detail_note, start_time, end_time, 
+                SELECT id, title, glance_note, detail_note, start_time, end_time,
                        start_time_local, end_time_local, time_type, creation_timezone,
                        is_all_day, area_id, created_at, updated_at, is_deleted, source_info,
                        external_source_id, external_source_provider, external_source_metadata,
                        recurrence_rule, recurrence_parent_id, recurrence_original_date
                 FROM time_blocks
-                WHERE id = ? AND is_deleted = false
+                WHERE id = ?
             "#;
 
             let block_row = sqlx::query_as::<_, TimeBlockRow>(query)

@@ -32,7 +32,7 @@ GET /api/views/staging
 
 ### 2.2. 核心业务逻辑 (Core Business Logic)
 
-从数据库中查询所有符合"Staging"定义的任务：未删除、未完成、且不存在任何 task_schedules 记录的任务。
+从数据库中查询所有符合"Staging"定义的任务：未删除、未完成、且今天及未来不存在 task_schedules 记录的任务（过去的排期不影响）。
 为每个任务组装完整的 TaskCardDto（包含 area 信息、schedules 等上下文），并明确标记 schedule_status 为 Staging。
 
 ## 3. 输入输出规范 (Request/Response Specification)
@@ -96,7 +96,7 @@ GET /api/views/staging
 - **数据库中没有 staging 任务:** 返回空数组 `[]`（200 OK）。
 - **所有任务都已排期或已完成:** 返回空数组 `[]`（200 OK）。
 - **任务数量很大:** 当前无分页机制，可能返回大量数据（性能考虑）。
-- **任务有过去的 schedule 但今天/未来无 schedule:** 该任务**不会**出现在 staging 视图（因为 SQL 查询使用 NOT EXISTS，任何 schedule 都会排除）。
+- **任务只有过去的 schedule 但今天/未来无 schedule:** 该任务**会**出现在 staging 视图（因为 SQL 查询只检查今天及未来的 schedule，过去的 schedule 不影响）。
 
 ## 7. 预期副作用 (Expected Side Effects)
 
@@ -129,10 +129,16 @@ mod logic {
         // 只读操作，不需要事务，直接使用连接池
         let pool = app_state.db_pool();
 
-        // 1. 获取所有 staging 任务
-        let tasks = database::find_staging_tasks(pool).await?;
+        // 1. 计算本地时间的今天日期
+        use crate::infra::core::utils::time_utils;
+        use chrono::Local;
+        let today = Local::now().date_naive();
+        let today_str = time_utils::format_date_yyyy_mm_dd(&today);
 
-        // 2. 为每个任务获取额外信息并组装成 TaskCardDto
+        // 2. 获取所有 staging 任务
+        let tasks = database::find_staging_tasks(pool, &today_str).await?;
+
+        // 3. 为每个任务获取额外信息并组装成 TaskCardDto
         let mut task_cards = Vec::new();
         for task in tasks {
             let task_card = assemble_task_card(&task, pool).await?;
@@ -168,8 +174,12 @@ mod database {
     /// 条件：
     /// - is_deleted = false
     /// - completed_at IS NULL
-    /// - 不存在于 task_schedules 表中
-    pub async fn find_staging_tasks(pool: &sqlx::SqlitePool) -> AppResult<Vec<Task>> {
+    /// - archived_at IS NULL
+    /// - 今天及未来不存在 schedule（过去的 schedule 不影响）
+    ///
+    /// # 参数
+    /// - `today`: 本地时间的今天日期 (YYYY-MM-DD 格式)
+    pub async fn find_staging_tasks(pool: &sqlx::SqlitePool, today: &str) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT
                 t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
@@ -184,11 +194,13 @@ mod database {
               AND NOT EXISTS (
                   SELECT 1 FROM task_schedules ts
                   WHERE ts.task_id = t.id
+                    AND ts.scheduled_day >= ?
               )
             ORDER BY t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, TaskRow>(query)
+            .bind(today)
             .fetch_all(pool)
             .await
             .map_err(|e| {

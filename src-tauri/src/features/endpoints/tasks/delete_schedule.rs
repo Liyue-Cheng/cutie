@@ -45,11 +45,17 @@ DELETE /api/tasks/{id}/schedules/{date}
 
 ### 2.2. 核心业务逻辑 (Core Business Logic)
 
-删除任务在指定日期的日程记录，并清理相关数据：
+删除任务在指定日期的日程记录，并智能清理相关数据：
 1. 删除 `task_schedules` 记录
-2. 删除该日期所有时间块的 `task_time_block_links` 记录
-3. 软删除"孤儿"时间块（删除链接后没有任何关联任务的时间块）
-4. 如果任务没有剩余日程，`schedule_status` 会变回 `Staging`
+2. 查找该任务在指定日期的所有**浮动时间片**（`time_type = 'floating'`）
+3. 删除这些时间片的 `task_time_block_links` 记录
+4. 软删除**孤儿时间片**（删除链接后没有任何关联任务的浮动时间片）
+5. 如果任务没有剩余日程，`schedule_status` 会变回 `Staging`
+
+**重要限制：**
+- 只处理浮动时间片（`floating`），固定时间片（`fixed`）不会被删除
+- 只删除孤儿时间片（仅与当前任务关联的时间片）
+- 使用本地时间进行日期匹配，而非 UTC 时间
 
 ## 3. 输入输出规范 (Request/Response Specification)
 
@@ -70,17 +76,28 @@ DELETE /api/tasks/{id}/schedules/{date}
 
 ```json
 {
-  "task_card": {
+  "task": {
     "id": "uuid",
     "title": "string",
     "schedule_status": "staging" | "scheduled",
     "schedules": [...] | null,
     ...
+  },
+  "side_effects": {
+    "deleted_time_blocks": [
+      {
+        "id": "uuid",
+        "title": "string",
+        "start_time": "2025-01-01T09:00:00Z",
+        "end_time": "2025-01-01T10:00:00Z",
+        ...
+      }
+    ]
   }
 }
 ```
 
-**注意：** 副作用（删除的时间块）通过 SSE 事件推送。
+**注意：** HTTP 响应和 SSE 事件使用完全相同的数据结构。
 
 **404 Not Found:**
 
@@ -111,11 +128,13 @@ DELETE /api/tasks/{id}/schedules/{date}
 5.  如果任务不存在，返回 404 错误。
 6.  检查该日期是否有日程（`TaskScheduleRepository::has_schedule_for_day_in_tx`）。
 7.  如果该日期没有日程，返回 404 错误。
-8.  查找该日期的所有时间块（`database::find_time_blocks_for_day`）。
-9.  对每个时间块，删除任务到时间块的链接（`database::delete_task_time_block_link`）。
-10. 对每个时间块，检查是否变成"孤儿"（`TaskTimeBlockLinkRepository::count_remaining_tasks_in_block_in_tx`）。
-11. 如果时间块没有剩余任务，软删除该时间块（`TimeBlockRepository::soft_delete_in_tx`）。
-12. 在删除之前，查询被删除的时间块的完整数据（用于 SSE 事件）。
+8.  **查找该日期的所有浮动时间片**（`database::find_floating_time_blocks_for_day`）：
+    - 限制 `time_type = 'floating'`（固定时间片不处理）
+    - 使用 `DATE(start_time_local)` 进行本地时间匹配
+9.  对每个浮动时间片，删除任务到时间片的链接（`database::delete_task_time_block_link`）。
+10. 对每个时间片，检查是否变成"孤儿"（`TaskTimeBlockLinkRepository::count_remaining_tasks_in_block_in_tx`）。
+11. 如果时间片没有剩余任务链接，软删除该时间片（`TimeBlockRepository::soft_delete_in_tx`）。
+12. 在删除之前，查询被删除的时间片的完整数据（用于 SSE 事件）。
 13. 删除日程记录（`database::delete_schedule`）。
 14. 重新查询任务并组装 `TaskCardDto`。
 15. 在事务内填充 `schedules` 字段。
@@ -128,19 +147,21 @@ DELETE /api/tasks/{id}/schedules/{date}
 
 - **任务不存在:** 返回 `404` 错误。
 - **该日期没有日程:** 返回 `404` 错误。
-- **时间块还有其他任务:** 不删除时间块（避免影响其他任务）。
-- **该日期没有时间块:** 只删除日程记录。
+- **该日期只有固定时间片:** 不删除任何时间片，只删除日程记录。
+- **时间片还有其他任务链接:** 不删除时间片（避免影响其他任务）。
+- **该日期没有浮动时间片:** 只删除日程记录。
 - **删除最后一个日程:** `schedule_status` 变为 `Staging`。
+- **跨时区时间片:** 使用 `start_time_local` 进行本地时间匹配。
 
 ## 7. 预期副作用 (Expected Side Effects)
 
 - **数据库写入:**
     - **`SELECT`:** 1次查询 `tasks` 表（验证任务存在）。
     - **`SELECT`:** 1次查询 `task_schedules` 表（检查日程是否存在）。
-    - **`SELECT`:** 1次查询 `time_blocks` 表（查找该日期的时间块）。
-    - **`DELETE`:** 0-N 条记录在 `task_time_block_links` 表。
+    - **`SELECT`:** 1次查询 `time_blocks` 表（查找该日期的浮动时间片，按本地时间）。
+    - **`DELETE`:** 0-N 条记录在 `task_time_block_links` 表（删除浮动时间片链接）。
     - **`SELECT`:** 0-N 次查询 `task_time_block_links` 表（检查孤儿状态）。
-    - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除孤儿时间块）。
+    - **`UPDATE`:** 0-N 条记录在 `time_blocks` 表（软删除孤儿浮动时间片）。
     - **`DELETE`:** 1条记录在 `task_schedules` 表。
     - **`SELECT`:** 1次查询 `tasks` 表（重新获取数据）。
     - **`SELECT`:** 1次查询 `task_schedules` 表（填充 schedules）。
@@ -152,9 +173,9 @@ DELETE /api/tasks/{id}/schedules/{date}
     - 发送 `task.schedule_deleted` 事件，包含：
         - 更新后的任务（`TaskCardDto`）
         - 删除的日期（`deleted_date`）
-        - 副作用：删除的时间块列表（`TimeBlockViewDto[]`）
+        - 副作用：删除的孤儿浮动时间片列表（`TimeBlockViewDto[]`）
 - **日志记录:**
-    - 记录删除的孤儿时间块 ID。
+    - 记录删除的孤儿浮动时间片 ID。
     - 失败时，记录详细错误信息。
 
 *（无其他已知副作用）*
@@ -239,9 +260,9 @@ mod logic {
             ));
         }
 
-        // 5. 查找该日期的所有 time_blocks
+        // 5. 查找该日期的所有 floating 时间片（只有 floating 类型可以被删除）
         let time_blocks =
-            database::find_time_blocks_for_day(&mut tx, task_id, &scheduled_day).await?;
+            database::find_floating_time_blocks_for_day(&mut tx, task_id, &scheduled_day).await?;
 
         // 6. 删除 task_time_block_links
         let time_block_ids: Vec<Uuid> = time_blocks.iter().map(|b| b.id).collect();
@@ -249,7 +270,7 @@ mod logic {
             database::delete_task_time_block_link(&mut tx, task_id, block_id).await?;
         }
 
-        // 7. 软删除"孤儿"时间片
+        // 7. 软删除"孤儿"浮动时间片（只删除没有其他任务链接的浮动时间片）
         let mut deleted_time_block_ids = Vec::new();
         for block in &time_blocks {
             let remaining_links =
@@ -258,6 +279,7 @@ mod logic {
                 )
                 .await?;
 
+            // 🔥 只有当时间片没有任何剩余任务链接时才删除（孤儿检查）
             if remaining_links == 0 {
                 TimeBlockRepository::soft_delete_in_tx(&mut tx, block.id).await?;
                 deleted_time_block_ids.push(block.id);
@@ -366,12 +388,13 @@ mod logic {
 mod database {
     use super::*;
 
-    /// 查找任务在指定日期的所有时间块
-    pub async fn find_time_blocks_for_day(
+    /// 查找任务在指定日期的所有 floating 时间片（只有 floating 类型可以被删除）
+    pub async fn find_floating_time_blocks_for_day(
         tx: &mut Transaction<'_, Sqlite>,
         task_id: Uuid,
         scheduled_date: &str, // YYYY-MM-DD 字符串
     ) -> AppResult<Vec<TimeBlock>> {
+        // 🔥 正确的查询：先获取所有浮动时间片，然后在代码中按本地日期过滤
         let query = r#"
             SELECT tb.id, tb.title, tb.glance_note, tb.detail_note, tb.start_time, tb.end_time,
                    tb.start_time_local, tb.end_time_local, tb.time_type, tb.creation_timezone,
@@ -382,25 +405,34 @@ mod database {
             FROM time_blocks tb
             JOIN task_time_block_links ttbl ON ttbl.time_block_id = tb.id
             WHERE ttbl.task_id = ?
-              AND DATE(tb.start_time) = ?
+              AND tb.time_type = 'FLOATING'
               AND tb.is_deleted = false
         "#;
 
         let rows = sqlx::query_as::<_, crate::entities::TimeBlockRow>(query)
             .bind(task_id.to_string())
-            .bind(scheduled_date)
             .fetch_all(&mut **tx)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;
 
-        let time_blocks = rows
-            .into_iter()
-            .map(|row| {
-                TimeBlock::try_from(row).map_err(|e| {
-                    AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
-                })
-            })
-            .collect::<AppResult<Vec<TimeBlock>>>()?;
+        let mut time_blocks = Vec::new();
+
+        // 🔥 在代码中按本地日期过滤（与 TaskAssembler 相同的逻辑）
+        for row in rows {
+            let time_block = TimeBlock::try_from(row).map_err(|e| {
+                AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
+            })?;
+
+            // 🔥 使用系统本地时区转换 UTC 时间到本地日期
+            use chrono::Local;
+            let local_start = time_block.start_time.with_timezone(&Local);
+            let formatted_date = crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
+
+            // 只保留匹配日期的时间片
+            if formatted_date == scheduled_date {
+                time_blocks.push(time_block);
+            }
+        }
 
         Ok(time_blocks)
     }
