@@ -101,6 +101,24 @@ export function useInteractDrag(options: UseInteractDragOptions) {
 
     // 场景B: 实体元素在其他列表中预览（从本列表移除）
     if (sourceZoneId === currentViewId && targetZoneId !== currentViewId) {
+      // 🔥 检查任务在源日期是否有实际工作记录（presence/completed）
+      // 如果有，则保留源元素显示（不从源列表移除）
+      const sourceViewKey = viewMetadata.value.id
+      const sourceDate = sourceViewKey.startsWith('daily::') ? sourceViewKey.split('::')[1] : null
+
+      if (sourceDate) {
+        // 查找源日期的日程记录
+        const sourceSchedule = ghostTask.schedules?.find((s: any) => s.scheduled_day === sourceDate)
+        // 如果有实际工作记录（不是单纯的 planned），保留源元素
+        const hasWorkRecord = sourceSchedule?.outcome !== 'planned'
+
+        if (hasWorkRecord) {
+          // 保留源元素，不移除
+          return currentTasks
+        }
+      }
+
+      // 否则移除源元素（标准行为）
       return currentTasks.filter((t) => t.id !== ghostTask.id)
     }
 
