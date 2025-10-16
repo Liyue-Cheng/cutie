@@ -16,6 +16,7 @@ import { interactManager, dragPreviewState } from '@/infra/drag-interact'
 import type { ViewMetadata } from '@/types/drag'
 import type { TaskCard } from '@/types/dtos'
 import type { DragData } from '@/infra/drag-interact/types'
+import { makeDragDecision } from '@/services/dragDecisionService'
 
 /**
  * useInteractDrag 配置选项
@@ -101,18 +102,23 @@ export function useInteractDrag(options: UseInteractDragOptions) {
 
     // 场景B: 实体元素在其他列表中预览（从本列表移除）
     if (sourceZoneId === currentViewId && targetZoneId !== currentViewId) {
-      // 🔥 检查任务在源日期是否有实际工作记录（presence/completed）
-      // 如果有，则保留源元素显示（不从源列表移除）
+      // 🔥 使用决策服务判断是否保留源元素
       const sourceViewKey = viewMetadata.value.id
+      const targetViewKey = targetZoneId
+      
       const sourceDate = sourceViewKey.startsWith('daily::') ? sourceViewKey.split('::')[1] : null
+      const targetDate = targetViewKey.startsWith('daily::') ? targetViewKey.split('::')[1] : null
 
-      if (sourceDate) {
-        // 查找源日期的日程记录
-        const sourceSchedule = ghostTask.schedules?.find((s: any) => s.scheduled_day === sourceDate)
-        // 如果有实际工作记录（不是单纯的 planned），保留源元素
-        const hasWorkRecord = sourceSchedule?.outcome !== 'planned'
-
-        if (hasWorkRecord) {
+      if (sourceDate && targetDate) {
+        // 获取今天的日期
+        const today = new Date().toISOString().split('T')[0]
+        
+        // 使用决策服务
+        const decision = makeDragDecision(ghostTask, sourceDate, targetDate, today)
+        
+        console.log('🔍 [useInteractDrag] Drag decision:', decision)
+        
+        if (decision.keepSourceElement) {
           // 保留源元素，不移除
           return currentTasks
         }
