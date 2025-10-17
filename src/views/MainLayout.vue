@@ -3,18 +3,16 @@
   <AreaManager v-if="isAreaManagerOpen" @close="isAreaManagerOpen = false" />
   <CutePane class="main-frame">
     <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
-      <div class="title-bar-bg">
-        <div class="window-controls" @mousedown.stop>
-          <CuteButton class="control-btn" @click="appWindow.minimize()">
-            <CuteIcon name="Minus" :size="16" />
-          </CuteButton>
-          <CuteButton class="control-btn" @click="appWindow.toggleMaximize()">
-            <CuteIcon name="Square" :size="14" />
-          </CuteButton>
-          <CuteButton class="control-btn" @click="appWindow.close()">
-            <CuteIcon name="X" :size="16" />
-          </CuteButton>
-        </div>
+      <div class="window-controls" @mousedown.stop>
+        <CuteButton class="control-btn" @click="appWindow.minimize()">
+          <CuteIcon name="Minus" :size="16" />
+        </CuteButton>
+        <CuteButton class="control-btn" @click="appWindow.toggleMaximize()">
+          <CuteIcon name="Square" :size="14" />
+        </CuteButton>
+        <CuteButton class="control-btn" @click="appWindow.close()">
+          <CuteIcon name="X" :size="16" />
+        </CuteButton>
       </div>
     </div>
 
@@ -156,8 +154,7 @@ onBeforeUnmount(() => {
   position: relative;
   border: none;
   background-color: var(--color-background-primary);
-  padding: 1rem;
-  padding-top: 2.6rem;
+  padding: 0.2rem 1rem 1rem 1rem;
 
   /* 🔧 防止内容溢出 */
   overflow: hidden;
@@ -165,27 +162,14 @@ onBeforeUnmount(() => {
 }
 
 .title-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4rem; /* Increased height for better drag area */
-  z-index: 10;
-}
-
-.title-bar-bg {
-  position: absolute;
-  top: 0;
-  right: 0;
   height: 3.2rem;
   padding: 0 0.8rem;
-  border: 1px solid var(--color-border-default);
-  border-top: none;
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  background-color: var(--color-background-content);
-  border-bottom-left-radius: 0.8rem;
+  background-color: var(--color-background-primary);
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .window-controls {
