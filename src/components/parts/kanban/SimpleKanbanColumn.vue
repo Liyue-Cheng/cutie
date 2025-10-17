@@ -52,11 +52,13 @@ const effectiveViewMetadata = computed<ViewMetadata>(() => {
 const kanbanContainerRef = ref<HTMLElement | null>(null)
 const dragStrategy = useDragStrategy()
 
-const { displayTasks } = useInteractDrag({
+const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
-  tasks: effectiveTasks,
+  items: effectiveTasks,
   containerRef: kanbanContainerRef,
   draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/::/g, '--')}`,
+  objectType: 'task',
+  getObjectId: (task) => task.id,
   onDrop: async (session) => {
     // 🔍 打印完整的拖放会话信息（调试用）
     console.group('🎯 Drop Event - Full Session Info')
@@ -71,8 +73,8 @@ const { displayTasks } = useInteractDrag({
     console.log('🎨 Source Context:', session.metadata?.sourceContext)
     console.log('🎯 Target View Key:', props.viewKey)
     console.log(
-      '📋 Display Tasks:',
-      displayTasks.value.map((t) => ({
+      '📋 Display Items:',
+      displayItems.value.map((t) => ({
         id: t.id,
         title: t.title,
         schedule_status: t.schedule_status,
@@ -87,8 +89,8 @@ const { displayTasks } = useInteractDrag({
       sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
       // 结束组件的上下文数据（当前组件提供）
       targetContext: {
-        taskIds: displayTasks.value.map((t) => t.id),
-        displayTasks: displayTasks.value,
+        taskIds: displayItems.value.map((t) => t.id),
+        displayTasks: displayItems.value,
         dropIndex: dragPreviewState.value?.computed.dropIndex,
         viewKey: props.viewKey,
       },
@@ -261,6 +263,11 @@ onBeforeUnmount(() => {
 watch(
   () => effectiveTasks.value,
   (newTasks) => {
+    // 拖拽过程中不进行自动持久化，避免与策略重复发指令
+    if (dragPreviewState.value) {
+      return
+    }
+
     const currentTaskIds = new Set(newTasks.map((t) => t.id))
     const hasChanges =
       currentTaskIds.size !== previousTaskIds.value.size ||
@@ -299,7 +306,7 @@ watch(
 )
 
 // ==================== 注意 ====================
-// displayTasks 已由 useInteractDrag 自动提供
+// displayItems 已由 useInteractDrag 自动提供
 // 所有拖放事件处理已由 interact.js 控制器自动管理
 // 不需要手动处理 dragstart/dragover/drop 等事件
 </script>
@@ -332,7 +339,7 @@ watch(
 
       <div class="task-list-scroll-area">
         <div
-          v-for="task in displayTasks"
+          v-for="task in displayItems"
           :key="task.id"
           :class="`task-card-wrapper task-card-wrapper-${viewKey.replace(/::/g, '--')}`"
           :data-task-id="task.id"
@@ -345,7 +352,7 @@ watch(
           />
         </div>
 
-        <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
+        <div v-if="displayItems.length === 0" class="empty-state">暂无任务</div>
       </div>
     </div>
   </CutePane>

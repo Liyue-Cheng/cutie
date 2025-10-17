@@ -58,7 +58,6 @@ GET /api/templates
 use axum::{
     extract::State,
     response::{IntoResponse, Response},
-    Json,
 };
 
 use crate::{
@@ -70,7 +69,10 @@ use crate::{
 // ==================== HTTP 处理器 ====================
 pub async fn handle(State(app_state): State<AppState>) -> Response {
     match logic::execute(&app_state).await {
-        Ok(dtos) => Json(dtos).into_response(),
+        Ok(dtos) => {
+            use crate::infra::http::error_handler::success_response;
+            success_response(dtos).into_response()
+        }
         Err(err) => err.into_response(),
     }
 }

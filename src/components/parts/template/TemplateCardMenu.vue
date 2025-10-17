@@ -9,8 +9,8 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
 import type { Template } from '@/types/dtos'
-import { useTemplateStore } from '@/stores/template'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { pipeline } from '@/cpu'
 
 const props = defineProps<{
   template: Template
@@ -19,12 +19,10 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 
-const templateStore = useTemplateStore()
-
 const handleAction = async (action: 'edit' | 'delete') => {
   if (action === 'delete') {
     try {
-      await templateStore.deleteTemplate(props.template.id)
+      await pipeline.dispatch('template.delete', { id: props.template.id })
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Template deleted', {
         templateId: props.template.id,
         title: props.template.title,

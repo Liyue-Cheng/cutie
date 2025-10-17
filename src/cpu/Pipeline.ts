@@ -8,6 +8,7 @@ import { ExecuteStage } from './stages/EX'
 import { ResponseStage } from './stages/RES'
 import { WriteBackStage } from './stages/WB'
 import { cpuEventCollector, cpuConsole, cpuLogger } from './logging'
+import { captureCallSource } from './logging/stack-parser'
 import type { QueuedInstruction } from './types'
 import { ref } from 'vue'
 
@@ -77,8 +78,11 @@ export class Pipeline {
         return
       }
 
+      // 🔍 捕获调用源（跳过 1 层：Promise constructor）
+      const callSource = captureCallSource(1)
+
       // IF: 获取指令
-      const instruction = this.IF.fetchInstruction(type, payload, source)
+      const instruction = this.IF.fetchInstruction(type, payload, source, callSource)
 
       // 🔥 保存 Promise resolvers
       this.promiseResolvers.set(instruction.id, { resolve, reject })

@@ -11,7 +11,6 @@ import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
 import { ISA } from '../isa'
 import { interruptHandler } from '../interrupt/InterruptHandler'
-import { logger, LogTags } from '@/infra/logging/logger'
 import { cpuEventCollector, cpuConsole } from '../logging'
 
 export class WriteBackStage {
@@ -22,11 +21,6 @@ export class WriteBackStage {
     const definition = ISA[instruction.type]
 
     if (instruction.optimisticSnapshot && definition?.optimistic?.rollback) {
-      logger.warn(LogTags.SYSTEM_PIPELINE, 'WB: 回滚乐观更新', {
-        instructionId: instruction.id,
-        type: instruction.type,
-      })
-
       // 🎯 记录乐观更新回滚事件
       cpuEventCollector.onOptimisticRolledBack(
         instruction.id,
@@ -41,15 +35,11 @@ export class WriteBackStage {
       try {
         definition.optimistic.rollback(instruction.optimisticSnapshot)
       } catch (rollbackError) {
-        logger.error(
-          LogTags.SYSTEM_PIPELINE,
-          'WB: 回滚失败',
-          rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)),
-          {
-            instructionId: instruction.id,
-            type: instruction.type,
-          }
-        )
+        console.error('❌ [CPU] 乐观更新回滚失败:', {
+          instructionId: instruction.id,
+          type: instruction.type,
+          error: rollbackError,
+        })
       }
     }
   }
@@ -76,16 +66,6 @@ export class WriteBackStage {
             instruction.optimisticSnapshot // 🔥 传递乐观更新快照
           )
         } catch (error) {
-          logger.error(
-            LogTags.SYSTEM_PIPELINE,
-            'WB: commit失败',
-            error instanceof Error ? error : new Error(String(error)),
-            {
-              instructionId: instruction.id,
-              type: instruction.type,
-            }
-          )
-
           // commit失败 → 回滚乐观更新
           this.rollbackOptimisticUpdate(instruction)
 
@@ -104,11 +84,6 @@ export class WriteBackStage {
 
       // 成功场景
       instruction.status = InstructionStatus.COMMITTED
-
-      logger.info(LogTags.SYSTEM_PIPELINE, 'WB: 指令完成', {
-        instructionId: instruction.id,
-        type: instruction.type,
-      })
     } else {
       // ==================== 失败路径 ====================
 
@@ -117,16 +92,6 @@ export class WriteBackStage {
 
       // 设置失败状态
       instruction.status = InstructionStatus.FAILED
-
-      logger.error(
-        LogTags.SYSTEM_PIPELINE,
-        'WB: 指令失败',
-        instruction.error || new Error('未知错误'),
-        {
-          instructionId: instruction.id,
-          type: instruction.type,
-        }
-      )
     }
   }
 }

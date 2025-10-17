@@ -78,6 +78,7 @@ export function deriveViewMetadata(viewKey?: string): ViewMetadata | undefined {
           incomplete: '未完成',
           completed: '已完成',
           archive: '归档', // 🆕 添加归档支持
+          template: '模板', // 🆕 添加模板支持
         }
 
         return {
@@ -131,7 +132,15 @@ export function validateViewKey(viewKey: string): boolean {
 
     // 特殊验证：misc 类型的 id 必须是预定义值
     if (type === 'misc') {
-      const validMiscIds = ['all', 'staging', 'planned', 'incomplete', 'completed', 'archive']
+      const validMiscIds = [
+        'all',
+        'staging',
+        'planned',
+        'incomplete',
+        'completed',
+        'archive',
+        'template',
+      ]
       if (!validMiscIds.includes(id)) {
         return false
       }

@@ -10,6 +10,7 @@
 import type { Strategy } from '../types'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { isTaskCard } from '@/types/dtos'
 
 /**
  * 策略：任何视图 -> Calendar（全日）
@@ -20,7 +21,7 @@ export const anyToCalendarAllDayStrategy: Strategy = {
 
   conditions: {
     source: {
-      // 匹配任何源
+      objectType: 'task', // 只支持任务拖放到日历
     },
     target: {
       viewKey: /^calendar-allday-/, // 匹配 calendar-allday-{ISO}
@@ -33,6 +34,12 @@ export const anyToCalendarAllDayStrategy: Strategy = {
     description: '拖放到日历全日区域，创建全天时间块',
 
     async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       try {
         // 从 targetContext 解析时间信息
         const targetConfig = ctx.targetContext.calendarConfig
@@ -46,16 +53,16 @@ export const anyToCalendarAllDayStrategy: Strategy = {
         const { startTime, endTime } = targetConfig
 
         // 🎯 步骤 1: 如果是 tiny 任务，先更新 estimated_duration
-        if (ctx.task.estimated_duration === null || ctx.task.estimated_duration === 0) {
+        if (task.estimated_duration === null || task.estimated_duration === 0) {
           await pipeline.dispatch('task.update', {
-            id: ctx.task.id,
+            id: task.id,
             updates: { estimated_duration: 15 },
           })
         }
 
         // 🎯 步骤 2: 创建时间块
         const createPayload = {
-          task_id: ctx.task.id,
+          task_id: task.id,
           start_time: startTime,
           end_time: endTime,
           start_time_local: '00:00:00',
@@ -68,7 +75,7 @@ export const anyToCalendarAllDayStrategy: Strategy = {
         await pipeline.dispatch('time_block.create_from_task', createPayload)
 
         logger.info(LogTags.DRAG_STRATEGY, 'Created all-day time block', {
-          taskId: ctx.task.id,
+          taskId: task.id,
           startTime,
           endTime,
         })
@@ -104,7 +111,7 @@ export const anyToCalendarTimedStrategy: Strategy = {
 
   conditions: {
     source: {
-      // 匹配任何源
+      objectType: 'task', // 只支持任务拖放到日历
     },
     target: {
       viewKey: /^calendar-[^a]/, // 匹配 calendar-{ISO}（排除 calendar-allday-）
@@ -117,6 +124,12 @@ export const anyToCalendarTimedStrategy: Strategy = {
     description: '拖放到日历分时区域，创建分时时间块',
 
     async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
       try {
         // 从 targetContext 解析时间信息
         const targetConfig = ctx.targetContext.calendarConfig
@@ -145,16 +158,16 @@ export const anyToCalendarTimedStrategy: Strategy = {
         const endTimeLocal = end.toTimeString().split(' ')[0] || '23:59:59'
 
         // 🎯 步骤 1: 如果是 tiny 任务，先更新 estimated_duration
-        if (ctx.task.estimated_duration === null || ctx.task.estimated_duration === 0) {
+        if (task.estimated_duration === null || task.estimated_duration === 0) {
           await pipeline.dispatch('task.update', {
-            id: ctx.task.id,
+            id: task.id,
             updates: { estimated_duration: 15 },
           })
         }
 
         // 🎯 步骤 2: 创建时间块
         const createPayload = {
-          task_id: ctx.task.id,
+          task_id: task.id,
           start_time: start.toISOString(),
           end_time: end.toISOString(),
           start_time_local: startTimeLocal,
@@ -167,7 +180,7 @@ export const anyToCalendarTimedStrategy: Strategy = {
         await pipeline.dispatch('time_block.create_from_task', createPayload)
 
         logger.info(LogTags.DRAG_STRATEGY, 'Created timed time block', {
-          taskId: ctx.task.id,
+          taskId: task.id,
           startTime: start.toISOString(),
           endTime: end.toISOString(),
         })

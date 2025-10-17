@@ -90,6 +90,7 @@ export class CPUEventCollector {
       correlationId: instruction.context.correlationId,
       pipelineStage: PipelineStage.IF,
       instructionStatus: InstructionStatus.PENDING,
+      callSource: instruction.context.callSource, // 🔍 记录调用源
       payload: {
         instructionType: instruction.type,
         payload: instruction.payload,
@@ -329,4 +330,3 @@ export class CPUEventCollector {
 
 // 导出全局单例
 export const cpuEventCollector = new CPUEventCollector()
-

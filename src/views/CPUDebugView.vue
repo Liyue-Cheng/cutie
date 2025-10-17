@@ -42,7 +42,7 @@
         <div class="status-icon ex">EX</div>
         <div class="status-info">
           <div class="status-label">执行中</div>
-          <div class="status-value">{{ executingCount }}</div>
+          <div class="status-value">{{ pipelineStatus.schActiveSize }}</div>
         </div>
       </div>
       <div class="status-arrow">→</div>
@@ -50,7 +50,7 @@
         <div class="status-icon res">RES</div>
         <div class="status-info">
           <div class="status-label">响应中</div>
-          <div class="status-value">{{ respondingCount }}</div>
+          <div class="status-value">-</div>
         </div>
       </div>
       <div class="status-arrow">→</div>
@@ -238,80 +238,14 @@
       </div>
     </div>
 
-    <!-- 指令追踪表格 -->
-    <div class="trace-table-section">
-      <div class="section-header">
-        <h2>指令追踪记录</h2>
-        <div class="filter-buttons">
-          <button :class="{ active: filter === 'all' }" @click="filter = 'all'">
-            全部 ({{ traces.length }})
-          </button>
-          <button :class="{ active: filter === 'committed' }" @click="filter = 'committed'">
-            成功 ({{ successCount }})
-          </button>
-          <button :class="{ active: filter === 'failed' }" @click="filter = 'failed'">
-            失败 ({{ failCount }})
-          </button>
-          <button :class="{ active: filter === 'executing' }" @click="filter = 'executing'">
-            执行中 ({{ executingTraceCount }})
-          </button>
-        </div>
-      </div>
-      <div class="trace-table-wrapper">
-        <table class="trace-table">
-          <thead>
-            <tr>
-              <th>指令ID</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>IF→SCH</th>
-              <th>SCH→EX</th>
-              <th>EX→RES</th>
-              <th>RES→WB</th>
-              <th>总耗时</th>
-              <th>结果</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="trace in filteredTraces"
-              :key="trace.instructionId"
-              :class="getRowClass(trace)"
-            >
-              <td class="instruction-id">{{ formatInstructionId(trace.instructionId) }}</td>
-              <td class="instruction-type">{{ formatInstructionType(trace.type) }}</td>
-              <td>
-                <span :class="['status-badge', trace.status]">{{
-                  formatStatus(trace.status)
-                }}</span>
-              </td>
-              <td>{{ formatDuration(trace.timestamps.IF, trace.timestamps.SCH) }}</td>
-              <td>{{ formatDuration(trace.timestamps.SCH, trace.timestamps.EX) }}</td>
-              <td>{{ formatDuration(trace.timestamps.EX, trace.timestamps.RES) }}</td>
-              <td>{{ formatDuration(trace.timestamps.RES, trace.timestamps.WB) }}</td>
-              <td class="total-duration">{{ trace.duration ? `${trace.duration}ms` : '-' }}</td>
-              <td class="result-cell">
-                <span v-if="trace.error" class="error-message">{{ trace.error.message }}</span>
-                <span v-else-if="trace.networkResult" class="success-result">✓</span>
-                <span v-else>-</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="filteredTraces.length === 0" class="empty-state">
-          <CuteIcon name="Inbox" :size="48" />
-          <p>暂无指令记录</p>
-        </div>
-      </div>
-    </div>
+    <!-- 指令追踪表格已移除 - 请使用浏览器控制台查看 CPU 日志 -->
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { pipeline, instructionTracker } from '@/cpu'
+import { pipeline } from '@/cpu'
 import { cpuConsole, ConsoleLevel } from '@/cpu/logging'
-import type { InstructionTrace } from '@/cpu'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
@@ -319,8 +253,6 @@ import { storeToRefs } from 'pinia'
 import { interruptHandler } from '@/cpu/interrupt/InterruptHandler'
 
 const isRunning = ref(false)
-const traces = ref<InstructionTrace[]>([])
-const filter = ref<'all' | 'committed' | 'failed' | 'executing'>('all')
 
 // 控制台设置
 const consoleLevel = ref<ConsoleLevel>(cpuConsole.getLevel())
@@ -347,28 +279,7 @@ const intStats = ref({
   entries: [] as Array<{ correlationId: string; type: string; age: number }>,
 })
 
-// 统计
-const successCount = computed(() => traces.value.filter((t) => t.status === 'committed').length)
-const failCount = computed(() => traces.value.filter((t) => t.status === 'failed').length)
-const executingTraceCount = computed(
-  () =>
-    traces.value.filter((t) => ['pending', 'issued', 'executing', 'responded'].includes(t.status))
-      .length
-)
-const executingCount = computed(() => traces.value.filter((t) => t.status === 'executing').length)
-const respondingCount = computed(() => traces.value.filter((t) => t.status === 'responded').length)
-
-// 过滤后的追踪记录
-const filteredTraces = computed(() => {
-  if (filter.value === 'all') return traces.value
-  if (filter.value === 'committed') return traces.value.filter((t) => t.status === 'committed')
-  if (filter.value === 'failed') return traces.value.filter((t) => t.status === 'failed')
-  if (filter.value === 'executing')
-    return traces.value.filter((t) =>
-      ['pending', 'issued', 'executing', 'responded'].includes(t.status)
-    )
-  return traces.value
-})
+// 统计功能已移除（使用浏览器控制台查看 CPU 日志）
 
 let updateInterval: number | null = null
 
@@ -381,9 +292,8 @@ onMounted(async () => {
   pipeline.start()
   isRunning.value = true
 
-  // 定期更新追踪记录和 INT 状态
+  // 定期更新 INT 状态
   updateInterval = window.setInterval(() => {
-    traces.value = instructionTracker.getAllTraces()
     intStats.value = interruptHandler.getStats()
   }, 100)
 })
@@ -407,8 +317,6 @@ function handleStop() {
 
 function handleReset() {
   pipeline.reset()
-  traces.value = []
-  filter.value = 'all'
   isRunning.value = false // 同步流水线状态
 }
 
@@ -438,14 +346,8 @@ function getConsoleLevelHint(): string {
 }
 
 function printStats() {
-  const stats = {
-    total: traces.value.length,
-    success: successCount.value,
-    failed: failCount.value,
-    avgLatency:
-      traces.value.reduce((sum, t) => sum + (t.duration || 0), 0) / traces.value.length || 0,
-  }
-  cpuConsole.printStats(stats)
+  console.log('📊 Stats功能已禁用 - 请使用浏览器开发者工具查看 CPU 日志')
+  console.log('提示：可以使用 cpuLogger、cpuDebugger 等 API 进行调试')
 }
 
 function printSeparator() {
@@ -578,36 +480,7 @@ function testArchiveTask() {
 }
 
 // 格式化函数
-function formatInstructionId(id: string): string {
-  return id.split('-').slice(-1)[0] || ''
-}
-
-function formatInstructionType(type: string): string {
-  return type.replace('debug.', '')
-}
-
-function formatStatus(status: string): string {
-  const statusMap: Record<string, string> = {
-    pending: '等待',
-    issued: '已发射',
-    executing: '执行中',
-    responded: '已响应',
-    committed: '成功',
-    failed: '失败',
-  }
-  return statusMap[status] || status
-}
-
-function formatDuration(start?: number, end?: number): string {
-  if (!start || !end) return '-'
-  return `${end - start}ms`
-}
-
-function getRowClass(trace: InstructionTrace): string {
-  if (trace.status === 'failed') return 'row-failed'
-  if (trace.status === 'committed') return 'row-success'
-  return 'row-executing'
-}
+// 格式化函数已删除（指令追踪功能已移除）
 </script>
 
 <style scoped>

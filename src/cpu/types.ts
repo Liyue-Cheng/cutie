@@ -2,6 +2,8 @@
  * CPU流水线核心类型定义
  */
 
+import type { CallSource } from './logging/types'
+
 /**
  * 流水线阶段
  */
@@ -43,6 +45,8 @@ export interface InstructionContext {
   source: 'user' | 'system' | 'test'
   /** 重试次数 */
   retryCount: number
+  /** 调用源（哪个文件哪一行发起的指令） */
+  callSource?: CallSource
 }
 
 /**

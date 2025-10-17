@@ -10,6 +10,7 @@
 
 import type { QueuedInstruction } from '../types'
 import { ConsoleLevel } from './types'
+import { formatCallSourceShort } from './stack-parser'
 
 export class CPUConsole {
   private enabled: boolean = true
@@ -74,14 +75,21 @@ export class CPUConsole {
     if (!this.shouldPrint(instruction.type)) return
 
     if (this.level >= ConsoleLevel.NORMAL) {
+      // 🔍 格式化调用源信息
+      const callSourceInfo = instruction.context.callSource
+        ? ` %c📍 ${formatCallSourceShort(instruction.context.callSource)}`
+        : ''
+
       console.log(
-        `%c🎯 ${this.formatTime()} %c${instruction.type}%c 指令创建`,
+        `%c🎯 ${this.formatTime()} %c${instruction.type}%c 指令创建${callSourceInfo}`,
         'color: #666; font-size: 11px',
         'color: #3b82f6; font-weight: bold; background: #3b82f615; padding: 2px 6px; border-radius: 3px',
         'color: #666',
+        ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : []),
         {
           id: instruction.id,
           correlationId: instruction.context.correlationId,
+          ...(instruction.context.callSource && { callSource: instruction.context.callSource }),
           payload:
             this.level >= ConsoleLevel.DEBUG ? instruction.payload : '(use level=DEBUG to see)',
         }
@@ -95,22 +103,41 @@ export class CPUConsole {
   onInstructionSuccess(instruction: QueuedInstruction, duration: number): void {
     if (!this.shouldPrint(instruction.type)) return
 
+    // 🔍 格式化调用源信息
+    const callSourceInfo = instruction.context.callSource
+      ? ` %c📍 ${formatCallSourceShort(instruction.context.callSource)}`
+      : ''
+
     // 🎯 核心：折叠分组，方便查看
     console.groupCollapsed(
-      `%c✅ ${this.formatTime()} %c${instruction.type}%c → 成功 %c${duration}ms`,
+      `%c[指令成功] %c${this.formatTime()} %c${instruction.type}%c %c${duration}ms${callSourceInfo}`,
+      'color: #10b981; font-weight: bold',
       'color: #666; font-size: 11px',
       'color: #10b981; font-weight: bold; background: #10b98115; padding: 2px 6px; border-radius: 3px',
       'color: #10b981',
-      'color: #10b981; font-weight: bold'
+      'color: #10b981; font-weight: bold',
+      ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : [])
     )
 
-    // 显示流水线阶段
+    // 🔥 显示写入的内容（Payload）
     if (this.level >= ConsoleLevel.NORMAL) {
+      console.log('%c📤 写入内容 (Payload):', 'color: #3b82f6; font-weight: bold')
+      console.log(instruction.payload)
+    }
+
+    // 🔥 显示提交结果（Result）
+    if (instruction.result && this.level >= ConsoleLevel.NORMAL) {
+      console.log('%c📥 返回结果 (Result):', 'color: #10b981; font-weight: bold')
+      console.log(instruction.result)
+    }
+
+    // 显示流水线阶段
+    if (this.level >= ConsoleLevel.VERBOSE) {
       this.printPipelineStages(instruction)
     }
 
     // 显示详细信息
-    if (this.level >= ConsoleLevel.VERBOSE) {
+    if (this.level >= ConsoleLevel.DEBUG) {
       this.printInstructionDetails(instruction)
     }
 
@@ -123,24 +150,39 @@ export class CPUConsole {
   onInstructionFailure(instruction: QueuedInstruction, error: Error, duration: number): void {
     if (!this.shouldPrint(instruction.type)) return
 
+    // 🔍 格式化调用源信息
+    const callSourceInfo = instruction.context.callSource
+      ? ` %c📍 ${formatCallSourceShort(instruction.context.callSource)}`
+      : ''
+
     // 🔥 失败时自动展开，方便排查
     console.group(
-      `%c❌ ${this.formatTime()} %c${instruction.type}%c → 失败 %c${duration}ms`,
+      `%c[指令失败] %c${this.formatTime()} %c${instruction.type}%c %c${duration}ms${callSourceInfo}`,
+      'color: #ef4444; font-weight: bold',
       'color: #666; font-size: 11px',
       'color: #ef4444; font-weight: bold; background: #ef444415; padding: 2px 6px; border-radius: 3px',
       'color: #ef4444',
-      'color: #ef4444; font-weight: bold'
+      'color: #ef4444; font-weight: bold',
+      ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : [])
     )
 
     // 显示错误信息
     console.error(`%c原因: ${error.message}`, 'color: #ef4444; font-weight: bold')
 
-    // 显示流水线阶段
-    this.printPipelineStages(instruction)
+    // 🔥 显示尝试写入的内容（Payload）
+    if (this.level >= ConsoleLevel.NORMAL) {
+      console.log('%c📤 尝试写入的内容 (Payload):', 'color: #3b82f6; font-weight: bold')
+      console.log(instruction.payload)
+    }
 
     // 显示是否回滚
     if (instruction.optimisticSnapshot) {
-      console.log('%c✓ 已回滚乐观更新', 'color: #f59e0b; font-weight: bold')
+      console.log('%c🔄 已回滚乐观更新', 'color: #f59e0b; font-weight: bold')
+    }
+
+    // 显示流水线阶段
+    if (this.level >= ConsoleLevel.VERBOSE) {
+      this.printPipelineStages(instruction)
     }
 
     // 显示详细信息
@@ -162,10 +204,25 @@ export class CPUConsole {
     if (!this.shouldPrint(instruction.type)) return
 
     if (this.level >= ConsoleLevel.VERBOSE) {
-      console.log(`%c  🔄 ${this.formatTime()} 乐观更新已应用`, 'color: #8b5cf6', {
-        instructionId: instruction.id,
-        hasSnapshot: !!instruction.optimisticSnapshot,
-      })
+      console.group(
+        `%c🔄 ${this.formatTime()} %c${instruction.type}%c 乐观更新已应用`,
+        'color: #666; font-size: 11px',
+        'color: #8b5cf6; font-weight: bold; background: #8b5cf615; padding: 2px 6px; border-radius: 3px',
+        'color: #8b5cf6'
+      )
+
+      // 显示乐观更新的 payload
+      if (this.level >= ConsoleLevel.DEBUG) {
+        console.log('%c📝 更新内容:', 'color: #8b5cf6; font-weight: bold')
+        console.log(instruction.payload)
+      }
+
+      // 显示快照信息
+      if (instruction.optimisticSnapshot) {
+        console.log('%c💾 已保存快照（用于回滚）', 'color: #10b981; font-size: 11px')
+      }
+
+      console.groupEnd()
     }
   }
 

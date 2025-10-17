@@ -6,6 +6,7 @@ import type { Template } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
+import { pipeline } from '@/cpu'
 
 interface Subtask {
   id: string
@@ -95,21 +96,24 @@ watch(
 
 async function updateTitle() {
   if (!props.templateId || !template.value || titleInput.value === template.value.title) return
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     title: titleInput.value,
   })
 }
 
 async function updateGlanceNoteTemplate() {
   if (!props.templateId || !template.value) return
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     glance_note_template: glanceNoteTemplate.value || undefined,
   })
 }
 
 async function updateDetailNoteTemplate() {
   if (!props.templateId || !template.value) return
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     detail_note_template: detailNoteTemplate.value || undefined,
   })
 }
@@ -117,7 +121,8 @@ async function updateDetailNoteTemplate() {
 async function updateArea(areaId: string | null) {
   if (!props.templateId || !template.value) return
   selectedAreaId.value = areaId
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     area_id: areaId || undefined,
   })
   showAreaSelector.value = false
@@ -135,7 +140,8 @@ async function handleAddSubtask() {
 
   const updatedSubtasks = [...subtasks.value, newSubtask]
 
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     subtasks_template: updatedSubtasks,
   })
 
@@ -149,7 +155,8 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
 
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     subtasks_template: updatedSubtasks,
   })
 }
@@ -159,7 +166,8 @@ async function handleDeleteSubtask(subtaskId: string) {
 
   const updatedSubtasks = subtasks.value.filter((subtask) => subtask.id !== subtaskId)
 
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     subtasks_template: updatedSubtasks,
   })
 }
@@ -203,7 +211,8 @@ async function handleDrop(event: DragEvent, targetSubtaskId: string) {
     sort_order: `subtask_${Date.now()}_${index}`,
   }))
 
-  await templateStore.updateTemplate(props.templateId, {
+  await pipeline.dispatch('template.update', {
+    id: props.templateId,
     subtasks_template: updatedSubtasks,
   })
 

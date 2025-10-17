@@ -49,7 +49,7 @@ export type { DragSession }
 /**
  * 拖放预览状态
  * 驱动所有组件的响应式渲染
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface DragPreviewState<T = DragObject> {
@@ -118,7 +118,7 @@ export interface DropzoneOptions {
 
 /**
  * 拖拽数据
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface DragData<T = DragObject> {
@@ -132,7 +132,7 @@ export interface DragData<T = DragObject> {
 
 /**
  * 预览原始数据
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface DragPreviewRawData<T = DragObject> {

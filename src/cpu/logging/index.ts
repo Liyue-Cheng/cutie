@@ -3,7 +3,7 @@
  */
 
 // 类型
-export { CPUEventType, ConsoleLevel, type CPUEvent } from './types'
+export { CPUEventType, ConsoleLevel, type CPUEvent, type CallSource } from './types'
 
 // 事件采集器
 export { cpuEventCollector, CPUEventCollector } from './CPUEventCollector'
@@ -17,3 +17,5 @@ export { cpuDebugger, CPUDebugger } from './CPUDebugger'
 // 控制台
 export { cpuConsole, CPUConsole } from './CPUConsole'
 
+// 调用栈解析工具
+export { captureCallSource, formatCallSource, formatCallSourceShort } from './stack-parser'

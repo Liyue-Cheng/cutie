@@ -18,18 +18,18 @@ export const recurrenceTemplates = computed(() =>
 )
 
 // ==================== Mutations ====================
-export function addOrUpdateTemplate(template: Template) {
+export function addOrUpdateTemplate_mut(template: Template) {
   const newMap = new Map(templates.value)
   newMap.set(template.id, template)
   templates.value = newMap
 }
 
-export function removeTemplate(id: string) {
+export function removeTemplate_mut(id: string) {
   const newMap = new Map(templates.value)
   newMap.delete(id)
   templates.value = newMap
 }
 
-export function clearAll() {
+export function clearAllTemplates_mut() {
   templates.value = new Map()
 }

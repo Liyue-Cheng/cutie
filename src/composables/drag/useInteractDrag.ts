@@ -20,7 +20,7 @@ import { makeDragDecision } from '@/services/dragDecisionService'
 
 /**
  * useInteractDrag 配置选项
- * 
+ *
  * @template T 拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface UseInteractDragOptions<T = DragObject> {
@@ -51,7 +51,7 @@ export interface UseInteractDragOptions<T = DragObject> {
 
 /**
  * useInteractDrag Composable
- * 
+ *
  * @template T 拖放对象的类型，默认为 DragObject 联合类型
  */
 export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<T>) {
@@ -132,7 +132,12 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
 
         if (sourceDate && targetDate) {
           const today = new Date().toISOString().split('T')[0]!
-          const decision = makeDragDecision(draggedObject as any as TaskCard, sourceDate, targetDate, today)
+          const decision = makeDragDecision(
+            draggedObject as any as TaskCard,
+            sourceDate,
+            targetDate,
+            today
+          )
 
           console.log('🔍 [useInteractDrag] Drag decision:', decision)
 

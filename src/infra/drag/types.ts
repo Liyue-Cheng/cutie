@@ -15,7 +15,7 @@ import type { ViewType } from '@/types/drag'
 
 /**
  * 拖放会话 - 描述一次完整的拖放操作
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface DragSession<T = DragObject> {
@@ -121,7 +121,7 @@ export interface StrategyCondition {
  * - sourceContext: 起始组件自由传入的数据（任意结构）
  * - targetContext: 结束组件自由传入的数据（任意结构）
  * - 策略自行解包需要的字段，类型安全由策略保证
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface StrategyContext<T = DragObject> {
@@ -189,7 +189,7 @@ export interface StrategyResult {
 
 /**
  * 策略动作定义
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface StrategyAction<T = DragObject> {
@@ -211,7 +211,7 @@ export interface StrategyAction<T = DragObject> {
 
 /**
  * 策略定义
- * 
+ *
  * @template T 被拖放对象的类型，默认为 DragObject 联合类型
  */
 export interface Strategy<T = DragObject> {

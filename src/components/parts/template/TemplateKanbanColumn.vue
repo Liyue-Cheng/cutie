@@ -1,23 +1,46 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useTemplateStore } from '@/stores/template'
-import { useDragTransfer } from '@/composables/drag'
-import type { TemplateDragData } from '@/types/drag'
+import { useViewStore } from '@/stores/view'
+import type { ViewMetadata } from '@/types/drag'
+import type { Template } from '@/types/dtos'
 import CutePane from '@/components/alias/CutePane.vue'
 import TemplateCard from './TemplateCard.vue'
 import TemplateEditorModal from './TemplateEditorModal.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { pipeline } from '@/cpu'
+import { useInteractDrag } from '@/composables/drag/useInteractDrag'
+import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+import { dragPreviewState } from '@/infra/drag-interact/preview-state'
 
 const templateStore = useTemplateStore()
-const dragTransfer = useDragTransfer()
+const viewStore = useViewStore()
 
 const selectedTemplateId = ref<string | null>(null)
 const isEditorOpen = ref(false)
 const newTemplateName = ref('')
 
-// 加载所有模板
+// 🔥 模板看板的 viewKey 和 metadata
+const VIEW_KEY = 'misc::template'
+const viewMetadata = computed<ViewMetadata>(
+  () =>
+    ({
+      id: VIEW_KEY,
+      type: 'status',
+      label: '模板',
+    }) as ViewMetadata
+)
+
+// 加载所有模板和视图偏好
 onMounted(async () => {
   try {
+    // 1. 加载视图偏好排序
+    await viewStore.fetchViewPreference(VIEW_KEY)
+    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Template view preference loaded', {
+      viewKey: VIEW_KEY,
+    })
+
+    // 2. 加载模板数据
     await templateStore.fetchAllTemplates()
     logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Templates loaded', {
       count: templateStore.generalTemplates.length,
@@ -31,30 +54,74 @@ onMounted(async () => {
   }
 })
 
-// 显示的模板列表（仅通用模板）
-const displayTemplates = computed(() => templateStore.generalTemplates)
+// 原始模板列表（仅通用模板 + 应用排序）
+const originalTemplates = computed(() => {
+  const baseTemplates = templateStore.generalTemplates
+
+  // 🔥 应用视图偏好排序
+  const weights = viewStore.sortWeights.get(VIEW_KEY)
+  if (!weights || weights.size === 0) {
+    // 没有排序信息，保持原顺序
+    return baseTemplates
+  }
+
+  // 手动应用排序（因为 applySorting 期望 TaskCard[]）
+  const sorted = [...baseTemplates].sort((a, b) => {
+    const weightA = weights.get(a.id) ?? Infinity
+    const weightB = weights.get(b.id) ?? Infinity
+    return weightA - weightB
+  })
+
+  return sorted
+})
+
+// ==================== 拖放系统集成 ====================
+
+const kanbanContainerRef = ref<HTMLElement | null>(null)
+const dragStrategy = useDragStrategy()
+
+const { displayItems } = useInteractDrag({
+  viewMetadata,
+  items: originalTemplates,
+  containerRef: kanbanContainerRef,
+  draggableSelector: `.template-card-wrapper-${VIEW_KEY.replace(/::/g, '--')}`,
+  objectType: 'template',
+  getObjectId: (template) => template.id,
+  onDrop: async (session) => {
+    console.group('🎯 Template Drop Event')
+    console.log('Session:', session)
+    console.log('Target ViewKey:', VIEW_KEY)
+    console.log('Templates:', originalTemplates.value.length)
+    console.groupEnd()
+
+    // 执行拖放策略
+    const result = await dragStrategy.executeDrop(session, VIEW_KEY, {
+      sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
+      targetContext: {
+        itemIds: originalTemplates.value.map((t) => t.id),
+        displayItems: displayItems.value,
+        dropIndex: dragPreviewState.value?.computed.dropIndex,
+        viewKey: VIEW_KEY,
+      },
+    })
+
+    if (!result.success) {
+      logger.error(
+        LogTags.COMPONENT_KANBAN_COLUMN,
+        'Template drop failed',
+        new Error(result.message || 'Unknown error'),
+        { result, session }
+      )
+    }
+  },
+})
+
+// ✅ displayItems 已经是 Template[] 类型，无需转换！
 
 function handleOpenEditor(templateId: string) {
   selectedTemplateId.value = templateId
   isEditorOpen.value = true
   logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Opening template editor', { templateId })
-}
-
-function handleDragStart(event: DragEvent, templateId: string, templateName: string) {
-  if (!event.dataTransfer) return
-
-  const dragData: TemplateDragData = {
-    type: 'template',
-    templateId,
-    templateName,
-  }
-
-  dragTransfer.setDragData(event, dragData)
-
-  logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Template drag started', {
-    templateId,
-    templateName,
-  })
 }
 
 async function handleCreateTemplate() {
@@ -65,7 +132,7 @@ async function handleCreateTemplate() {
     // 先重置表单，给用户即时反馈
     newTemplateName.value = ''
 
-    await templateStore.createTemplate({
+    await pipeline.dispatch('template.create', {
       title: title,
     })
 
@@ -83,41 +150,43 @@ async function handleCreateTemplate() {
 
 <template>
   <CutePane class="template-kanban-column">
-    <!-- Header -->
-    <div class="header">
-      <div class="title-section">
-        <h2 class="title">模板</h2>
-        <p class="subtitle">Templates</p>
-      </div>
-      <div class="task-count">
-        <span class="count">{{ displayTemplates.length }}</span>
-      </div>
-    </div>
-
-    <!-- 创建模板表单 -->
-    <div class="add-task-wrapper">
-      <input
-        v-model="newTemplateName"
-        type="text"
-        placeholder="输入模板名称，按回车创建..."
-        class="add-task-input"
-        @keyup.enter="handleCreateTemplate"
-      />
-    </div>
-
-    <!-- 模板列表 -->
-    <div class="task-list-scroll-area">
-      <div
-        v-for="template in displayTemplates"
-        :key="template.id"
-        class="template-card-wrapper"
-        draggable="true"
-        @dragstart="handleDragStart($event, template.id, template.title)"
-      >
-        <TemplateCard :template="template" @open-editor="handleOpenEditor(template.id)" />
+    <!-- 🔥 关键：kanbanContainerRef 必须指向一个 HTMLElement，不能直接指向 CutePane 组件 -->
+    <div ref="kanbanContainerRef" class="kanban-dropzone-wrapper">
+      <!-- Header -->
+      <div class="header">
+        <div class="title-section">
+          <h2 class="title">模板</h2>
+          <p class="subtitle">Templates</p>
+        </div>
+        <div class="task-count">
+          <span class="count">{{ displayItems.length }}</span>
+        </div>
       </div>
 
-      <div v-if="displayTemplates.length === 0" class="empty-state">暂无模板</div>
+      <!-- 创建模板表单 -->
+      <div class="add-task-wrapper">
+        <input
+          v-model="newTemplateName"
+          type="text"
+          placeholder="输入模板名称，按回车创建..."
+          class="add-task-input"
+          @keyup.enter="handleCreateTemplate"
+        />
+      </div>
+
+      <!-- 模板列表 -->
+      <div class="task-list-scroll-area">
+        <div
+          v-for="template in displayItems"
+          :key="template.id"
+          :class="`template-card-wrapper template-card-wrapper-${VIEW_KEY.replace(/::/g, '--')}`"
+          :data-object-id="template.id"
+        >
+          <TemplateCard :template="template" @open-editor="handleOpenEditor(template.id)" />
+        </div>
+
+        <div v-if="displayItems.length === 0" class="empty-state">暂无模板</div>
+      </div>
     </div>
   </CutePane>
 
@@ -138,6 +207,14 @@ async function handleCreateTemplate() {
   background-color: var(--color-background-content);
   width: 100%;
   flex-shrink: 0;
+}
+
+/* 🔥 dropzone wrapper 必须占满整个高度 */
+.kanban-dropzone-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
 }
 
 .header {

@@ -30,6 +30,10 @@ pub fn create_routes() -> Router<AppState> {
         .route("/:id/unarchive", post(endpoints::unarchive_task)) // ✅ 修正方法
         .route("/:id/restore", patch(endpoints::restore_task))
         .route("/:id/return-to-staging", post(endpoints::return_to_staging)) // ✅ 修正方法
+        .route(
+            "/:id/to-template",
+            post(endpoints::create_template_from_task),
+        ) // 从任务创建模板
         // Schedule management routes
         .route("/:id/schedules", post(endpoints::add_schedule)) // POST with body {scheduled_day}
         .route("/:id/schedules/:date", patch(endpoints::update_schedule)) // PATCH /:id/schedules/:date

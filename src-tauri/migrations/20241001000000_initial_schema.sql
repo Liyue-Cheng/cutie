@@ -239,6 +239,7 @@ CREATE TABLE task_recurrence_links (
 CREATE UNIQUE INDEX idx_recurrence_links_task_id ON task_recurrence_links(task_id);
 CREATE INDEX idx_recurrence_links_date ON task_recurrence_links(instance_date);
 CREATE INDEX idx_recurrence_links_recurrence ON task_recurrence_links(recurrence_id);
+-- 注意：(recurrence_id, instance_date) 的唯一性由 PRIMARY KEY 约束自动保证
 
 -- 创建 task_time_block_links 表 (任务-时间块链接表)
 CREATE TABLE task_time_block_links (

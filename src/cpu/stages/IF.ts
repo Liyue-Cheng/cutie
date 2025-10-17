@@ -5,6 +5,7 @@
 import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
 import { generateCorrelationId } from '@/infra/correlation/correlationId'
+import type { CallSource } from '../logging/types'
 
 export class InstructionFetchStage {
   private buffer: QueuedInstruction[] = []
@@ -16,7 +17,8 @@ export class InstructionFetchStage {
   fetchInstruction<TPayload>(
     type: string,
     payload: TPayload,
-    source: 'user' | 'system' | 'test' = 'user'
+    source: 'user' | 'system' | 'test' = 'user',
+    callSource?: CallSource
   ): QueuedInstruction<TPayload> {
     const instructionId = `instr-${Date.now()}-${++this.idCounter}`
     const correlationId = generateCorrelationId()
@@ -31,6 +33,7 @@ export class InstructionFetchStage {
         timestamp: Date.now(),
         source,
         retryCount: 0,
+        callSource, // 🔍 存储调用源信息
       },
       status: InstructionStatus.PENDING,
       timestamps: {

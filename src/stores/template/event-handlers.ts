@@ -12,7 +12,7 @@ export function handleTemplateCreated(data: Template) {
     templateId: data.id,
     title: data.title,
   })
-  core.addOrUpdateTemplate(data)
+  core.addOrUpdateTemplate_mut(data)
 }
 
 /**
@@ -23,7 +23,7 @@ export function handleTemplateUpdated(data: Template) {
     templateId: data.id,
     title: data.title,
   })
-  core.addOrUpdateTemplate(data)
+  core.addOrUpdateTemplate_mut(data)
 }
 
 /**
@@ -33,7 +33,7 @@ export function handleTemplateDeleted(data: { id: string }) {
   logger.info(LogTags.STORE_TEMPLATE, 'Template deleted event received', {
     templateId: data.id,
   })
-  core.removeTemplate(data.id)
+  core.removeTemplate_mut(data.id)
 }
 
 // ==================== Event Subscriptions ====================

@@ -62,11 +62,13 @@ import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 const dragStrategy = useDragStrategy()
 
 // 🔥 使用新的 interact.js 拖放系统
-const { displayTasks, isDragging, isReceiving, getDebugInfo } = useInteractDrag({
+const { displayItems, isDragging, isReceiving, getDebugInfo } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
-  tasks: computed(() => effectiveTasks.value),
+  items: computed(() => effectiveTasks.value),
   containerRef: kanbanContainerRef, // 使用整个看板容器作为 dropzone
   draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/:/g, '-')}`,
+  objectType: 'task',
+  getObjectId: (task) => task.id,
   onDrop: async (session) => {
     // 🎯 执行拖放策略（V2：灵活的 JSON 上下文）
     const result = await dragStrategy.executeDrop(session, props.viewKey, {
@@ -74,8 +76,8 @@ const { displayTasks, isDragging, isReceiving, getDebugInfo } = useInteractDrag(
       sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
       // 结束组件的上下文数据（当前组件提供）
       targetContext: {
-        taskIds: displayTasks.value.map((t) => t.id),
-        displayTasks: displayTasks.value,
+        taskIds: displayItems.value.map((t) => t.id),
+        displayTasks: displayItems.value,
         dropIndex: dragPreviewState.value?.computed.dropIndex,
         viewKey: props.viewKey,
         // 🔥 可以自由添加更多数据
@@ -316,7 +318,7 @@ watch(
         }"
       >
         <div
-          v-for="task in displayTasks"
+          v-for="task in displayItems"
           :key="task.id"
           class="task-card-wrapper"
           :class="[
@@ -333,7 +335,7 @@ watch(
           />
         </div>
 
-        <div v-if="displayTasks.length === 0" class="empty-state">暂无任务</div>
+        <div v-if="displayItems.length === 0" class="empty-state">暂无任务</div>
       </div>
 
       <!-- 调试信息 -->

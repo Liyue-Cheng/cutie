@@ -233,7 +233,7 @@ export interface CreateTaskRecurrencePayload {
 
 /**
  * UpdateTaskRecurrencePayload (更新循环规则的请求载荷)
- * 
+ *
  * 注意：后端使用三态字段 Option<Option<T>>，需要区分：
  * - undefined: 不更新该字段
  * - null: 清空该字段
@@ -243,9 +243,9 @@ export interface UpdateTaskRecurrencePayload {
   template_id?: string
   rule?: string
   time_type?: TimeType
-  start_date?: string | null  // 三态：undefined=不更新, null=清空, string=设置值
-  end_date?: string | null    // 三态：undefined=不更新, null=清空, string=设置值
-  timezone?: string | null    // 三态：undefined=不更新, null=清空, string=设置值
+  start_date?: string | null // 三态：undefined=不更新, null=清空, string=设置值
+  end_date?: string | null // 三态：undefined=不更新, null=清空, string=设置值
+  timezone?: string | null // 三态：undefined=不更新, null=清空, string=设置值
   is_active?: boolean
 }
 
@@ -253,14 +253,14 @@ export interface UpdateTaskRecurrencePayload {
 
 /**
  * DragObjectType (拖放对象类型)
- * 
+ *
  * 定义系统中可以被拖放的对象类型
  */
 export type DragObjectType = 'task' | 'template' | 'project' | 'area' | 'time-block' | 'other'
 
 /**
  * DragObject (拖放对象联合类型)
- * 
+ *
  * 所有可以被拖放的对象的联合类型，用于泛型约束
  */
 export type DragObject = TaskCard | Template | TimeBlockView

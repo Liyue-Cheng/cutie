@@ -42,7 +42,8 @@
       "Bash(awk:*)",
       "Bash(git log:*)",
       "Bash(sort:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

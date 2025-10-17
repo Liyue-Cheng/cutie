@@ -10,13 +10,12 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import TimeDurationPicker from '@/components/parts/TimeDurationPicker.vue'
 import TemplateCardMenu from './TemplateCardMenu.vue'
-import { useTemplateStore } from '@/stores/template'
+import { pipeline } from '@/cpu'
 
 const props = defineProps<{
   template: Template
 }>()
 
-const templateStore = useTemplateStore()
 const areaStore = useAreaStore()
 const contextMenu = useContextMenu()
 const emit = defineEmits<{
@@ -59,7 +58,8 @@ function toggleTimePicker(event: Event) {
 // ✅ 更新预期时间模板
 async function updateEstimatedDuration(duration: number | null) {
   try {
-    await templateStore.updateTemplate(props.template.id, {
+    await pipeline.dispatch('template.update', {
+      id: props.template.id,
       estimated_duration_template: duration ?? undefined,
     })
     showTimePicker.value = false
@@ -80,7 +80,8 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   )
 
   // 更新模板的subtasks_template
-  await templateStore.updateTemplate(props.template.id, {
+  await pipeline.dispatch('template.update', {
+    id: props.template.id,
     subtasks_template: updatedSubtasks,
   })
 }

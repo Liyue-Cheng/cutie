@@ -89,7 +89,9 @@ function matchSource(condition: SourceCondition, session: DragSession): boolean 
 
   // 匹配对象类型
   if (condition.objectType) {
-    const types = Array.isArray(condition.objectType) ? condition.objectType : [condition.objectType]
+    const types = Array.isArray(condition.objectType)
+      ? condition.objectType
+      : [condition.objectType]
     if (!types.includes(session.object.type)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Source objectType not matched', {
         expected: types,

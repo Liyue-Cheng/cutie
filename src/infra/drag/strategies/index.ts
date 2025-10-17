@@ -16,6 +16,13 @@ export {
 // 日历调度策略
 export { anyToCalendarAllDayStrategy, anyToCalendarTimedStrategy } from './calendar-scheduling'
 
+// 模板调度策略
+export {
+  templateToDailyStrategy,
+  dailyToTemplateStrategy,
+  templateReorderStrategy,
+} from './template-scheduling'
+
 // 未来可以添加更多策略模块：
 // export * from './task-status'
 // export * from './task-ordering'

@@ -39,7 +39,10 @@ class StrategyExecutor {
           sourceView: session.source.viewId,
           targetZone,
           objectType: session.object.type,
-          taskStatus: session.object.type === 'task' ? (session.object.data as any).schedule_status : undefined,
+          taskStatus:
+            session.object.type === 'task'
+              ? (session.object.data as any).schedule_status
+              : undefined,
           dragMode: session.dragMode,
         })
 
