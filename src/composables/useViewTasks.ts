@@ -9,12 +9,14 @@ import { logger, LogTags } from '@/infra/logging/logger'
  *
  * 支持的 viewKey 格式（遵循 VIEW_CONTEXT_KEY_SPEC）：
  * - misc::staging - 未安排的任务
+ * - misc::staging::{areaId} - 指定区域的 staging 任务
  * - misc::planned - 已安排的任务
  * - misc::incomplete - 所有未完成任务
  * - misc::completed - 已完成任务
+ * - misc::archive - 归档任务
  * - misc::all - 所有任务
  * - daily::{YYYY-MM-DD} - 指定日期的任务
- * - area::{uuid} - 指定区域的任务
+ * - area::{uuid} - 指定区域的所有任务
  * - project::{uuid} - 指定项目的任务
  */
 export function useViewTasks(viewKey: string) {
@@ -30,6 +32,30 @@ export function useViewTasks(viewKey: string) {
       return []
     }
 
+    // 🔥 首先尝试使用新的统一 viewKey mux（支持复杂格式）
+    try {
+      const baseTasks = taskStore.getTasksByViewKey_Mux(viewKey)
+      if (baseTasks.length > 0 || isComplexViewKey(viewKey)) {
+        // 应用排序
+        const sortedTasks = viewStore.applySorting(baseTasks, viewKey)
+
+        logger.debug(
+          LogTags.STORE_VIEW,
+          `${viewKey}: ${baseTasks.length} base → ${sortedTasks.length} sorted (via viewKey mux)`,
+          {
+            baseCount: baseTasks.length,
+            sortedCount: sortedTasks.length,
+            viewKey,
+          }
+        )
+
+        return sortedTasks
+      }
+    } catch (error) {
+      logger.warn(LogTags.STORE_VIEW, 'ViewKey mux failed, falling back to legacy logic', { viewKey, error })
+    }
+
+    // 兜底：使用旧的分支逻辑（向后兼容）
     const parts = viewKey.split('::')
     if (parts.length < 2) {
       logger.warn(LogTags.STORE_VIEW, 'Invalid viewKey format', { viewKey })
@@ -92,7 +118,7 @@ export function useViewTasks(viewKey: string) {
       // 调试日志
       logger.debug(
         LogTags.STORE_VIEW,
-        `${viewKey}: ${baseTasks.length} base → ${sortedTasks.length} sorted`,
+        `${viewKey}: ${baseTasks.length} base → ${sortedTasks.length} sorted (via legacy logic)`,
         {
           baseCount: baseTasks.length,
           sortedCount: sortedTasks.length,
@@ -111,6 +137,15 @@ export function useViewTasks(viewKey: string) {
       return []
     }
   })
+
+/**
+ * 判断是否是复杂的 viewKey 格式（三段式或更多）
+ */
+function isComplexViewKey(viewKey: string): boolean {
+  const parts = viewKey.split('::')
+  return parts.length >= 3 ||
+         (parts.length === 2 && ['misc::staging', 'misc::archive'].includes(viewKey))
+}
 
   /**
    * 组件挂载时预加载排序配置和数据

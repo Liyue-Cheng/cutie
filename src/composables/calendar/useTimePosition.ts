@@ -35,16 +35,40 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
       lastUpdateTime.value = now
     }
 
-    const relativeY = event.clientY - cachedRect.value.top
-
-    // 计算相对于日历顶部的百分比
-    const percentage = relativeY / cachedRect.value.height
-
-    // 🔧 FIX: 获取日历当前显示的日期（而不是系统今天）
     if (!calendarRef.value) return null
     const calendarApi = calendarRef.value.getApi()
-    const currentDate = calendarApi.getDate() // 获取日历当前显示的日期
-    currentDate.setHours(0, 0, 0, 0)
+    const currentView = calendarApi.view
+
+    // 🔧 FIX: 根据视图类型确定日期
+    let currentDate: Date
+    if (currentView.type === 'timeGridWeek') {
+      // 周视图：根据 X 坐标确定日期
+      const relativeX = event.clientX - cachedRect.value.left
+      const columnPercentage = relativeX / cachedRect.value.width
+
+      // 计算是周几（0-6，假设一周有7天）
+      const dayIndex = Math.floor(columnPercentage * 7)
+      const clampedDayIndex = Math.max(0, Math.min(dayIndex, 6))
+
+      // 获取周的起始日期
+      const weekStart = new Date(currentView.activeStart)
+      currentDate = new Date(weekStart)
+      currentDate.setDate(weekStart.getDate() + clampedDayIndex)
+      currentDate.setHours(0, 0, 0, 0)
+    } else if (currentView.type === 'dayGridMonth') {
+      // 月视图：月视图通常不需要精确时间，这里返回当日0点
+      // （月视图的拖放通常在 useCalendarInteractDrag 中通过 fc-daygrid-day 处理）
+      currentDate = calendarApi.getDate()
+      currentDate.setHours(0, 0, 0, 0)
+    } else {
+      // 单天视图：直接使用日历显示的日期
+      currentDate = calendarApi.getDate()
+      currentDate.setHours(0, 0, 0, 0)
+    }
+
+    // 计算 Y 坐标对应的时间
+    const relativeY = event.clientY - cachedRect.value.top
+    const percentage = relativeY / cachedRect.value.height
 
     // 计算时间（从0:00到24:00，共24小时）
     const step = 5 // 分钟步长
@@ -59,10 +83,13 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
 
     // 🔍 检查点3 & 4：日历日期同步 & 缓存
     logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop position calculated', {
+      viewType: currentView.type,
       calendarDate: currentDate.toISOString().split('T')[0],
       dropTime: dropTime.toISOString(),
+      clientX: event.clientX,
       clientY: event.clientY,
       cachedRectTop: cachedRect.value.top,
+      cachedRectLeft: cachedRect.value.left,
       relativeY,
       percentage: percentage.toFixed(3),
       lastUpdateTime: now - lastUpdateTime.value,

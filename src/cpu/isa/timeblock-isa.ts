@@ -120,7 +120,7 @@ export const TimeBlockISA: ISADefinition = {
       timeout: 10000,
     },
     optimistic: {
-      enabled: true,
+      enabled: false, //和拖放系统的兼容性正在排查中
       apply: (payload) => {
         const timeBlockStore = useTimeBlockStore()
 

@@ -177,7 +177,7 @@ export const anyToCalendarTimedStrategy: Strategy = {
           is_all_day: false,
         }
 
-        await pipeline.dispatch('time_block.create_from_task', createPayload)
+        pipeline.dispatch('time_block.create_from_task', createPayload)
 
         logger.info(LogTags.DRAG_STRATEGY, 'Created timed time block', {
           taskId: task.id,

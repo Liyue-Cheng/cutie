@@ -126,6 +126,17 @@ export function useCalendarHandlers(
   async function handleEventChange(changeInfo: EventChangeArg) {
     const { event, oldEvent } = changeInfo
 
+    // ✅ 只处理真实的时间块事件，忽略虚拟事件（任务、截止日期等）
+    const eventType = (event.extendedProps as any)?.type
+    if (eventType !== 'timeblock') {
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Ignoring event change for non-timeblock event', {
+        eventId: event.id,
+        eventType,
+      })
+      changeInfo.revert() // 恢复原状
+      return
+    }
+
     // ✅ 检查全天状态变化
     const wasAllDay = oldEvent.allDay
     const isNowAllDay = event.allDay
@@ -231,7 +242,7 @@ export function useCalendarHandlers(
         endTimeLocal = endDate.toTimeString().split(' ')[0] // HH:MM:SS
       }
 
-      // ✅ 使用命令系统更新时间块
+      // ✅ 使用命令系统更新时间块（event.id 现在就是真实的 UUID）
       await pipeline.dispatch('time_block.update', {
         id: event.id,
         updates: {

@@ -24,11 +24,11 @@ export function useViewOperations() {
    */
   async function loadView(context: any): Promise<boolean> {
     try {
-      // 🚧 临时实现：直接调用 taskStore.fetchAllTasks_DMA()
-      // 因为 fetchView 函数不存在，我们使用现有的 API
-      await taskStore.fetchAllTasks_DMA()
+      // ✅ 使用 fetchAllIncompleteTasks_DMA 替代已删除的 fetchAllTasks_DMA
+      // 加载所有未完成任务，避免循环任务导致的无限数据问题
+      await taskStore.fetchAllIncompleteTasks_DMA()
 
-      logger.info(LogTags.STORE_VIEW, 'Loaded all tasks (temporary implementation)')
+      logger.info(LogTags.STORE_VIEW, 'Loaded incomplete tasks (updated implementation)')
 
       return true
     } catch (error) {

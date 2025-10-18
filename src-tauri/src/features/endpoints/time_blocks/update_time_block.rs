@@ -280,15 +280,43 @@ mod logic {
         let final_start_time = request.start_time.unwrap_or(existing_block.start_time);
         let final_end_time = request.end_time.unwrap_or(existing_block.end_time);
         let final_is_all_day = request.is_all_day.unwrap_or(existing_block.is_all_day);
+        let final_time_type = request.time_type.unwrap_or(existing_block.time_type);
 
         // 5. 验证最终时间范围（✅ 使用共享 TimeBlockValidator + 跨天检测）
         TimeBlockValidator::validate_time_range(final_start_time, final_end_time)?;
 
         // 验证分时事件不能跨天
         if !final_is_all_day {
-            let local_start = final_start_time.with_timezone(&Local);
-            let local_end = final_end_time.with_timezone(&Local);
-            if local_start.date_naive() != local_end.date_naive() {
+            // ✅ 根据时间类型选择不同的跨天检测方式
+            let crosses_day = if final_time_type == crate::entities::time_block::TimeType::Floating {
+                // 浮动时间：检测本地时间部分是否跨天
+                let final_start_local = request.start_time_local
+                    .clone()
+                    .flatten()
+                    .or_else(|| existing_block.start_time_local.clone());
+                let final_end_local = request.end_time_local
+                    .clone()
+                    .flatten()
+                    .or_else(|| existing_block.end_time_local.clone());
+                
+                if let (Some(start_local), Some(end_local)) = (final_start_local, final_end_local) {
+                    // 对于浮动时间，只要 end_local < start_local 就说明跨天了
+                    // 例如：start_local = "23:00:00", end_local = "01:00:00" → 跨天
+                    end_local < start_local
+                } else {
+                    // 如果没有本地时间信息，回退到UTC检测
+                    let local_start = final_start_time.with_timezone(&Local);
+                    let local_end = final_end_time.with_timezone(&Local);
+                    local_start.date_naive() != local_end.date_naive()
+                }
+            } else {
+                // 固定时间：检测UTC转本地后是否跨天
+                let local_start = final_start_time.with_timezone(&Local);
+                let local_end = final_end_time.with_timezone(&Local);
+                local_start.date_naive() != local_end.date_naive()
+            };
+            
+            if crosses_day {
                 return Err(AppError::validation_error(
                     "time_range",
                     "分时事件不能跨天，请使用全天事件或将时间块拆分为多个",

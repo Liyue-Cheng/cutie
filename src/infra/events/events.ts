@@ -98,6 +98,19 @@ export class EventSubscriber {
       this.handleEvent('time_blocks.linked', e.data)
     })
 
+    // Template events
+    this.eventSource.addEventListener('template.created', (e: MessageEvent) => {
+      this.handleEvent('template.created', e.data)
+    })
+
+    this.eventSource.addEventListener('template.updated', (e: MessageEvent) => {
+      this.handleEvent('template.updated', e.data)
+    })
+
+    this.eventSource.addEventListener('template.deleted', (e: MessageEvent) => {
+      this.handleEvent('template.deleted', e.data)
+    })
+
     // 连接成功
     this.eventSource.onopen = () => {
       logger.info(LogTags.SYSTEM_SSE, 'Connected to event stream')

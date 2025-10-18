@@ -7,11 +7,11 @@ use axum::{
     Json,
 };
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    entities::{LinkedTaskSummary, ScheduleStatus, TaskCardDto, TimeBlock, TimeBlockViewDto},
+    entities::{LinkedTaskSummary, ScheduleStatus, TimeBlock, TimeBlockViewDto},
     features::{
         shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
         shared::{
@@ -250,13 +250,14 @@ pub struct CreateFromTaskRequest {
     pub is_all_day: Option<bool>,         // 可选，支持在日历全天槽位创建全天事件
 }
 
-
 // ==================== HTTP 处理器 ====================
 pub async fn handle(
     State(app_state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(request): Json<CreateFromTaskRequest>,
 ) -> Response {
-    match logic::execute(&app_state, request).await {
+    let correlation_id = crate::infra::http::extract_correlation_id(&headers);
+    match logic::execute(&app_state, request, correlation_id).await {
         Ok(response) => created_response(response).into_response(),
         Err(err) => err.into_response(),
     }
@@ -265,6 +266,7 @@ pub async fn handle(
 // ==================== 验证层 ====================
 mod validation {
     use super::*;
+    use chrono::Local;
 
     pub fn validate_request(request: &CreateFromTaskRequest) -> AppResult<()> {
         if request.start_time >= request.end_time {
@@ -274,6 +276,44 @@ mod validation {
                 "INVALID_TIME_RANGE",
             ));
         }
+
+        // 验证分时事件不能跨天
+        let is_all_day = request.is_all_day.unwrap_or(false);
+        if !is_all_day {
+            // ✅ 根据时间类型选择不同的跨天检测方式
+            let time_type = request
+                .time_type
+                .unwrap_or(crate::entities::time_block::TimeType::Floating);
+            let crosses_day = if time_type == crate::entities::time_block::TimeType::Floating {
+                // 浮动时间：检测本地时间部分是否跨天
+                if let (Some(start_local), Some(end_local)) =
+                    (&request.start_time_local, &request.end_time_local)
+                {
+                    // 对于浮动时间，只要 end_local < start_local 就说明跨天了
+                    // 例如：start_local = "23:00:00", end_local = "01:00:00" → 跨天
+                    end_local < start_local
+                } else {
+                    // 如果没有本地时间信息，回退到UTC检测
+                    let local_start = request.start_time.with_timezone(&Local);
+                    let local_end = request.end_time.with_timezone(&Local);
+                    local_start.date_naive() != local_end.date_naive()
+                }
+            } else {
+                // 固定时间：检测UTC转本地后是否跨天
+                let local_start = request.start_time.with_timezone(&Local);
+                let local_end = request.end_time.with_timezone(&Local);
+                local_start.date_naive() != local_end.date_naive()
+            };
+
+            if crosses_day {
+                return Err(AppError::validation_error(
+                    "time_range",
+                    "分时事件不能跨天，请使用全天事件或将时间块拆分为多个",
+                    "CROSS_DAY_TIMED_EVENT",
+                ));
+            }
+        }
+
         Ok(())
     }
 }
@@ -285,6 +325,7 @@ mod logic {
     pub async fn execute(
         app_state: &AppState,
         request: CreateFromTaskRequest,
+        correlation_id: Option<String>,
     ) -> AppResult<crate::entities::TimeBlockTransactionResult> {
         // 1. 验证
         validation::validate_request(&request)?;
@@ -437,13 +478,18 @@ mod logic {
             "updated_task": updated_task,
         });
 
-        let event = DomainEvent::new(
+        let mut event = DomainEvent::new(
             "time_blocks.created",
             "TimeBlock",
             block_id.to_string(),
             payload,
         )
         .with_aggregate_version(now.timestamp_millis());
+
+        // 关联 correlation_id（用于前端去重和请求追踪）
+        if let Some(cid) = correlation_id {
+            event = event.with_correlation_id(cid);
+        }
 
         outbox_repo.append_in_tx(&mut outbox_tx, &event).await?;
         TransactionHelper::commit(outbox_tx).await?;

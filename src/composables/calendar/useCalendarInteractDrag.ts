@@ -146,13 +146,8 @@ export function useCalendarInteractDrag(
     const durationMs = durationMinutes * 60 * 1000
     let endTime = new Date(dropTime.getTime() + durationMs)
 
-    // 截断到"当前日历视图"的当日 24:00
-    let dayStart = new Date(dropTime)
-    if (calendarRef.value) {
-      const api = calendarRef.value.getApi()
-      const baseDate = api.getDate()
-      dayStart = new Date(baseDate)
-    }
+    // 🔧 FIX: 截断到 dropTime 所在的当日 24:00（而不是日历的基准日期）
+    const dayStart = new Date(dropTime)
     dayStart.setHours(0, 0, 0, 0)
     const dayEnd = new Date(dayStart)
     dayEnd.setHours(23, 59, 59, 999)

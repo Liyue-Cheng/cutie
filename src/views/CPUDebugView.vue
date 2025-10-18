@@ -265,13 +265,26 @@ const isLoggingIn = ref(false)
 const testTaskTitle = ref('')
 const testTaskId = ref('')
 const taskStore = useTaskStore()
-const { allTasks } = storeToRefs(taskStore) // 🔥 解构为响应式引用
+
+// ✅ 安全的 storeToRefs 调用
+const storeRefs = taskStore ? storeToRefs(taskStore) : null
+const allTasks = storeRefs?.allTasks || ref([])
+
 const availableTasks = computed(() => {
-  return allTasks.value.slice(0, 10) // 显示前10个任务，响应式更新
+  return allTasks.value?.slice(0, 10) || [] // 显示前10个任务，响应式更新
 })
 
-// 流水线状态
-const pipelineStatus = computed(() => pipeline.status.value)
+// ✅ 安全的流水线状态访问
+const pipelineStatus = computed(() => {
+  const status = pipeline?.status?.value
+  return status || {
+    ifBufferSize: 0,
+    schPendingSize: 0,
+    schActiveSize: 0,
+    totalCompleted: 0,
+    totalFailed: 0,
+  }
+})
 
 // INT 中断处理器状态
 const intStats = ref({

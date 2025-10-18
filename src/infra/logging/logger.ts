@@ -507,6 +507,7 @@ export const LogTags = {
   // 组件相关
   COMPONENT_KANBAN: 'Component:InfiniteDailyKanban',
   COMPONENT_KANBAN_COLUMN: 'Component:Kanban:Column',
+  COMPONENT_TIMELINE: 'Component:InfiniteTimeline',
   COMPONENT_CALENDAR: 'Component:CuteCalendar',
   COMPONENT_BUTTON: 'Component:CuteButton',
 
@@ -536,6 +537,8 @@ export const LogTags = {
 
   // 视图相关
   VIEW_HOME: 'View:Home',
+  VIEW_CALENDAR: 'View:Calendar',
+  VIEW_STAGING: 'View:Staging',
   VIEW_TRASH: 'View:Trash',
 
   // 系统相关

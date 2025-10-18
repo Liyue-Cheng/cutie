@@ -7,6 +7,7 @@
 import { reactive, type ComputedRef } from 'vue'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
+import dayGridPlugin from '@fullcalendar/daygrid'
 import type {
   EventInput,
   EventChangeArg,
@@ -22,13 +23,27 @@ export function useCalendarOptions(
     handleEventChange: (changeInfo: EventChangeArg) => Promise<void>
     handleEventContextMenu: (info: EventMountArg) => void
     handleEventClick: (clickInfo: EventClickArg) => void
-  }
+  },
+  viewType: 'day' | 'week' | 'month' = 'day' // ✅ 新增：视图类型参数，默认为单天
 ) {
+  // ✅ 加载所有插件，支持动态切换视图
+  const plugins = [interactionPlugin, timeGridPlugin, dayGridPlugin]
+
+  let initialView: string
+  if (viewType === 'day') {
+    initialView = 'timeGridDay'
+  } else if (viewType === 'week') {
+    initialView = 'timeGridWeek'
+  } else {
+    initialView = 'dayGridMonth'
+  }
+
   const calendarOptions = reactive({
-    plugins: [interactionPlugin, timeGridPlugin],
+    plugins,
     headerToolbar: false as const,
-    dayHeaders: false,
-    initialView: 'timeGridDay',
+    dayHeaders: viewType !== 'day', // ✅ 周视图和月视图显示日期头部
+    initialView,
+    firstDay: 1, // ✅ 一周从周一开始（0=周日, 1=周一）
     allDaySlot: true, // ✅ 启用全日槽位
     slotLabelFormat: {
       hour: '2-digit' as const,
@@ -46,6 +61,12 @@ export function useCalendarOptions(
     editable: true,
     selectable: true,
     eventResizableFromStart: true, // 允许从开始时间调整大小
+
+    // ✅ 月视图配置：固定格子高度，超出事件用 "+N more" 折叠
+    dayMaxEvents: 4, // 每个格子最多显示4个事件，超过的折叠
+    moreLinkClick: 'popover' as const, // 点击 "+N more" 时显示弹出框
+    fixedWeekCount: false, // 不固定显示6周，根据实际月份调整
+
     events: calendarEvents,
     select: handlers.handleDateSelect,
     eventChange: handlers.handleEventChange,

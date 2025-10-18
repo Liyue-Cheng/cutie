@@ -71,6 +71,7 @@ export const useTaskStore = defineStore('task', () => {
     getTasksByDate_Mux: core.getTasksByDate_Mux,
     getTasksByProject_Mux: core.getTasksByProject_Mux,
     getTasksByArea_Mux: core.getTasksByArea_Mux,
+    getTasksByViewKey_Mux: core.getTasksByViewKey_Mux,
 
     // ============================================================
     // MUTATIONS (寄存器写入) - 纯数据操作
@@ -89,7 +90,7 @@ export const useTaskStore = defineStore('task', () => {
     // ============================================================
 
     // DMA 传输方法（应用启动时批量加载数据）
-    fetchAllTasks_DMA: loaders.fetchAllTasks_DMA,
+    // ❌ fetchAllTasks_DMA: 已删除 - 避免循环任务导致的无限数据
     fetchAllIncompleteTasks_DMA: loaders.fetchAllIncompleteTasks_DMA,
     fetchPlannedTasks_DMA: loaders.fetchPlannedTasks_DMA,
     fetchStagingTasks_DMA: loaders.fetchStagingTasks_DMA,

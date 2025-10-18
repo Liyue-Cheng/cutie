@@ -25,7 +25,7 @@
 
         <!-- Today 看板 -->
         <InteractKanbanColumn
-          view-key="daily::2025-10-14"
+          :view-key="todayViewKey"
           title="📅 Today"
           subtitle="今日任务"
           :show-add-input="true"
@@ -33,7 +33,7 @@
 
         <!-- Tomorrow 看板 -->
         <InteractKanbanColumn
-          view-key="daily::2025-10-15"
+          :view-key="tomorrowViewKey"
           title="🚀 Tomorrow"
           subtitle="明日任务"
           :show-add-input="true"
@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import InteractKanbanColumn from '@/components/test/InteractKanbanColumn.vue'
 import InteractDataPanel from '@/components/test/InteractDataPanel.vue'
 import { useTaskStore } from '@/stores/task'
@@ -57,12 +57,30 @@ import { logger, LogTags } from '@/infra/logging/logger'
 
 const taskStore = useTaskStore()
 
+// ✅ 动态计算日期，避免硬编码
+const today = computed(() => {
+  const date = new Date()
+  return date.toISOString().split('T')[0] // YYYY-MM-DD 格式
+})
+
+const tomorrow = computed(() => {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  return date.toISOString().split('T')[0] // YYYY-MM-DD 格式
+})
+
+const todayViewKey = computed(() => `daily::${today.value}`)
+const tomorrowViewKey = computed(() => `daily::${tomorrow.value}`)
+
 // ==================== 初始化 ====================
 onMounted(async () => {
-  logger.info(LogTags.VIEW_HOME, 'Initializing InteractTestView, loading all tasks...')
-  await taskStore.fetchAllTasks_DMA()
+  logger.info(LogTags.VIEW_HOME, 'Initializing InteractTestView, loading incomplete tasks...')
+  // ✅ 使用 fetchAllIncompleteTasks_DMA 替代已删除的 fetchAllTasks_DMA
+  await taskStore.fetchAllIncompleteTasks_DMA()
   logger.info(LogTags.VIEW_HOME, 'Loaded tasks for InteractTestView', {
     count: taskStore.allTasks.length,
+    todayViewKey: todayViewKey.value,
+    tomorrowViewKey: tomorrowViewKey.value,
   })
 })
 </script>

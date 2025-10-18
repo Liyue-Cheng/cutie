@@ -1,65 +1,247 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
+import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
+import InfiniteAreaKanban from '@/components/templates/InfiniteAreaKanban.vue'
+import ArchiveColumn from '@/components/parts/kanban/ArchiveColumn.vue'
+import InfiniteTimeline from '@/components/templates/InfiniteTimeline.vue'
+import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
+import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
+import { useAreaStore } from '@/stores/area'
+import { useTaskStore } from '@/stores/task'
+import { useUIStore } from '@/stores/ui'
+import { logger, LogTags } from '@/infra/logging/logger'
+
+// ==================== 视图类型 ====================
+type RightPaneView = 'archive' | 'timeline'
+
+// ==================== Stores ====================
+const areaStore = useAreaStore()
+const taskStore = useTaskStore()
+const uiStore = useUIStore()
+
+// ==================== 初始化 ====================
+onMounted(async () => {
+  logger.info(LogTags.VIEW_STAGING, 'Initializing staging view, loading data...')
+  // 加载必要的数据
+  await Promise.all([
+    areaStore.fetchAreas(),
+    taskStore.fetchAllIncompleteTasks_DMA()
+  ])
+  logger.info(LogTags.VIEW_STAGING, 'Staging view data loaded', {
+    areaCount: areaStore.allAreas.length,
+    taskCount: taskStore.incompleteTasks.length
+  })
+})
+
+// ==================== 状态 ====================
+const kanbanRef = ref<InstanceType<typeof InfiniteAreaKanban> | null>(null)
+const currentRightPaneView = ref<RightPaneView>('archive') // 右侧面板当前视图
+const kanbanCount = ref(0) // 看板数量
+
+// 获取看板数量
+const displayKanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? kanbanCount.value)
+
+// 右侧面板视图配置
+const rightPaneViewConfig = {
+  archive: { icon: 'Archive', label: '已归档' },
+  timeline: { icon: 'Clock', label: '时间线' },
+} as const
+
+// ==================== 事件处理 ====================
+function switchRightPaneView(view: RightPaneView) {
+  logger.debug(LogTags.VIEW_STAGING, 'Switching right pane view', { view })
+  currentRightPaneView.value = view
+}
+
+function handleKanbanCountChange(count: number) {
+  kanbanCount.value = count
+  logger.debug(LogTags.VIEW_STAGING, 'Kanban count changed', { count })
+}
+</script>
+
 <template>
-  <div class="staging-view-dummy">
-    <div class="dummy-content">
-      <h1>🚧 Staging View</h1>
-      <p class="subtitle">此视图已废弃</p>
-      <p class="description">请使用 HomeView 查看 Staging 任务</p>
-      <router-link to="/" class="go-home-btn">前往 HomeView</router-link>
+  <div class="staging-view-container">
+    <!-- 主内容区域：Area 看板 -->
+    <div class="main-content-pane">
+      <TwoRowLayout>
+        <template #top>
+          <div class="kanban-header">
+            <h2>Staging 看板</h2>
+            <span class="kanban-count">{{ displayKanbanCount }} 个区域</span>
+          </div>
+        </template>
+        <template #bottom>
+          <InfiniteAreaKanban
+            ref="kanbanRef"
+            @kanban-count-change="handleKanbanCountChange"
+          />
+        </template>
+      </TwoRowLayout>
     </div>
+
+    <!-- 右边栏：控制选项 -->
+    <div class="right-control-pane">
+      <TwoRowLayout>
+        <template #top>
+          <div class="right-pane-header">
+            <h3>{{ rightPaneViewConfig[currentRightPaneView].label }}</h3>
+          </div>
+        </template>
+        <template #bottom>
+          <!-- 已归档视图 -->
+          <ArchiveColumn v-if="currentRightPaneView === 'archive'" />
+          <!-- 时间线视图 -->
+          <InfiniteTimeline v-else-if="currentRightPaneView === 'timeline'" />
+        </template>
+      </TwoRowLayout>
+    </div>
+
+    <!-- 右边栏工具栏 -->
+    <div class="toolbar-pane">
+      <div class="toolbar-content">
+        <button
+          v-for="(config, viewKey) in rightPaneViewConfig"
+          :key="viewKey"
+          class="toolbar-button"
+          :class="{ active: currentRightPaneView === viewKey }"
+          :title="config.label"
+          @click="switchRightPaneView(viewKey as RightPaneView)"
+        >
+          <CuteIcon :name="config.icon" :size="24" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 全局模态框 -->
+    <KanbanTaskEditorModal
+      v-if="uiStore.isEditorOpen"
+      :task-id="uiStore.editorTaskId"
+      :view-key="uiStore.editorViewKey ?? undefined"
+      @close="uiStore.closeEditor"
+    />
+    <GlobalRecurrenceEditDialog />
   </div>
 </template>
 
-<script setup lang="ts">
-// Dummy component - StagingView has been deprecated
-// Use HomeView instead for viewing staging tasks
-</script>
-
 <style scoped>
-.staging-view-dummy {
+.staging-view-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background-color: var(--color-background-content);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.8rem;
+}
+
+/* ==================== 主内容区域 ==================== */
+.main-content-pane {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid var(--color-border-default);
+  box-shadow: inset -4px 0 12px -2px rgb(0 0 0 / 5%);
+  position: relative;
+}
+
+.kanban-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 1rem;
+  gap: 1rem;
+}
+
+.kanban-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.kanban-count {
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary);
+}
+
+/* ==================== 右边栏：控制面板 ==================== */
+.right-control-pane {
+  width: 28rem;
+  min-width: 28rem;
+  border-right: 1px solid var(--color-border-default);
+}
+
+.right-pane-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  background-color: var(--color-background-content);
+  width: 100%;
+  padding: 0 1rem;
 }
 
-.dummy-content {
-  text-align: center;
-  padding: 4rem;
-  max-width: 50rem;
-}
-
-.dummy-content h1 {
-  font-size: 4rem;
+.right-pane-header h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: 1rem;
+  text-align: center;
 }
 
-.subtitle {
-  font-size: 1.8rem;
+/* ==================== 右边栏：工具栏 ==================== */
+.toolbar-pane {
+  width: 6rem;
+  min-width: 6rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.toolbar-button {
+  width: 4.8rem;
+  height: 4.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-tertiary);
+  position: relative;
+}
+
+.toolbar-button:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
   color: var(--color-text-secondary);
-  margin-bottom: 1rem;
 }
 
-.description {
-  font-size: 1.4rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 3rem;
-}
-
-.go-home-btn {
-  display: inline-block;
-  padding: 1.2rem 2.4rem;
+.toolbar-button.active {
   background-color: var(--color-button-primary, #4a90e2);
   color: white;
-  text-decoration: none;
-  border-radius: 0.8rem;
-  font-size: 1.6rem;
-  font-weight: 500;
-  transition: background-color 0.2s;
 }
 
-.go-home-btn:hover {
-  background-color: var(--color-button-primary-hover, #357abd);
+.toolbar-button.active::before {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.3rem;
+  height: 2.4rem;
+  background-color: var(--color-button-primary, #4a90e2);
+  border-radius: 0 0.2rem 0.2rem 0;
+}
+
+.toolbar-button:active {
+  transform: scale(0.95);
 }
 </style>

@@ -155,16 +155,46 @@ function handleAddTask() {
       viewKey: props.viewKey,
     })
   } else {
-    // 非日期视图：只创建任务
-    // 🚀 使用 CPU Pipeline 发射指令
-    pipeline.dispatch('task.create', {
+    // 非日期视图：只创建任务，需要根据 viewKey 提取上下文信息
+    const taskData: any = {
       title,
       estimated_duration: 60, // 🔥 默认 60 分钟
-    })
+    }
+
+    // 🔥 根据 viewKey 提取上下文信息
+    const parts = props.viewKey.split('::')
+    const [type, subtype, identifier] = parts
+
+    if (type === 'misc' && subtype === 'staging' && identifier) {
+      // misc::staging::${areaId} - 指定 area 的 staging 任务
+      taskData.area_id = identifier
+      logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Creating task with area context', {
+        areaId: identifier,
+        viewKey: props.viewKey,
+      })
+    } else if (type === 'area' && subtype) {
+      // area::${areaId} - 指定 area 的所有任务
+      taskData.area_id = subtype
+      logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Creating task with area context', {
+        areaId: subtype,
+        viewKey: props.viewKey,
+      })
+    } else if (type === 'project' && subtype) {
+      // project::${projectId} - 指定项目的任务
+      taskData.project_id = subtype
+      logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Creating task with project context', {
+        projectId: subtype,
+        viewKey: props.viewKey,
+      })
+    }
+
+    // 🚀 使用 CPU Pipeline 发射指令
+    pipeline.dispatch('task.create', taskData)
 
     logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Task creation dispatched', {
       title,
       viewKey: props.viewKey,
+      taskData,
     })
   }
 

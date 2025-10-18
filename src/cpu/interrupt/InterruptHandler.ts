@@ -6,6 +6,7 @@
  * 2. 去重检查（基于本机操作表）
  * 3. 根据事件类型分发给对应的 handler
  * 4. 统一的中断入口点
+ * 5. 完整的追踪和日志系统
  *
  * 架构：
  * [SSE] → INT.dispatch(event) → [去重] → [分发] → [Handler]
@@ -14,6 +15,7 @@
  */
 
 import { logger, LogTags } from '@/infra/logging/logger'
+import { interruptConsole, type InterruptHandlerResult } from './InterruptConsole'
 
 /**
  * 中断类型
@@ -95,6 +97,13 @@ export class InterruptHandler {
       type: instruction.type,
       tableSize: this.interruptTable.size,
     })
+
+    // 🔥 Console 追踪
+    interruptConsole.onInterruptRegistered(
+      correlationId,
+      instruction.type,
+      this.interruptTable.size
+    )
   }
 
   /**
@@ -141,6 +150,9 @@ export class InterruptHandler {
       correlationId,
     })
 
+    // 🔥 Console 追踪：收到中断
+    interruptConsole.onInterruptReceived(event)
+
     // 🔥 去重检查
     if (correlationId) {
       const entry = this.interruptTable.get(correlationId)
@@ -151,6 +163,13 @@ export class InterruptHandler {
           originalType: entry.instruction.type,
           age: Date.now() - entry.timestamp,
         })
+
+        // 🔥 Console 追踪：去重丢弃
+        interruptConsole.onInterruptDeduplicated(event, {
+          type: entry.instruction.type,
+          timestamp: entry.timestamp,
+        })
+
         return // 丢弃
       }
     }
@@ -159,6 +178,10 @@ export class InterruptHandler {
     const handlers = this.handlers.get(eventType) || []
     if (handlers.length === 0) {
       logger.warn(LogTags.SYSTEM_PIPELINE, 'INT: 没有注册的处理器', { eventType })
+
+      // 🔥 Console 追踪：无处理器
+      interruptConsole.onNoHandler(event)
+
       return
     }
 
@@ -169,28 +192,83 @@ export class InterruptHandler {
       handlerCount: handlers.length,
     })
 
-    for (const handler of handlers) {
+    // 🔥 执行所有处理器并追踪结果
+    const results: InterruptHandlerResult[] = []
+
+    for (let i = 0; i < handlers.length; i++) {
+      const handler = handlers[i]
+      if (!handler) continue // 跳过空处理器
+
+      const handlerName = handler.name || `Handler${i + 1}`
+      const startTime = performance.now()
+
       try {
         const result = handler(event)
         if (result instanceof Promise) {
-          result.catch((err) => {
-            logger.error(
-              LogTags.SYSTEM_PIPELINE,
-              'INT: 处理器错误（async）',
-              err instanceof Error ? err : new Error(String(err)),
-              { eventType }
-            )
+          // 异步处理器
+          result
+            .then(() => {
+              const duration = Math.round(performance.now() - startTime)
+              results.push({
+                handlerName,
+                success: true,
+                duration,
+              })
+            })
+            .catch((err) => {
+              const duration = Math.round(performance.now() - startTime)
+              const error = err instanceof Error ? err : new Error(String(err))
+
+              results.push({
+                handlerName,
+                success: false,
+                error,
+                duration,
+              })
+
+              logger.error(LogTags.SYSTEM_PIPELINE, 'INT: 处理器错误（async）', error, {
+                eventType,
+                handlerName,
+              })
+
+              // 🔥 Console 追踪：处理器错误
+              interruptConsole.onHandlerError(event, handlerName, error, true)
+            })
+        } else {
+          // 同步处理器
+          const duration = Math.round(performance.now() - startTime)
+          results.push({
+            handlerName,
+            success: true,
+            duration,
           })
         }
       } catch (err) {
-        logger.error(
-          LogTags.SYSTEM_PIPELINE,
-          'INT: 处理器错误（sync）',
-          err instanceof Error ? err : new Error(String(err)),
-          { eventType }
-        )
+        const duration = Math.round(performance.now() - startTime)
+        const error = err instanceof Error ? err : new Error(String(err))
+
+        results.push({
+          handlerName,
+          success: false,
+          error,
+          duration,
+        })
+
+        logger.error(LogTags.SYSTEM_PIPELINE, 'INT: 处理器错误（sync）', error, {
+          eventType,
+          handlerName,
+        })
+
+        // 🔥 Console 追踪：处理器错误
+        interruptConsole.onHandlerError(event, handlerName, error, false)
       }
     }
+
+    // 🔥 Console 追踪：分发完成
+    // 延迟一点，让异步处理器有机会完成
+    setTimeout(() => {
+      interruptConsole.onInterruptDispatched(event, handlers.length, results)
+    }, 10)
   }
 
   /**
@@ -214,12 +292,17 @@ export class InterruptHandler {
     }
 
     const after = this.interruptTable.size
-    if (before !== after) {
+    const cleaned = before - after
+
+    if (cleaned > 0) {
       logger.debug(LogTags.SYSTEM_PIPELINE, 'INT: 清理过期条目', {
         before,
         after,
-        cleaned: before - after,
+        cleaned,
       })
+
+      // 🔥 Console 追踪：清理
+      interruptConsole.onCleanup(before, after, cleaned)
     }
   }
 
@@ -251,3 +334,9 @@ export class InterruptHandler {
 
 // 导出单例
 export const interruptHandler = new InterruptHandler()
+
+// 暴露 console 到全局，方便调试
+if (typeof window !== 'undefined') {
+  ;(window as any).interruptConsole = interruptConsole
+  ;(window as any).interruptHandler = interruptHandler
+}

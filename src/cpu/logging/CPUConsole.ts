@@ -80,20 +80,47 @@ export class CPUConsole {
         ? ` %c📍 ${formatCallSourceShort(instruction.context.callSource)}`
         : ''
 
-      console.log(
-        `%c🎯 ${this.formatTime()} %c${instruction.type}%c 指令创建${callSourceInfo}`,
+      // 🎯 使用与指令成功一致的分组格式
+      console.groupCollapsed(
+        `%c[指令创建] %c${this.formatTime()} %c${instruction.type}%c${callSourceInfo}`,
+        'color: #3b82f6; font-weight: bold',
         'color: #666; font-size: 11px',
         'color: #3b82f6; font-weight: bold; background: #3b82f615; padding: 2px 6px; border-radius: 3px',
-        'color: #666',
-        ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : []),
-        {
-          id: instruction.id,
-          correlationId: instruction.context.correlationId,
-          ...(instruction.context.callSource && { callSource: instruction.context.callSource }),
-          payload:
-            this.level >= ConsoleLevel.DEBUG ? instruction.payload : '(use level=DEBUG to see)',
-        }
+        'color: #3b82f6',
+        ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : [])
       )
+
+      // 🔥 显示指令基本信息
+      console.log('%c📋 指令信息:', 'color: #3b82f6; font-weight: bold')
+      console.table({
+        'Instruction ID': instruction.id,
+        'Correlation ID': instruction.context.correlationId,
+        'Type': instruction.type,
+        'Status': instruction.status,
+        'Source': instruction.context.source,
+        'Retry Count': instruction.context.retryCount,
+      })
+
+      // 🔥 显示指令参数
+      if (this.level >= ConsoleLevel.DEBUG) {
+        console.log('%c📝 指令参数 (Payload):', 'color: #3b82f6; font-weight: bold')
+        console.log(instruction.payload)
+      } else {
+        console.log('%c📝 指令参数: (use level=DEBUG to see payload)', 'color: #666; font-style: italic')
+      }
+
+      // 🔥 显示调用源详情
+      if (instruction.context.callSource && this.level >= ConsoleLevel.VERBOSE) {
+        console.log('%c📍 调用源详情:', 'color: #8b5cf6; font-weight: bold')
+        console.table({
+          'File': instruction.context.callSource.file,
+          'Line': instruction.context.callSource.line,
+          'Column': instruction.context.callSource.column,
+          'Function': instruction.context.callSource.function || 'N/A',
+        })
+      }
+
+      console.groupEnd()
     }
   }
 
@@ -238,11 +265,18 @@ export class CPUConsole {
     if (!this.shouldPrint(instruction.type)) return
 
     if (this.level >= ConsoleLevel.VERBOSE) {
-      console.group(
-        `%c🔄 ${this.formatTime()} %c${instruction.type}%c 乐观更新已应用`,
+      // 🔍 格式化调用源信息
+      const callSourceInfo = instruction.context.callSource
+        ? ` %c📍 ${formatCallSourceShort(instruction.context.callSource)}`
+        : ''
+
+      console.groupCollapsed(
+        `%c[乐观更新] %c${this.formatTime()} %c${instruction.type}%c${callSourceInfo}`,
+        'color: #8b5cf6; font-weight: bold',
         'color: #666; font-size: 11px',
         'color: #8b5cf6; font-weight: bold; background: #8b5cf615; padding: 2px 6px; border-radius: 3px',
-        'color: #8b5cf6'
+        'color: #8b5cf6',
+        ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : [])
       )
 
       // 显示乐观更新的 payload
@@ -268,16 +302,34 @@ export class CPUConsole {
 
     // 回滚是重要事件，总是显示
     if (this.level >= ConsoleLevel.MINIMAL) {
-      console.warn(
-        `%c⚠️  ${this.formatTime()} %c${instruction.type}%c 乐观更新已回滚`,
+      // 🔍 格式化调用源信息
+      const callSourceInfo = instruction.context.callSource
+        ? ` %c📍 ${formatCallSourceShort(instruction.context.callSource)}`
+        : ''
+
+      // 🔥 回滚重要，使用展开分组便于立即查看
+      console.group(
+        `%c[乐观回滚] %c${this.formatTime()} %c${instruction.type}%c${callSourceInfo}`,
+        'color: #f59e0b; font-weight: bold',
         'color: #666; font-size: 11px',
         'color: #f59e0b; font-weight: bold; background: #f59e0b15; padding: 2px 6px; border-radius: 3px',
         'color: #f59e0b',
-        {
-          instructionId: instruction.id,
-          reason,
-        }
+        ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : [])
       )
+
+      // 显示回滚原因
+      console.log('%c⚠️ 回滚原因:', 'color: #f59e0b; font-weight: bold')
+      console.log(reason)
+
+      // 显示指令信息
+      console.log('%c📋 指令信息:', 'color: #f59e0b; font-weight: bold')
+      console.table({
+        'Instruction ID': instruction.id,
+        'Correlation ID': instruction.context.correlationId,
+        'Type': instruction.type,
+      })
+
+      console.groupEnd()
     }
   }
 

@@ -1,3 +1,16 @@
+/**
+ * Template Store 事件处理器 (v4.0)
+ *
+ * 职责：
+ * - 处理 SSE 推送的模板领域事件
+ * - 使用 InterruptHandler 统一处理
+ * - 与 Task store 保持一致的架构
+ *
+ * 架构升级：
+ * - v1.0: 使用全局 window.__eventBus__
+ * - v4.0: 使用 InterruptHandler（与 Task store 一致）
+ */
+
 import type { Template } from '@/types/dtos'
 import * as core from './core'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -36,40 +49,55 @@ export function handleTemplateDeleted(data: { id: string }) {
   core.removeTemplate_mut(data.id)
 }
 
-// ==================== Event Subscriptions ====================
+// ==================== Event Subscriptions (v4.0) ====================
 
 /**
- * 初始化 SSE 事件订阅
+ * 初始化事件订阅（v4.0 架构）
+ *
+ * 通过 InterruptHandler 注册，与 Task store 保持一致
  */
 export function initEventSubscriptions() {
-  const { eventBus } = useEventBus()
+  import('@/cpu/interrupt/InterruptHandler').then(({ interruptHandler }) => {
+    // 🔥 注册到 INT（中断管理器）
+    interruptHandler.on('template.created', handleTemplateEvent)
+    interruptHandler.on('template.updated', handleTemplateEvent)
+    interruptHandler.on('template.deleted', handleTemplateEvent)
 
-  // 订阅模板创建事件
-  eventBus.on('template.created', (data: Template) => {
-    handleTemplateCreated(data)
+    logger.info(LogTags.STORE_TEMPLATE, 'Template event subscriptions initialized (v4.0 - via INT)')
   })
-
-  // 订阅模板更新事件
-  eventBus.on('template.updated', (data: Template) => {
-    handleTemplateUpdated(data)
-  })
-
-  // 订阅模板删除事件
-  eventBus.on('template.deleted', (data: { id: string }) => {
-    handleTemplateDeleted(data)
-  })
-
-  logger.info(LogTags.STORE_TEMPLATE, 'Template SSE event subscriptions initialized')
 }
 
-// ==================== Helper ====================
+/**
+ * 统一的模板事件处理器
+ * v4.0: 接收 InterruptEvent 格式
+ */
+async function handleTemplateEvent(event: any) {
+  try {
+    const eventType = event.eventType
+    const payload = event.payload
 
-function useEventBus() {
-  // 从全局获取 eventBus
-  const eventBus = (window as any).__eventBus__
-  if (!eventBus) {
-    logger.error(LogTags.STORE_TEMPLATE, 'EventBus not found on window')
-    throw new Error('EventBus not initialized')
+    switch (eventType) {
+      case 'template.created':
+        handleTemplateCreated(payload)
+        break
+      case 'template.updated':
+        handleTemplateUpdated(payload)
+        break
+      case 'template.deleted':
+        handleTemplateDeleted(payload)
+        break
+      default:
+        logger.warn(LogTags.STORE_TEMPLATE, 'Unknown template event type', { eventType })
+    }
+  } catch (error) {
+    logger.error(
+      LogTags.STORE_TEMPLATE,
+      'Failed to process template event',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        eventType: event.eventType,
+        correlationId: event.correlationId,
+      }
+    )
   }
-  return { eventBus }
 }

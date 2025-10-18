@@ -1,12 +1,5 @@
 <template>
   <div class="calendar-container" :class="`zoom-${currentZoom}x`">
-    <!-- 日期显示栏 -->
-    <div class="calendar-header">
-      <div class="date-display">
-        <span class="date-text">{{ formattedDate }}</span>
-      </div>
-    </div>
-
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
     <!-- 装饰竖线（跨越 TwoRowLayout 可视区域） -->
@@ -50,10 +43,16 @@ import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 const timeBlockStore = useTimeBlockStore()
 
 // ==================== Props ====================
-const props = defineProps<{
-  currentDate?: string // YYYY-MM-DD 格式的日期
-  zoom?: 1 | 2 | 3 // 缩放倍率
-}>()
+const props = withDefaults(
+  defineProps<{
+    currentDate?: string // YYYY-MM-DD 格式的日期
+    zoom?: 1 | 2 | 3 // 缩放倍率
+    viewType?: 'day' | 'week' | 'month' // ✅ 新增：视图类型（单天、周或月视图）
+  }>(),
+  {
+    viewType: 'day', // 默认单天视图
+  }
+)
 
 // 默认缩放倍率为 1
 const currentZoom = computed(() => props.zoom ?? 1)
@@ -83,34 +82,20 @@ const drag = useCalendarInteractDrag(calendarRef, {
   stopAutoScroll,
 })
 
-// 日历事件数据
-const { calendarEvents } = useCalendarEvents(drag.previewEvent)
+// 日历事件数据（传入视图类型）
+const viewTypeRef = computed(() => props.viewType)
+const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef)
 
 // 事件处理器
 const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
 
-// 日历配置
-const { calendarOptions } = useCalendarOptions(calendarEvents, handlers)
+// 日历配置（传递视图类型）
+const { calendarOptions } = useCalendarOptions(calendarEvents, handlers, props.viewType)
 
 // 装饰线位置（用于模板绑定）
 const decorativeLinePosition = decorativeLine.position
 const decorativeLineTop = decorativeLine.top
 const decorativeLineHeight = decorativeLine.height
-
-// ==================== 日期显示 ====================
-// 格式化日期显示
-const formattedDate = computed(() => {
-  const dateToDisplay = props.currentDate || new Date().toISOString().split('T')[0]
-  const date = new Date(dateToDisplay + 'T00:00:00')
-
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  const weekDay = weekDays[date.getDay()]
-
-  return `${year}年${month}月${day}日 ${weekDay}`
-})
 
 // ==================== 日期切换功能 ====================
 // 监听 currentDate prop 变化，切换日历显示的日期
@@ -135,6 +120,38 @@ watch(
         })
       }
     }
+  },
+  { immediate: false }
+)
+
+// ==================== 视图类型切换功能 ====================
+// 监听 viewType prop 变化，动态切换视图
+watch(
+  () => props.viewType,
+  (newViewType) => {
+    if (!calendarRef.value) return
+
+    const calendarApi = calendarRef.value.getApi()
+    if (!calendarApi) return
+
+    let viewName: string
+    if (newViewType === 'day') {
+      viewName = 'timeGridDay'
+    } else if (newViewType === 'week') {
+      viewName = 'timeGridWeek'
+    } else {
+      viewName = 'dayGridMonth'
+    }
+
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing view', {
+      from: calendarApi.view.type,
+      to: viewName,
+    })
+
+    calendarApi.changeView(viewName)
+
+    // 清除缓存，强制重新计算位置
+    clearCache()
   },
   { immediate: false }
 )
@@ -226,6 +243,11 @@ onMounted(async () => {
     )
   }
 })
+
+// ==================== 暴露给父组件 ====================
+defineExpose({
+  calendarRef, // 暴露 calendarRef，让父组件可以调用 FullCalendar API
+})
 </script>
 
 <style>
@@ -244,23 +266,6 @@ onMounted(async () => {
 .calendar-container {
   height: 100%;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* 日历头部固定高度 */
-.calendar-header {
-  flex-shrink: 0;
-  padding: 1rem 1.5rem;
-  background: var(--color-background);
-  border-bottom: 1px solid var(--color-border);
-}
-
-/* FullCalendar 占据剩余空间 */
-.calendar-container > :nth-child(2) {
-  flex: 1;
-  min-height: 0;
   overflow: hidden;
 }
 
@@ -419,24 +424,7 @@ onMounted(async () => {
 }
 
 /* ===============================================
- * 7. 日期显示栏样式
- * =============================================== */
-
-.date-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.date-text {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--color-text);
-  letter-spacing: 0.5px;
-}
-
-/* ===============================================
- * 8. 装饰竖线样式
+ * 7. 装饰竖线样式
  * =============================================== */
 
 .decorative-line {
@@ -448,7 +436,7 @@ onMounted(async () => {
 }
 
 /* ===============================================
- * 9. 日历缩放样式（调整时间槽高度）
+ * 8. 日历缩放样式（调整时间槽高度）
  * =============================================== */
 
 /* 1x 缩放（默认） - 保持 FullCalendar 默认高度 1.5rem */
@@ -506,7 +494,7 @@ onMounted(async () => {
 }
 
 /* ===============================================
- * 10. 拖拽悬浮在已有事件上的视觉反馈（简化版：仅显示链子图标）
+ * 9. 拖拽悬浮在已有事件上的视觉反馈（简化版：仅显示链子图标）
  * =============================================== */
 .fc-event.hover-link-target::after {
   content: '🔗';
@@ -516,5 +504,180 @@ onMounted(async () => {
   transform: translate(-50%, -50%);
   font-size: 2rem;
   pointer-events: none;
+}
+
+/* ===============================================
+ * 10. 周视图样式优化
+ * =============================================== */
+
+/* 周视图日期头部样式 */
+.fc .fc-col-header-cell {
+  padding: 0.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  border-bottom: 2px solid var(--color-border-default);
+}
+
+/* 今天的列头部高亮 */
+.fc .fc-col-header-cell.fc-day-today {
+  background-color: var(--color-primary-bg, #e3f2fd);
+  color: var(--color-primary, #4a90e2);
+}
+
+/* 周视图列之间的分隔线 */
+.fc .fc-timegrid-col {
+  border-right: 1px solid var(--color-border-default);
+}
+
+/* 周视图今天的列高亮 */
+.fc .fc-timegrid-col.fc-day-today {
+  background-color: var(--color-background-hover, rgb(74 144 226 / 5%));
+}
+
+/* ===============================================
+ * 11. 月视图样式优化
+ * =============================================== */
+
+/* stylelint-disable selector-class-pattern */
+
+/* ✅ 月视图固定行高：防止事件多的格子撑高整行（仅月视图） */
+.fc-dayGridMonth-view .fc-daygrid-body tr {
+  height: 120px !important; /* 强制固定行高 */
+}
+
+.fc-dayGridMonth-view .fc-daygrid-day-frame {
+  height: 120px !important; /* 强制固定格子高度 */
+  overflow: hidden; /* 超出部分隐藏，配合 dayMaxEvents 使用 */
+}
+
+/* 事件容器固定高度（仅月视图） */
+.fc-dayGridMonth-view .fc-daygrid-day-events {
+  min-height: auto !important;
+  overflow: visible; /* 允许 "+N more" 显示 */
+}
+/* stylelint-enable selector-class-pattern */
+
+/* 月视图单元格样式 */
+.fc .fc-daygrid-day {
+  cursor: pointer;
+}
+
+.fc .fc-daygrid-day:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
+}
+
+/* 月视图今天高亮 */
+.fc .fc-daygrid-day.fc-day-today {
+  background-color: var(--color-primary-bg, #e3f2fd);
+}
+
+/* 月视图日期数字样式 */
+.fc .fc-daygrid-day-number {
+  padding: 0.4rem;
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+
+/* 月视图今天的日期数字高亮 */
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--color-primary, #4a90e2);
+  font-weight: 600;
+}
+
+/* 月视图事件样式 */
+.fc .fc-daygrid-event {
+  margin: 1px 2px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 1.2rem;
+}
+
+/* 月视图 "+N more" 链接样式 */
+.fc .fc-daygrid-more-link {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary, #4a90e2);
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+}
+
+.fc .fc-daygrid-more-link:hover {
+  background-color: var(--color-primary-bg, #e3f2fd);
+  text-decoration: none;
+}
+
+/* ===============================================
+ * 12. 任务事件样式
+ * =============================================== */
+
+/* 任务事件（全日）样式 */
+.fc-event.task-event {
+  opacity: 0.85;
+  border-left: 3px solid currentcolor;
+  font-weight: 500;
+  cursor: default; /* ✅ 不可拖动，使用默认光标 */
+}
+
+.fc-event.task-event:hover {
+  opacity: 1;
+  transform: scale(1.02);
+  transition: all 0.15s ease;
+}
+
+/* 月视图中的任务事件 */
+.fc-daygrid-event.task-event {
+  border-left-width: 3px;
+}
+
+/* ===============================================
+ * 13. 截止日期事件样式
+ * =============================================== */
+
+/* 截止日期事件样式 */
+.fc-event.due-date-event {
+  opacity: 0.9;
+  border: 2px dashed currentcolor;
+  border-left-width: 4px;
+  border-left-style: solid;
+  font-weight: 600;
+  cursor: default; /* ✅ 不可拖动，使用默认光标 */
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgb(255 255 255 / 10%) 10px,
+    rgb(255 255 255 / 10%) 20px
+  );
+}
+
+.fc-event.due-date-event:hover {
+  opacity: 1;
+  transform: scale(1.03);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  transition: all 0.15s ease;
+}
+
+/* 逾期的截止日期事件（更明显的样式） */
+.fc-event.due-date-event.overdue {
+  animation: pulse-overdue 2s ease-in-out infinite;
+  font-weight: 700;
+}
+
+@keyframes pulse-overdue {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 月视图中的截止日期事件 */
+.fc-daygrid-event.due-date-event {
+  border-left-width: 4px;
 }
 </style>

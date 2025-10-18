@@ -133,6 +133,21 @@ export class CPUEventCollector {
    * 便捷方法：指令完成
    */
   onInstructionCommitted(instruction: QueuedInstruction): void {
+    // 计算总执行时间
+    const totalDuration = instruction.timestamps.WB && instruction.timestamps.IF
+      ? instruction.timestamps.WB - instruction.timestamps.IF
+      : undefined
+
+    // 计算各阶段耗时
+    const stageDurations = {
+      ifToSch: instruction.timestamps.SCH && instruction.timestamps.IF
+        ? instruction.timestamps.SCH - instruction.timestamps.IF : undefined,
+      schToEx: instruction.timestamps.EX && instruction.timestamps.SCH
+        ? instruction.timestamps.EX - instruction.timestamps.SCH : undefined,
+      exToWb: instruction.timestamps.WB && instruction.timestamps.EX
+        ? instruction.timestamps.WB - instruction.timestamps.EX : undefined,
+    }
+
     this.emit({
       eventType: CPUEventType.INSTRUCTION_COMMITTED,
       instructionId: instruction.id,
@@ -140,7 +155,24 @@ export class CPUEventCollector {
       correlationId: instruction.context.correlationId,
       pipelineStage: PipelineStage.WB,
       instructionStatus: InstructionStatus.COMMITTED,
-      payload: {},
+      callSource: instruction.context.callSource,
+      payload: {
+        // 🔥 包含完整的指令执行信息
+        originalPayload: instruction.payload,
+        result: instruction.result,
+        totalDuration,
+        stageDurations,
+        writeBackExecution: instruction.writeBackExecution,
+        hasOptimisticUpdate: !!instruction.optimisticSnapshot,
+        retryCount: instruction.context.retryCount,
+        timestamps: instruction.timestamps,
+      },
+      latency: totalDuration,
+      metadata: {
+        tags: ['committed', 'success'],
+        ...(instruction.writeBackExecution?.hasCommit && { hasCommit: true }),
+        ...(instruction.optimisticSnapshot && { optimisticUpdate: true }),
+      },
     })
   }
 
@@ -148,6 +180,21 @@ export class CPUEventCollector {
    * 便捷方法：指令失败
    */
   onInstructionFailed(instruction: QueuedInstruction, error: Error): void {
+    // 计算总执行时间（失败时也需要记录）
+    const totalDuration = instruction.timestamps.WB && instruction.timestamps.IF
+      ? instruction.timestamps.WB - instruction.timestamps.IF
+      : undefined
+
+    // 计算各阶段耗时
+    const stageDurations = {
+      ifToSch: instruction.timestamps.SCH && instruction.timestamps.IF
+        ? instruction.timestamps.SCH - instruction.timestamps.IF : undefined,
+      schToEx: instruction.timestamps.EX && instruction.timestamps.SCH
+        ? instruction.timestamps.EX - instruction.timestamps.SCH : undefined,
+      exToWb: instruction.timestamps.WB && instruction.timestamps.EX
+        ? instruction.timestamps.WB - instruction.timestamps.EX : undefined,
+    }
+
     this.emit({
       eventType: CPUEventType.INSTRUCTION_FAILED,
       instructionId: instruction.id,
@@ -155,12 +202,25 @@ export class CPUEventCollector {
       correlationId: instruction.context.correlationId,
       pipelineStage: PipelineStage.WB,
       instructionStatus: InstructionStatus.FAILED,
+      callSource: instruction.context.callSource,
       payload: {
+        // 🔥 包含完整的指令执行信息
+        originalPayload: instruction.payload,
         error: error.message,
         stack: error.stack,
+        totalDuration,
+        stageDurations,
+        writeBackExecution: instruction.writeBackExecution,
+        hasOptimisticUpdate: !!instruction.optimisticSnapshot,
+        rollbackExecuted: instruction.writeBackExecution?.rollbackExecuted,
+        retryCount: instruction.context.retryCount,
+        timestamps: instruction.timestamps,
       },
+      latency: totalDuration,
       metadata: {
         tags: ['error', 'failure'],
+        ...(instruction.writeBackExecution?.rollbackExecuted && { rollbackExecuted: true }),
+        ...(instruction.optimisticSnapshot && { optimisticUpdate: true }),
       },
     })
   }

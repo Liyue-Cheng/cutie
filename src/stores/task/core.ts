@@ -204,6 +204,121 @@ export function createTaskCore() {
     }
   })
 
+  /**
+   * Mux: 根据 viewkey 获取任务列表（多路复用器）
+   * ✅ 性能优化：复用 allTasksArray
+   * ✅ 支持多种 viewkey 格式：
+   *     - misc::staging::${areaId} → 该 area 的 staging 任务
+   *     - misc::staging → 全部 staging 任务
+   *     - misc::archive → 归档任务
+   *     - daily::${date} → 指定日期任务
+   * ✅ 纯函数，不调用 API
+   */
+  const getTasksByViewKey_Mux = computed(() => {
+    return (viewKey: string) => {
+      const parts = viewKey.split('::')
+      const [type, subtype, identifier] = parts
+
+      logger.debug(LogTags.STORE_TASKS, 'getTasksByViewKey_Mux called', {
+        viewKey,
+        parts,
+        totalTasks: allTasksArray.value.length
+      })
+
+      switch (type) {
+        case 'misc':
+          if (subtype === 'staging') {
+            if (identifier) {
+              // misc::staging::${areaId} - 指定 area 的 staging 任务
+              const filteredTasks = allTasksArray.value.filter((task) => {
+                const match = (
+                  task.area_id === identifier &&
+                  task.schedule_status === 'staging' &&
+                  !task.is_completed &&
+                  !task.is_archived &&
+                  !task.is_deleted
+                )
+                if (task.area_id === identifier) {
+                  logger.debug(LogTags.STORE_TASKS, 'Task area match check', {
+                    taskId: task.id,
+                    taskTitle: task.title,
+                    taskAreaId: task.area_id,
+                    targetAreaId: identifier,
+                    scheduleStatus: task.schedule_status,
+                    isCompleted: task.is_completed,
+                    isArchived: task.is_archived,
+                    isDeleted: task.is_deleted,
+                    finalMatch: match
+                  })
+                }
+                return match
+              })
+
+              logger.info(LogTags.STORE_TASKS, 'Area staging filter result', {
+                viewKey,
+                areaId: identifier,
+                totalTasks: allTasksArray.value.length,
+                filteredCount: filteredTasks.length,
+                filteredTaskIds: filteredTasks.map(t => t.id)
+              })
+
+              return filteredTasks
+            } else {
+              // misc::staging - 全部 staging 任务
+              logger.debug(LogTags.STORE_TASKS, 'Using global staging tasks', {
+                viewKey,
+                count: stagingTasks.value.length
+              })
+              return stagingTasks.value
+            }
+          } else if (subtype === 'archive') {
+            // misc::archive - 归档任务
+            logger.debug(LogTags.STORE_TASKS, 'Using archived tasks', {
+              viewKey,
+              count: archivedTasks.value.length
+            })
+            return archivedTasks.value
+          }
+          break
+
+        case 'daily':
+          if (subtype && identifier === undefined) {
+            // daily::${date} - 指定日期任务
+            const date = subtype
+            const tasks = getTasksByDate_Mux.value(date)
+            logger.debug(LogTags.STORE_TASKS, 'Using daily tasks', {
+              viewKey,
+              date,
+              count: tasks.length
+            })
+            return tasks
+          }
+          break
+
+        case 'area':
+          if (subtype) {
+            // area::${areaId} - 指定 area 的所有任务
+            const areaId = subtype
+            const tasks = getTasksByArea_Mux.value(areaId)
+            logger.debug(LogTags.STORE_TASKS, 'Using area tasks', {
+              viewKey,
+              areaId,
+              count: tasks.length
+            })
+            return tasks
+          }
+          break
+
+        default:
+          logger.warn(LogTags.STORE_TASKS, 'Unknown viewKey format', { viewKey })
+          return []
+      }
+
+      logger.warn(LogTags.STORE_TASKS, 'No matching viewKey handler', { viewKey, parts })
+      return []
+    }
+  })
+
   // ============================================================
   // ACTIONS - 基础状态操作
   // ============================================================
@@ -309,6 +424,7 @@ export function createTaskCore() {
     getTasksByDate_Mux,
     getTasksByProject_Mux,
     getTasksByArea_Mux,
+    getTasksByViewKey_Mux,
 
     // Actions
     addOrUpdateTasks,
