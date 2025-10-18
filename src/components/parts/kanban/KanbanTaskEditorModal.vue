@@ -115,8 +115,8 @@ async function loadRecurrence() {
 
   // ✅ 修复：使用 task.recurrence_id 直接查找循环规则
   if (task.value.recurrence_id) {
-    // 获取所有循环规则
-    await recurrenceStore.fetchAllRecurrences()
+    // 🔥 使用CPU指令获取所有循环规则
+    await pipeline.dispatch('recurrence.fetch_all', {})
 
     // 直接通过 recurrence_id 查找
     const recurrence = recurrenceStore.getRecurrenceById(task.value.recurrence_id)
@@ -431,7 +431,9 @@ async function handleStopRepeating() {
         recurrenceId: currentRecurrence.value.id,
         instanceDate,
       })
-      await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
+      // 🔥 使用CPU指令更新循环规则
+      await pipeline.dispatch('recurrence.update', {
+        id: currentRecurrence.value.id,
         end_date: instanceDate,
       })
       // 重新加载以更新状态
@@ -450,7 +452,9 @@ async function handleExtendRecurrence() {
 
   if (confirm('确定继续此循环吗？将清除结束日期，继续生成新任务。')) {
     try {
-      await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
+      // 🔥 使用CPU指令更新循环规则
+      await pipeline.dispatch('recurrence.update', {
+        id: currentRecurrence.value.id,
         end_date: null,
       })
       // 重新加载以更新状态
@@ -468,7 +472,8 @@ async function handleDeleteRecurrence() {
 
   if (confirm('确定删除这个循环规则吗？已生成的任务不会被删除。')) {
     try {
-      await recurrenceStore.deleteRecurrence(currentRecurrence.value.id)
+      // 🔥 使用CPU指令删除循环规则
+      await pipeline.dispatch('recurrence.delete', { id: currentRecurrence.value.id })
       currentRecurrence.value = null
       await viewStore.refreshAllMountedDailyViews()
     } catch (error) {
@@ -482,7 +487,9 @@ async function handleToggleRecurrenceActive() {
   if (!currentRecurrence.value) return
 
   try {
-    await recurrenceStore.updateRecurrence(currentRecurrence.value.id, {
+    // 🔥 使用CPU指令更新循环规则
+    await pipeline.dispatch('recurrence.update', {
+      id: currentRecurrence.value.id,
       is_active: !currentRecurrence.value.is_active,
     })
     // 重新加载以更新状态

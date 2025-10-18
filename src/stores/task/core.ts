@@ -92,10 +92,11 @@ export function createTaskCore() {
    * Planned 任务（已安排且未完成）
    * ✅ 动态过滤：任务完成后自动消失
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除的任务：删除后立即消失
    */
   const plannedTasks = computed(() => {
     return allTasksArray.value.filter(
-      (task) => task.schedule_status === 'scheduled' && !task.is_completed
+      (task) => task.schedule_status === 'scheduled' && !task.is_completed && !task.is_deleted
     )
   })
 
@@ -103,33 +104,37 @@ export function createTaskCore() {
    * 未完成的任务（所有状态）
    * ✅ 动态过滤：任务完成后自动消失
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除的任务：删除后立即消失
    */
   const incompleteTasks = computed(() => {
-    return allTasksArray.value.filter((task) => !task.is_completed)
+    return allTasksArray.value.filter((task) => !task.is_completed && !task.is_deleted)
   })
 
   /**
    * 已完成的任务
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除的任务：删除后立即消失
    */
   const completedTasks = computed(() => {
-    return allTasksArray.value.filter((task) => task.is_completed)
+    return allTasksArray.value.filter((task) => task.is_completed && !task.is_deleted)
   })
 
   /**
    * 已归档的任务
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除的任务：归档中删除后立即消失
    */
   const archivedTasks = computed(() => {
-    return allTasksArray.value.filter((task) => task.is_archived)
+    return allTasksArray.value.filter((task) => task.is_archived && !task.is_deleted)
   })
 
   /**
    * 已安排的任务（包括已完成和未完成）
+   * ✅ 排除已删除的任务：删除后立即消失
    * @deprecated 使用 plannedTasks（只含未完成）
    */
   const scheduledTasks = computed(() => {
-    return allTasksArray.value.filter((task) => task.schedule_status === 'scheduled')
+    return allTasksArray.value.filter((task) => task.schedule_status === 'scheduled' && !task.is_deleted)
   })
 
   /**
@@ -144,7 +149,7 @@ export function createTaskCore() {
    * Mux: 获取指定日期的任务列表（多路复用器）
    * ✅ 单一数据源：从 TaskStore 过滤，自动响应变化
    * ✅ 性能优化：复用 allTasksArray
-   * ✅ 过滤归档任务：归档的任务不会出现在日期看板
+   * ✅ 过滤归档和已删除任务：这些任务不会出现在日期看板
    * ✅ 纯函数，不调用 API
    */
   const getTasksByDate_Mux = computed(() => (date: string) => {
@@ -154,8 +159,8 @@ export function createTaskCore() {
       //   console.log('[getTasksByDate] Task:', task.id, 'schedules:', task.schedules)
       // }
 
-      // 排除归档的任务
-      if (task.is_archived) {
+      // 排除归档和已删除的任务
+      if (task.is_archived || task.is_deleted) {
         return false
       }
 
@@ -178,22 +183,24 @@ export function createTaskCore() {
   /**
    * Mux: 根据项目 ID 获取任务列表（多路复用器）
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除的任务：删除后立即消失
    * ✅ 纯函数，不调用 API
    */
   const getTasksByProject_Mux = computed(() => {
     return (projectId: string) => {
-      return allTasksArray.value.filter((task) => task.project_id === projectId)
+      return allTasksArray.value.filter((task) => task.project_id === projectId && !task.is_deleted)
     }
   })
 
   /**
    * Mux: 根据区域 ID 获取任务列表（多路复用器）
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除的任务：删除后立即消失
    * ✅ 纯函数，不调用 API
    */
   const getTasksByArea_Mux = computed(() => {
     return (areaId: string) => {
-      return allTasksArray.value.filter((task) => task.area_id === areaId)
+      return allTasksArray.value.filter((task) => task.area_id === areaId && !task.is_deleted)
     }
   })
 

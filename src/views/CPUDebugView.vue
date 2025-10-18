@@ -285,8 +285,8 @@ let updateInterval: number | null = null
 
 // 生命周期
 onMounted(async () => {
-  // 加载任务数据
-  await taskStore.fetchAllTasks_DMA()
+  // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
+  await taskStore.fetchAllIncompleteTasks_DMA()
 
   // 启动流水线
   pipeline.start()

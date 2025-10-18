@@ -4,7 +4,7 @@ import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { apiPatch } from '@/stores/shared'
+import { pipeline } from '@/cpu'
 
 /**
  * 循环任务操作 Composable
@@ -32,7 +32,8 @@ export function useRecurrenceOperations() {
     if (!confirmed) return
 
     try {
-      await recurrenceStore.updateRecurrence(recurrenceId, {
+      await pipeline.dispatch('recurrence.update', {
+        id: recurrenceId,
         end_date: originalDate,
       })
 
@@ -108,7 +109,7 @@ export function useRecurrenceOperations() {
             recurrenceId,
           }
         )
-        await recurrenceStore.fetchAllRecurrences()
+        await pipeline.dispatch('recurrence.fetch_all', {})
         recurrence = recurrenceStore.getRecurrenceById(recurrenceId)
 
         if (!recurrence) {
@@ -124,18 +125,8 @@ export function useRecurrenceOperations() {
         templateId: recurrence.template_id,
       })
 
-      // 3. 构造请求体（基于 TaskDetail）
-      const instancePayload = {
-        title: taskDetail.title,
-        glance_note: taskDetail.glance_note,
-        detail_note: taskDetail.detail_note,
-        estimated_duration: taskDetail.estimated_duration,
-        area_id: taskDetail.area_id,
-        subtasks: taskDetail.subtasks, // 新增：同步子任务
-      }
-
-      // 4. 🔥 使用新的统一端点，在同一事务中更新模板和实例
-      const payload = {
+      // 3. 构造更新数据
+      const updatePayload = {
         title: taskDetail.title,
         glance_note: taskDetail.glance_note,
         detail_note: taskDetail.detail_note,
@@ -150,17 +141,20 @@ export function useRecurrenceOperations() {
         {
           recurrenceId,
           payload: {
-            ...payload,
-            detail_note: payload.detail_note ? `(${payload.detail_note.length} chars)` : null,
-            subtasks: payload.subtasks ? `(${payload.subtasks.length} items)` : null,
+            ...updatePayload,
+            detail_note: updatePayload.detail_note ? `(${updatePayload.detail_note.length} chars)` : null,
+            subtasks: updatePayload.subtasks ? `(${updatePayload.subtasks.length} items)` : null,
           },
         }
       )
 
-      // 5. 调用新的统一端点
-      const result = await apiPatch(`/recurrences/${recurrenceId}/template-and-instances`, payload)
+      // 4. 使用CPU指令调用统一端点
+      const result = await pipeline.dispatch('recurrence.update_template_and_instances', {
+        recurrence_id: recurrenceId,
+        ...updatePayload,
+      })
 
-      // 6. 检查结果
+      // 5. 检查结果
       const { template_updated, instances_updated_count } = result
 
       logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Template and instances updated successfully', {
@@ -169,7 +163,7 @@ export function useRecurrenceOperations() {
         instancesUpdatedCount: instances_updated_count,
       })
 
-      // 7. 刷新所有已挂载的日视图
+      // 6. 刷新所有已挂载的日视图
       await viewStore.refreshAllMountedDailyViews()
 
       alert(
@@ -192,8 +186,8 @@ export function useRecurrenceOperations() {
    */
   async function deleteAllInstancesAndStop(recurrenceId: string) {
     try {
-      // 直接删除循环规则，后端会自动清理所有未完成实例
-      await recurrenceStore.deleteRecurrence(recurrenceId)
+      // 使用CPU指令删除循环规则，后端会自动清理所有未完成实例
+      await pipeline.dispatch('recurrence.delete', { id: recurrenceId })
 
       // 刷新所有已挂载的日视图
       await viewStore.refreshAllMountedDailyViews()

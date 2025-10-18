@@ -19,7 +19,7 @@ export const ViewPreferenceISA: ISADefinition = {
       category: 'system',
       resourceIdentifier: (payload) => [`viewpreference:${payload.view_key}`],
       priority: 5,
-      timeout: 5000,
+      timeout: 2000, // 🔥 优化：从 5000ms 降低到 2000ms，因为后端已优化
     },
     optimistic: {
       enabled: true,

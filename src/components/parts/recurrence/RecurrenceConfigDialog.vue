@@ -5,6 +5,7 @@ import type { TaskCard } from '@/types/dtos'
 import { useTemplateStore } from '@/stores/template'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
+import { pipeline } from '@/cpu'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 const props = defineProps<{
@@ -108,8 +109,8 @@ function toggleWeekday(day: number) {
 
 async function handleSave() {
   try {
-    // 步骤1: 创建循环模板（基于当前任务）
-    const template = await templateStore.createTemplate({
+    // 步骤1: 使用CPU指令创建循环模板（基于当前任务）
+    const template = await pipeline.dispatch('template.create', {
       title: props.task.title,
       glance_note_template: props.task.glance_note ?? undefined,
       detail_note_template: undefined,
@@ -119,8 +120,8 @@ async function handleSave() {
       category: 'RECURRENCE',
     })
 
-    // 步骤2: 创建循环规则（传入原任务ID，避免重复创建）
-    await recurrenceStore.createRecurrence({
+    // 步骤2: 使用CPU指令创建循环规则（传入原任务ID，避免重复创建）
+    await pipeline.dispatch('recurrence.create', {
       template_id: template.id,
       rule: ruleString.value,
       time_type: 'FLOATING',

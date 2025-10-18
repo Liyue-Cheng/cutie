@@ -12,7 +12,6 @@ mod endpoints {
 /// 创建views相关的路由
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/all", get(endpoints::get_all))
         .route("/all-incomplete", get(endpoints::get_all_incomplete))
         .route("/daily/:date", get(endpoints::get_daily_tasks)) // ✅ 修正：/daily-tasks -> /daily/:date
         .route("/planned", get(endpoints::get_planned))

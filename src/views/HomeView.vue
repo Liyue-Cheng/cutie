@@ -36,9 +36,10 @@ const uiStore = useUIStore()
 
 // ==================== 初始化 ====================
 onMounted(async () => {
-  logger.info(LogTags.VIEW_HOME, 'Initializing, loading all tasks...')
-  await taskStore.fetchAllTasks_DMA()
-  logger.info(LogTags.VIEW_HOME, 'Loaded tasks', { count: taskStore.allTasks.length })
+  logger.info(LogTags.VIEW_HOME, 'Initializing, loading incomplete tasks...')
+  // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
+  await taskStore.fetchAllIncompleteTasks_DMA()
+  logger.info(LogTags.VIEW_HOME, 'Loaded incomplete tasks', { count: taskStore.incompleteTasks.length })
 })
 
 // ==================== 状态 ====================
@@ -168,14 +169,15 @@ async function handleDeleteAllTasks() {
 
 async function handleLoadAllTasks() {
   isLoadingAll.value = true
-  logger.info(LogTags.VIEW_HOME, 'Loading all tasks...')
+  logger.info(LogTags.VIEW_HOME, 'Loading incomplete tasks...')
 
   try {
-    await taskStore.fetchAllTasks_DMA()
-    const taskCount = taskStore.allTasks.length
+    // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
+    await taskStore.fetchAllIncompleteTasks_DMA()
+    const taskCount = taskStore.incompleteTasks.length
     const archivedCount = taskStore.archivedTasks.length
-    logger.info(LogTags.VIEW_HOME, 'Loaded tasks', { taskCount, archivedCount })
-    alert(`加载完成！总任务数：${taskCount}，归档任务：${archivedCount}`)
+    logger.info(LogTags.VIEW_HOME, 'Loaded incomplete tasks', { taskCount, archivedCount })
+    alert(`加载完成！未完成任务数：${taskCount}，归档任务：${archivedCount}`)
   } catch (error) {
     logger.error(
       LogTags.VIEW_HOME,

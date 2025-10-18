@@ -43,7 +43,9 @@
       "Bash(git log:*)",
       "Bash(sort:*)",
       "Bash(find:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "WebFetch(domain:rosepinetheme.com)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

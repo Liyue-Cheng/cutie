@@ -10,64 +10,84 @@ import type { TaskCard } from '@/types/dtos'
 // ==================== DOM 操作工具 ====================
 
 /**
- * 计算看板列表中的插入位置
+ * 计算看板列表中的插入位置（方向感知 + 邻居10%触发）
  *
- * 使用施密特触发器（迟滞比较器）避免边界抖动：
- * - 向下移动：需要越过下沿 (centerY + 20% height)
- * - 向上移动：需要越过上沿 (centerY - 20% height)
+ * 规则：
+ * - 使用“邻居触发区”驱动步进：
+ *   - 上移：当指针进入“上邻居”的顶部10%（且至少MIN像素）时，占位上移一位
+ *   - 下移：当指针进入“下邻居”的底部10%（且至少MIN像素）时，占位下移一位
+ * - 初次进入（无 lastDropIndex）不使用中线，改为按项 bottom 定位到更稳定的初始位置，避免起拖即跳变
  *
- * @param mouseY 鼠标Y坐标
+ * @param mouseY 鼠标Y坐标（页面坐标）
  * @param wrappers 任务卡片包装元素列表
- * @param lastDropIndex 上一次的插入位置（用于判断移动方向）
- * @returns 插入位置索引
+ * @param lastDropIndex 上一次的插入位置（用于步进起点）
+ * @returns 插入位置索引（0..wrappers.length）
  */
 export function calculateDropIndex(
   mouseY: number,
   wrappers: HTMLElement[],
   lastDropIndex?: number
 ): number {
-  if (wrappers.length === 0) {
-    return 0
+  if (wrappers.length === 0) return 0
+
+  const ZONE_RATIO = 0.1 // 邻边触发区比例
+  const MIN_ZONE_PX = 8 // 最小像素阈值，适配超小项
+
+  const zonePx = (h: number) => Math.max(h * ZONE_RATIO, MIN_ZONE_PX)
+
+  // =============== 情况 A：有历史占位索引 → 方向感知步进 ===============
+  if (lastDropIndex !== undefined && lastDropIndex !== null) {
+    let i = Math.max(0, Math.min(lastDropIndex, wrappers.length))
+
+    // 允许一次跨越多项：循环消费触发区
+    while (true) {
+      let moved = false
+
+      // 尝试上移：检查上一项的底部10%
+      const prevIndex = i - 1
+      if (prevIndex >= 0) {
+        const prevEl = wrappers[prevIndex]
+        if (!prevEl) break
+        const prevRect = prevEl.getBoundingClientRect()
+        const topEdge = prevRect.bottom - zonePx(prevRect.height)
+        if (mouseY <= topEdge) {
+          i = prevIndex
+          moved = true
+        }
+      }
+
+      // 若未上移，尝试下移：检查下邻居（当前位置 i+1 所指向的项）的顶部10%
+      if (!moved) {
+        const nextIndex = i + 1
+        if (nextIndex < wrappers.length) {
+          const nextEl = wrappers[nextIndex]
+          if (!nextEl) break
+          const nextRect = nextEl.getBoundingClientRect()
+          const bottomEdge = nextRect.top + zonePx(nextRect.height)
+          if (mouseY >= bottomEdge) {
+            i = nextIndex + 1
+            moved = true
+          }
+        }
+      }
+
+      if (!moved) break
+    }
+
+    return Math.max(0, Math.min(i, wrappers.length))
   }
 
-  // 🔥 施密特触发器参数
-  const HYSTERESIS = 0.25 // 25% 迟滞区间
-
+  // =============== 情况 B：无历史索引 → 稳定初始定位 ===============
+  // 采用“按项 bottom”定位：返回第一个 bottom >= mouseY 的元素索引
+  // 好处：即便在当前项下半部起拖，也不会立刻判为“插到下一项之后”
   for (let i = 0; i < wrappers.length; i++) {
-    const wrapper = wrappers[i]
-    if (!wrapper) continue
-
-    const rect = wrapper.getBoundingClientRect()
-    const height = rect.height
-    const centerY = rect.top + height / 2
-
-    // 计算上下沿（带迟滞）
-    const upperThreshold = centerY - height * HYSTERESIS // 上沿：中心线上方 25%
-    const lowerThreshold = centerY + height * HYSTERESIS // 下沿：中心线下方 25%
-
-    // 🔥 施密特触发器逻辑
-    if (lastDropIndex !== undefined) {
-      // 有历史位置，使用迟滞比较
-      if (lastDropIndex <= i) {
-        // 向下移动或保持：需要越过下沿
-        if (mouseY < lowerThreshold) {
-          return i
-        }
-      } else {
-        // 向上移动：需要越过上沿
-        if (mouseY < upperThreshold) {
-          return i
-        }
-      }
-    } else {
-      // 没有历史位置（首次计算），使用中心线
-      if (mouseY < centerY) {
-        return i
-      }
+    const el = wrappers[i]
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (mouseY <= rect.bottom) {
+      return i
     }
   }
-
-  // 如果鼠标在所有元素下方，插入到末尾
   return wrappers.length
 }
 

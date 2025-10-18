@@ -200,8 +200,8 @@ mod logic {
             updated_at: now,
         };
 
-        // 3. 保存到数据库
-        let saved = database::upsert(pool, &preference).await?;
+        // 3. 🔥 优化：直接返回 UPSERT 结果，避免二次查询
+        let saved = database::upsert_optimized(pool, &preference).await?;
 
         // 4. 返回 DTO
         Ok(ViewPreferenceDto {
@@ -215,6 +215,43 @@ mod logic {
 // ==================== 数据访问层 ====================
 mod database {
     use super::*;
+
+    /// 🔥 优化版本：单次 UPSERT，避免二次查询
+    pub async fn upsert_optimized(
+        pool: &sqlx::SqlitePool,
+        preference: &ViewPreference,
+    ) -> AppResult<ViewPreference> {
+        // 🔥 预先序列化，减少运行时开销
+        let sorted_task_ids_json = serde_json::to_string(&preference.sorted_task_ids)?;
+        let updated_at = preference.updated_at.to_rfc3339();
+
+        let query = r#"
+            INSERT INTO view_preferences (context_key, sorted_task_ids, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(context_key) DO UPDATE SET
+                sorted_task_ids = excluded.sorted_task_ids,
+                updated_at = excluded.updated_at
+            RETURNING context_key, sorted_task_ids, updated_at
+        "#;
+
+        // 🔥 使用 RETURNING 子句避免二次查询
+        let row = sqlx::query_as::<_, ViewPreferenceRow>(query)
+            .bind(&preference.context_key)
+            .bind(&sorted_task_ids_json)
+            .bind(&updated_at)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                AppError::DatabaseError(crate::infra::core::DbError::ConnectionError(e))
+            })?;
+
+        // 直接返回结果，无需额外查询
+        ViewPreference::try_from(row).map_err(|e| AppError::validation_error(
+            "view_preference",
+            &e,
+            "PARSE_ERROR",
+        ))
+    }
 
     pub async fn upsert(
         pool: &sqlx::SqlitePool,

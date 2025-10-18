@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import { useUIStore } from '@/stores/ui'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { pipeline } from '@/cpu'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import type { TaskRecurrence } from '@/types/dtos'
 
@@ -26,8 +27,8 @@ watch(
   () => uiStore.recurrenceEditDialogId,
   async (recurrenceId) => {
     if (recurrenceId) {
-      // 确保循环规则数据已加载
-      await recurrenceStore.fetchAllRecurrences()
+      // 使用CPU指令确保循环规则数据已加载
+      await pipeline.dispatch('recurrence.fetch_all', {})
     }
   }
 )

@@ -21,6 +21,13 @@ export class WriteBackStage {
     const definition = ISA[instruction.type]
 
     if (instruction.optimisticSnapshot && definition?.optimistic?.rollback) {
+      // 记录回滚操作
+      if (!instruction.writeBackExecution) {
+        instruction.writeBackExecution = { hasCommit: false, rollbackExecuted: true }
+      }
+      instruction.writeBackExecution.rollbackExecuted = true
+      instruction.writeBackExecution.rollbackSnapshot = instruction.optimisticSnapshot
+
       // 🎯 记录乐观更新回滚事件
       cpuEventCollector.onOptimisticRolledBack(
         instruction.id,
@@ -35,6 +42,7 @@ export class WriteBackStage {
       try {
         definition.optimistic.rollback(instruction.optimisticSnapshot)
       } catch (rollbackError) {
+        instruction.writeBackExecution.rollbackError = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError))
         console.error('❌ [CPU] 乐观更新回滚失败:', {
           instructionId: instruction.id,
           type: instruction.type,
@@ -53,11 +61,25 @@ export class WriteBackStage {
 
     const definition = ISA[instruction.type]
 
+    // 初始化WB执行记录
+    instruction.writeBackExecution = {
+      hasCommit: !!(definition && definition.commit),
+      rollbackExecuted: false,
+    }
+
     if (success) {
       // ==================== 成功路径 ====================
 
       // 🔥 调用 commit 函数（如果存在）
-      if (definition && definition.commit && instruction.result !== undefined) {
+      if (definition && definition.commit) {
+        // 记录commit调用参数
+        instruction.writeBackExecution.commitArgs = {
+          result: instruction.result,
+          payload: instruction.payload,
+          context: instruction.context,
+          optimisticSnapshot: instruction.optimisticSnapshot,
+        }
+
         try {
           await definition.commit(
             instruction.result,
@@ -65,13 +87,17 @@ export class WriteBackStage {
             instruction.context,
             instruction.optimisticSnapshot // 🔥 传递乐观更新快照
           )
+          instruction.writeBackExecution.commitSuccess = true
         } catch (error) {
+          instruction.writeBackExecution.commitSuccess = false
+          instruction.writeBackExecution.commitError = error instanceof Error ? error : new Error(String(error))
+
           // commit失败 → 回滚乐观更新
           this.rollbackOptimisticUpdate(instruction)
 
           // 设置为失败状态
           instruction.status = InstructionStatus.FAILED
-          instruction.error = error instanceof Error ? error : new Error(String(error))
+          instruction.error = instruction.writeBackExecution.commitError
           return
         }
       }

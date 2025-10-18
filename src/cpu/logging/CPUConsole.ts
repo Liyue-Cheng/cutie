@@ -119,16 +119,50 @@ export class CPUConsole {
       ...(callSourceInfo ? ['color: #8b5cf6; font-weight: bold'] : [])
     )
 
-    // 🔥 显示写入的内容（Payload）
+    // 🔥 显示指令输入参数
     if (this.level >= ConsoleLevel.NORMAL) {
-      console.log('%c📤 写入内容 (Payload):', 'color: #3b82f6; font-weight: bold')
+      console.log('%c📝 指令参数 (Payload):', 'color: #3b82f6; font-weight: bold')
       console.log(instruction.payload)
     }
 
-    // 🔥 显示提交结果（Result）
+    // 🔥 显示后端返回结果
     if (instruction.result && this.level >= ConsoleLevel.NORMAL) {
-      console.log('%c📥 返回结果 (Result):', 'color: #10b981; font-weight: bold')
+      console.log('%c📥 后端返回 (Result):', 'color: #10b981; font-weight: bold')
       console.log(instruction.result)
+    }
+
+    // 🔥 显示WB阶段真实执行内容
+    if (this.level >= ConsoleLevel.VERBOSE && instruction.writeBackExecution) {
+      const wbExec = instruction.writeBackExecution
+      console.log('%c💾 WB阶段执行记录:', 'color: #8b5cf6; font-weight: bold')
+
+      if (wbExec.hasCommit) {
+        if (wbExec.commitSuccess === true) {
+          console.log('  ✅ commit() 函数执行成功')
+          console.log('  📝 commit 调用参数:', wbExec.commitArgs)
+        } else if (wbExec.commitSuccess === false) {
+          console.log('  ❌ commit() 函数执行失败')
+          console.log('  📝 commit 调用参数:', wbExec.commitArgs)
+          console.log('  🚨 commit 错误:', wbExec.commitError)
+        } else {
+          console.log('  ⚠️  commit() 状态未知')
+        }
+      } else {
+        console.log('  ⏭️  无 commit() 函数')
+      }
+
+      if (wbExec.rollbackExecuted) {
+        console.log('  🔄 执行了乐观更新回滚')
+        console.log('  📋 回滚快照:', wbExec.rollbackSnapshot)
+        if (wbExec.rollbackError) {
+          console.log('  🚨 回滚错误:', wbExec.rollbackError)
+        }
+      }
+
+      // 显示中断处理器注册（成功时）
+      if (instruction.status === 'committed') {
+        console.log('  🎯 已注册到中断处理器 (SSE去重)')
+      }
     }
 
     // 显示流水线阶段
@@ -169,9 +203,9 @@ export class CPUConsole {
     // 显示错误信息
     console.error(`%c原因: ${error.message}`, 'color: #ef4444; font-weight: bold')
 
-    // 🔥 显示尝试写入的内容（Payload）
+    // 🔥 显示指令输入参数
     if (this.level >= ConsoleLevel.NORMAL) {
-      console.log('%c📤 尝试写入的内容 (Payload):', 'color: #3b82f6; font-weight: bold')
+      console.log('%c📝 指令参数 (Payload):', 'color: #3b82f6; font-weight: bold')
       console.log(instruction.payload)
     }
 

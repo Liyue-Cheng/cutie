@@ -145,7 +145,7 @@ export const dailyToTemplateStrategy: Strategy = {
         // 🎯 步骤 1: 从任务创建模板
         const createTemplatePayload = {
           task_id: task.id,
-          title: `${task.title} (模板)`, // 可以自定义标题
+          title: task.title, // 使用任务原始标题，不添加额外后缀
           category: 'GENERAL' as const,
         }
         const newTemplate = await pipeline.dispatch('template.from_task', createTemplatePayload)

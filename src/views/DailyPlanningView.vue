@@ -58,8 +58,9 @@ const upcomingTasks = computed(() => {
 // ==================== 初始化 ====================
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Daily Planning: Initializing...')
-  await taskStore.fetchAllTasks_DMA()
-  logger.info(LogTags.VIEW_HOME, 'Daily Planning: Loaded tasks', {
+  // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
+  await taskStore.fetchAllIncompleteTasks_DMA()
+  logger.info(LogTags.VIEW_HOME, 'Daily Planning: Loaded incomplete tasks', {
     today: today.value,
     todayCount: todayTasks.value.length,
     tomorrowCount: tomorrowTasks.value.length,

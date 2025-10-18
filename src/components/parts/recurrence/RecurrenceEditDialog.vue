@@ -4,6 +4,7 @@ import { RRule, Frequency } from 'rrule'
 import type { TaskRecurrence } from '@/types/dtos'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
+import { pipeline } from '@/cpu'
 
 const props = defineProps<{
   recurrence: TaskRecurrence | null
@@ -184,8 +185,11 @@ async function handleSave() {
 
     console.log('Updating recurrence with payload:', payload)
 
-    // 更新循环规则
-    await recurrenceStore.updateRecurrence(props.recurrence.id, payload)
+    // 使用CPU指令更新循环规则
+    await pipeline.dispatch('recurrence.update', {
+      id: props.recurrence.id,
+      ...payload
+    })
 
     emit('success')
     emit('close')

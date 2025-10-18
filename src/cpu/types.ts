@@ -50,6 +50,31 @@ export interface InstructionContext {
 }
 
 /**
+ * WB阶段执行信息
+ */
+export interface WriteBackExecution {
+  /** 是否有commit函数 */
+  hasCommit: boolean
+  /** commit函数调用参数 */
+  commitArgs?: {
+    result: any
+    payload: any
+    context: InstructionContext
+    optimisticSnapshot?: any
+  }
+  /** commit执行结果 */
+  commitSuccess?: boolean
+  /** commit错误信息 */
+  commitError?: Error
+  /** 是否执行了回滚 */
+  rollbackExecuted?: boolean
+  /** 回滚快照 */
+  rollbackSnapshot?: any
+  /** 回滚错误 */
+  rollbackError?: Error
+}
+
+/**
  * 队列中的指令
  */
 export interface QueuedInstruction<TPayload = any> {
@@ -77,4 +102,6 @@ export interface QueuedInstruction<TPayload = any> {
   error?: Error
   /** 乐观更新快照（用于回滚） */
   optimisticSnapshot?: any
+  /** WB阶段执行详情 */
+  writeBackExecution?: WriteBackExecution
 }

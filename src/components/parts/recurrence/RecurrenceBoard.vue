@@ -4,6 +4,7 @@ import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
 import { useTemplateStore } from '@/stores/template'
 import { useUIStore } from '@/stores/ui'
+import { pipeline } from '@/cpu'
 import RecurrenceRuleCard from './RecurrenceRuleCard.vue'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import type { TaskRecurrence } from '@/types/dtos'
@@ -36,13 +37,19 @@ watch(
 )
 
 onMounted(async () => {
-  // 加载所有模板和循环规则
-  await Promise.all([templateStore.fetchAllTemplates(), recurrenceStore.fetchAllRecurrences()])
+  // 加载所有模板和循环规则（使用CPU指令）
+  await Promise.all([
+    templateStore.fetchAllTemplates(),
+    pipeline.dispatch('recurrence.fetch_all', {})
+  ])
 })
 
 async function handleToggleActive(id: string, currentStatus: boolean) {
   try {
-    await recurrenceStore.updateRecurrence(id, { is_active: !currentStatus })
+    await pipeline.dispatch('recurrence.update', {
+      id,
+      is_active: !currentStatus
+    })
     await viewStore.refreshAllMountedDailyViews()
   } catch (error) {
     console.error('Failed to toggle recurrence:', error)
@@ -57,7 +64,7 @@ function handleEdit(id: string) {
 
 async function handleDelete(id: string) {
   try {
-    await recurrenceStore.deleteRecurrence(id)
+    await pipeline.dispatch('recurrence.delete', { id })
     await viewStore.refreshAllMountedDailyViews()
   } catch (error) {
     console.error('Failed to delete recurrence:', error)

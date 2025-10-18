@@ -9,6 +9,7 @@ import { ScheduleISA } from './schedule-isa'
 import { TimeBlockISA } from './timeblock-isa'
 import { ViewPreferenceISA } from './viewpreference-isa'
 import { TemplateISA } from './template-isa'
+import { RecurrenceISA } from './recurrence-isa'
 
 /**
  * 完整的ISA定义
@@ -20,6 +21,7 @@ export const ISA: ISADefinition = {
   ...TimeBlockISA,
   ...ViewPreferenceISA,
   ...TemplateISA,
+  ...RecurrenceISA,
 }
 
 // 导出类型

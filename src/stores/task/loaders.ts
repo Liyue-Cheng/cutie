@@ -27,17 +27,16 @@ export function createLoaders(core: ReturnType<typeof createTaskCore>) {
   const { addOrUpdateTasks, replaceTasksForDate, addOrUpdateTask, withLoading } = core
 
   /**
-   * DMA: 加载所有任务（应用启动时使用）
-   * API: GET /views/all
+   * 🚨 fetchAllTasks_DMA 已删除！
+   *
+   * 原因：随着循环任务的实现，查询所有任务会导致性能问题和潜在的无限数据。
+   *
+   * 请使用以下替代方案：
+   * - fetchAllIncompleteTasks_DMA() - 查询未完成任务
+   * - fetchStagingTasks_DMA() - 查询暂存区任务
+   * - fetchDailyTasks_DMA(date) - 查询特定日期任务
+   * - fetchPlannedTasks_DMA() - 查询已排期任务
    */
-  async function fetchAllTasks_DMA() {
-    return withLoading(async () => {
-      const tasks: TaskCard[] = await apiGet('/views/all')
-      addOrUpdateTasks(tasks)
-      logger.info(LogTags.STORE_TASKS, 'DMA: Loaded all tasks', { count: tasks.length })
-      return tasks
-    }, 'fetch all tasks')
-  }
 
   /**
    * DMA: 加载所有未完成任务
@@ -149,7 +148,7 @@ export function createLoaders(core: ReturnType<typeof createTaskCore>) {
   }
 
   return {
-    fetchAllTasks_DMA,
+    // fetchAllTasks_DMA, // 🚨 已删除 - 危险操作，会导致无限数据
     fetchAllIncompleteTasks_DMA,
     fetchPlannedTasks_DMA,
     fetchStagingTasks_DMA,
