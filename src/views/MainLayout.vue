@@ -26,6 +26,9 @@
             <li @click="$router.push('/')">
               <CuteIcon name="House" :size="16" /><span>Home</span>
             </li>
+            <li @click="$router.push('/sunsama-legacy')">
+              <CuteIcon name="LayoutGrid" :size="16" /><span>Sunsama Legacy</span>
+            </li>
             <li @click="$router.push('/staging')">
               <CuteIcon name="Layers" :size="16" /><span>Staging</span>
             </li>

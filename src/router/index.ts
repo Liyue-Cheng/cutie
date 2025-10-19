@@ -13,6 +13,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/HomeView.vue'),
       },
       {
+        path: 'sunsama-legacy',
+        name: 'sunsama-legacy',
+        component: () => import('../views/SunsamaLegacyView.vue'),
+      },
+      {
         path: 'staging',
         name: 'staging',
         component: () => import('../views/StagingView.vue'),
