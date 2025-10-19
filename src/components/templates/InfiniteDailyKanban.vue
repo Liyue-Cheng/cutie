@@ -4,12 +4,15 @@ import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
 // import { useTaskStore } from '@/stores/task' // 🗑️ 不再需要
 import { useViewStore } from '@/stores/view'
+import { useRegisterStore } from '@/stores/register'
 import { controllerDebugState } from '@/infra/drag-interact'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString, toDateString, isSameDate } from '@/infra/utils/dateUtils'
 
 // ==================== Stores ====================
 // const taskStore = useTaskStore() // 🗑️ 不再需要：SimpleKanbanColumn 内部处理任务数据
 const viewStore = useViewStore()
+const registerStore = useRegisterStore()
 
 // ==================== 配置常量 ====================
 const KANBAN_WIDTH = 23 // 每个看板宽度（rem）
@@ -38,6 +41,9 @@ const isTaskDragging = computed(() => {
   return controllerDebugState.value.phase !== 'IDLE'
 })
 
+// ==================== Props ====================
+// 🗑️ 移除 props drilling - 现在直接从 register store 读取
+
 // ==================== 日期看板系统 ====================
 interface DailyKanban {
   id: string // 日期字符串 YYYY-MM-DD
@@ -63,10 +69,37 @@ function addDays(date: Date, days: number): Date {
   return result
 }
 
-import { getTodayDateString, toDateString, isSameDate } from '@/infra/utils/dateUtils'
 // 判断是否是今天
 function isToday(date: Date): boolean {
   return isSameDate(toDateString(date), getTodayDateString())
+}
+
+// 🆕 判断看板是否过期（日期在今天之前）
+function isExpired(date: Date): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // 重置到当天的开始时间
+  const compareDate = new Date(date)
+  compareDate.setHours(0, 0, 0, 0)
+  return compareDate < today
+}
+
+// 🆕 判断日期是否与当前日历日期相同
+// ✅ 直接从寄存器读取，消除 props drilling
+function isCalendarDate(date: Date): boolean {
+  const currentCalendarDate = registerStore.readRegister<string>(
+    registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME
+  )
+
+  if (!currentCalendarDate) return false
+
+  const dateStr = formatDate(date)
+  const isMatch = dateStr === currentCalendarDate
+  // logger.debug(LogTags.COMPONENT_KANBAN, 'Checking calendar date match', {
+  //   kanbanDate: dateStr,
+  //   calendarDate: currentCalendarDate,
+  //   isMatch,
+  // })
+  return isMatch
 }
 
 // 获取星期几（中文）
@@ -110,13 +143,6 @@ function initKanbans() {
       //   scrollLeft: scrollContainer.value.scrollLeft,
       //   calculation: `${BUFFER_SIZE} * ${KANBAN_TOTAL_WIDTH_PX} = ${BUFFER_SIZE * KANBAN_TOTAL_WIDTH_PX}`,
       // })
-
-      // 发送初始可见日期
-      const initialVisibleDate = calculateVisibleLeftmostDate()
-      if (initialVisibleDate) {
-        emit('visible-date-change', initialVisibleDate)
-        // console.log('[InfiniteDailyKanban] 📅 Initial visible date:', initialVisibleDate)
-      }
     }
   })
 }
@@ -195,48 +221,9 @@ function shiftKanbansBatch(direction: 'left' | 'right', steps: number) {
   })
 }
 
-// 计算可见区域最左边的看板日期（露出一半才算可见）
-function calculateVisibleLeftmostDate(): string | null {
-  if (!scrollContainer.value || kanbans.value.length === 0) return null
-
-  const scrollLeft = scrollContainer.value.scrollLeft
-  const containerWidth = scrollContainer.value.offsetWidth
-
-  // 遍历所有看板，找到第一个露出至少一半的看板
-  for (let i = 0; i < kanbans.value.length; i++) {
-    const kanban = kanbans.value[i]
-    if (!kanban) continue
-
-    // 计算看板在 track 中的绝对位置（考虑 padding 和 gap）
-    // 第 i 个看板的左边距 = track的左padding + i * (看板宽度 + gap)
-    const kanbanAbsoluteLeft = TRACK_PADDING_PX + i * KANBAN_TOTAL_WIDTH_PX
-
-    // 计算看板在可见区域的相对位置
-    const kanbanRelativeLeft = kanbanAbsoluteLeft - scrollLeft
-
-    // 计算看板中心点的相对位置
-    const kanbanCenter = kanbanRelativeLeft + KANBAN_WIDTH_PX / 2
-
-    // 如果看板中心点在可见区域内（0 到 containerWidth 之间），说明露出了至少一半
-    if (kanbanCenter >= 0 && kanbanCenter < containerWidth) {
-      // console.log(
-      //   `[InfiniteDailyKanban] 📍 Visible leftmost: ${kanban.id} (center at ${kanbanCenter.toFixed(0)}px)`
-      // )
-      return kanban.id
-    }
-  }
-
-  return null
-}
-
-// 滚动事件处理
-function handleScroll(_event: Event) {
-  // 计算并发送可见日期变化事件
-  const visibleDate = calculateVisibleLeftmostDate()
-  if (visibleDate) {
-    emit('visible-date-change', visibleDate)
-  }
-}
+// 🗑️ 已删除：滚动导致日历变化的功能
+// - calculateVisibleLeftmostDate()
+// - handleScroll()
 
 // 为每个看板获取任务（响应式）
 // 🗑️ 移除：任务获取和排序现在由 SimpleKanbanColumn 内部处理
@@ -258,14 +245,84 @@ function getKanbanMetadata(kanban: DailyKanban): ViewMetadata {
 }
 
 // ==================== Props & Events ====================
+// 🗑️ 已删除不必要的 emit 定义
+
+// 跳转到指定日期
+function goToDate(dateStr: string) {
+  logger.info(LogTags.COMPONENT_KANBAN, 'Jumping to date', { dateStr })
+
+  if (!scrollContainer.value) {
+    logger.warn(LogTags.COMPONENT_KANBAN, 'Scroll container not ready')
+    return
+  }
+
+  try {
+    const targetDate = new Date(dateStr)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    targetDate.setHours(0, 0, 0, 0)
+
+    // 计算目标日期与今天的天数差
+    const daysDiff = Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    logger.debug(LogTags.COMPONENT_KANBAN, 'Calculated date offset', {
+      daysDiff,
+      targetDate: dateStr,
+    })
+
+    // 重新生成看板列表，让目标日期在可见区的第一个位置（索引 BUFFER_SIZE）
+    const newKanbans: DailyKanban[] = []
+    for (let i = 0; i < TOTAL_KANBANS; i++) {
+      const offsetFromTarget = i - BUFFER_SIZE // 索引 BUFFER_SIZE 对应目标日期
+      const date = addDays(targetDate, offsetFromTarget)
+      const dateStrFormatted = formatDate(date)
+      newKanbans.push({
+        id: dateStrFormatted,
+        date: date,
+        viewKey: `daily::${dateStrFormatted}`,
+        offset: daysDiff + offsetFromTarget, // 相对于今天的偏移
+      })
+    }
+
+    kanbans.value = newKanbans
+
+    // 滚动到目标位置（让目标日期显示在可见区左侧）
+    nextTick(() => {
+      if (scrollContainer.value) {
+        scrollContainer.value.scrollLeft = BUFFER_SIZE * KANBAN_TOTAL_WIDTH_PX
+        logger.info(LogTags.COMPONENT_KANBAN, 'Jumped to date successfully', {
+          dateStr,
+          scrollLeft: scrollContainer.value.scrollLeft,
+        })
+      }
+    })
+  } catch (error) {
+    logger.error(
+      LogTags.COMPONENT_KANBAN,
+      'Failed to jump to date',
+      error instanceof Error ? error : new Error(String(error)),
+      { dateStr }
+    )
+  }
+}
+
+// ==================== Props & Events ====================
 const emit = defineEmits<{
-  'add-task': [title: string, date: string]
-  'visible-date-change': [date: string] // 可见日期变化事件
+  'date-click': [date: string] // 日期点击事件
+  'calendar-date-visibility-change': [isVisible: boolean] // 🆕 日历当前显示的日期是否在可见区域
 }>()
 
-// 暴露属性给父组件
+// ==================== 事件处理 ====================
+// 处理看板标题点击
+function handleKanbanTitleClick(date: string) {
+  logger.debug(LogTags.COMPONENT_KANBAN, 'Kanban title clicked', { date })
+  emit('date-click', date)
+}
+
+// ==================== 暴露属性和方法给父组件 ====================
 defineExpose({
   kanbanCount: computed(() => kanbans.value.length),
+  goToDate, // 暴露跳转方法
 })
 
 // 🗑️ 移除 handleOpenEditor - SimpleKanbanColumn 和 KanbanTaskCard 直接调用 UI Store
@@ -352,6 +409,7 @@ function handleMouseLeave() {
 
 // ==================== 滚动监控与自动加载 ====================
 let monitorInterval: number | null = null
+let lastCalendarDateVisibility: boolean | null = null // 🆕 记录上次日历日期的可见状态
 
 function startScrollMonitor() {
   if (monitorInterval) return
@@ -364,6 +422,38 @@ function startScrollMonitor() {
     // ✅ 总宽度 = 左padding + (看板数量 * 看板总宽度) + 右padding（gap=0无需减）
     const totalWidth = TRACK_PADDING_PX + TOTAL_KANBANS * KANBAN_TOTAL_WIDTH_PX + TRACK_PADDING_PX
     const maxScrollLeft = totalWidth - containerWidth
+
+    // 🆕 检测日历当前显示的日期对应的看板是否在可见区域
+    const currentCalendarDate = registerStore.readRegister<string>(
+      registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME
+    )
+
+    if (currentCalendarDate) {
+      // 查找日历当前显示日期对应的看板
+      const calendarDateKanban = kanbans.value.find(
+        (k) => formatDate(k.date) === currentCalendarDate
+      )
+
+      if (calendarDateKanban) {
+        const kanbanIndex = kanbans.value.indexOf(calendarDateKanban)
+        const kanbanLeftPosition = TRACK_PADDING_PX + kanbanIndex * KANBAN_TOTAL_WIDTH_PX
+        const kanbanRightPosition = kanbanLeftPosition + KANBAN_WIDTH_PX
+
+        // 判断该看板是否在可见区域内
+        const isCalendarDateVisible =
+          kanbanLeftPosition < scrollLeft + containerWidth && kanbanRightPosition > scrollLeft
+
+        // 只在可见性发生变化时发出事件
+        if (lastCalendarDateVisibility !== isCalendarDateVisible) {
+          lastCalendarDateVisibility = isCalendarDateVisible
+          emit('calendar-date-visibility-change', isCalendarDateVisible)
+          logger.debug(LogTags.COMPONENT_KANBAN, 'Calendar date visibility changed', {
+            date: currentCalendarDate,
+            isVisible: isCalendarDateVisible,
+          })
+        }
+      }
+    }
 
     // 触发阈值计算：
     // 左触发点：当滚动位置 < (BUFFER_SIZE - TRIGGER_DISTANCE) * KANBAN_TOTAL_WIDTH_PX
@@ -441,7 +531,6 @@ onBeforeUnmount(() => {
   <div
     ref="scrollContainer"
     class="kanban-scroll-container"
-    @scroll="handleScroll"
     @mousedown="handleMouseDown"
     @mousemove="handleMouseMove"
     @mouseup="handleMouseUp"
@@ -456,7 +545,10 @@ onBeforeUnmount(() => {
         :view-key="kanban.viewKey"
         :view-metadata="getKanbanMetadata(kanban)"
         :show-add-input="true"
+        :is-expired="isExpired(kanban.date)"
+        :is-calendar-date="isCalendarDate(kanban.date)"
         :style="{ width: `${KANBAN_WIDTH}rem`, flexShrink: 0 }"
+        @title-click="handleKanbanTitleClick"
       />
     </div>
   </div>

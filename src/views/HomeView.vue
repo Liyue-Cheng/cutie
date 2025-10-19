@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import InfiniteDailyKanban from '@/components/templates/InfiniteDailyKanban.vue'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
@@ -39,7 +39,9 @@ onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing, loading incomplete tasks...')
   // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
   await taskStore.fetchAllIncompleteTasks_DMA()
-  logger.info(LogTags.VIEW_HOME, 'Loaded incomplete tasks', { count: taskStore.incompleteTasks.length })
+  logger.info(LogTags.VIEW_HOME, 'Loaded incomplete tasks', {
+    count: taskStore.incompleteTasks.length,
+  })
 })
 
 // ==================== 状态 ====================
@@ -47,13 +49,15 @@ onMounted(async () => {
 // const isEditorOpen = ref(false)
 // const selectedTaskId = ref<string | null>(null)
 const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
-const currentVisibleDate = ref<string | null>(null) // 当前可见日期
+const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右侧面板当前视图
 const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
 const isAiChatOpen = ref(false) // AI 聊天对话框状态
-
-// 获取看板数量
-const kanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? 0)
+const showDatePicker = ref(false) // 日期选择器显示状态
+const selectedDate = ref('') // 选中的日期
+const calendarDays = ref<1 | 3>(1) // 🆕 日历显示天数（1天 or 3天）
+const isRightPaneCollapsed = ref(true) // 🆕 右边栏是否收起（默认收起）
+// 🗑️ 移除 currentCalendarDate - 现在使用 register store
 
 // 视图配置
 const viewConfig = {
@@ -97,15 +101,70 @@ async function handleAddTask(title: string, date: string) {
   }
 }
 
-function handleVisibleDateChange(date: string) {
-  logger.debug(LogTags.VIEW_HOME, 'Visible date changed', { date })
-  currentVisibleDate.value = date
-  // 日历会自动通过 :current-date prop 更新显示
+// 🆕 强制刷新日历（动画期间持续重绘）
+function forceCalendarRefresh() {
+  const ANIMATION_DURATION = 300
+  const startTime = performance.now()
+
+  const resize = () => {
+    const elapsed = performance.now() - startTime
+
+    if (calendarRef.value?.calendarRef) {
+      const calendarApi = calendarRef.value.calendarRef.getApi()
+      if (calendarApi) {
+        calendarApi.updateSize()
+      }
+    }
+
+    if (elapsed < ANIMATION_DURATION) {
+      requestAnimationFrame(resize)
+    } else {
+      // 最终再刷新一次
+      if (calendarRef.value?.calendarRef) {
+        calendarRef.value.calendarRef.getApi()?.updateSize()
+      }
+    }
+  }
+
+  requestAnimationFrame(resize)
 }
 
 function switchRightPaneView(view: RightPaneView) {
   logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
+
+  // 🆕 如果点击的是当前已选中的视图，则切换右边栏的展开/收起状态
+  if (currentRightPaneView.value === view) {
+    const willExpand = isRightPaneCollapsed.value
+    isRightPaneCollapsed.value = !isRightPaneCollapsed.value
+
+    // 如果是展开操作，触发日历刷新
+    if (willExpand) {
+      forceCalendarRefresh()
+    }
+
+    logger.info(LogTags.VIEW_HOME, 'Toggled right pane', {
+      view,
+      collapsed: isRightPaneCollapsed.value,
+    })
+    return
+  }
+
+  // 切换到新视图
   currentRightPaneView.value = view
+
+  // 🆕 切换视图时展开右边栏并刷新日历
+  const wasCollapsed = isRightPaneCollapsed.value
+  isRightPaneCollapsed.value = false
+
+  if (wasCollapsed) {
+    forceCalendarRefresh()
+  }
+
+  // 🔥 切换到非日历视图时，强制将日历收窄回1天
+  if (view !== 'calendar' && calendarDays.value === 3) {
+    calendarDays.value = 1
+    logger.info(LogTags.VIEW_HOME, 'Calendar auto-collapsed to 1 day', { view })
+  }
 }
 
 function openAiChat() {
@@ -113,82 +172,112 @@ function openAiChat() {
   isAiChatOpen.value = true
 }
 
-// ==================== 调试功能 ====================
-const isDeletingAll = ref(false)
-const isLoadingAll = ref(false)
+// 循环切换日历缩放倍率
+function cycleZoom() {
+  if (calendarZoom.value === 1) {
+    calendarZoom.value = 2
+  } else if (calendarZoom.value === 2) {
+    calendarZoom.value = 3
+  } else {
+    calendarZoom.value = 1
+  }
+}
 
-async function handleDeleteAllTasks() {
-  const confirmed = confirm('⚠️ 确定要删除所有任务吗？此操作不可撤销！')
-  if (!confirmed) return
+// 🆕 切换日历显示天数
+function toggleCalendarDays() {
+  calendarDays.value = calendarDays.value === 1 ? 3 : 1
+  logger.info(LogTags.VIEW_HOME, 'Calendar days toggled', { days: calendarDays.value })
 
-  isDeletingAll.value = true
-  logger.warn(LogTags.VIEW_HOME, 'Starting to delete all tasks')
+  // 触发日历刷新
+  forceCalendarRefresh()
+}
 
-  try {
-    const allTasks = taskStore.allTasks
-    const totalCount = allTasks.length
-    logger.warn(LogTags.VIEW_HOME, 'Deleting tasks', { totalCount })
+// 跳转到今天
+function goToToday() {
+  const today = new Date()
+  const todayStr = formatDateToYYYYMMDD(today)
+  goToDate(todayStr)
+}
 
-    // 批量删除所有任务（添加延迟避免数据库锁冲突）
-    let successCount = 0
-    let failCount = 0
+// 跳转到指定日期
+function goToDate(dateStr: string) {
+  logger.info(LogTags.VIEW_HOME, 'Jumping to date', { date: dateStr })
 
-    for (const task of allTasks) {
-      try {
-        await pipeline.dispatch('task.delete', { id: task.id })
-        successCount++
-        logger.debug(LogTags.VIEW_HOME, 'Deleted task', {
-          successCount,
-          totalCount,
-          taskTitle: task.title,
-        })
-      } catch (error) {
-        failCount++
-        logger.error(
-          LogTags.VIEW_HOME,
-          'Failed to delete task',
-          error instanceof Error ? error : new Error(String(error)),
-          { taskTitle: task.title }
-        )
-      }
+  // 日历跳转
+  if (calendarRef.value?.calendarRef) {
+    const calendarApi = calendarRef.value.calendarRef.getApi()
+    if (calendarApi) {
+      calendarApi.gotoDate(dateStr)
+      logger.debug(LogTags.VIEW_HOME, 'Calendar jumped to date', { dateStr })
     }
+  }
 
-    logger.info(LogTags.VIEW_HOME, 'Delete completed', { successCount, failCount })
-    alert(`删除完成！成功：${successCount}，失败：${failCount}`)
-  } catch (error) {
-    logger.error(
-      LogTags.VIEW_HOME,
-      'Error during batch delete',
-      error instanceof Error ? error : new Error(String(error))
-    )
-    alert('删除过程中出现错误')
-  } finally {
-    isDeletingAll.value = false
+  // 无限看板跳转
+  if (kanbanRef.value?.goToDate) {
+    kanbanRef.value.goToDate(dateStr)
+    logger.debug(LogTags.VIEW_HOME, 'Kanban jumped to date', { dateStr })
+  }
+
+  showDatePicker.value = false
+}
+
+// 格式化日期为 YYYY-MM-DD
+function formatDateToYYYYMMDD(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// 处理日期输入变化
+function handleDateChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.value) {
+    goToDate(input.value)
   }
 }
 
-async function handleLoadAllTasks() {
-  isLoadingAll.value = true
-  logger.info(LogTags.VIEW_HOME, 'Loading incomplete tasks...')
+// 处理看板日期点击（跳转日历并展开右边栏）
+function handleKanbanDateClick(dateStr: string) {
+  logger.info(LogTags.VIEW_HOME, 'Kanban date clicked, jumping calendar and expanding pane', {
+    date: dateStr,
+  })
 
-  try {
-    // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
-    await taskStore.fetchAllIncompleteTasks_DMA()
-    const taskCount = taskStore.incompleteTasks.length
-    const archivedCount = taskStore.archivedTasks.length
-    logger.info(LogTags.VIEW_HOME, 'Loaded incomplete tasks', { taskCount, archivedCount })
-    alert(`加载完成！未完成任务数：${taskCount}，归档任务：${archivedCount}`)
-  } catch (error) {
-    logger.error(
-      LogTags.VIEW_HOME,
-      'Error loading tasks',
-      error instanceof Error ? error : new Error(String(error))
-    )
-    alert('加载任务失败')
-  } finally {
-    isLoadingAll.value = false
+  // 🆕 切换到日历视图并展开
+  const wasCollapsed = isRightPaneCollapsed.value
+  currentRightPaneView.value = 'calendar'
+  isRightPaneCollapsed.value = false
+
+  // 如果之前是收起状态，触发刷新
+  if (wasCollapsed) {
+    forceCalendarRefresh()
+  }
+
+  // 跳转日历
+  if (calendarRef.value?.calendarRef) {
+    const calendarApi = calendarRef.value.calendarRef.getApi()
+    if (calendarApi) {
+      calendarApi.gotoDate(dateStr)
+      logger.debug(LogTags.VIEW_HOME, 'Calendar jumped to date', { dateStr })
+    }
   }
 }
+
+// 🗑️ 移除 handleCalendarDateChange - 日历现在直接写入 register store
+
+// 🆕 处理日历日期可见性变化
+function handleCalendarDateVisibilityChange(isVisible: boolean) {
+  logger.debug(LogTags.VIEW_HOME, 'Calendar date visibility changed in kanban', { isVisible })
+
+  // 当日历视图显示且日历当前显示的日期不可见时，自动收起右边栏
+  if (!isVisible && currentRightPaneView.value === 'calendar' && !isRightPaneCollapsed.value) {
+    isRightPaneCollapsed.value = true
+    logger.info(LogTags.VIEW_HOME, 'Auto-collapsed right pane (calendar date not visible)')
+  }
+}
+
+// ==================== 调试功能 ====================
+// 🗑️ 已移除调试功能：handleDeleteAllTasks 和 handleLoadAllTasks
 </script>
 
 <template>
@@ -197,25 +286,29 @@ async function handleLoadAllTasks() {
       <TwoRowLayout>
         <template #top>
           <div class="kanban-header">
-            <h2>日程看板</h2>
-            <span class="kanban-count">{{ kanbanCount }} 个看板</span>
-            <div class="debug-buttons">
-              <button
-                class="debug-btn load-btn"
-                :disabled="isLoadingAll"
-                @click="handleLoadAllTasks"
-                title="重新加载所有任务（调试用）"
-              >
-                {{ isLoadingAll ? '加载中...' : '🔄 加载全部' }}
-              </button>
-              <button
-                class="debug-btn delete-btn"
-                :disabled="isDeletingAll || taskStore.allTasks.length === 0"
-                @click="handleDeleteAllTasks"
-                title="删除所有任务（调试用）"
-              >
-                {{ isDeletingAll ? '删除中...' : '🗑️ 删除全部' }}
-              </button>
+            <button class="filter-button" title="筛选">
+              <CuteIcon name="ListFilter" :size="16" />
+              <span>筛选</span>
+            </button>
+            <div class="date-navigation">
+              <div class="today-group">
+                <button class="today-button" @click="goToToday">今天</button>
+                <button
+                  class="expand-button"
+                  :class="{ active: showDatePicker }"
+                  @click="showDatePicker = !showDatePicker"
+                >
+                  <CuteIcon name="ChevronDown" :size="16" />
+                </button>
+              </div>
+              <div v-if="showDatePicker" class="date-picker-dropdown">
+                <input
+                  type="date"
+                  :value="selectedDate"
+                  @change="handleDateChange"
+                  class="date-input"
+                />
+              </div>
             </div>
           </div>
         </template>
@@ -223,35 +316,56 @@ async function handleLoadAllTasks() {
           <InfiniteDailyKanban
             ref="kanbanRef"
             @add-task="handleAddTask"
-            @visible-date-change="handleVisibleDateChange"
+            @date-click="handleKanbanDateClick"
+            @calendar-date-visibility-change="handleCalendarDateVisibilityChange"
           />
         </template>
       </TwoRowLayout>
     </div>
-    <div class="calendar-pane">
+    <div
+      class="calendar-pane"
+      :class="{
+        'calendar-pane-wide': calendarDays === 3,
+        'calendar-pane-collapsed': isRightPaneCollapsed,
+      }"
+    >
       <TwoRowLayout>
         <template #top>
           <div class="calendar-pane-header">
-            <h3>{{ viewConfig[currentRightPaneView].label }}</h3>
-            <!-- 日历缩放按钮 -->
-            <div v-if="currentRightPaneView === 'calendar'" class="calendar-zoom-controls">
+            <!-- 日历天数切换按钮 -->
+            <div v-if="currentRightPaneView === 'calendar'" class="calendar-days-toggle">
               <button
-                v-for="scale in [1, 2, 3] as const"
-                :key="scale"
-                :class="['zoom-btn', { active: calendarZoom === scale }]"
-                @click="calendarZoom = scale as 1 | 2 | 3"
+                class="days-toggle-btn"
+                :class="{ active: calendarDays === 3 }"
+                @click="toggleCalendarDays"
+                :title="calendarDays === 1 ? '切换到3天视图' : '切换到1天视图'"
               >
-                {{ scale }}x
+                <CuteIcon name="Columns3" :size="16" />
               </button>
             </div>
+            <!-- 日历导航按钮 -->
+            <div v-if="currentRightPaneView === 'calendar'" class="calendar-nav-buttons">
+              <button class="nav-btn" title="上一天">
+                <CuteIcon name="ChevronLeft" :size="16" />
+              </button>
+              <button class="nav-btn" title="下一天">
+                <CuteIcon name="ChevronRight" :size="16" />
+              </button>
+            </div>
+            <!-- 日历缩放按钮 -->
+            <div v-if="currentRightPaneView === 'calendar'" class="calendar-zoom-controls">
+              <button class="zoom-toggle-btn" @click="cycleZoom">{{ calendarZoom }}x</button>
+            </div>
+            <h3 v-else>{{ viewConfig[currentRightPaneView].label }}</h3>
           </div>
         </template>
         <template #bottom>
           <!-- 日历视图 -->
           <CuteCalendar
             v-if="currentRightPaneView === 'calendar'"
-            :current-date="currentVisibleDate || undefined"
+            ref="calendarRef"
             :zoom="calendarZoom"
+            :days="calendarDays"
           />
           <!-- Staging 视图 -->
           <StagingColumn v-else-if="currentRightPaneView === 'staging'" />
@@ -284,11 +398,6 @@ async function handleLoadAllTasks() {
     </div>
     <div class="toolbar-pane">
       <div class="toolbar-content">
-        <!-- AI 聊天按钮 (置顶) -->
-        <button class="toolbar-button ai-button" title="AI 助手" @click="openAiChat">
-          <CuteIcon name="Sparkles" :size="24" />
-        </button>
-        <div class="toolbar-divider"></div>
         <!-- 其他视图切换按钮 -->
         <button
           v-for="(config, viewKey) in viewConfig"
@@ -299,6 +408,10 @@ async function handleLoadAllTasks() {
           @click="switchRightPaneView(viewKey as RightPaneView)"
         >
           <CuteIcon :name="config.icon" :size="24" />
+        </button>
+        <!-- AI 聊天按钮 (置底) -->
+        <button class="toolbar-button ai-button" title="AI 助手" @click="openAiChat">
+          <CuteIcon name="Sparkles" :size="24" />
         </button>
       </div>
     </div>
@@ -335,6 +448,17 @@ async function handleLoadAllTasks() {
   width: 28rem;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
+  transition: width 0.3s ease;
+  overflow: hidden; /* 🆕 收起时隐藏内容 */
+}
+
+.calendar-pane.calendar-pane-wide {
+  width: 48rem; /* 3天视图时宽度约480px，更加紧凑 */
+}
+
+.calendar-pane.calendar-pane-collapsed {
+  width: 0; /* 🆕 收起时宽度为0 */
+  border-right: none; /* 🆕 收起时不显示边框 */
 }
 
 .calendar-pane-header {
@@ -351,39 +475,87 @@ async function handleLoadAllTasks() {
   font-weight: 600;
   color: var(--color-text-primary);
   flex: 1;
-  text-align: center;
+}
+
+.calendar-days-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.days-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  padding: 0;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-border-default);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.days-toggle-btn:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-foam, #56949f);
+}
+
+.days-toggle-btn.active {
+  background-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-base, #faf4ed);
+  border-color: var(--rose-pine-foam, #56949f);
+}
+
+.calendar-nav-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  padding: 0;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-border-default);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-foam, #56949f);
 }
 
 .calendar-zoom-controls {
-  display: flex;
-  gap: 0.4rem;
   margin-left: auto;
 }
 
-.zoom-btn {
-  padding: 0.4rem 0.8rem;
-  font-size: 1.2rem;
+.zoom-toggle-btn {
+  padding: 0.4rem 1rem;
+  font-size: 1.3rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
   border-radius: 0.4rem;
+  border: 1px solid var(--color-border-default);
+  background-color: transparent;
+  color: var(--color-text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 3.2rem;
+  min-width: 4rem;
 }
 
-.zoom-btn:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-background-hover);
-  border-color: var(--color-border-hover);
-}
-
-.zoom-btn.active {
-  color: var(--color-primary);
-  background-color: var(--color-primary-bg);
-  border-color: var(--color-primary);
-  font-weight: 600;
+.zoom-toggle-btn:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-foam, #56949f);
 }
 
 .toolbar-pane {
@@ -400,6 +572,7 @@ async function handleLoadAllTasks() {
   padding: 1rem 0;
   gap: 0.5rem;
   height: 100%;
+  position: relative;
 }
 
 .toolbar-button {
@@ -423,20 +596,8 @@ async function handleLoadAllTasks() {
 }
 
 .toolbar-button.active {
-  background-color: var(--color-button-primary, #4a90e2);
-  color: white;
-}
-
-.toolbar-button.active::before {
-  content: '';
-  position: absolute;
-  left: -0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0.3rem;
-  height: 2.4rem;
-  background-color: var(--color-button-primary, #4a90e2);
-  border-radius: 0 0.2rem 0.2rem 0;
+  background-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-base, #faf4ed);
 }
 
 .toolbar-button:active {
@@ -444,114 +605,135 @@ async function handleLoadAllTasks() {
 }
 
 .toolbar-button.ai-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  animation: ai-pulse 2s ease-in-out infinite;
+  background-color: var(--rose-pine-iris, #907aa9);
+  color: var(--rose-pine-base, #faf4ed);
+  position: absolute;
+  bottom: 1rem;
 }
 
 .toolbar-button.ai-button:hover {
-  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+  background-color: var(--rose-pine-love, #b4637a);
   transform: scale(1.05);
-}
-
-@keyframes ai-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(102 126 234 / 50%);
-  }
-
-  50% {
-    box-shadow: 0 0 0 8px rgb(102 126 234 / 0%);
-  }
-}
-
-.toolbar-divider {
-  width: 80%;
-  height: 1px;
-  background-color: var(--color-border-default);
-  margin: 0.5rem auto;
 }
 
 /* ==================== 看板标题栏 ==================== */
 .kanban-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  padding: 0 1rem; /* 减少padding，因为top-row已经有padding了 */
-  gap: 1rem;
+  padding: 0 1rem;
 }
 
-.kanban-header h2 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.kanban-count {
-  font-size: 1.3rem;
-  color: var(--color-text-tertiary);
-}
-
-/* ==================== 调试按钮 ==================== */
-.debug-buttons {
+.filter-button {
   display: flex;
-  gap: 0.5rem;
-}
-
-.debug-btn {
-  padding: 0.5rem 1rem;
-  font-size: 1.3rem;
-  font-weight: 500;
-  color: #fff;
-  border: none;
-  border-radius: 0.4rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 1.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-border-default);
+  background-color: transparent;
+  color: var(--color-text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
 }
 
-.debug-btn:disabled {
-  background-color: #ccc;
-  color: #666;
-  cursor: not-allowed;
-  opacity: 0.6;
+.filter-button:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-foam, #56949f);
 }
 
-.debug-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+.date-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+  position: relative;
 }
 
-.debug-btn:active:not(:disabled) {
-  transform: translateY(0);
+.today-group {
+  display: flex;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
 }
 
-.load-btn {
-  background-color: #4a90e2;
+.today-group:hover {
+  border-color: var(--rose-pine-foam, #56949f);
 }
 
-.load-btn:hover:not(:disabled) {
-  background-color: #357abd;
-  box-shadow: 0 2px 8px rgb(74 144 226 / 30%);
+.today-button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1.4rem;
+  border: none;
+  border-right: 1px solid var(--color-border-default);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.delete-btn {
-  background-color: #ff4d4f;
+.today-button:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  color: var(--rose-pine-foam, #56949f);
 }
 
-.delete-btn:hover:not(:disabled) {
-  background-color: #d9363e;
-  box-shadow: 0 2px 8px rgb(255 77 79 / 30%);
+.expand-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-:deep(.top-row .cute-button) {
-  background-color: #4a90e2; /* A nice blue */
-  color: #fff; /* White text */
-  border-color: transparent;
+.expand-button:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  color: var(--rose-pine-foam, #56949f);
 }
 
-:deep(.top-row .cute-button:hover) {
-  background-color: #357abd; /* A darker blue for hover */
+.expand-button.active {
+  background-color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-base, #faf4ed);
+}
+
+.date-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background-color: var(--color-background-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.8rem;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  z-index: 100;
+}
+
+.date-input {
+  padding: 0.6rem 1rem;
+  font-size: 1.4rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.date-input:hover {
+  border-color: var(--rose-pine-foam, #56949f);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--rose-pine-foam, #56949f);
+  box-shadow: 0 0 0 3px rgb(86 148 159 / 10%);
 }
 </style>

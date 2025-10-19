@@ -5,6 +5,7 @@ import { useViewStore } from '@/stores/view'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import KanbanTaskCard from './KanbanTaskCard.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
@@ -18,6 +19,12 @@ const props = defineProps<{
   showAddInput?: boolean
   viewKey: string // 🔥 必需：所有看板都必须提供 viewKey
   viewMetadata?: ViewMetadata // 可选：可自动推导
+  isExpired?: boolean // 🆕 是否过期（用于灰度显示）
+  isCalendarDate?: boolean // 🆕 是否是当前日历日期（用于日历图标长显）
+}>()
+
+const emit = defineEmits<{
+  'title-click': [date: string] // 标题点击事件，传递日期
 }>()
 
 const viewStore = useViewStore()
@@ -335,6 +342,16 @@ watch(
   }
 )
 
+// ==================== 标题点击处理 ====================
+function handleTitleClick() {
+  // 从 viewMetadata 中提取日期
+  if (effectiveViewMetadata.value.type === 'date') {
+    const config = effectiveViewMetadata.value.config as import('@/types/drag').DateViewConfig
+    const date = config.date // YYYY-MM-DD
+    emit('title-click', date)
+  }
+}
+
 // ==================== 注意 ====================
 // displayItems 已由 useInteractDrag 自动提供
 // 所有拖放事件处理已由 interact.js 控制器自动管理
@@ -342,15 +359,24 @@ watch(
 </script>
 
 <template>
-  <CutePane class="simple-kanban-column">
+  <CutePane class="simple-kanban-column" :class="{ 'is-expired': isExpired }">
     <!-- 🔥 整个看板作为 dropzone（包含 header、input、task list） -->
     <div ref="kanbanContainerRef" class="kanban-dropzone-wrapper">
       <div class="header">
-        <div class="title-section">
+        <div class="title-row" @click="handleTitleClick">
           <h2 class="title">{{ title }}</h2>
-          <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+          <CuteIcon
+            name="Calendar"
+            :size="16"
+            class="calendar-icon"
+            :class="{ 'is-active': isCalendarDate }"
+          />
         </div>
-        <div class="task-count">
+        <div v-if="subtitle" class="subtitle-row">
+          <span class="subtitle">{{ subtitle }}</span>
+          <button class="sort-button" title="排序">
+            <CuteIcon name="ArrowUpDown" :size="14" />
+          </button>
           <span class="count">{{ effectiveTasks.length }}</span>
         </div>
       </div>
@@ -415,10 +441,21 @@ watch(
   padding: 1rem 1rem 0.5rem;
   border-bottom: 1px solid var(--color-border-default);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.title-section {
-  margin-bottom: 0.5rem;
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+  margin: -0.2rem 0;
+  border-radius: 0.4rem;
+  transition: all 0.2s ease;
 }
 
 .title {
@@ -426,24 +463,71 @@ watch(
   font-weight: 600;
   margin: 0;
   color: var(--color-text-primary);
+  transition: color 0.2s ease;
+}
+
+.title-row:hover .title {
+  color: var(--rose-pine-foam, #56949f);
+}
+
+.calendar-icon {
+  opacity: 0;
+  color: var(--color-text-secondary); /* 默认使用次要文本颜色 */
+  transition:
+    opacity 0.2s ease,
+    color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.calendar-icon.is-active {
+  opacity: 1;
+
+  /* 不改变颜色，保持默认的次要文本颜色 */
+}
+
+.title-row:hover .calendar-icon {
+  opacity: 1;
+  color: var(--rose-pine-foam, #56949f); /* hover 时才变绿色 */
+}
+
+.subtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
 }
 
 .subtitle {
   font-size: 1.2rem;
   color: var(--color-text-secondary);
-  margin: 0.25rem 0 0;
+  margin: 0;
+  flex: 1;
 }
 
-.task-count {
+.sort-button {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 1.4rem;
-  font-weight: 500;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0.4rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.task-count .count {
+.sort-button:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
   color: var(--color-text-secondary);
+}
+
+.count {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-left: auto;
 }
 
 .add-task-wrapper {
@@ -464,8 +548,8 @@ watch(
 
 .add-task-input:focus {
   outline: none;
-  border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
+  border-color: var(--rose-pine-foam, #56949f);
+  box-shadow: 0 0 0 3px rgb(86 148 159 / 10%);
 }
 
 .add-task-input::placeholder {
@@ -521,5 +605,33 @@ watch(
 
 .kanban-task-card {
   pointer-events: auto;
+}
+
+/* 🆕 过期看板灰度效果（Rose Pine Dawn 主题适配） */
+.simple-kanban-column.is-expired {
+  /* 覆盖文本颜色为更灰的 muted 色（Rose Pine Dawn: #9893a5） */
+  --color-text-primary: var(--rose-pine-muted);
+  --color-text-secondary: var(--rose-pine-muted);
+}
+
+/* 过期看板中的标题和数量 */
+.simple-kanban-column.is-expired .title,
+.simple-kanban-column.is-expired .subtitle,
+.simple-kanban-column.is-expired .count {
+  opacity: 0.6;
+}
+
+/* 过期看板中的任务卡片整体透明度降低 */
+.simple-kanban-column.is-expired .task-card-wrapper {
+  opacity: 0.7;
+}
+
+/* 过期看板中的输入框也变灰 */
+.simple-kanban-column.is-expired .add-task-input {
+  opacity: 0.6;
+}
+
+.simple-kanban-column.is-expired .add-task-input::placeholder {
+  color: var(--rose-pine-muted);
 }
 </style>

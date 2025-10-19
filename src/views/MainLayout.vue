@@ -34,17 +34,20 @@
             </li>
           </ul>
 
-          <div class="section-divider">
+          <!-- <div class="section-divider">
             <span class="divider-label">DAILY RITUALS</span>
-          </div>
+          </div> -->
 
-          <ul class="nav-group">
+          <!-- <ul class="nav-group">
             <li @click="$router.push('/daily-planning')">
               <CuteIcon name="SunMoon" :size="16" /><span>Daily Planning</span>
             </li>
             <li @click="$router.push('/daily-shutdown')">
               <CuteIcon name="PowerOff" :size="16" /><span>Daily Shutdown</span>
             </li>
+          </ul> -->
+
+          <ul class="nav-group">
             <li @click="$router.push('/area-test')">
               <CuteIcon name="Tag" :size="16" /><span>Area Test</span>
             </li>
@@ -154,7 +157,7 @@ onBeforeUnmount(() => {
   position: relative;
   border: none;
   background-color: var(--color-background-primary);
-  padding: 0.2rem 1rem 1rem 1rem;
+  padding: 0.2rem 1rem 1rem;
 
   /* 🔧 防止内容溢出 */
   overflow: hidden;
@@ -196,7 +199,7 @@ onBeforeUnmount(() => {
 .sidebar-pane {
   width: 19.2rem;
   flex-shrink: 0;
-  background-color: var(--color-background-secondary);
+  background-color: var(--color-background-primary);
   border: none; /* Melts into the background */
   display: flex;
   flex-direction: column;

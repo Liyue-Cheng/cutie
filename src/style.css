@@ -1,4 +1,5 @@
 /* src/style.css */
+@import './styles/rose-pine-themes.css';
 
 /* --- 1. 尺寸规范基准 --- */
 html {
@@ -118,14 +119,72 @@ body.theme-temp-susamacopy {
   --c-susa-border: #DCDCDC; 
   
   /* B. 覆盖语义化颜色 */
-  --color-background-primary: var(--c-susa-bg);
-  --color-background-secondary: var(--c-susa-bg); /* 左侧边栏和背景同色 */
-  --color-background-content: var(--c-susa-content-bg); /* 右侧内容区 */
+  /* --color-background-primary: var(--c-susa-bg);
+  --color-background-secondary: var(--c-susa-bg); 
+  --color-background-content: var(--c-susa-content-bg); 
   --color-border-default: var(--c-susa-border);
-  --color-card-available: var(--c-white);
+  --color-card-available: var(--c-white); */
 
   /* 为了让其他组件（如按钮、文字）在新背景下看起来和谐，我们可能也需要微调其他颜色 */
   /* 暂时保持不变，后续根据视觉效果调整 */
+}
+
+/* --- Rose Pine 主题配置 --- */
+body.theme-rose-pine {
+  /* 使用 Rose Pine 默认深色主题 */
+  --color-background-primary: var(--rose-pine-base);
+  --color-background-secondary: var(--rose-pine-surface);
+  --color-background-content: var(--rose-pine-overlay);
+  --color-border-default: var(--rose-pine-muted);
+  --color-text-primary: var(--rose-pine-text);
+  --color-text-secondary: var(--rose-pine-subtle);
+  --color-text-tertiary: var(--rose-pine-muted);
+  --color-text-accent: var(--rose-pine-foam);
+  --color-background-accent: var(--rose-pine-foam);
+  --color-background-accent-light: var(--rose-pine-pine);
+  --color-success: var(--rose-pine-foam);
+  --color-warning: var(--rose-pine-gold);
+  --color-danger: var(--rose-pine-love);
+  --color-info: var(--rose-pine-pine);
+  --color-card-available: var(--rose-pine-surface);
+}
+
+body.theme-rose-pine-moon {
+  /* 使用 Rose Pine Moon 主题 */
+  --color-background-primary: var(--rose-pine-base);
+  --color-background-secondary: var(--rose-pine-surface);
+  --color-background-content: var(--rose-pine-overlay);
+  --color-border-default: var(--rose-pine-muted);
+  --color-text-primary: var(--rose-pine-text);
+  --color-text-secondary: var(--rose-pine-subtle);
+  --color-text-tertiary: var(--rose-pine-muted);
+  --color-text-accent: var(--rose-pine-foam);
+  --color-background-accent: var(--rose-pine-foam);
+  --color-background-accent-light: var(--rose-pine-pine);
+  --color-success: var(--rose-pine-foam);
+  --color-warning: var(--rose-pine-gold);
+  --color-danger: var(--rose-pine-love);
+  --color-info: var(--rose-pine-pine);
+  --color-card-available: var(--rose-pine-surface);
+}
+
+body.theme-rose-pine-dawn {
+  /* 使用 Rose Pine Dawn 浅色主题 */
+  --color-background-primary: var(--rose-pine-base);
+  --color-background-secondary: var(--rose-pine-surface);
+  --color-background-content: #f6efe8;
+  --color-border-default: #e0dce0;
+  --color-text-primary: var(--rose-pine-text);
+  --color-text-secondary: var(--rose-pine-subtle);
+  --color-text-tertiary: var(--rose-pine-muted);
+  --color-text-accent: var(--rose-pine-foam);
+  --color-background-accent: var(--rose-pine-foam);
+  --color-background-accent-light: var(--rose-pine-pine);
+  --color-success: var(--rose-pine-foam);
+  --color-warning: var(--rose-pine-gold);
+  --color-danger: var(--rose-pine-love);
+  --color-info: var(--rose-pine-pine);
+  --color-card-available: var(--rose-pine-surface);
 }
 
 

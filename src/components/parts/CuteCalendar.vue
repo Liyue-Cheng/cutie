@@ -2,8 +2,8 @@
   <div class="calendar-container" :class="`zoom-${currentZoom}x`">
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
-    <!-- 装饰竖线（跨越 TwoRowLayout 可视区域） -->
-    <div
+    <!-- 装饰竖线（已禁用） -->
+    <!-- <div
       v-if="
         decorativeLinePosition !== null &&
         decorativeLineTop !== null &&
@@ -15,7 +15,7 @@
         top: `${decorativeLineTop}px`,
         height: `${decorativeLineHeight}px`,
       }"
-    ></div>
+    ></div> -->
 
     <!-- 时间块详情面板 -->
     <TimeBlockDetailPanel
@@ -30,6 +30,7 @@
 import FullCalendar from '@fullcalendar/vue3'
 import { computed, ref, nextTick, watch, onMounted } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
+import { useRegisterStore } from '@/stores/register'
 import { useAutoScroll } from '@/composables/calendar/useAutoScroll'
 import { useTimePosition } from '@/composables/calendar/useTimePosition'
 import { useDecorativeLine } from '@/composables/calendar/useDecorativeLine'
@@ -41,6 +42,7 @@ import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInter
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
+const registerStore = useRegisterStore()
 
 // ==================== Props ====================
 const props = withDefaults(
@@ -48,11 +50,18 @@ const props = withDefaults(
     currentDate?: string // YYYY-MM-DD 格式的日期
     zoom?: 1 | 2 | 3 // 缩放倍率
     viewType?: 'day' | 'week' | 'month' // ✅ 新增：视图类型（单天、周或月视图）
+    days?: 1 | 3 // 🆕 新增：显示天数（1天 or 3天）
   }>(),
   {
     viewType: 'day', // 默认单天视图
+    days: 1, // 默认显示1天
   }
 )
+
+// ==================== Events ====================
+const emit = defineEmits<{
+  'date-change': [date: string] // 日历显示日期变化事件
+}>()
 
 // 默认缩放倍率为 1
 const currentZoom = computed(() => props.zoom ?? 1)
@@ -89,13 +98,38 @@ const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef)
 // 事件处理器
 const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
 
-// 日历配置（传递视图类型）
-const { calendarOptions } = useCalendarOptions(calendarEvents, handlers, props.viewType)
+// 日历日期变化回调
+const handleDatesSet = (dateInfo: { start: Date; end: Date }) => {
+  // 🔧 FIX: 使用本地时间而不是 UTC 时间，避免时区偏移
+  const date = dateInfo.start
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const dateStr = `${year}-${month}-${day}`
 
-// 装饰线位置（用于模板绑定）
-const decorativeLinePosition = decorativeLine.position
-const decorativeLineTop = decorativeLine.top
-const decorativeLineHeight = decorativeLine.height
+  // ✅ 直接写入寄存器，消除 props drilling
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, dateStr)
+
+  // 保留事件发射以兼容现有代码（可选）
+  emit('date-change', dateStr)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar date changed and written to register', {
+    dateStr,
+  })
+}
+
+// 日历配置（传递视图类型、天数和日期变化回调）
+const { calendarOptions } = useCalendarOptions(
+  calendarEvents,
+  handlers,
+  props.viewType,
+  handleDatesSet,
+  props.days ?? 1
+)
+
+// 装饰线位置（已禁用）
+// const decorativeLinePosition = decorativeLine.position
+// const decorativeLineTop = decorativeLine.top
+// const decorativeLineHeight = decorativeLine.height
 
 // ==================== 日期切换功能 ====================
 // 监听 currentDate prop 变化，切换日历显示的日期
@@ -136,7 +170,7 @@ watch(
 
     let viewName: string
     if (newViewType === 'day') {
-      viewName = 'timeGridDay'
+      viewName = props.days === 3 ? 'timeGrid3Days' : 'timeGridDay'
     } else if (newViewType === 'week') {
       viewName = 'timeGridWeek'
     } else {
@@ -152,6 +186,58 @@ watch(
 
     // 清除缓存，强制重新计算位置
     clearCache()
+  },
+  { immediate: false }
+)
+
+// 🆕 监听 days prop 变化，动态切换天数视图
+watch(
+  () => props.days,
+  async (newDays) => {
+    if (!calendarRef.value || props.viewType !== 'day') return
+
+    const calendarApi = calendarRef.value.getApi()
+    if (!calendarApi) return
+
+    const viewName = newDays === 3 ? 'timeGrid3Days' : 'timeGridDay'
+
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing days view', {
+      from: calendarApi.view.type,
+      to: viewName,
+      days: newDays,
+    })
+
+    // 保存当前日期
+    const currentDate = calendarApi.getDate()
+
+    // 切换视图
+    calendarApi.changeView(viewName)
+
+    // 🔧 FIX: 更新 dayHeaders 配置
+    calendarOptions.dayHeaders = newDays === 3
+
+    // 等待 DOM 更新
+    await nextTick()
+
+    // 强制更新尺寸
+    calendarApi.updateSize()
+
+    // 恢复到之前的日期
+    calendarApi.gotoDate(currentDate)
+
+    // 清除缓存，强制重新计算位置
+    clearCache()
+
+    // 等待 DOM 再次更新
+    await nextTick()
+
+    // 更新装饰线位置（已禁用）
+    // decorativeLine.updatePosition()
+
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Days view changed successfully', {
+      viewName,
+      days: newDays,
+    })
   },
   { immediate: false }
 )
@@ -198,7 +284,7 @@ watch(
         }
       } catch {}
     }
-    decorativeLine.updatePosition()
+    // decorativeLine.updatePosition() // 已禁用
   }
 )
 
@@ -232,9 +318,25 @@ onMounted(async () => {
       }
     }
 
-    // 计算装饰竖线位置
+    // 计算装饰竖线位置（已禁用）
     await nextTick()
-    decorativeLine.updatePosition()
+    // decorativeLine.updatePosition()
+
+    // 🔥 初始化后强制更新尺寸，确保显示正确
+    if (calendarRef.value) {
+      const calendarApi = calendarRef.value.getApi()
+      if (calendarApi) {
+        // 多次更新确保尺寸正确
+        calendarApi.updateSize()
+        await nextTick()
+        calendarApi.updateSize()
+
+        logger.debug(LogTags.COMPONENT_CALENDAR, 'Initial calendar size updated', {
+          viewType: props.viewType,
+          days: props.days,
+        })
+      }
+    }
   } catch (error) {
     logger.error(
       LogTags.COMPONENT_CALENDAR,

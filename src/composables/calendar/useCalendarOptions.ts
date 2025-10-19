@@ -14,6 +14,7 @@ import type {
   DateSelectArg,
   EventMountArg,
   EventClickArg,
+  DatesSetArg,
 } from '@fullcalendar/core'
 
 export function useCalendarOptions(
@@ -24,14 +25,16 @@ export function useCalendarOptions(
     handleEventContextMenu: (info: EventMountArg) => void
     handleEventClick: (clickInfo: EventClickArg) => void
   },
-  viewType: 'day' | 'week' | 'month' = 'day' // ✅ 新增：视图类型参数，默认为单天
+  viewType: 'day' | 'week' | 'month' = 'day', // ✅ 新增：视图类型参数，默认为单天
+  handleDatesSet?: (dateInfo: DatesSetArg) => void, // 🆕 日期变化回调
+  days: 1 | 3 = 1 // 🆕 显示天数（1天 or 3天）
 ) {
   // ✅ 加载所有插件，支持动态切换视图
   const plugins = [interactionPlugin, timeGridPlugin, dayGridPlugin]
 
   let initialView: string
   if (viewType === 'day') {
-    initialView = 'timeGridDay'
+    initialView = days === 3 ? 'timeGrid3Days' : 'timeGridDay'
   } else if (viewType === 'week') {
     initialView = 'timeGridWeek'
   } else {
@@ -40,8 +43,17 @@ export function useCalendarOptions(
 
   const calendarOptions = reactive({
     plugins,
-    headerToolbar: false as const,
-    dayHeaders: viewType !== 'day', // ✅ 周视图和月视图显示日期头部
+    headerToolbar: {
+      left: '',
+      center: 'title',
+      right: '',
+    },
+    dayHeaders: viewType !== 'day' || days === 3, // ✅ 周视图、月视图和3天视图显示日期头部
+    dayHeaderFormat: {
+      weekday: 'short' as const,
+      month: 'numeric' as const,
+      day: 'numeric' as const,
+    }, // 🆕 日期头部格式
     initialView,
     firstDay: 1, // ✅ 一周从周一开始（0=周日, 1=周一）
     allDaySlot: true, // ✅ 启用全日槽位
@@ -62,6 +74,14 @@ export function useCalendarOptions(
     selectable: true,
     eventResizableFromStart: true, // 允许从开始时间调整大小
 
+    // 🆕 自定义视图：3天视图
+    views: {
+      timeGrid3Days: {
+        type: 'timeGrid',
+        duration: { days: 3 },
+      },
+    },
+
     // ✅ 月视图配置：固定格子高度，超出事件用 "+N more" 折叠
     dayMaxEvents: 4, // 每个格子最多显示4个事件，超过的折叠
     moreLinkClick: 'popover' as const, // 点击 "+N more" 时显示弹出框
@@ -72,6 +92,7 @@ export function useCalendarOptions(
     eventChange: handlers.handleEventChange,
     eventDidMount: handlers.handleEventContextMenu,
     eventClick: handlers.handleEventClick,
+    datesSet: handleDatesSet, // 🆕 日期变化回调
   })
 
   return {

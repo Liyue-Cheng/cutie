@@ -1,0 +1,100 @@
+/* Rose Pine 语义化颜色主题系统 */
+
+/* ===== 基础主题变量 ===== */
+:root {
+  /* Rosé Pine (默认深色主题) */
+  --rose-pine-base: #191724;
+  --rose-pine-surface: #1f1d2e;
+  --rose-pine-overlay: #26233a;
+  --rose-pine-muted: #6e6a86;
+  --rose-pine-subtle: #908caa;
+  --rose-pine-text: #e0def4;
+  --rose-pine-love: #eb6f92;
+  --rose-pine-gold: #f6c177;
+  --rose-pine-rose: #ebbcba;
+  --rose-pine-pine: #31748f;
+  --rose-pine-foam: #9ccfd8;
+  --rose-pine-iris: #c4a7e7;
+  --rose-pine-highlight-low: #21202e;
+  --rose-pine-highlight-med: #403d52;
+  --rose-pine-highlight-high: #524f67;
+}
+
+/* ===== 语义化颜色变量 ===== */
+:root {
+  /* 基础色彩 */
+  --color-background: var(--rose-pine-base);
+  --color-surface: var(--rose-pine-surface);
+  --color-overlay: var(--rose-pine-overlay);
+  
+  /* 文本色彩 */
+  --color-text-primary: var(--rose-pine-text);
+  --color-text-secondary: var(--rose-pine-subtle);
+  --color-text-muted: var(--rose-pine-muted);
+  
+  /* 强调色彩 */
+  --color-accent: var(--rose-pine-foam);
+  --color-accent-hover: var(--rose-pine-pine);
+  --color-accent-active: var(--rose-pine-iris);
+  
+  /* 状态色彩 */
+  --color-success: var(--rose-pine-foam);
+  --color-warning: var(--rose-pine-gold);
+  --color-error: var(--rose-pine-love);
+  --color-info: var(--rose-pine-pine);
+  
+  /* 装饰色彩 */
+  --color-decorative-1: var(--rose-pine-rose);
+  --color-decorative-2: var(--rose-pine-iris);
+  --color-decorative-3: var(--rose-pine-gold);
+  
+  /* 高亮色彩 */
+  --color-highlight-low: var(--rose-pine-highlight-low);
+  --color-highlight-med: var(--rose-pine-highlight-med);
+  --color-highlight-high: var(--rose-pine-highlight-high);
+  
+  /* 边框和分割线 */
+  --color-border: var(--rose-pine-muted);
+  --color-border-light: var(--rose-pine-subtle);
+  --color-divider: var(--rose-pine-overlay);
+}
+
+/* ===== Rosé Pine Moon 主题 ===== */
+body.theme-rose-pine-moon {
+  --rose-pine-base: #232136;
+  --rose-pine-surface: #2a273f;
+  --rose-pine-overlay: #393552;
+  --rose-pine-muted: #6e6a86;
+  --rose-pine-subtle: #908caa;
+  --rose-pine-text: #e0def4;
+  --rose-pine-love: #eb6f92;
+  --rose-pine-gold: #f6c177;
+  --rose-pine-rose: #ea9a97;
+  --rose-pine-pine: #3e8fb0;
+  --rose-pine-foam: #9ccfd8;
+  --rose-pine-iris: #c4a7e7;
+  --rose-pine-highlight-low: #2a283e;
+  --rose-pine-highlight-med: #44415a;
+  --rose-pine-highlight-high: #56526e;
+}
+
+/* ===== Rosé Pine Dawn 主题 ===== */
+body.theme-rose-pine-dawn {
+  --rose-pine-base: #faf4ed;
+  --rose-pine-surface: #fffaf3;
+  --rose-pine-overlay: #f2e9e1;
+  --rose-pine-muted: #9893a5;
+  --rose-pine-subtle: #797593;
+  --rose-pine-text: #575279;
+  --rose-pine-love: #b4637a;
+  --rose-pine-gold: #ea9d34;
+  --rose-pine-rose: #d7827e;
+  --rose-pine-pine: #286983;
+  --rose-pine-foam: #56949f;
+  --rose-pine-iris: #907aa9;
+  --rose-pine-highlight-low: #f4ede8;
+  --rose-pine-highlight-med: #dfdad9;
+  --rose-pine-highlight-high: #cecacd;
+}
+
+/* ===== 语义化工具类 ===== */
