@@ -45,7 +45,8 @@
       "Bash(find:*)",
       "Bash(tree:*)",
       "WebFetch(domain:rosepinetheme.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git ls-files:*)"
     ],
     "deny": [],
     "ask": []

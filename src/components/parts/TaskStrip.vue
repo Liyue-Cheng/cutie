@@ -1,31 +1,35 @@
 <template>
-  <div class="task-strip">
+  <div class="task-strip" :class="{ completed: task.is_completed }">
     <!-- 顶部：完成按钮 + 标题 -->
     <div class="task-header">
-      <button class="complete-btn" :class="{ completed: isCompleted }" @click="toggleComplete">
-        <CuteIcon v-if="isCompleted" name="Check" :size="16" />
+      <button
+        class="complete-btn"
+        :class="{ completed: task.is_completed }"
+        @click="toggleComplete"
+      >
+        <CuteIcon v-if="task.is_completed" name="Check" :size="16" />
       </button>
-      <div class="task-title" :class="{ completed: isCompleted }">
-        {{ title || '新任务' }}
+      <div class="task-title" :class="{ completed: task.is_completed }">
+        {{ task.title || '新任务' }}
       </div>
     </div>
 
     <!-- 概览笔记 -->
-    <div v-if="note" class="task-note">
-      {{ note }}
+    <div v-if="task.glance_note" class="task-note">
+      {{ task.glance_note }}
     </div>
 
     <!-- 子任务显示区 -->
-    <div v-if="subtasks && subtasks.length > 0" class="subtasks-section">
-      <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item">
+    <div v-if="task.subtasks && task.subtasks.length > 0" class="subtasks-section">
+      <div v-for="subtask in task.subtasks" :key="subtask.id" class="subtask-item">
         <button
           class="subtask-complete-btn"
-          :class="{ completed: subtask.completed }"
+          :class="{ completed: subtask.is_completed }"
           @click="toggleSubtask(subtask.id)"
         >
-          <CuteIcon v-if="subtask.completed" name="Check" :size="12" />
+          <CuteIcon v-if="subtask.is_completed" name="Check" :size="12" />
         </button>
-        <span class="subtask-title" :class="{ completed: subtask.completed }">
+        <span class="subtask-title" :class="{ completed: subtask.is_completed }">
           {{ subtask.title }}
         </span>
       </div>
@@ -34,29 +38,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import type { TaskCard } from '@/types/dtos'
 import CuteIcon from './CuteIcon.vue'
 
 // Props
-interface Subtask {
-  id: string
-  title: string
-  completed: boolean
-}
-
 interface Props {
-  title?: string
-  note?: string
-  subtasks?: Subtask[]
-  completed?: boolean
+  task: TaskCard
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  title: '',
-  note: '',
-  subtasks: () => [],
-  completed: false,
-})
+defineProps<Props>()
 
 // Emits
 const emit = defineEmits<{
@@ -64,12 +54,8 @@ const emit = defineEmits<{
   'toggle-subtask': [subtaskId: string]
 }>()
 
-// State
-const isCompleted = ref(props.completed)
-
 // Methods
 function toggleComplete() {
-  isCompleted.value = !isCompleted.value
   emit('toggle-complete')
 }
 
@@ -81,16 +67,20 @@ function toggleSubtask(subtaskId: string) {
 <style scoped>
 .task-strip {
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
-  padding: 1.2rem;
-  margin-bottom: 0.8rem;
+  border: none;
+  border-bottom: 2px dashed var(--color-text-tertiary, #999);
+  border-radius: 0;
+  padding: 1.2rem 1.6rem;
+  margin-bottom: 0;
   transition: all 0.2s ease;
 }
 
 .task-strip:hover {
-  border-color: var(--color-border-hover);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
+}
+
+.task-strip.completed {
+  opacity: 0.7;
 }
 
 /* 顶部：完成按钮 + 标题 */

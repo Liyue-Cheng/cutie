@@ -11,58 +11,13 @@
         <template #bottom>
           <div class="task-list">
             <!-- 今日任务栏 -->
-            <TaskBar
-              title="今日任务"
-              :tasks="[
-                {
-                  id: '1',
-                  title: '完成项目文档',
-                  note: '需要更新 API 文档和用户指南',
-                  subtasks: [
-                    { id: '1-1', title: '更新 API 文档', completed: true },
-                    { id: '1-2', title: '编写用户指南', completed: false },
-                    { id: '1-3', title: '添加示例代码', completed: false },
-                  ],
-                  completed: false,
-                },
-                {
-                  id: '2',
-                  title: '准备团队会议',
-                  completed: false,
-                },
-              ]"
-            />
+            <TaskBar title="今日任务" :view-key="todayViewKey" />
 
-            <!-- 进行中任务栏 -->
-            <TaskBar
-              title="进行中"
-              :tasks="[
-                {
-                  id: '3',
-                  title: '代码审查',
-                  note: '审查 PR #123 和 PR #124',
-                  subtasks: [
-                    { id: '3-1', title: '审查 PR #123', completed: true },
-                    { id: '3-2', title: '审查 PR #124', completed: false },
-                  ],
-                  completed: false,
-                },
-              ]"
-            />
+            <!-- Staging 任务栏 -->
+            <TaskBar title="Staging" :view-key="stagingViewKey" />
 
             <!-- 已完成任务栏 -->
-            <TaskBar
-              title="已完成"
-              :tasks="[
-                {
-                  id: '4',
-                  title: '已完成的任务示例',
-                  note: '这是一个已完成的任务',
-                  completed: true,
-                },
-              ]"
-              :default-collapsed="true"
-            />
+            <TaskBar title="已完成" :view-key="completedViewKey" :default-collapsed="true" />
           </div>
         </template>
       </TwoRowLayout>
@@ -80,8 +35,8 @@
           </div>
         </template>
         <template #bottom>
-          <div class="column-content">
-            <p class="placeholder-text">Calendar will be here</p>
+          <div class="calendar-wrapper">
+            <CuteCalendar :current-date="currentCalendarDate" view-type="week" :zoom="1" />
           </div>
         </template>
       </TwoRowLayout>
@@ -90,18 +45,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskBar from '@/components/parts/TaskBar.vue'
+import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import { useRegisterStore } from '@/stores/register'
+import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 const registerStore = useRegisterStore()
+const taskStore = useTaskStore()
 
 // 初始化
-onMounted(() => {
+onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing brand new home view...')
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'home')
+
+  // 加载今日任务
+  const today = getTodayDateString()
+  if (today) {
+    await taskStore.fetchDailyTasks_DMA(today)
+  }
+
+  // 加载所有未完成任务（包括staging）
+  await taskStore.fetchAllIncompleteTasks_DMA()
+})
+
+// ==================== ViewKeys 定义 ====================
+// 根据 VIEW_CONTEXT_KEY_SPEC 规范
+const todayViewKey = computed(() => {
+  const today = getTodayDateString()
+  return today ? `daily::${today}` : 'misc::staging' // 兜底使用 staging
+})
+
+const stagingViewKey = 'misc::staging'
+const completedViewKey = 'misc::completed'
+
+// ==================== 日历状态 ====================
+const currentCalendarDate = computed(() => {
+  return (
+    registerStore.readRegister<string>(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME) ||
+    getTodayDateString()
+  )
 })
 
 // ==================== 可拖动分割线逻辑 ====================
@@ -224,9 +210,15 @@ onBeforeUnmount(() => {
 
 /* 任务列表 */
 .task-list {
-  padding: 1.6rem;
   height: 100%;
   overflow-y: auto;
+}
+
+/* 日历包装器 */
+.calendar-wrapper {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* 列内容 */
