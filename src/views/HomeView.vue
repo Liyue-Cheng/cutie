@@ -9,8 +9,60 @@
           </div>
         </template>
         <template #bottom>
-          <div class="column-content">
-            <p class="placeholder-text">Tasks will be here</p>
+          <div class="task-list">
+            <!-- 今日任务栏 -->
+            <TaskBar
+              title="今日任务"
+              :tasks="[
+                {
+                  id: '1',
+                  title: '完成项目文档',
+                  note: '需要更新 API 文档和用户指南',
+                  subtasks: [
+                    { id: '1-1', title: '更新 API 文档', completed: true },
+                    { id: '1-2', title: '编写用户指南', completed: false },
+                    { id: '1-3', title: '添加示例代码', completed: false },
+                  ],
+                  completed: false,
+                },
+                {
+                  id: '2',
+                  title: '准备团队会议',
+                  completed: false,
+                },
+              ]"
+            />
+
+            <!-- 进行中任务栏 -->
+            <TaskBar
+              title="进行中"
+              :tasks="[
+                {
+                  id: '3',
+                  title: '代码审查',
+                  note: '审查 PR #123 和 PR #124',
+                  subtasks: [
+                    { id: '3-1', title: '审查 PR #123', completed: true },
+                    { id: '3-2', title: '审查 PR #124', completed: false },
+                  ],
+                  completed: false,
+                },
+              ]"
+            />
+
+            <!-- 已完成任务栏 -->
+            <TaskBar
+              title="已完成"
+              :tasks="[
+                {
+                  id: '4',
+                  title: '已完成的任务示例',
+                  note: '这是一个已完成的任务',
+                  completed: true,
+                },
+              ]"
+              :default-collapsed="true"
+            />
           </div>
         </template>
       </TwoRowLayout>
@@ -40,6 +92,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
+import TaskBar from '@/components/parts/TaskBar.vue'
 import { useRegisterStore } from '@/stores/register'
 import { logger, LogTags } from '@/infra/logging/logger'
 
@@ -167,6 +220,13 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
+}
+
+/* 任务列表 */
+.task-list {
+  padding: 1.6rem;
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* 列内容 */
