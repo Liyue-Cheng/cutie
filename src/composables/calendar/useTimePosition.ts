@@ -55,6 +55,20 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
       currentDate = new Date(weekStart)
       currentDate.setDate(weekStart.getDate() + clampedDayIndex)
       currentDate.setHours(0, 0, 0, 0)
+    } else if (currentView.type === 'timeGrid3Days') {
+      // 三天视图：根据 X 坐标确定日期
+      const relativeX = event.clientX - cachedRect.value.left
+      const columnPercentage = relativeX / cachedRect.value.width
+
+      // 计算是哪一天（0-2，三天视图有3天）
+      const dayIndex = Math.floor(columnPercentage * 3)
+      const clampedDayIndex = Math.max(0, Math.min(dayIndex, 2))
+
+      // 获取视图起始日期
+      const viewStart = new Date(currentView.activeStart)
+      currentDate = new Date(viewStart)
+      currentDate.setDate(viewStart.getDate() + clampedDayIndex)
+      currentDate.setHours(0, 0, 0, 0)
     } else if (currentView.type === 'dayGridMonth') {
       // 月视图：月视图通常不需要精确时间，这里返回当日0点
       // （月视图的拖放通常在 useCalendarInteractDrag 中通过 fc-daygrid-day 处理）

@@ -21,6 +21,8 @@ const props = defineProps<{
   viewMetadata?: ViewMetadata // 可选：可自动推导
   isExpired?: boolean // 🆕 是否过期（用于灰度显示）
   isCalendarDate?: boolean // 🆕 是否是当前日历日期（用于日历图标长显）
+  disableTitleClick?: boolean // 🆕 禁用标题点击
+  hideCalendarIcon?: boolean // 🆕 隐藏日历图标
 }>()
 
 const emit = defineEmits<{
@@ -344,6 +346,9 @@ watch(
 
 // ==================== 标题点击处理 ====================
 function handleTitleClick() {
+  // 如果禁用了标题点击，则不处理
+  if (props.disableTitleClick) return
+
   // 从 viewMetadata 中提取日期
   if (effectiveViewMetadata.value.type === 'date') {
     const config = effectiveViewMetadata.value.config as import('@/types/drag').DateViewConfig
@@ -363,9 +368,10 @@ function handleTitleClick() {
     <!-- 🔥 整个看板作为 dropzone（包含 header、input、task list） -->
     <div ref="kanbanContainerRef" class="kanban-dropzone-wrapper">
       <div class="header">
-        <div class="title-row" @click="handleTitleClick">
+        <div class="title-row" :class="{ clickable: !disableTitleClick }" @click="handleTitleClick">
           <h2 class="title">{{ title }}</h2>
           <CuteIcon
+            v-if="!hideCalendarIcon"
             name="Calendar"
             :size="16"
             class="calendar-icon"
@@ -451,11 +457,15 @@ function handleTitleClick() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  cursor: pointer;
+  cursor: default;
   padding: 0.2rem 0;
   margin: -0.2rem 0;
   border-radius: 0.4rem;
   transition: all 0.2s ease;
+}
+
+.title-row.clickable {
+  cursor: pointer;
 }
 
 .title {
@@ -466,7 +476,12 @@ function handleTitleClick() {
   transition: color 0.2s ease;
 }
 
-.title-row:hover .title {
+/* 过期看板中的标题 */
+.simple-kanban-column.is-expired .title {
+  opacity: 0.6;
+}
+
+.title-row.clickable:hover .title {
   color: var(--rose-pine-foam, #56949f);
 }
 
@@ -485,7 +500,7 @@ function handleTitleClick() {
   /* 不改变颜色，保持默认的次要文本颜色 */
 }
 
-.title-row:hover .calendar-icon {
+.title-row.clickable:hover .calendar-icon {
   opacity: 1;
   color: var(--rose-pine-foam, #56949f); /* hover 时才变绿色 */
 }
@@ -614,8 +629,7 @@ function handleTitleClick() {
   --color-text-secondary: var(--rose-pine-muted);
 }
 
-/* 过期看板中的标题和数量 */
-.simple-kanban-column.is-expired .title,
+/* 过期看板中的subtitle和数量 */
 .simple-kanban-column.is-expired .subtitle,
 .simple-kanban-column.is-expired .count {
   opacity: 0.6;

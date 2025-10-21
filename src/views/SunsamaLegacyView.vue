@@ -15,6 +15,7 @@ import TrashView from '@/views/TrashView.vue'
 import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
+import { useRegisterStore } from '@/stores/register'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 
@@ -33,10 +34,15 @@ type RightPaneView =
 // ==================== Stores ====================
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
+const registerStore = useRegisterStore()
 
 // ==================== 初始化 ====================
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing, loading incomplete tasks...')
+
+  // 🔥 设置当前视图寄存器
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'sunsama-legacy')
+
   // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
   await taskStore.fetchAllIncompleteTasks_DMA()
   logger.info(LogTags.VIEW_HOME, 'Loaded incomplete tasks', {

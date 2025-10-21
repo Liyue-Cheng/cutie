@@ -23,17 +23,23 @@
         </div>
         <div class="sidebar-content">
           <ul class="nav-group">
-            <li @click="$router.push('/')">
+            <li @click="navigateToHome('default')">
               <CuteIcon name="House" :size="16" /><span>Home</span>
+            </li>
+            <li @click="navigateToHome('board')">
+              <CuteIcon name="LayoutDashboard" :size="16" /><span>Board</span>
+            </li>
+            <li @click="navigateToHome('calendar')">
+              <CuteIcon name="Calendar" :size="16" /><span>Calendar</span>
             </li>
             <li @click="$router.push('/sunsama-legacy')">
               <CuteIcon name="LayoutGrid" :size="16" /><span>Sunsama Legacy</span>
             </li>
+            <li @click="$router.push('/calendar-legacy')">
+              <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Legacy</span>
+            </li>
             <li @click="$router.push('/staging')">
               <CuteIcon name="Layers" :size="16" /><span>Staging</span>
-            </li>
-            <li @click="$router.push('/calendar')">
-              <CuteIcon name="Calendar" :size="16" /><span>Calendar</span>
             </li>
           </ul>
 
@@ -115,19 +121,29 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. Import lifecycle hooks and ref
+import { useRouter } from 'vue-router'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import CuteButton from '../components/parts/CuteButton.vue'
 import CuteIcon from '../components/parts/CuteIcon.vue'
 import CutePane from '../components/alias/CutePane.vue'
 import SettingsView from '../components/temp/TempSetting.vue'
 import AreaManager from '../components/parts/AreaManager.vue'
+import { useRegisterStore } from '../stores/register'
 
 const appWindow = getCurrentWindow()
+const router = useRouter()
+const registerStore = useRegisterStore()
 
 const isProjectsOpen = ref(false)
 const isExperienceOpen = ref(false)
 const isSettingsOpen = ref(false)
 const isAreaManagerOpen = ref(false)
+
+// 导航到 Home 并设置模式
+function navigateToHome(mode: 'default' | 'board' | 'calendar') {
+  registerStore.writeRegister(registerStore.RegisterKeys.HOME_VIEW_MODE, mode)
+  router.push('/')
+}
 
 const themeClassName = 'theme-temp-susamacopy'
 

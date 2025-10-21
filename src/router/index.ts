@@ -23,8 +23,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/StagingView.vue'),
       },
       {
-        path: 'calendar',
-        name: 'calendar',
+        path: 'calendar-legacy',
+        name: 'calendar-legacy',
         component: () => import('../views/CalendarView.vue'),
       },
       {
