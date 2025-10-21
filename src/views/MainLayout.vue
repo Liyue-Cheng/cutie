@@ -23,79 +23,56 @@
         </div>
         <div class="sidebar-content">
           <ul class="nav-group">
-            <li @click="navigateToHome('default')">
-              <CuteIcon name="House" :size="16" /><span>Home</span>
+            <li @click="$router.push('/')">
+              <CuteIcon name="Clock" :size="16" /><span>Recent</span>
             </li>
-            <li @click="navigateToHome('board')">
-              <CuteIcon name="LayoutDashboard" :size="16" /><span>Board</span>
-            </li>
-            <li @click="navigateToHome('calendar')">
-              <CuteIcon name="Calendar" :size="16" /><span>Calendar</span>
-            </li>
-            <li @click="$router.push('/sunsama-legacy')">
-              <CuteIcon name="LayoutGrid" :size="16" /><span>Sunsama Legacy</span>
-            </li>
-            <li @click="$router.push('/calendar-legacy')">
-              <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Legacy</span>
-            </li>
-            <li @click="$router.push('/staging')">
+            <li @click="$router.push('/')">
               <CuteIcon name="Layers" :size="16" /><span>Staging</span>
             </li>
-          </ul>
-
-          <!-- <div class="section-divider">
-            <span class="divider-label">DAILY RITUALS</span>
-          </div> -->
-
-          <!-- <ul class="nav-group">
-            <li @click="$router.push('/daily-planning')">
-              <CuteIcon name="SunMoon" :size="16" /><span>Daily Planning</span>
+            <li @click="$router.push('/')">
+              <CuteIcon name="CalendarClock" :size="16" /><span>Upcoming</span>
             </li>
-            <li @click="$router.push('/daily-shutdown')">
-              <CuteIcon name="PowerOff" :size="16" /><span>Daily Shutdown</span>
-            </li>
-          </ul> -->
-
-          <ul class="nav-group">
-            <li @click="$router.push('/area-test')">
-              <CuteIcon name="Tag" :size="16" /><span>Area Test</span>
-            </li>
-            <li @click="$router.push('/debug')">
-              <CuteIcon name="Bug" :size="16" /><span>Debug</span>
-            </li>
-            <li @click="$router.push('/interact-test')">
-              <CuteIcon name="MousePointer2" :size="16" /><span>Interact Test</span>
-            </li>
-            <li @click="$router.push('/cpu-debug')">
-              <CuteIcon name="Cpu" :size="16" /><span>CPU Pipeline</span>
+            <li @click="$router.push('/')">
+              <CuteIcon name="Folder" :size="16" /><span>Projects</span>
             </li>
           </ul>
 
           <div class="collapsible-section">
-            <div class="section-header" @click="isProjectsOpen = !isProjectsOpen">
+            <div class="section-header" @click="isLegacyOpen = !isLegacyOpen">
               <div class="section-title">
-                <CuteIcon name="Folder" :size="16" />
-                <span>{{ $t('sidebar.projects') }}</span>
+                <CuteIcon name="Archive" :size="16" />
+                <span>Legacy</span>
               </div>
-              <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isProjectsOpen }" />
+              <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isLegacyOpen }" />
             </div>
-            <ul v-if="isProjectsOpen" class="sub-list">
-              <li>{{ $t('projects.alpha') }}</li>
-              <li>{{ $t('projects.beta') }}</li>
-            </ul>
-          </div>
-
-          <div class="collapsible-section">
-            <div class="section-header" @click="isExperienceOpen = !isExperienceOpen">
-              <div class="section-title">
-                <CuteIcon name="Briefcase" :size="16" />
-                <span>{{ $t('sidebar.experience') }}</span>
-              </div>
-              <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isExperienceOpen }" />
-            </div>
-            <ul v-if="isExperienceOpen" class="sub-list">
-              <li>{{ $t('experience.acme') }}</li>
-              <li>{{ $t('experience.opensource') }}</li>
+            <ul v-if="isLegacyOpen" class="sub-list">
+              <li @click="navigateToLegacyHome('default')">
+                <CuteIcon name="House" :size="16" /><span>Home</span>
+              </li>
+              <li @click="navigateToLegacyHome('board')">
+                <CuteIcon name="LayoutDashboard" :size="16" /><span>Board</span>
+              </li>
+              <li @click="navigateToLegacyHome('calendar')">
+                <CuteIcon name="Calendar" :size="16" /><span>Calendar</span>
+              </li>
+              <li @click="$router.push('/sunsama-legacy')">
+                <CuteIcon name="LayoutGrid" :size="16" /><span>Sunsama Legacy</span>
+              </li>
+              <li @click="$router.push('/calendar-legacy')">
+                <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Legacy</span>
+              </li>
+              <li @click="$router.push('/area-test')">
+                <CuteIcon name="Tag" :size="16" /><span>Area Test</span>
+              </li>
+              <li @click="$router.push('/debug')">
+                <CuteIcon name="Bug" :size="16" /><span>Debug</span>
+              </li>
+              <li @click="$router.push('/interact-test')">
+                <CuteIcon name="MousePointer2" :size="16" /><span>Interact Test</span>
+              </li>
+              <li @click="$router.push('/cpu-debug')">
+                <CuteIcon name="Cpu" :size="16" /><span>CPU Pipeline</span>
+              </li>
             </ul>
           </div>
         </div>
@@ -134,15 +111,14 @@ const appWindow = getCurrentWindow()
 const router = useRouter()
 const registerStore = useRegisterStore()
 
-const isProjectsOpen = ref(false)
-const isExperienceOpen = ref(false)
+const isLegacyOpen = ref(false)
 const isSettingsOpen = ref(false)
 const isAreaManagerOpen = ref(false)
 
-// 导航到 Home 并设置模式
-function navigateToHome(mode: 'default' | 'board' | 'calendar') {
+// 导航到 Legacy Home 并设置模式
+function navigateToLegacyHome(mode: 'default' | 'board' | 'calendar') {
   registerStore.writeRegister(registerStore.RegisterKeys.HOME_VIEW_MODE, mode)
-  router.push('/')
+  router.push('/home-legacy')
 }
 
 const themeClassName = 'theme-temp-susamacopy'
@@ -296,6 +272,9 @@ onBeforeUnmount(() => {
 }
 
 .sub-list li {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
   padding: 0.6rem 1rem;
   border-radius: 0.6rem;
   cursor: pointer;
