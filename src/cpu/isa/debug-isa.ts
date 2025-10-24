@@ -2,7 +2,7 @@
  * 调试用指令集
  */
 
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 
 export const DebugISA: ISADefinition = {
   'debug.fetch_baidu': {

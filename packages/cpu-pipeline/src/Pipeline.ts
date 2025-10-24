@@ -1,5 +1,7 @@
 /**
- * CPU流水线主控制器
+ * CPU流水线主控制器（解耦版）
+ *
+ * 通过依赖注入实现零耦合架构
  */
 
 import { InstructionFetchStage } from './stages/IF'
@@ -10,7 +12,7 @@ import { WriteBackStage } from './stages/WB'
 import { cpuEventCollector, cpuConsole, cpuLogger } from './logging'
 import { captureCallSource } from './logging/stack-parser'
 import type { QueuedInstruction } from './types'
-import { ref } from 'vue'
+import type { IReactiveState } from './interfaces'
 
 export interface PipelineStatus {
   ifBufferSize: number
@@ -18,6 +20,43 @@ export interface PipelineStatus {
   schActiveSize: number
   totalCompleted: number
   totalFailed: number
+}
+
+/**
+ * Pipeline配置
+ */
+export interface PipelineConfig {
+  /** Tick间隔（ms），默认16 */
+  tickInterval?: number
+  /** 最大并发数，默认10 */
+  maxConcurrency?: number
+  /** 响应式状态工厂（用于适配不同框架） */
+  reactiveStateFactory?: <T>(initialValue: T) => IReactiveState<T>
+}
+
+/**
+ * 默认状态实现（非响应式）
+ */
+function createPlainState<T>(initialValue: T): IReactiveState<T> {
+  let value = initialValue
+  const subscribers: Array<(value: T) => void> = []
+
+  return {
+    get value() {
+      return value
+    },
+    setValue(newValue: T) {
+      value = newValue
+      subscribers.forEach((cb) => cb(value))
+    },
+    subscribe(callback) {
+      subscribers.push(callback)
+      return () => {
+        const index = subscribers.indexOf(callback)
+        if (index > -1) subscribers.splice(index, 1)
+      }
+    },
+  }
 }
 
 export class Pipeline {
@@ -29,16 +68,11 @@ export class Pipeline {
 
   private isRunning = false
   private tickInterval: number | null = null
-  private readonly TICK_INTERVAL_MS = 16 // ~60fps
+  private readonly TICK_INTERVAL_MS: number
+  private readonly MAX_CONCURRENCY: number
 
-  // 响应式状态（用于Vue组件）
-  public status = ref<PipelineStatus>({
-    ifBufferSize: 0,
-    schPendingSize: 0,
-    schActiveSize: 0,
-    totalCompleted: 0,
-    totalFailed: 0,
-  })
+  // 响应式状态
+  public status: IReactiveState<PipelineStatus>
 
   // 🔥 Promise resolvers for awaitable dispatch
   private promiseResolvers = new Map<
@@ -49,9 +83,24 @@ export class Pipeline {
     }
   >()
 
-  constructor() {
+  constructor(config: PipelineConfig = {}) {
+    // 配置参数
+    this.TICK_INTERVAL_MS = config.tickInterval ?? 16
+    this.MAX_CONCURRENCY = config.maxConcurrency ?? 10
+
+    // 创建响应式状态
+    const stateFactory = config.reactiveStateFactory ?? createPlainState
+    this.status = stateFactory<PipelineStatus>({
+      ifBufferSize: 0,
+      schPendingSize: 0,
+      schActiveSize: 0,
+      totalCompleted: 0,
+      totalFailed: 0,
+    })
+
+    // 创建流水线阶段
     this.IF = new InstructionFetchStage()
-    this.SCH = new SchedulerStage()
+    this.SCH = new SchedulerStage(this.MAX_CONCURRENCY)
     this.EX = new ExecuteStage()
     this.RES = new ResponseStage()
     this.WB = new WriteBackStage()
@@ -149,9 +198,6 @@ export class Pipeline {
     this.IF.clear()
     this.SCH.clear()
 
-    // 清空日志记录
-    // cpuLogger.clear() // 可选：是否清空日志取决于需求
-
     // 🔥 Reject all pending promises
     for (const [, resolver] of this.promiseResolvers.entries()) {
       resolver.reject(new Error('Pipeline was reset'))
@@ -159,13 +205,13 @@ export class Pipeline {
     this.promiseResolvers.clear()
 
     // 重置状态
-    this.status.value = {
+    this.status.setValue({
       ifBufferSize: 0,
       schPendingSize: 0,
       schActiveSize: 0,
       totalCompleted: 0,
       totalFailed: 0,
-    }
+    })
 
     console.log('%c🔄 CPU流水线已重置', 'color: #9C27B0; font-weight: bold')
   }
@@ -241,13 +287,13 @@ export class Pipeline {
   private updateStatus(): void {
     const quickStats = cpuLogger.getQuickStats()
 
-    this.status.value = {
+    this.status.setValue({
       ifBufferSize: this.IF.getBufferSize(),
       schPendingSize: this.SCH.getPendingQueueSize(),
       schActiveSize: this.SCH.getActiveCount(),
       totalCompleted: quickStats.totalCompleted,
       totalFailed: quickStats.totalFailed,
-    }
+    })
   }
 
   /**

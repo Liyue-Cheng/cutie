@@ -1,11 +1,23 @@
 /**
  * IF阶段：Instruction Fetch（指令获取）
+ *
+ * 解耦版：使用依赖注入的CorrelationId生成器
  */
 
 import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
-import { generateCorrelationId } from '@/infra/correlation/correlationId'
 import type { CallSource } from '../logging/types'
+import type { ICorrelationIdGenerator } from '../interfaces'
+
+// 全局生成器（通过setCorrelationIdGenerator注入）
+let correlationIdGenerator: ICorrelationIdGenerator | null = null
+
+/**
+ * 设置CorrelationId生成器（必须在使用前调用）
+ */
+export function setCorrelationIdGenerator(generator: ICorrelationIdGenerator): void {
+  correlationIdGenerator = generator
+}
 
 export class InstructionFetchStage {
   private buffer: QueuedInstruction[] = []
@@ -20,8 +32,12 @@ export class InstructionFetchStage {
     source: 'user' | 'system' | 'test' = 'user',
     callSource?: CallSource
   ): QueuedInstruction<TPayload> {
+    if (!correlationIdGenerator) {
+      throw new Error('CorrelationIdGenerator未初始化，请先调用setCorrelationIdGenerator()')
+    }
+
     const instructionId = `instr-${Date.now()}-${++this.idCounter}`
-    const correlationId = generateCorrelationId()
+    const correlationId = correlationIdGenerator.generate()
 
     const instruction: QueuedInstruction<TPayload> = {
       id: instructionId,

@@ -7,7 +7,7 @@
  * 3. 统一的 commit 逻辑
  */
 
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type { Template, TaskCard } from '@/types/dtos'
 import { useTemplateStore } from '@/stores/template'
 import { useTaskStore } from '@/stores/task'

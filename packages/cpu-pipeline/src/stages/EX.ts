@@ -10,7 +10,7 @@
 
 import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
-import { ISA } from '../isa'
+import { getISA } from '../isa'
 import { executeRequest } from '../utils/request'
 import { cpuEventCollector, cpuConsole } from '../logging'
 
@@ -19,6 +19,7 @@ export class ExecuteStage {
    * 执行指令
    */
   async execute(instruction: QueuedInstruction): Promise<void> {
+    const ISA = getISA()
     const isa = ISA[instruction.type]
     if (!isa) {
       throw new Error(`未找到指令定义: ${instruction.type}`)

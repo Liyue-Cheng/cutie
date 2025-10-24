@@ -1,5 +1,7 @@
 /**
- * CPU Pipeline 统一请求工具
+ * CPU Pipeline 统一请求工具（解耦版）
+ *
+ * 通过依赖注入实现HTTP客户端解耦
  *
  * 支持：
  * 1. 单个请求
@@ -7,10 +9,19 @@
  * 3. 自动添加 correlation-id
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from '@/stores/shared'
+import type { IHttpClient } from '../interfaces'
 import type { InstructionContext } from '../types'
 import type { RequestConfig, MultiRequestConfig } from '../isa/types'
-import { logger, LogTags } from '@/infra/logging/logger'
+
+// 全局HTTP客户端（通过setHttpClient注入）
+let httpClient: IHttpClient | null = null
+
+/**
+ * 设置HTTP客户端（必须在使用前调用）
+ */
+export function setHttpClient(client: IHttpClient): void {
+  httpClient = client
+}
 
 /**
  * 执行单个 HTTP 请求
@@ -20,6 +31,10 @@ async function executeSingleRequest(
   payload: any,
   context: InstructionContext
 ): Promise<any> {
+  if (!httpClient) {
+    throw new Error('HttpClient未初始化，请先调用setHttpClient()')
+  }
+
   // 解析 URL
   const url = typeof config.url === 'function' ? config.url(payload) : config.url
 
@@ -32,24 +47,20 @@ async function executeSingleRequest(
     ...config.headers,
   }
 
-  logger.debug(LogTags.SYSTEM_PIPELINE, 'Executing HTTP request', {
-    method: config.method,
-    url,
-    correlationId: context.correlationId,
-  })
+  const requestConfig = { headers }
 
   // 根据方法执行请求
   switch (config.method) {
     case 'GET':
-      return await apiGet(url, context.correlationId)
+      return await httpClient.get(url, requestConfig)
     case 'POST':
-      return await apiPost(url, body, { headers })
+      return await httpClient.post(url, body, requestConfig)
     case 'PUT':
-      return await apiPut(url, body, context.correlationId)
+      return await httpClient.put(url, body, requestConfig)
     case 'PATCH':
-      return await apiPatch(url, body, { headers })
+      return await httpClient.patch(url, body, requestConfig)
     case 'DELETE':
-      return await apiDelete(url, { headers })
+      return await httpClient.delete(url, requestConfig)
     default:
       throw new Error(`Unsupported HTTP method: ${config.method}`)
   }
@@ -84,12 +95,6 @@ export async function executeRequest(
 
   // 多个请求
   const { requests, mode, combineResults } = config
-
-  logger.info(LogTags.SYSTEM_PIPELINE, 'Executing multiple HTTP requests', {
-    count: requests.length,
-    mode,
-    correlationId: context.correlationId,
-  })
 
   let results: any[]
 

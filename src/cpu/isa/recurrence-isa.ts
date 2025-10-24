@@ -7,7 +7,7 @@
  * 3. 统一的 commit 逻辑
  */
 
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type { TaskRecurrence } from '@/types/dtos'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import * as recurrenceCore from '@/stores/recurrence/core'

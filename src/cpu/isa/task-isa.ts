@@ -7,7 +7,7 @@
  * 3. 统一的 commit 逻辑
  */
 
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 import {
@@ -355,9 +355,8 @@ export const TaskISA: ISADefinition = {
         // 🔥 立即清除所有当前和未来的日程
         // 返回暂存区操作会删除所有 >= today 的日程，只保留过去的
         const today = new Date().toISOString().split('T')[0]
-        const pastSchedules = task.schedules?.filter(
-          (schedule) => schedule.scheduled_day < today
-        ) || []
+        const pastSchedules =
+          task.schedules?.filter((schedule) => schedule.scheduled_day < today) || []
 
         // 🔥 立即更新任务状态
         // - 清除当前和未来日程

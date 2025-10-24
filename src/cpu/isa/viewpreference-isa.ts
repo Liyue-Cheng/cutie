@@ -10,7 +10,7 @@
  */
 
 import { useViewStore } from '@/stores/view'
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 
 export const ViewPreferenceISA: ISADefinition = {
   'viewpreference.update_sorting': {

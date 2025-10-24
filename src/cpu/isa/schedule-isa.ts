@@ -7,7 +7,7 @@
  * 3. 统一的 commit 逻辑
  */
 
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 import {
   transactionProcessor,
   type TaskTransactionResult,
@@ -227,9 +227,7 @@ export const ScheduleISA: ISADefinition = {
         // 🔥 智能更新 schedule_status
         // 如果删除后没有未来日程，设为 staging；否则保持 scheduled
         const today = new Date().toISOString().split('T')[0]
-        const hasFutureSchedule = newSchedules.some(
-          (schedule) => schedule.scheduled_day >= today
-        )
+        const hasFutureSchedule = newSchedules.some((schedule) => schedule.scheduled_day >= today)
 
         // 立即更新任务
         taskStore.addOrUpdateTask_mut({

@@ -20,7 +20,7 @@ import {
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import type { TimeBlockView } from '@/types/dtos'
-import type { ISADefinition } from './types'
+import type { ISADefinition } from '@cutie/cpu-pipeline'
 
 export const TimeBlockISA: ISADefinition = {
   'time_block.create_from_task': {

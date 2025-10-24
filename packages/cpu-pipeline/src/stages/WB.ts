@@ -4,13 +4,11 @@
  * 职责：
  * 1. 调用 commit 函数（成功时）
  * 2. 回滚乐观更新（失败时）
- * 3. 注册到中断处理器（成功时）
  */
 
 import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
-import { ISA } from '../isa'
-import { interruptHandler } from '../interrupt/InterruptHandler'
+import { getISA } from '../isa'
 import { cpuEventCollector, cpuConsole } from '../logging'
 
 export class WriteBackStage {
@@ -18,6 +16,7 @@ export class WriteBackStage {
    * 回滚乐观更新
    */
   private rollbackOptimisticUpdate(instruction: QueuedInstruction): void {
+    const ISA = getISA()
     const definition = ISA[instruction.type]
 
     if (instruction.optimisticSnapshot && definition?.optimistic?.rollback) {
@@ -42,7 +41,8 @@ export class WriteBackStage {
       try {
         definition.optimistic.rollback(instruction.optimisticSnapshot)
       } catch (rollbackError) {
-        instruction.writeBackExecution.rollbackError = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError))
+        instruction.writeBackExecution.rollbackError =
+          rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError))
         console.error('❌ [CPU] 乐观更新回滚失败:', {
           instructionId: instruction.id,
           type: instruction.type,
@@ -59,6 +59,7 @@ export class WriteBackStage {
     // 标记WB阶段
     instruction.timestamps.WB = Date.now()
 
+    const ISA = getISA()
     const definition = ISA[instruction.type]
 
     // 初始化WB执行记录
@@ -90,7 +91,8 @@ export class WriteBackStage {
           instruction.writeBackExecution.commitSuccess = true
         } catch (error) {
           instruction.writeBackExecution.commitSuccess = false
-          instruction.writeBackExecution.commitError = error instanceof Error ? error : new Error(String(error))
+          instruction.writeBackExecution.commitError =
+            error instanceof Error ? error : new Error(String(error))
 
           // commit失败 → 回滚乐观更新
           this.rollbackOptimisticUpdate(instruction)
@@ -101,12 +103,6 @@ export class WriteBackStage {
           return
         }
       }
-
-      // 🔥 注册到中断处理器（用于 SSE 去重）
-      interruptHandler.register(instruction.context.correlationId, {
-        type: instruction.type,
-        payload: instruction.payload,
-      })
 
       // 成功场景
       instruction.status = InstructionStatus.COMMITTED

@@ -4,13 +4,17 @@
 
 import type { QueuedInstruction } from '../types'
 import { InstructionStatus } from '../types'
-import { ISA } from '../isa'
+import { getISA } from '../isa'
 
 export class SchedulerStage {
   private pendingQueue: QueuedInstruction[] = []
   private activeInstructions: Map<string, QueuedInstruction> = new Map()
   private activeResources: Set<string> = new Set()
-  private maxConcurrency = 10 // 最大并发数
+  private maxConcurrency: number
+
+  constructor(maxConcurrency: number = 10) {
+    this.maxConcurrency = maxConcurrency
+  }
 
   /**
    * 调度循环（tick）
@@ -102,6 +106,7 @@ export class SchedulerStage {
    * 从payload中提取资源ID
    */
   private getResourceIds(instruction: QueuedInstruction): string[] {
+    const ISA = getISA()
     const isa = ISA[instruction.type]
     if (!isa) {
       return []

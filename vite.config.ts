@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@cutie/cpu-pipeline': path.resolve(__dirname, './packages/cpu-pipeline/src/index.ts'),
     },
   },
 
