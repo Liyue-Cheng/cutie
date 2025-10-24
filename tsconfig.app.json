@@ -5,7 +5,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@cutie/cpu-pipeline": ["packages/cpu-pipeline/src/index.ts"]
+      "@cutie/cpu-pipeline": ["../cpu-pipeline/src/index.ts"]
     },
 
     /* Linting */
