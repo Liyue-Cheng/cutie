@@ -125,6 +125,9 @@ export const useRegisterStore = defineStore('register', () => {
     /** 当前选中的视图 (string) */
     CURRENT_VIEW: 'currentView',
 
+    /** HomeView 的显示模式 ('default' | 'board' | 'calendar') */
+    HOME_VIEW_MODE: 'homeViewMode',
+
     // 可以继续添加更多预定义键名...
   } as const
 

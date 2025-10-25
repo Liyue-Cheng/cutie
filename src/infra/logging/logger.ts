@@ -510,6 +510,7 @@ export const LogTags = {
   COMPONENT_TIMELINE: 'Component:InfiniteTimeline',
   COMPONENT_CALENDAR: 'Component:CuteCalendar',
   COMPONENT_BUTTON: 'Component:CuteButton',
+  COMPONENT_TASK_BAR: 'Component:TaskBar',
 
   // 拖拽相关
   DRAG_CROSS_VIEW: 'Drag:CrossView',

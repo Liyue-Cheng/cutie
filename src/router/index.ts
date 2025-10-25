@@ -13,6 +13,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/HomeView.vue'),
       },
       {
+        path: 'home-legacy',
+        name: 'home-legacy',
+        component: () => import('../views/HomeViewLegacy.vue'),
+      },
+      {
         path: 'sunsama-legacy',
         name: 'sunsama-legacy',
         component: () => import('../views/SunsamaLegacyView.vue'),
@@ -23,8 +28,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/StagingView.vue'),
       },
       {
-        path: 'calendar',
-        name: 'calendar',
+        path: 'calendar-legacy',
+        name: 'calendar-legacy',
         component: () => import('../views/CalendarView.vue'),
       },
       {

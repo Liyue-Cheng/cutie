@@ -42,7 +42,18 @@ const isTaskDragging = computed(() => {
 })
 
 // ==================== Props ====================
-// 🗑️ 移除 props drilling - 现在直接从 register store 读取
+const props = withDefaults(
+  defineProps<{
+    disableTitleClick?: boolean // 🆕 禁用看板标题点击
+    hideCalendarIcon?: boolean // 🆕 隐藏日历图标
+    disableHorizontalDrag?: boolean // 🆕 禁用横向拖动
+  }>(),
+  {
+    disableTitleClick: false,
+    hideCalendarIcon: false,
+    disableHorizontalDrag: false,
+  }
+)
 
 // ==================== 日期看板系统 ====================
 interface DailyKanban {
@@ -332,6 +343,9 @@ defineExpose({
 
 // ==================== 拖动滚动 ====================
 function handleMouseDown(event: MouseEvent) {
+  // 🆕 如果禁用了拖动，直接返回
+  if (props.disableHorizontalDrag) return
+
   // 只处理左键
   if (event.button !== 0) return
 
@@ -547,6 +561,8 @@ onBeforeUnmount(() => {
         :show-add-input="true"
         :is-expired="isExpired(kanban.date)"
         :is-calendar-date="isCalendarDate(kanban.date)"
+        :disable-title-click="disableTitleClick"
+        :hide-calendar-icon="hideCalendarIcon"
         :style="{ width: `${KANBAN_WIDTH}rem`, flexShrink: 0 }"
         @title-click="handleKanbanTitleClick"
       />
