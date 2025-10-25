@@ -52,7 +52,10 @@ export function useViewTasks(viewKey: string) {
         return sortedTasks
       }
     } catch (error) {
-      logger.warn(LogTags.STORE_VIEW, 'ViewKey mux failed, falling back to legacy logic', { viewKey, error })
+      logger.warn(LogTags.STORE_VIEW, 'ViewKey mux failed, falling back to legacy logic', {
+        viewKey,
+        error,
+      })
     }
 
     // 兜底：使用旧的分支逻辑（向后兼容）
@@ -138,14 +141,16 @@ export function useViewTasks(viewKey: string) {
     }
   })
 
-/**
- * 判断是否是复杂的 viewKey 格式（三段式或更多）
- */
-function isComplexViewKey(viewKey: string): boolean {
-  const parts = viewKey.split('::')
-  return parts.length >= 3 ||
-         (parts.length === 2 && ['misc::staging', 'misc::archive'].includes(viewKey))
-}
+  /**
+   * 判断是否是复杂的 viewKey 格式（三段式或更多）
+   */
+  function isComplexViewKey(viewKey: string): boolean {
+    const parts = viewKey.split('::')
+    return (
+      parts.length >= 3 ||
+      (parts.length === 2 && ['misc::staging', 'misc::archive'].includes(viewKey))
+    )
+  }
 
   /**
    * 组件挂载时预加载排序配置和数据
@@ -162,7 +167,7 @@ function isComplexViewKey(viewKey: string): boolean {
         if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
           const date = parts[1]
           logger.info(LogTags.STORE_VIEW, 'Fetching daily tasks for date', { date, viewKey })
-          await taskStore.fetchDailyTasks(date)
+          await taskStore.fetchDailyTasks_DMA(date)
           logger.info(LogTags.STORE_VIEW, 'Daily tasks loaded', { date, viewKey })
         }
       } catch (error) {
