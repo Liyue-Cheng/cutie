@@ -176,14 +176,21 @@ function updateDisplayDates() {
   const view = calendarApi.view
   const start = view.activeStart
   const end = view.activeEnd
-  const today = new Date().toISOString().split('T')[0]
+
+  // 使用本地时间获取今天的日期
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   const dates: DateHeaderInfo[] = []
   const current = new Date(start)
 
   // 根据视图类型决定显示哪些日期
   while (current < end) {
-    const dateStr = current.toISOString().split('T')[0] ?? ''
+    // 使用本地时间获取日期字符串
+    const year = current.getFullYear()
+    const month = String(current.getMonth() + 1).padStart(2, '0')
+    const day = String(current.getDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
 
     // 对于周视图和多天视图，显示所有日期
     if (props.viewType === 'week' || (props.viewType === 'day' && (props.days ?? 1) > 1)) {
