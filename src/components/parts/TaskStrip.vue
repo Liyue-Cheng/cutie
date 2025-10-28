@@ -53,7 +53,7 @@
     <!-- 概览笔记 -->
     <div v-if="task.glance_note" class="task-note">
       <span class="icon-wrapper">
-        <CuteIcon name="CornerDownRight" size="1.4rem" />
+        <CuteIcon name="FileText" size="1.4rem" />
       </span>
       <span class="note-text">{{ task.glance_note }}</span>
     </div>
