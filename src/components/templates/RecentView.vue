@@ -14,17 +14,13 @@
             <input type="date" v-model="selectedDate" class="date-input" @change="onDateChange" />
           </div>
 
-          <!-- 天数选择器 -->
+          <!-- 天数选择器（下拉菜单） -->
           <div class="day-count-selector">
-            <button
-              v-for="count in dayCountOptions"
-              :key="count"
-              class="day-count-btn"
-              :class="{ active: dayCount === count }"
-              @click="setDayCount(count)"
-            >
-              {{ count }}天
-            </button>
+            <select v-model="dayCount" class="day-count-select" @change="onDayCountChange">
+              <option v-for="count in dayCountOptions" :key="count" :value="count">
+                {{ count }}天
+              </option>
+            </select>
           </div>
         </div>
       </template>
@@ -171,13 +167,10 @@ function onDateChange() {
   loadDateRangeTasks()
 }
 
-// 设置天数
-function setDayCount(count: number) {
-  dayCount.value = count
-  emit('update:modelValue', count) // 通知父组件
-  logger.info(LogTags.VIEW_HOME, 'Day count changed', { dayCount: count })
-
-  // 预加载日期范围的任务
+// 下拉菜单变化处理
+function onDayCountChange() {
+  emit('update:modelValue', dayCount.value) // 通知父组件
+  logger.info(LogTags.VIEW_HOME, 'Day count changed', { dayCount: dayCount.value })
   loadDateRangeTasks()
 }
 
@@ -274,39 +267,30 @@ onMounted(async () => {
 .day-count-selector {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  padding: 0.2rem;
 }
 
-.day-count-btn {
+.day-count-select {
   padding: 0.6rem 1rem;
   font-size: 1.3rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  background-color: transparent;
-  border: none;
-  border-radius: 0.4rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  outline: none;
+  min-width: 8rem;
 }
 
-.day-count-btn:hover {
-  color: var(--color-text-primary);
-  background-color: rgb(0 0 0 / 5%);
+.day-count-select:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border-color: var(--color-border-hover, var(--color-border-default));
 }
 
-.day-count-btn.active {
-  color: white;
-  background-color: var(--color-primary, #4a90e2);
-  font-weight: 600;
-}
-
-.day-count-btn:active {
-  transform: scale(0.96);
+.day-count-select:focus {
+  border-color: var(--color-primary, #4a90e2);
+  box-shadow: 0 0 0 2px rgb(74 144 226 / 10%);
 }
 
 /* 任务列表 */
