@@ -75,6 +75,7 @@ const currentCalendarDate = computed(() => {
 // ==================== 可拖动分割线逻辑 ====================
 const leftPaneWidth = ref(33.33) // 默认比例 1:2，左栏占 33.33%
 const isDragging = ref(false)
+let resizeTimer: ReturnType<typeof setTimeout> | null = null
 
 function startDragging(e: MouseEvent) {
   isDragging.value = true
@@ -100,6 +101,24 @@ function onDragging(e: MouseEvent) {
   newWidth = Math.max(20, Math.min(80, newWidth))
 
   leftPaneWidth.value = newWidth
+
+  // 节流更新日历尺寸（每 50ms 最多更新一次）
+  if (resizeTimer) {
+    clearTimeout(resizeTimer)
+  }
+  resizeTimer = setTimeout(() => {
+    updateCalendarSize()
+  }, 50)
+}
+
+// 更新日历尺寸的辅助函数
+function updateCalendarSize() {
+  if (calendarRef.value?.calendarRef) {
+    const calendarApi = calendarRef.value.calendarRef.getApi()
+    if (calendarApi) {
+      calendarApi.updateSize()
+    }
+  }
 }
 
 async function stopDragging() {
@@ -107,15 +126,16 @@ async function stopDragging() {
   document.removeEventListener('mousemove', onDragging)
   document.removeEventListener('mouseup', stopDragging)
 
-  // 通知日历更新尺寸
-  await nextTick()
-  if (calendarRef.value?.calendarRef) {
-    const calendarApi = calendarRef.value.calendarRef.getApi()
-    if (calendarApi) {
-      calendarApi.updateSize()
-      logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane resize')
-    }
+  // 清除节流定时器
+  if (resizeTimer) {
+    clearTimeout(resizeTimer)
+    resizeTimer = null
   }
+
+  // 最后确保更新一次日历尺寸
+  await nextTick()
+  updateCalendarSize()
+  logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane resize')
 }
 
 // 双击重置为默认比例
@@ -124,19 +144,17 @@ async function resetPaneWidth() {
 
   // 通知日历更新尺寸
   await nextTick()
-  if (calendarRef.value?.calendarRef) {
-    const calendarApi = calendarRef.value.calendarRef.getApi()
-    if (calendarApi) {
-      calendarApi.updateSize()
-      logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane reset')
-    }
-  }
+  updateCalendarSize()
+  logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane reset')
 }
 
-// 清理事件监听器
+// 清理事件监听器和定时器
 onBeforeUnmount(() => {
   document.removeEventListener('mousemove', onDragging)
   document.removeEventListener('mouseup', stopDragging)
+  if (resizeTimer) {
+    clearTimeout(resizeTimer)
+  }
 })
 </script>
 
