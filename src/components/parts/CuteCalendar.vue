@@ -206,8 +206,8 @@ function updateDisplayDates() {
     const day = String(current.getDate()).padStart(2, '0')
     const dateStr = `${year}-${month}-${day}`
 
-    // 对于周视图和多天视图，显示所有日期
-    if (props.viewType === 'week' || (props.viewType === 'day' && (props.days ?? 1) > 1)) {
+    // 对于周视图和所有天数视图（包括1天），显示所有日期
+    if (props.viewType === 'week' || props.viewType === 'day') {
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
       const dayName = dayNames[current.getDay()] ?? 'Sun'
       const month = current.getMonth() + 1
@@ -225,12 +225,12 @@ function updateDisplayDates() {
   }
 
   displayDates.value = dates
-  
+
   // 在下一帧获取滚动条宽度
   nextTick(() => {
     getScrollbarWidth()
   })
-  
+
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Display dates updated', { count: dates.length })
 }
 
