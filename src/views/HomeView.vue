@@ -18,7 +18,13 @@
         </template>
         <template #bottom>
           <div class="calendar-wrapper">
-            <CuteCalendar :current-date="currentCalendarDate" view-type="day" :zoom="1" :days="calendarDays" />
+            <CuteCalendar
+              ref="calendarRef"
+              :current-date="currentCalendarDate"
+              view-type="day"
+              :zoom="1"
+              :days="calendarDays"
+            />
           </div>
         </template>
       </TwoRowLayout>
@@ -35,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import RecentView from '@/components/templates/RecentView.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
@@ -50,6 +56,7 @@ const uiStore = useUIStore()
 
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
+const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 
 // 初始化
 onMounted(async () => {
@@ -95,15 +102,35 @@ function onDragging(e: MouseEvent) {
   leftPaneWidth.value = newWidth
 }
 
-function stopDragging() {
+async function stopDragging() {
   isDragging.value = false
   document.removeEventListener('mousemove', onDragging)
   document.removeEventListener('mouseup', stopDragging)
+
+  // 通知日历更新尺寸
+  await nextTick()
+  if (calendarRef.value?.calendarRef) {
+    const calendarApi = calendarRef.value.calendarRef.getApi()
+    if (calendarApi) {
+      calendarApi.updateSize()
+      logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane resize')
+    }
+  }
 }
 
 // 双击重置为默认比例
-function resetPaneWidth() {
+async function resetPaneWidth() {
   leftPaneWidth.value = 33.33
+
+  // 通知日历更新尺寸
+  await nextTick()
+  if (calendarRef.value?.calendarRef) {
+    const calendarApi = calendarRef.value.calendarRef.getApi()
+    if (calendarApi) {
+      calendarApi.updateSize()
+      logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane reset')
+    }
+  }
 }
 
 // 清理事件监听器
