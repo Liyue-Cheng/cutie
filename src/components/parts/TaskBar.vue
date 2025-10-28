@@ -36,7 +36,7 @@
         <div
           v-for="task in displayItems"
           :key="task.id"
-          :class="`task-strip-wrapper-${normalizedViewKey}`"
+          :class="['task-card-wrapper', `task-strip-wrapper-${normalizedViewKey}`]"
           :data-task-id="task.id"
         >
           <TaskStrip
@@ -143,12 +143,10 @@ const { displayItems } = useInteractDrag({
 
     if (!result.success) {
       const errorMessage = result.message || result.error || 'Unknown error'
-      logger.error(
-        LogTags.COMPONENT_TASK_BAR,
-        'TaskBar drop failed',
-        new Error(errorMessage),
-        { result, session }
-      )
+      logger.error(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop failed', new Error(errorMessage), {
+        result,
+        session,
+      })
     } else {
       logger.info(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop succeeded', {
         taskId: session.object.id,
