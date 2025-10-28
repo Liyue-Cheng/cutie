@@ -37,6 +37,7 @@
           v-for="task in tasks"
           :key="task.id"
           :task="task"
+          :view-key="viewKey"
           @toggle-complete="toggleTaskComplete(task.id)"
           @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
         />

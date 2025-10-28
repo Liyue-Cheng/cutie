@@ -264,7 +264,7 @@ async function updateEstimatedDuration(duration: number | null) {
 
 // 点击打开编辑器
 function handleClick() {
-  uiStore.openEditor(props.task.id)
+  uiStore.openEditor(props.task.id, props.viewKey)
 }
 
 // 右键菜单
