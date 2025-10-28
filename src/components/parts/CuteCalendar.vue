@@ -12,6 +12,7 @@
         <span class="day-name">{{ dateInfo.dayName }}</span>
         <span class="date-number">{{ dateInfo.dateNumber }}</span>
       </div>
+      <div class="scrollbar-placeholder" :style="{ width: scrollbarWidth + 'px' }"></div>
     </div>
 
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
@@ -159,6 +160,19 @@ interface DateHeaderInfo {
 }
 
 const displayDates = ref<DateHeaderInfo[]>([])
+const scrollbarWidth = ref(0) // 滚动条宽度
+
+// 获取滚动条宽度
+function getScrollbarWidth() {
+  // 查找日历的滚动容器
+  const scrollContainer = document.querySelector('.fc-scroller') as HTMLElement
+  if (scrollContainer) {
+    // offsetWidth - clientWidth = 滚动条宽度
+    const width = scrollContainer.offsetWidth - scrollContainer.clientWidth
+    scrollbarWidth.value = width
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Scrollbar width detected', { width })
+  }
+}
 
 // 更新显示的日期列表
 function updateDisplayDates() {
@@ -211,6 +225,12 @@ function updateDisplayDates() {
   }
 
   displayDates.value = dates
+  
+  // 在下一帧获取滚动条宽度
+  nextTick(() => {
+    getScrollbarWidth()
+  })
+  
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Display dates updated', { count: dates.length })
 }
 
@@ -864,6 +884,11 @@ defineExpose({
   width: 37px; /* 与日历时间轴宽度一致 */
   flex-shrink: 0;
   border-right: 1px solid var(--color-border-default, #e0e0e0);
+}
+
+.scrollbar-placeholder {
+  flex-shrink: 0;
+  background-color: var(--color-background-primary, #fff);
 }
 
 .custom-day-header {
