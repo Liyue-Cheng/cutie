@@ -23,16 +23,16 @@
         </div>
         <div class="sidebar-content">
           <ul class="nav-group">
-            <li @click="$router.push('/')">
+            <li @click="$router.push({ path: '/', query: { view: 'recent' } })">
               <CuteIcon name="Clock" :size="16" /><span>Recent</span>
             </li>
-            <li @click="$router.push('/')">
+            <li @click="$router.push({ path: '/', query: { view: 'staging' } })">
               <CuteIcon name="Layers" :size="16" /><span>Staging</span>
             </li>
-            <li @click="$router.push('/')">
+            <li @click="$router.push({ path: '/', query: { view: 'upcoming' } })">
               <CuteIcon name="CalendarClock" :size="16" /><span>Upcoming</span>
             </li>
-            <li @click="$router.push('/')">
+            <li @click="$router.push({ path: '/', query: { view: 'projects' } })">
               <CuteIcon name="Folder" :size="16" /><span>Projects</span>
             </li>
           </ul>

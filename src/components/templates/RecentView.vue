@@ -19,7 +19,11 @@
 
           <!-- 日历图标（点击弹出日期选择器） -->
           <div class="date-picker-wrapper">
-            <button class="control-btn calendar-icon-btn" @click="toggleDatePicker" title="选择日期">
+            <button
+              class="control-btn calendar-icon-btn"
+              @click="toggleDatePicker"
+              title="选择日期"
+            >
               <CuteIcon name="CalendarDays" :size="16" />
             </button>
             <input

@@ -2,7 +2,8 @@
   <div class="home-view">
     <!-- 左栏 -->
     <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-      <RecentView v-model="calendarDays" />
+      <RecentView v-if="currentView === 'recent'" v-model="calendarDays" />
+      <StagingView v-else-if="currentView === 'staging'" />
     </div>
 
     <!-- 可拖动的分割线 -->
@@ -21,7 +22,7 @@
             <CuteCalendar
               ref="calendarRef"
               :current-date="currentCalendarDate"
-              :view-type="calendarViewType"
+              :view-type="effectiveCalendarViewType"
               :zoom="1"
               :days="calendarDays"
             />
@@ -41,9 +42,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import RecentView from '@/components/templates/RecentView.vue'
+import StagingView from '@/components/templates/StagingView.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
@@ -51,8 +54,12 @@ import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorMod
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
+const route = useRoute()
 const registerStore = useRegisterStore()
 const uiStore = useUIStore()
+
+// ==================== 视图切换状态 ====================
+const currentView = ref<'recent' | 'staging'>('recent') // 当前视图
 
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
@@ -62,6 +69,29 @@ const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 const calendarViewType = computed(() => {
   return calendarDays.value === 7 ? 'week' : 'day'
 })
+
+// 最终的日历视图类型：Staging 视图强制使用月视图
+const effectiveCalendarViewType = computed(() => {
+  if (currentView.value === 'staging') {
+    return 'month'
+  }
+  return calendarViewType.value
+})
+
+// 监听路由变化，切换视图
+watch(
+  () => route.query.view,
+  (newView) => {
+    if (newView === 'staging') {
+      currentView.value = 'staging'
+      logger.info(LogTags.VIEW_HOME, 'Switched to Staging view')
+    } else {
+      currentView.value = 'recent'
+      logger.info(LogTags.VIEW_HOME, 'Switched to Recent view')
+    }
+  },
+  { immediate: true }
+)
 
 // 初始化
 onMounted(async () => {
