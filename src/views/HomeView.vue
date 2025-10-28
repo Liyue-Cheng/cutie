@@ -167,6 +167,10 @@ function updateCalendarSize() {
     const calendarApi = calendarRef.value.calendarRef.getApi()
     if (calendarApi) {
       calendarApi.updateSize()
+      // 同步自定义头部的列宽
+      nextTick(() => {
+        calendarRef.value?.syncColumnWidths()
+      })
     }
   }
 }

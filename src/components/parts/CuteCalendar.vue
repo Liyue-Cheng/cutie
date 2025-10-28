@@ -453,6 +453,7 @@ onMounted(async () => {
 // ==================== 暴露给父组件 ====================
 defineExpose({
   calendarRef, // 暴露 calendarRef，让父组件可以调用 FullCalendar API
+  syncColumnWidths, // 暴露同步列宽方法，用于实时更新
 })
 </script>
 
