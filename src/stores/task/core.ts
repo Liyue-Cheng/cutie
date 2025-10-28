@@ -271,6 +271,34 @@ export function createTaskCore() {
               })
               return stagingTasks.value
             }
+          } else if (subtype === 'completed') {
+            // misc::completed - 已完成任务
+            logger.debug(LogTags.STORE_TASKS, 'Using completed tasks', {
+              viewKey,
+              count: completedTasks.value.length
+            })
+            return completedTasks.value
+          } else if (subtype === 'incomplete') {
+            // misc::incomplete - 未完成任务
+            logger.debug(LogTags.STORE_TASKS, 'Using incomplete tasks', {
+              viewKey,
+              count: incompleteTasks.value.length
+            })
+            return incompleteTasks.value
+          } else if (subtype === 'planned') {
+            // misc::planned - 已安排任务
+            logger.debug(LogTags.STORE_TASKS, 'Using planned tasks', {
+              viewKey,
+              count: plannedTasks.value.length
+            })
+            return plannedTasks.value
+          } else if (subtype === 'all') {
+            // misc::all - 所有任务
+            logger.debug(LogTags.STORE_TASKS, 'Using all tasks', {
+              viewKey,
+              count: allTasks.value.length
+            })
+            return allTasks.value
           } else if (subtype === 'archive') {
             // misc::archive - 归档任务
             logger.debug(LogTags.STORE_TASKS, 'Using archived tasks', {
