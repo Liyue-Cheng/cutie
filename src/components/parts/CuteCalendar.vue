@@ -2,17 +2,17 @@
   <div class="calendar-container" :class="`zoom-${currentZoom}x`">
     <!-- 自定义日期头部 -->
     <div v-if="displayDates.length > 0" class="custom-day-headers">
-      <div class="time-axis-placeholder"></div>
+      <div class="time-axis-placeholder" :style="{ width: timeAxisWidth + 'px' }"></div>
       <div
         v-for="dateInfo in displayDates"
         :key="dateInfo.date"
         class="custom-day-header"
         :class="{ 'is-today': dateInfo.isToday }"
+        :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
       >
         <span class="day-name">{{ dateInfo.dayName }}</span>
         <span class="date-number">{{ dateInfo.dateNumber }}</span>
       </div>
-      <div class="scrollbar-placeholder" :style="{ width: scrollbarWidth + 'px' }"></div>
     </div>
 
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
@@ -157,21 +157,43 @@ interface DateHeaderInfo {
   dayName: string // Mon, Tue, etc.
   dateNumber: string // 20日
   isToday: boolean
+  width?: number // 列宽度（像素）
 }
 
 const displayDates = ref<DateHeaderInfo[]>([])
-const scrollbarWidth = ref(0) // 滚动条宽度
+const timeAxisWidth = ref(0) // 时间轴宽度
 
-// 获取滚动条宽度
-function getScrollbarWidth() {
-  // 查找日历的滚动容器
-  const scrollContainer = document.querySelector('.fc-scroller') as HTMLElement
-  if (scrollContainer) {
-    // offsetWidth - clientWidth = 滚动条宽度
-    const width = scrollContainer.offsetWidth - scrollContainer.clientWidth
-    scrollbarWidth.value = width
-    logger.debug(LogTags.COMPONENT_CALENDAR, 'Scrollbar width detected', { width })
+// 同步列宽度：从日历网格获取实际列宽
+function syncColumnWidths() {
+  if (!calendarRef.value) return
+
+  // 获取时间轴宽度
+  const timeAxisEl = document.querySelector('.fc-timegrid-axis') as HTMLElement
+  if (timeAxisEl) {
+    timeAxisWidth.value = timeAxisEl.offsetWidth
   }
+
+  // 获取日历列元素（使用 data-date 属性精确匹配）
+  const dayColumns = document.querySelectorAll('.fc-day[data-date]') as NodeListOf<HTMLElement>
+  if (dayColumns.length === 0) return
+
+  // 更新每个日期的宽度
+  displayDates.value = displayDates.value.map((dateInfo, index) => {
+    const columnEl = dayColumns[index]
+    if (columnEl) {
+      return {
+        ...dateInfo,
+        width: columnEl.offsetWidth,
+      }
+    }
+    return dateInfo
+  })
+
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Column widths synced', {
+    timeAxisWidth: timeAxisWidth.value,
+    columnCount: displayDates.value.length,
+    widths: displayDates.value.map((d) => d.width),
+  })
 }
 
 // 更新显示的日期列表
@@ -226,9 +248,9 @@ function updateDisplayDates() {
 
   displayDates.value = dates
 
-  // 在下一帧获取滚动条宽度
+  // 在下一帧同步列宽度
   nextTick(() => {
-    getScrollbarWidth()
+    syncColumnWidths()
   })
 
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Display dates updated', { count: dates.length })
@@ -896,18 +918,12 @@ defineExpose({
 }
 
 .time-axis-placeholder {
-  width: 37px; /* 与日历时间轴宽度一致 */
   flex-shrink: 0;
   border-right: 1px solid var(--color-border-default, #e0e0e0);
 }
 
-.scrollbar-placeholder {
-  flex-shrink: 0;
-  background-color: var(--color-background-primary, #fff);
-}
-
 .custom-day-header {
-  flex: 1;
+  flex-shrink: 0; /* 使用固定宽度，不自动伸缩 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -916,6 +932,7 @@ defineExpose({
   padding: 0.6rem 0.4rem;
   border-right: 1px solid var(--color-border-default, #e0e0e0);
   transition: background-color 0.2s ease;
+  box-sizing: border-box; /* 确保 padding 不影响宽度 */
 }
 
 .custom-day-header:hover {
