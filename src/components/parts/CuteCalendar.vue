@@ -197,10 +197,6 @@ watch(
     // 切换视图
     calendarApi.changeView(viewName)
 
-    // 🔧 FIX: 更新 dayHeaders 配置
-    // week 视图或多天视图显示日期头部
-    calendarOptions.dayHeaders = newViewType === 'week' || (newDays ?? 1) > 1
-
     // 等待 DOM 更新
     await nextTick()
 

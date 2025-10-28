@@ -52,12 +52,8 @@ export function useCalendarOptions(
 
   const calendarOptions = reactive({
     plugins,
-    headerToolbar: {
-      left: '',
-      center: 'title',
-      right: '',
-    },
-    dayHeaders: viewType !== 'day' || days > 1, // ✅ 周视图、月视图和多天视图显示日期头部
+    headerToolbar: false as false, // 移除标题栏
+    dayHeaders: false, // 移除日期列头部
     dayHeaderFormat: {
       weekday: 'short' as const,
       month: 'numeric' as const,
