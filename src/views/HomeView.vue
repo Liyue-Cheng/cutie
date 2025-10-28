@@ -78,7 +78,7 @@ const currentCalendarDate = computed(() => {
 })
 
 // ==================== 可拖动分割线逻辑 ====================
-const leftPaneWidth = ref(33.33) // 默认比例 1:2，左栏占 33.33%
+const leftPaneWidth = ref(40) // 默认比例 2:3，左栏占 40%
 const isDragging = ref(false)
 let rafId: number | null = null
 
@@ -146,7 +146,7 @@ async function stopDragging() {
 
 // 双击重置为默认比例
 async function resetPaneWidth() {
-  leftPaneWidth.value = 33.33
+  leftPaneWidth.value = 40
 
   // 通知日历更新尺寸
   await nextTick()
