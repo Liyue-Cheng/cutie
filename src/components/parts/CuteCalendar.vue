@@ -451,6 +451,7 @@ defineExpose({
   height: 100%;
   position: relative;
   overflow: hidden;
+  padding: 1.6rem; /* 添加内边距 */
 }
 
 /* 预览事件样式 */
@@ -507,6 +508,12 @@ defineExpose({
 /* 时间标签垂直居中 */
 .fc .fc-timegrid-slot-label {
   transform: translateY(-50%);
+}
+
+/* 时间标签字号和字重 */
+.fc .fc-timegrid-slot-label-cushion {
+  font-size: 1.3rem !important;
+  font-weight: 500 !important;
 }
 
 /* 移除时间槽边框 */
@@ -647,7 +654,6 @@ defineExpose({
   position: absolute;
   top: 50%;
   transform: translate(-100%, -50%);
-  font-size: 1.2rem !important;
   line-height: 1 !important;
   white-space: nowrap;
 }
