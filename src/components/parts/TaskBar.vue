@@ -303,7 +303,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 /* 内容区 */
 .task-bar-content {
-  padding: 0 1.6rem;
+  padding: 0;
 }
 
 /* 任务输入框 */
