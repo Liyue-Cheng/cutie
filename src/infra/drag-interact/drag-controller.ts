@@ -47,6 +47,7 @@ class InteractDragController {
   private mouseOffset: Position = { x: 0, y: 0 }
   private interruptionDetector: InterruptionDetector | null = null
   private registeredSelectors = new Set<string>() // 记录已注册的选择器
+  private lastMouseY: number | null = null // 记录上一次鼠标Y坐标（用于方向进入判定）
   private registeredElements = new Set<HTMLElement>() // 记录已注册的元素
   private startPointer: Position | null = null // 记录拖拽起点，用于阈值计算
   private currentDropzoneElement: HTMLElement | null = null // 当前所在的 dropzone 元素
@@ -84,6 +85,7 @@ class InteractDragController {
     this.state.session = null
     this.state.targetZone = null
     this.state.dropIndex = null
+    this.lastMouseY = null
     this.updateDebug()
   }
 
@@ -483,24 +485,28 @@ class InteractDragController {
                   dropIndex,
                 })
                 this.enterTarget(top.zoneId, dropIndex)
+                // 初始化方向门控的参考坐标
+                this.lastMouseY = event.clientY
               } else {
                 dragPreviewActions.triggerRebound()
                 this.enterTarget(top.zoneId, 0)
+                this.lastMouseY = event.clientY
               }
             } else if (this.currentDropzoneElement) {
               // 在当前列内移动，确保取消任何挂起的离开
               this.cancelPendingLeave()
-              // 顶层未变，在当前 dropzone 内更新 dropIndex
-              const dropIndex = this.calculateDropIndexForZone(
+              // 顶层未变，在当前 dropzone 内更新 dropIndex（仅当按正确方向进入触发区时步进）
+              const dropIndex = this.calculateDropIndexWithDirectionalGate(
                 event.clientY,
-                this.currentDropzoneElement,
-                true
+                this.currentDropzoneElement
               )
               if (dropIndex !== this.state.dropIndex) {
                 dragPreviewActions.updateDropIndex(dropIndex)
                 this.state.dropIndex = dropIndex
                 this.updateDebug()
               }
+              // 更新上一次鼠标Y坐标
+              this.lastMouseY = event.clientY
             }
 
             // 鼠标位置始终更新
@@ -695,6 +701,70 @@ class InteractDragController {
     // 🔥 传入上一次的 dropIndex，启用施密特触发器
     const lastDropIndex = useLastIndex ? (this.state.dropIndex ?? undefined) : undefined
     return calculateDropIndex(pointerY, wrappers, lastDropIndex)
+  }
+
+  /**
+   * 在当前 dropzone 内，基于“方向进入触发区”仅步进一次
+   * 规则：
+   * - 仅当鼠标向下移动，且从触发区外进入下一项的触发区时，索引 +1
+   * - 其他情况返回当前索引（保持稳定）
+   */
+  private calculateDropIndexWithDirectionalGate(pointerY: number, element: HTMLElement): number {
+    const wrappers = Array.from(
+      element.querySelectorAll('.task-card-wrapper, .template-card-wrapper')
+    ) as HTMLElement[]
+
+    const lastIndex = Math.max(0, Math.min(this.state.dropIndex ?? 0, wrappers.length))
+
+    // 首次无历史坐标，使用现有算法给出初始位置
+    if (this.lastMouseY === null) {
+      return this.calculateDropIndexForZone(pointerY, element, true)
+    }
+
+    const deltaY = pointerY - this.lastMouseY
+
+    // 仅处理向下进入触发区的情形
+    if (deltaY > 0) {
+      const nextIndex = Math.min(lastIndex + 1, wrappers.length)
+      if (nextIndex < wrappers.length) {
+        const nextEl = wrappers[nextIndex]
+        if (!nextEl) return lastIndex
+        const rect = nextEl.getBoundingClientRect()
+        const zonePx = Math.max(rect.height * 0.1, 8)
+        const enterThreshold = rect.top + zonePx
+
+        const wasOutside = this.lastMouseY < enterThreshold
+        const nowInside = pointerY >= enterThreshold
+
+        if (wasOutside && nowInside) {
+          return lastIndex + 1
+        }
+      }
+      return lastIndex
+    }
+
+    // 处理向上进入触发区的情形（底部触发区只能向上触发）
+    if (deltaY < 0) {
+      const prevIndex = Math.max(lastIndex - 1, 0)
+      if (prevIndex >= 0 && prevIndex < wrappers.length) {
+        const prevEl = wrappers[prevIndex]
+        if (!prevEl) return lastIndex
+        const rect = prevEl.getBoundingClientRect()
+        const zonePx = Math.max(rect.height * 0.1, 8)
+        const enterThreshold = rect.bottom - zonePx
+
+        const wasOutside = this.lastMouseY > enterThreshold
+        const nowInside = pointerY <= enterThreshold
+
+        if (wasOutside && nowInside) {
+          return Math.max(lastIndex - 1, 0)
+        }
+      }
+      return lastIndex
+    }
+
+    // 未移动或极小移动：保持原索引
+    return lastIndex
   }
 
   /**

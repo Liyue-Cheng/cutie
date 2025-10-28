@@ -50,7 +50,7 @@ const props = withDefaults(
     currentDate?: string // YYYY-MM-DD 格式的日期
     zoom?: 1 | 2 | 3 // 缩放倍率
     viewType?: 'day' | 'week' | 'month' // ✅ 新增：视图类型（单天、周或月视图）
-    days?: 1 | 3 // 🆕 新增：显示天数（1天 or 3天）
+    days?: 1 | 3 | 5 | 7 // 🆕 新增：显示天数（1天、3天、5天或7天）
   }>(),
   {
     viewType: 'day', // 默认单天视图
@@ -159,6 +159,20 @@ watch(
 )
 
 // ==================== 视图类型切换功能 ====================
+// 获取视图名称的辅助函数
+function getViewName(viewType: 'day' | 'week' | 'month', days: 1 | 3 | 5 | 7): string {
+  if (viewType === 'day') {
+    if (days === 3) return 'timeGrid3Days'
+    if (days === 5) return 'timeGrid5Days'
+    if (days === 7) return 'timeGrid7Days'
+    return 'timeGridDay'
+  } else if (viewType === 'week') {
+    return 'timeGridWeek'
+  } else {
+    return 'dayGridMonth'
+  }
+}
+
 // 监听 viewType prop 变化，动态切换视图
 watch(
   () => props.viewType,
@@ -168,18 +182,13 @@ watch(
     const calendarApi = calendarRef.value.getApi()
     if (!calendarApi) return
 
-    let viewName: string
-    if (newViewType === 'day') {
-      viewName = props.days === 3 ? 'timeGrid3Days' : 'timeGridDay'
-    } else if (newViewType === 'week') {
-      viewName = 'timeGridWeek'
-    } else {
-      viewName = 'dayGridMonth'
-    }
+    const viewName = getViewName(newViewType, props.days ?? 1)
 
-    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing view', {
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing view type', {
       from: calendarApi.view.type,
       to: viewName,
+      viewType: newViewType,
+      days: props.days,
     })
 
     calendarApi.changeView(viewName)
@@ -190,54 +199,51 @@ watch(
   { immediate: false }
 )
 
-// 🆕 监听 days prop 变化，动态切换天数视图
+// 监听 days prop 变化，动态切换天数视图
 watch(
   () => props.days,
   async (newDays) => {
-    if (!calendarRef.value || props.viewType !== 'day') return
+    if (!calendarRef.value) return
 
     const calendarApi = calendarRef.value.getApi()
     if (!calendarApi) return
 
-    const viewName = newDays === 3 ? 'timeGrid3Days' : 'timeGridDay'
+    // 只有在 day 视图类型下才切换天数视图
+    if (props.viewType === 'day') {
+      const viewName = getViewName('day', newDays ?? 1)
 
-    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing days view', {
-      from: calendarApi.view.type,
-      to: viewName,
-      days: newDays,
-    })
+      logger.info(LogTags.COMPONENT_CALENDAR, 'Changing days count', {
+        from: calendarApi.view.type,
+        to: viewName,
+        days: newDays,
+      })
 
-    // 保存当前日期
-    const currentDate = calendarApi.getDate()
+      // 保存当前日期
+      const currentDate = calendarApi.getDate()
 
-    // 切换视图
-    calendarApi.changeView(viewName)
+      // 切换视图
+      calendarApi.changeView(viewName)
 
-    // 🔧 FIX: 更新 dayHeaders 配置
-    calendarOptions.dayHeaders = newDays === 3
+      // 🔧 FIX: 更新 dayHeaders 配置
+      calendarOptions.dayHeaders = (newDays ?? 1) > 1
 
-    // 等待 DOM 更新
-    await nextTick()
+      // 等待 DOM 更新
+      await nextTick()
 
-    // 强制更新尺寸
-    calendarApi.updateSize()
+      // 强制更新尺寸
+      calendarApi.updateSize()
 
-    // 恢复到之前的日期
-    calendarApi.gotoDate(currentDate)
+      // 恢复到之前的日期
+      calendarApi.gotoDate(currentDate)
 
-    // 清除缓存，强制重新计算位置
-    clearCache()
+      // 清除缓存，强制重新计算位置
+      clearCache()
 
-    // 等待 DOM 再次更新
-    await nextTick()
-
-    // 更新装饰线位置（已禁用）
-    // decorativeLine.updatePosition()
-
-    logger.debug(LogTags.COMPONENT_CALENDAR, 'Days view changed successfully', {
-      viewName,
-      days: newDays,
-    })
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Days view changed successfully', {
+        viewName,
+        days: newDays,
+      })
+    }
   },
   { immediate: false }
 )

@@ -27,14 +27,23 @@ export function useCalendarOptions(
   },
   viewType: 'day' | 'week' | 'month' = 'day', // ✅ 新增：视图类型参数，默认为单天
   handleDatesSet?: (dateInfo: DatesSetArg) => void, // 🆕 日期变化回调
-  days: 1 | 3 = 1 // 🆕 显示天数（1天 or 3天）
+  days: 1 | 3 | 5 | 7 = 1 // 🆕 显示天数（1天、3天、5天或7天）
 ) {
   // ✅ 加载所有插件，支持动态切换视图
   const plugins = [interactionPlugin, timeGridPlugin, dayGridPlugin]
 
   let initialView: string
   if (viewType === 'day') {
-    initialView = days === 3 ? 'timeGrid3Days' : 'timeGridDay'
+    // 根据天数选择对应的视图
+    if (days === 3) {
+      initialView = 'timeGrid3Days'
+    } else if (days === 5) {
+      initialView = 'timeGrid5Days'
+    } else if (days === 7) {
+      initialView = 'timeGrid7Days'
+    } else {
+      initialView = 'timeGridDay'
+    }
   } else if (viewType === 'week') {
     initialView = 'timeGridWeek'
   } else {
@@ -48,7 +57,7 @@ export function useCalendarOptions(
       center: 'title',
       right: '',
     },
-    dayHeaders: viewType !== 'day' || days === 3, // ✅ 周视图、月视图和3天视图显示日期头部
+    dayHeaders: viewType !== 'day' || days > 1, // ✅ 周视图、月视图和多天视图显示日期头部
     dayHeaderFormat: {
       weekday: 'short' as const,
       month: 'numeric' as const,
@@ -74,11 +83,19 @@ export function useCalendarOptions(
     selectable: true,
     eventResizableFromStart: true, // 允许从开始时间调整大小
 
-    // 🆕 自定义视图：3天视图
+    // 🆕 自定义视图：3天、5天、7天视图
     views: {
       timeGrid3Days: {
         type: 'timeGrid',
         duration: { days: 3 },
+      },
+      timeGrid5Days: {
+        type: 'timeGrid',
+        duration: { days: 5 },
+      },
+      timeGrid7Days: {
+        type: 'timeGrid',
+        duration: { days: 7 },
       },
     },
 

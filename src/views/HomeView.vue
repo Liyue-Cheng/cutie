@@ -2,7 +2,7 @@
   <div class="home-view">
     <!-- 左栏 -->
     <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-      <RecentView />
+      <RecentView v-model="calendarDays" />
     </div>
 
     <!-- 可拖动的分割线 -->
@@ -18,7 +18,7 @@
         </template>
         <template #bottom>
           <div class="calendar-wrapper">
-            <CuteCalendar :current-date="currentCalendarDate" view-type="week" :zoom="1" />
+            <CuteCalendar :current-date="currentCalendarDate" view-type="day" :zoom="1" :days="calendarDays" />
           </div>
         </template>
       </TwoRowLayout>
@@ -47,6 +47,9 @@ import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 const registerStore = useRegisterStore()
 const uiStore = useUIStore()
+
+// ==================== 日历天数联动状态 ====================
+const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
 
 // 初始化
 onMounted(async () => {

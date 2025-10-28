@@ -476,11 +476,6 @@ function handleTitleClick() {
   transition: color 0.2s ease;
 }
 
-/* 过期看板中的标题 */
-.simple-kanban-column.is-expired .title {
-  opacity: 0.6;
-}
-
 .title-row.clickable:hover .title {
   color: var(--rose-pine-foam, #56949f);
 }
@@ -629,7 +624,8 @@ function handleTitleClick() {
   --color-text-secondary: var(--rose-pine-muted);
 }
 
-/* 过期看板中的subtitle和数量 */
+/* 过期看板中的标题和数量 */
+.simple-kanban-column.is-expired .title,
 .simple-kanban-column.is-expired .subtitle,
 .simple-kanban-column.is-expired .count {
   opacity: 0.6;

@@ -2,6 +2,7 @@
   <div
     class="task-strip"
     :class="{ completed: task.is_completed }"
+    @mousedown="onMouseDown"
     @click="handleClick"
     @contextmenu="showContextMenu"
   >
@@ -24,7 +25,7 @@
         class="area-tag-inline"
         :name="area.name"
         :color="area.color"
-        size="small"
+        size="normal"
       />
 
       <!-- 预期时间显示 -->
@@ -142,6 +143,11 @@ const emit = defineEmits<{
 const areaStore = useAreaStore()
 const uiStore = useUIStore()
 const contextMenu = useContextMenu()
+
+// 防误触：拖动后抑制一次点击
+const suppressClickOnce = ref(false)
+let mouseDownAt: { x: number; y: number } | null = null
+const CLICK_SUPPRESS_DISTANCE = 4 // px
 
 // 时间选择器状态
 const showTimePicker = ref(false)
@@ -268,6 +274,10 @@ async function updateEstimatedDuration(duration: number | null) {
 
 // 点击打开编辑器
 function handleClick() {
+  if (suppressClickOnce.value) {
+    suppressClickOnce.value = false
+    return
+  }
   uiStore.openEditor(props.task.id, props.viewKey)
 }
 
@@ -276,13 +286,30 @@ function showContextMenu(event: MouseEvent) {
   event.preventDefault()
   contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
 }
+
+function onMouseDown(event: MouseEvent) {
+  mouseDownAt = { x: event.clientX, y: event.clientY }
+  const onUp = (ev: MouseEvent) => {
+    if (mouseDownAt) {
+      const dx = ev.clientX - mouseDownAt.x
+      const dy = ev.clientY - mouseDownAt.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist >= CLICK_SUPPRESS_DISTANCE) {
+        suppressClickOnce.value = true
+      }
+    }
+    mouseDownAt = null
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mouseup', onUp)
+}
 </script>
 
 <style scoped>
 .task-strip {
   background-color: var(--color-background-content);
   border: none;
-  border-bottom: 2px dashed rgb(0 0 0 / 15%);
+  border-top: 2px dashed rgb(0 0 0 / 15%);
   border-radius: 0;
   padding: 1.2rem 1.6rem;
   margin-bottom: 0;
@@ -301,7 +328,7 @@ function showContextMenu(event: MouseEvent) {
 /* 顶部：完成按钮 + 标题 + 预期时间 */
 .task-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 0.8rem;
 }
@@ -318,7 +345,6 @@ function showContextMenu(event: MouseEvent) {
   color: var(--color-text-primary);
   line-height: 1.4;
   overflow-wrap: break-word;
-  margin-top: 0.1rem;
 }
 
 .task-title.completed {

@@ -11,12 +11,7 @@
 
           <!-- 日期选择器 -->
           <div class="date-picker-wrapper">
-            <input
-              type="date"
-              v-model="selectedDate"
-              class="date-input"
-              @change="onDateChange"
-            />
+            <input type="date" v-model="selectedDate" class="date-input" @change="onDateChange" />
           </div>
 
           <!-- 天数选择器 -->
@@ -49,13 +44,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskBar from '@/components/parts/TaskBar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
+
+// Props
+interface Props {
+  modelValue?: number // 天数（支持 v-model）
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: 3,
+})
+
+// Emits
+const emit = defineEmits<{
+  'update:modelValue': [value: number]
+}>()
 
 const taskStore = useTaskStore()
 
@@ -70,8 +79,16 @@ const getValidDateString = (): string => {
 }
 
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
-const dayCount = ref(3) // 显示的天数
+const dayCount = ref(props.modelValue) // 显示的天数
 const dayCountOptions = [1, 3, 5, 7] // 可选的天数选项
+
+// 监听 props 变化
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    dayCount.value = newValue
+  }
+)
 
 // 生成日期列表
 interface DateInfo {
@@ -84,23 +101,23 @@ const dateList = computed<DateInfo[]>(() => {
   const list: DateInfo[] = []
   const today = getValidDateString()
   const startDate = selectedDate.value
-  
+
   for (let i = 0; i < dayCount.value; i++) {
     const date = new Date(startDate)
     date.setDate(date.getDate() + i)
     const isoString = date.toISOString()
     const dateString = isoString.split('T')[0] as string // ISO 8601 格式总是 YYYY-MM-DDTHH:mm:ss.sssZ
-    
+
     // 生成友好的日期标签
     const label = formatDateLabel(dateString, today)
-    
+
     list.push({
       date: dateString,
       viewKey: `daily::${dateString}`,
       label,
     })
   }
-  
+
   return list
 })
 
@@ -109,12 +126,12 @@ function formatDateLabel(dateString: string, today: string): string {
   const date = new Date(dateString)
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   const weekday = weekdays[date.getDay()]
-  
+
   // 检查是否是今天
   if (dateString === today) {
     return `今天 ${weekday}`
   }
-  
+
   // 检查是否是昨天
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
@@ -122,7 +139,7 @@ function formatDateLabel(dateString: string, today: string): string {
   if (dateString === yesterdayString) {
     return `昨天 ${weekday}`
   }
-  
+
   // 检查是否是明天
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
@@ -130,7 +147,7 @@ function formatDateLabel(dateString: string, today: string): string {
   if (dateString === tomorrowString) {
     return `明天 ${weekday}`
   }
-  
+
   // 否则显示月-日 周X
   const month = date.getMonth() + 1
   const day = date.getDate()
@@ -145,11 +162,11 @@ function goToToday() {
 
 // 日期变化
 function onDateChange() {
-  logger.info(LogTags.VIEW_HOME, 'Date changed', { 
+  logger.info(LogTags.VIEW_HOME, 'Date changed', {
     date: selectedDate.value,
-    dayCount: dayCount.value 
+    dayCount: dayCount.value,
   })
-  
+
   // 预加载选择日期范围的任务
   loadDateRangeTasks()
 }
@@ -157,8 +174,9 @@ function onDateChange() {
 // 设置天数
 function setDayCount(count: number) {
   dayCount.value = count
+  emit('update:modelValue', count) // 通知父组件
   logger.info(LogTags.VIEW_HOME, 'Day count changed', { dayCount: count })
-  
+
   // 预加载日期范围的任务
   loadDateRangeTasks()
 }
@@ -173,7 +191,7 @@ async function loadDateRangeTasks() {
 // 初始化
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing RecentView component...')
-  
+
   // 加载日期范围的任务
   await loadDateRangeTasks()
 })
@@ -297,4 +315,3 @@ onMounted(async () => {
   overflow-y: auto;
 }
 </style>
-
