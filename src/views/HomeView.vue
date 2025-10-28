@@ -75,7 +75,7 @@ const currentCalendarDate = computed(() => {
 // ==================== 可拖动分割线逻辑 ====================
 const leftPaneWidth = ref(33.33) // 默认比例 1:2，左栏占 33.33%
 const isDragging = ref(false)
-let resizeTimer: ReturnType<typeof setTimeout> | null = null
+let rafId: number | null = null
 
 function startDragging(e: MouseEvent) {
   isDragging.value = true
@@ -102,13 +102,14 @@ function onDragging(e: MouseEvent) {
 
   leftPaneWidth.value = newWidth
 
-  // 节流更新日历尺寸（每 50ms 最多更新一次）
-  if (resizeTimer) {
-    clearTimeout(resizeTimer)
+  // 使用 requestAnimationFrame 实现流畅的实时更新
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
   }
-  resizeTimer = setTimeout(() => {
+  rafId = requestAnimationFrame(() => {
     updateCalendarSize()
-  }, 50)
+    rafId = null
+  })
 }
 
 // 更新日历尺寸的辅助函数
@@ -126,10 +127,10 @@ async function stopDragging() {
   document.removeEventListener('mousemove', onDragging)
   document.removeEventListener('mouseup', stopDragging)
 
-  // 清除节流定时器
-  if (resizeTimer) {
-    clearTimeout(resizeTimer)
-    resizeTimer = null
+  // 清除 requestAnimationFrame
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
   }
 
   // 最后确保更新一次日历尺寸
@@ -148,12 +149,12 @@ async function resetPaneWidth() {
   logger.debug(LogTags.VIEW_HOME, 'Calendar size updated after pane reset')
 }
 
-// 清理事件监听器和定时器
+// 清理事件监听器和动画帧
 onBeforeUnmount(() => {
   document.removeEventListener('mousemove', onDragging)
   document.removeEventListener('mouseup', stopDragging)
-  if (resizeTimer) {
-    clearTimeout(resizeTimer)
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
   }
 })
 </script>
