@@ -154,6 +154,27 @@ impl TaskScheduleRepository {
         Ok(())
     }
 
+    /// 删除指定日期的日程
+    pub async fn delete_schedule_for_day_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        scheduled_date: &str, // YYYY-MM-DD 字符串
+    ) -> AppResult<()> {
+        let query = r#"
+            DELETE FROM task_schedules
+            WHERE task_id = ? AND scheduled_date = ?
+        "#;
+
+        sqlx::query(query)
+            .bind(task_id.to_string())
+            .bind(scheduled_date)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        Ok(())
+    }
+
     /// 删除任务的所有日程
     pub async fn delete_all_in_tx(
         tx: &mut Transaction<'_, Sqlite>,

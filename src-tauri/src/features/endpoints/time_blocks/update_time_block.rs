@@ -357,7 +357,65 @@ mod logic {
         // 8. 获取当前时间戳
         let now = app_state.clock().now_utc();
 
-        // 9. 更新时间块（✅ 使用共享 Repository）
+        // 9. 检测是否跨天移动，处理日程的创建和删除
+        let old_day = existing_block.start_time.with_timezone(&chrono::Local).date_naive();
+        let new_day = final_start_time.with_timezone(&chrono::Local).date_naive();
+        let day_changed = old_day != new_day;
+
+        // 9.1 如果跨天移动，需要处理日程
+        if day_changed {
+            use crate::features::shared::repositories::TaskScheduleRepository;
+            use crate::infra::core::utils::time_utils;
+
+            // 获取该时间片关联的所有任务
+            let linked_task_ids = TaskTimeBlockLinkRepository::get_task_ids_for_block_in_tx(&mut tx, id).await?;
+
+            for task_id in &linked_task_ids {
+                let old_day_str = time_utils::format_date_yyyy_mm_dd(&old_day);
+                let new_day_str = time_utils::format_date_yyyy_mm_dd(&new_day);
+
+                // 1. 检查目标天是否有日程，没有则创建
+                let has_new_day_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
+                    &mut tx,
+                    *task_id,
+                    &new_day_str
+                ).await?;
+
+                if !has_new_day_schedule {
+                    TaskScheduleRepository::create_in_tx(&mut tx, *task_id, &new_day_str).await?;
+                    tracing::info!(
+                        "Created schedule for task {} on {} (time block moved from {})",
+                        task_id,
+                        new_day_str,
+                        old_day_str
+                    );
+                }
+
+                // 2. 检查原天是否还有其他时间片
+                let other_blocks_on_old_day = TimeBlockRepository::count_blocks_for_task_on_day_in_tx(
+                    &mut tx,
+                    *task_id,
+                    &old_day_str,
+                    Some(id) // 排除当前时间片
+                ).await?;
+
+                // 如果原天没有其他时间片了，删除该天的日程
+                if other_blocks_on_old_day == 0 {
+                    TaskScheduleRepository::delete_schedule_for_day_in_tx(
+                        &mut tx,
+                        *task_id,
+                        &old_day_str
+                    ).await?;
+                    tracing::info!(
+                        "Deleted schedule for task {} on {} (no more time blocks)",
+                        task_id,
+                        old_day_str
+                    );
+                }
+            }
+        }
+
+        // 9.2 更新时间块（✅ 使用共享 Repository）
         TimeBlockRepository::update_in_tx(&mut tx, id, &request, now).await?;
 
         // 9.5 组装受影响任务的完整数据（在事务内）

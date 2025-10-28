@@ -358,4 +358,88 @@ impl TimeBlockRepository {
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
         Ok(count > 0)
     }
+
+    /// 统计某任务在某天的时间片数量（使用本地时间）
+    ///
+    /// # 参数
+    /// - `tx`: 数据库事务
+    /// - `task_id`: 任务ID
+    /// - `day_str`: 日期字符串（YYYY-MM-DD 格式）
+    /// - `exclude_block_id`: 可选，排除指定的时间片ID（用于更新时排除自身）
+    pub async fn count_blocks_for_task_on_day_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        task_id: Uuid,
+        day_str: &str,
+        exclude_block_id: Option<Uuid>,
+    ) -> AppResult<i64> {
+        // 解析日期字符串
+        use crate::infra::core::utils::time_utils;
+        let day = time_utils::parse_date_yyyy_mm_dd(day_str).map_err(|e| {
+            AppError::validation_error(
+                "day",
+                &format!("Invalid date format: {}", e),
+                "INVALID_DATE",
+            )
+        })?;
+
+        // 计算当天的开始和结束时间（本地时间）
+        let day_start = day.and_hms_opt(0, 0, 0).unwrap();
+        let day_end = day.and_hms_opt(23, 59, 59).unwrap();
+
+        // 转换为UTC时间（用于数据库查询）
+        use chrono::{Local, TimeZone};
+        let day_start_utc = Local
+            .from_local_datetime(&day_start)
+            .unwrap()
+            .with_timezone(&Utc);
+        let day_end_utc = Local
+            .from_local_datetime(&day_end)
+            .unwrap()
+            .with_timezone(&Utc);
+
+        // 查询该任务在该天的时间片数量
+        let query = if exclude_block_id.is_some() {
+            r#"
+                SELECT COUNT(DISTINCT tb.id)
+                FROM time_blocks tb
+                INNER JOIN task_time_block_links link ON tb.id = link.time_block_id
+                WHERE link.task_id = ?
+                  AND tb.is_deleted = false
+                  AND tb.start_time >= ?
+                  AND tb.start_time <= ?
+                  AND tb.id != ?
+            "#
+        } else {
+            r#"
+                SELECT COUNT(DISTINCT tb.id)
+                FROM time_blocks tb
+                INNER JOIN task_time_block_links link ON tb.id = link.time_block_id
+                WHERE link.task_id = ?
+                  AND tb.is_deleted = false
+                  AND tb.start_time >= ?
+                  AND tb.start_time <= ?
+            "#
+        };
+
+        let count: i64 = if let Some(exclude_id) = exclude_block_id {
+            sqlx::query_scalar(query)
+                .bind(task_id.to_string())
+                .bind(day_start_utc.to_rfc3339())
+                .bind(day_end_utc.to_rfc3339())
+                .bind(exclude_id.to_string())
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?
+        } else {
+            sqlx::query_scalar(query)
+                .bind(task_id.to_string())
+                .bind(day_start_utc.to_rfc3339())
+                .bind(day_end_utc.to_rfc3339())
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?
+        };
+
+        Ok(count)
+    }
 }
