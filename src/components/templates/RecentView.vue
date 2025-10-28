@@ -81,6 +81,7 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: number]
+  'date-change': [date: string]
 }>()
 
 const taskStore = useTaskStore()
@@ -107,6 +108,11 @@ watch(
     dayCount.value = newValue
   }
 )
+
+// 监听 selectedDate 变化，通知父组件
+watch(selectedDate, (newDate) => {
+  emit('date-change', newDate)
+})
 
 // 生成日期列表
 interface DateInfo {

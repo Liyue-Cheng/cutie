@@ -74,4 +74,3 @@ onMounted(async () => {
   padding: 0;
 }
 </style>
-

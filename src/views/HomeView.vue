@@ -2,7 +2,11 @@
   <div class="home-view">
     <!-- 左栏 -->
     <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-      <RecentView v-if="currentView === 'recent'" v-model="calendarDays" />
+      <RecentView
+        v-if="currentView === 'recent'"
+        v-model="calendarDays"
+        @date-change="onRecentDateChange"
+      />
       <StagingView v-else-if="currentView === 'staging'" />
     </div>
 
@@ -92,6 +96,13 @@ watch(
   },
   { immediate: true }
 )
+
+// 处理 RecentView 的日期变化
+function onRecentDateChange(date: string) {
+  // 更新寄存器中的日历日期
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, date)
+  logger.debug(LogTags.VIEW_HOME, 'Calendar date synced from RecentView', { date })
+}
 
 // 初始化
 onMounted(async () => {
