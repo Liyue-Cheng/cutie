@@ -68,7 +68,7 @@ function toggleSubtask(subtaskId: string) {
 .task-strip {
   background-color: var(--color-background-content);
   border: none;
-  border-bottom: 2px dashed var(--color-text-tertiary, #999);
+  border-bottom: 2px dashed rgb(0 0 0 / 15%);
   border-radius: 0;
   padding: 1.2rem 1.6rem;
   margin-bottom: 0;

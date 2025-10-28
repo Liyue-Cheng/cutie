@@ -308,18 +308,19 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 任务输入框 */
 .task-input-wrapper {
   position: relative;
-  margin-bottom: 1.2rem;
+  margin-bottom: 0;
 }
 
 .task-input {
   width: 100%;
-  padding: 1rem 1.2rem;
+  padding: 1.2rem 1.6rem;
   padding-right: 4rem;
   font-size: 1.4rem;
   color: var(--color-text-primary);
-  background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px dashed rgb(0 0 0 / 15%);
+  border-radius: 0;
   outline: none;
   transition: all 0.2s ease;
   box-sizing: border-box;
@@ -330,14 +331,12 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-input:focus {
-  border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 3px var(--color-primary-bg, #e3f2fd);
+  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
 }
 
 .task-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background-color: var(--color-background-secondary, #f5f5f5);
 }
 
 .add-task-btn {
