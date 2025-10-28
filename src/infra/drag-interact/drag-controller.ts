@@ -310,9 +310,12 @@ class InteractDragController {
     }
 
     this.enterPhase('DRAGGING')
-    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag started', {
-      taskId: this.state.session?.object.data.id,
+    logger.info(LogTags.DRAG_CROSS_VIEW, '🎬 拖放开始', {
+      objectType: this.state.session?.object.type,
+      objectId: this.state.session?.object.data.id,
+      objectTitle: this.state.session?.object.data.title,
       sourceView: this.state.session?.source.viewId,
+      dragMode: this.state.session?.dragMode,
     })
   }
 
@@ -379,9 +382,13 @@ class InteractDragController {
       // const strategy = findStrategy(this.buildContext())
       // await strategy.execute(this.buildContext())
 
-      logger.info(LogTags.DRAG_CROSS_VIEW, 'Drop executed successfully', {
-        taskId: this.state.session.object.data.id,
+      logger.info(LogTags.DRAG_CROSS_VIEW, '✅ 拖放完成', {
+        objectType: this.state.session.object.type,
+        objectId: this.state.session.object.data.id,
+        objectTitle: this.state.session.object.data.title,
+        sourceView: this.state.session.source.viewId,
         targetZone: this.state.targetZone,
+        dragMode: this.state.session.dragMode,
       })
 
       this.enterPhase('IDLE')
@@ -397,7 +404,10 @@ class InteractDragController {
    * 取消拖动
    */
   private cancel() {
-    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Drag cancelled')
+    logger.info(LogTags.DRAG_CROSS_VIEW, '❌ 拖放取消', {
+      phase: this.state.phase,
+      hadTarget: !!this.state.targetZone,
+    })
     this.enterPhase('IDLE')
   }
 

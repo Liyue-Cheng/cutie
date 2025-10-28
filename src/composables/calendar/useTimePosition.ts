@@ -95,19 +95,19 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
     const dropTime = new Date(currentDate)
     dropTime.setHours(hours, minutes, 0, 0)
 
-    // 🔍 检查点3 & 4：日历日期同步 & 缓存
-    logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop position calculated', {
-      viewType: currentView.type,
-      calendarDate: currentDate.toISOString().split('T')[0],
-      dropTime: dropTime.toISOString(),
-      clientX: event.clientX,
-      clientY: event.clientY,
-      cachedRectTop: cachedRect.value.top,
-      cachedRectLeft: cachedRect.value.left,
-      relativeY,
-      percentage: percentage.toFixed(3),
-      lastUpdateTime: now - lastUpdateTime.value,
-    })
+    // 🔍 检查点3 & 4：日历日期同步 & 缓存（暂时禁用详细日志）
+    // logger.debug(LogTags.COMPONENT_CALENDAR, 'Drop position calculated', {
+    //   viewType: currentView.type,
+    //   calendarDate: currentDate.toISOString().split('T')[0],
+    //   dropTime: dropTime.toISOString(),
+    //   clientX: event.clientX,
+    //   clientY: event.clientY,
+    //   cachedRectTop: cachedRect.value.top,
+    //   cachedRectLeft: cachedRect.value.left,
+    //   relativeY,
+    //   percentage: percentage.toFixed(3),
+    //   lastUpdateTime: now - lastUpdateTime.value,
+    // })
 
     return dropTime
   }

@@ -32,10 +32,17 @@ class StrategyExecutor {
 
     try {
       // 1. 查找匹配的策略
+      logger.info(LogTags.DRAG_STRATEGY, '🔍 查找匹配策略', {
+        sourceView: session.source.viewId,
+        targetZone,
+        objectType: session.object.type,
+        dragMode: session.dragMode,
+      })
+
       const strategy = strategyRegistry.findMatch(session, targetZone)
 
       if (!strategy) {
-        logger.warn(LogTags.DRAG_STRATEGY, '❌ No matching strategy found', {
+        logger.warn(LogTags.DRAG_STRATEGY, '❌ 未找到匹配策略', {
           sourceView: session.source.viewId,
           targetZone,
           objectType: session.object.type,
@@ -51,6 +58,12 @@ class StrategyExecutor {
           error: '找不到合适的策略处理此拖放操作',
         }
       }
+
+      logger.info(LogTags.DRAG_STRATEGY, '✅ 找到匹配策略', {
+        strategyId: strategy.id,
+        strategyName: strategy.name,
+        priority: strategy.priority,
+      })
 
       // 2. 构建执行上下文
       const context = this.buildContext(session, targetZone, strategy, contextData)
@@ -75,18 +88,31 @@ class StrategyExecutor {
       }
 
       // 5. 执行策略
-      logger.debug(LogTags.DRAG_STRATEGY, '🚀 Executing strategy', {
+      logger.info(LogTags.DRAG_STRATEGY, '🚀 开始执行策略', {
         strategyId: strategy.id,
         strategyName: strategy.name,
         actionName: strategy.action.name,
+        sourceView: session.source.viewId,
+        targetZone,
       })
 
       const result = await strategy.action.execute(context)
 
-      logger.debug(LogTags.DRAG_STRATEGY, '✅ Strategy executed successfully', {
-        strategyId: strategy.id,
-        result,
-      })
+      if (result.success) {
+        logger.info(LogTags.DRAG_STRATEGY, '✅ 策略执行成功', {
+          strategyId: strategy.id,
+          strategyName: strategy.name,
+          message: result.message,
+          affectedViews: result.affectedViews,
+        })
+      } else {
+        logger.warn(LogTags.DRAG_STRATEGY, '⚠️ 策略执行失败', {
+          strategyId: strategy.id,
+          strategyName: strategy.name,
+          error: result.error,
+          message: result.message,
+        })
+      }
 
       return result
     } catch (error) {
