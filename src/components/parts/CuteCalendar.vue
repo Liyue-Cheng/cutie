@@ -451,7 +451,8 @@ defineExpose({
   height: 100%;
   position: relative;
   overflow: hidden;
-  padding: 1.6rem; /* 添加内边距 */
+  padding: 1.6rem;
+  padding-left: 2.4rem; /* 增加左侧 padding，避免时间标签被截断 */
 }
 
 /* 预览事件样式 */
@@ -514,6 +515,7 @@ defineExpose({
 .fc .fc-timegrid-slot-label-cushion {
   font-size: 1.3rem !important;
   font-weight: 500 !important;
+  padding-right: 0.8rem !important; /* 增加右侧间距，避免被截断 */
 }
 
 /* 移除时间槽边框 */
@@ -653,7 +655,7 @@ defineExpose({
 .calendar-container.zoom-1x .fc .fc-timegrid-slot-label-cushion {
   position: absolute;
   top: 50%;
-  transform: translate(-100%, -50%);
+  transform: translate(calc(-100% - 0.4rem), -50%); /* 往左移动 0.4rem */
   line-height: 1 !important;
   white-space: nowrap;
 }
