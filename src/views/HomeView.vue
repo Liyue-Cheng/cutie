@@ -91,7 +91,10 @@ watch(
       logger.info(LogTags.VIEW_HOME, 'Switched to Staging view')
     } else {
       currentView.value = 'recent'
-      logger.info(LogTags.VIEW_HOME, 'Switched to Recent view')
+      // 切换回 Recent 视图时，确保日历跳转到今天
+      const today = getTodayDateString()
+      registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, today)
+      logger.info(LogTags.VIEW_HOME, 'Switched to Recent view', { date: today })
     }
   },
   { immediate: true }
