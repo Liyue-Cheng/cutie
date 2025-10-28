@@ -1,5 +1,19 @@
 <template>
   <div class="calendar-container" :class="`zoom-${currentZoom}x`">
+    <!-- 自定义日期头部 -->
+    <div v-if="displayDates.length > 0" class="custom-day-headers">
+      <div class="time-axis-placeholder"></div>
+      <div
+        v-for="dateInfo in displayDates"
+        :key="dateInfo.date"
+        class="custom-day-header"
+        :class="{ 'is-today': dateInfo.isToday }"
+      >
+        <span class="day-name">{{ dateInfo.dayName }}</span>
+        <span class="date-number">{{ dateInfo.dateNumber }}</span>
+      </div>
+    </div>
+
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
     <!-- 装饰竖线（已禁用） -->
@@ -110,6 +124,11 @@ const handleDatesSet = (dateInfo: { start: Date; end: Date }) => {
   // ✅ 直接写入寄存器，消除 props drilling
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, dateStr)
 
+  // 更新自定义日期头部
+  nextTick(() => {
+    updateDisplayDates()
+  })
+
   // 保留事件发射以兼容现有代码（可选）
   emit('date-change', dateStr)
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar date changed and written to register', {
@@ -130,6 +149,63 @@ const { calendarOptions } = useCalendarOptions(
 // const decorativeLinePosition = decorativeLine.position
 // const decorativeLineTop = decorativeLine.top
 // const decorativeLineHeight = decorativeLine.height
+
+// ==================== 自定义日期头部 ====================
+interface DateHeaderInfo {
+  date: string // YYYY-MM-DD
+  dayName: string // Mon, Tue, etc.
+  dateNumber: string // 20日
+  isToday: boolean
+}
+
+const displayDates = ref<DateHeaderInfo[]>([])
+
+// 更新显示的日期列表
+function updateDisplayDates() {
+  if (!calendarRef.value) {
+    displayDates.value = []
+    return
+  }
+
+  const calendarApi = calendarRef.value.getApi()
+  if (!calendarApi) {
+    displayDates.value = []
+    return
+  }
+
+  const view = calendarApi.view
+  const start = view.activeStart
+  const end = view.activeEnd
+  const today = new Date().toISOString().split('T')[0]
+
+  const dates: DateHeaderInfo[] = []
+  const current = new Date(start)
+
+  // 根据视图类型决定显示哪些日期
+  while (current < end) {
+    const dateStr = current.toISOString().split('T')[0] ?? ''
+
+    // 对于周视图和多天视图，显示所有日期
+    if (props.viewType === 'week' || (props.viewType === 'day' && (props.days ?? 1) > 1)) {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      const dayName = dayNames[current.getDay()] ?? 'Sun'
+      const month = current.getMonth() + 1
+      const day = current.getDate()
+
+      dates.push({
+        date: dateStr,
+        dayName,
+        dateNumber: `${month}/${day}`,
+        isToday: dateStr === today,
+      })
+    }
+
+    current.setDate(current.getDate() + 1)
+  }
+
+  displayDates.value = dates
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Display dates updated', { count: dates.length })
+}
 
 // ==================== 日期切换功能 ====================
 // 监听 currentDate prop 变化，切换日历显示的日期
@@ -208,6 +284,9 @@ watch(
 
     // 清除缓存，强制重新计算位置
     clearCache()
+
+    // 更新自定义日期头部
+    updateDisplayDates()
 
     logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar view changed successfully', {
       viewName,
@@ -757,5 +836,68 @@ defineExpose({
 /* 月视图中的截止日期事件 */
 .fc-daygrid-event.due-date-event {
   border-left-width: 4px;
+}
+
+/* ===============================================
+ * 14. 自定义日期头部样式
+ * =============================================== */
+
+.custom-day-headers {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-background-primary, #fff);
+  border-bottom: 1px solid var(--color-border-default, #e0e0e0);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 48px;
+}
+
+.time-axis-placeholder {
+  width: 37px; /* 与日历时间轴宽度一致 */
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border-default, #e0e0e0);
+}
+
+.custom-day-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.6rem 0.4rem;
+  border-right: 1px solid var(--color-border-default, #e0e0e0);
+  transition: background-color 0.2s ease;
+}
+
+.custom-day-header:hover {
+  background-color: var(--color-background-secondary, #f5f5f5);
+}
+
+.custom-day-header.is-today {
+  background-color: var(--color-primary-bg, rgb(139 92 246 / 10%));
+}
+
+.custom-day-header .day-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #666);
+  text-transform: uppercase;
+}
+
+.custom-day-header.is-today .day-name {
+  color: var(--color-primary, #8b5cf6);
+}
+
+.custom-day-header .date-number {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #333);
+}
+
+.custom-day-header.is-today .date-number {
+  color: var(--color-primary, #8b5cf6);
+  font-weight: 700;
 }
 </style>
