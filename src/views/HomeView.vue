@@ -41,6 +41,14 @@
         </template>
       </TwoRowLayout>
     </div>
+
+    <!-- 任务编辑器模态框挂载点 -->
+    <KanbanTaskEditorModal
+      v-if="uiStore.isEditorOpen"
+      :task-id="uiStore.editorTaskId"
+      :view-key="uiStore.editorViewKey ?? undefined"
+      @close="uiStore.closeEditor"
+    />
   </div>
 </template>
 
@@ -51,11 +59,14 @@ import TaskBar from '@/components/parts/TaskBar.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useTaskStore } from '@/stores/task'
+import { useUIStore } from '@/stores/ui'
+import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 const registerStore = useRegisterStore()
 const taskStore = useTaskStore()
+const uiStore = useUIStore()
 
 // 初始化
 onMounted(async () => {
