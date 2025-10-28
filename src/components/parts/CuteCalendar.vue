@@ -451,8 +451,8 @@ defineExpose({
   height: 100%;
   position: relative;
   overflow: hidden;
-  padding: 1.6rem;
-  padding-left: 2.4rem; /* 增加左侧 padding，避免时间标签被截断 */
+  padding: 0.8rem;
+  padding-left: 1.6rem; /* 增加左侧 padding，避免时间标签被截断 */
 }
 
 /* 允许时间标签溢出到左侧 */
