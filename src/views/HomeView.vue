@@ -21,7 +21,7 @@
             <CuteCalendar
               ref="calendarRef"
               :current-date="currentCalendarDate"
-              view-type="day"
+              :view-type="calendarViewType"
               :zoom="1"
               :days="calendarDays"
             />
@@ -57,6 +57,11 @@ const uiStore = useUIStore()
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
+
+// 根据天数计算视图类型：7天显示本周视图，其他显示多天视图
+const calendarViewType = computed(() => {
+  return calendarDays.value === 7 ? 'week' : 'day'
+})
 
 // 初始化
 onMounted(async () => {

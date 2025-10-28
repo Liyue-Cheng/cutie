@@ -7,11 +7,17 @@
 ## 功能特性
 
 ### 1. 天数联动
+
 - 用户在左侧 RecentView 点击天数按钮（1天、3天、5天、7天）
 - 右侧日历自动切换显示对应天数的视图
+  - 1天：单天视图
+  - 3天：3天视图（从当前日期开始）
+  - 5天：5天视图（从当前日期开始）
+  - 7天：本周视图（周一到周日）
 - 左右两侧保持完全同步
 
 ### 2. 实时分割线拖动
+
 - 用户拖动中间分割线调整左右栏比例
 - 日历在拖动过程中实时更新尺寸（60fps）
 - 提供流畅的视觉反馈
@@ -61,17 +67,24 @@ watch(() => props.days) 触发
 // 管理天数状态（1 | 3 | 5 | 7）
 const calendarDays = ref<1 | 3 | 5 | 7>(3)
 
+// 根据天数计算视图类型：7天显示本周视图，其他显示多天视图
+const calendarViewType = computed(() => {
+  return calendarDays.value === 7 ? 'week' : 'day'
+})
+
 // 传递给 RecentView（v-model 双向绑定）
 <RecentView v-model="calendarDays" />
 
 // 传递给 CuteCalendar（单向数据流）
-<CuteCalendar :days="calendarDays" view-type="day" />
+<CuteCalendar :days="calendarDays" :view-type="calendarViewType" />
 ```
 
 **关键点：**
+
 - `calendarDays` 是唯一的数据源（Single Source of Truth）
 - 使用 `v-model` 简化双向绑定
 - 类型约束确保只能是 1、3、5、7
+- 通过 `computed` 动态计算视图类型：7天使用 week 视图，其他使用 day 视图
 
 ### 2. RecentView：天数选择器
 
@@ -109,6 +122,7 @@ function setDayCount(count: number) {
 ```
 
 **关键点：**
+
 - 实现标准的 `v-model` 模式（`modelValue` prop + `update:modelValue` emit）
 - 内部维护 `dayCount` 状态用于 UI 渲染
 - 通过 `watch` 监听 prop 变化保持同步
@@ -148,43 +162,52 @@ function getViewName(viewType: 'day' | 'week' | 'month', days: 1 | 3 | 5 | 7): s
 #### 3.3 动态视图切换
 
 ```typescript
+// 监听 viewType 和 days prop 变化，动态切换视图
 watch(
-  () => props.days,
-  async (newDays) => {
+  [() => props.viewType, () => props.days],
+  async ([newViewType, newDays]) => {
     if (!calendarRef.value) return
     const calendarApi = calendarRef.value.getApi()
     if (!calendarApi) return
 
-    if (props.viewType === 'day') {
-      const viewName = getViewName('day', newDays ?? 1)
-      
-      // 保存当前日期
-      const currentDate = calendarApi.getDate()
-      
-      // 切换视图
-      calendarApi.changeView(viewName)
-      
-      // 更新日期头部显示
-      calendarOptions.dayHeaders = (newDays ?? 1) > 1
-      
-      await nextTick()
-      
-      // 强制更新尺寸
-      calendarApi.updateSize()
-      
-      // 恢复日期
-      calendarApi.gotoDate(currentDate)
-      
-      // 清除缓存
-      clearCache()
-    }
+    const viewName = getViewName(newViewType, newDays ?? 1)
+
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing calendar view', {
+      from: calendarApi.view.type,
+      to: viewName,
+      viewType: newViewType,
+      days: newDays,
+    })
+
+    // 保存当前日期
+    const currentDate = calendarApi.getDate()
+
+    // 切换视图
+    calendarApi.changeView(viewName)
+
+    // 🔧 FIX: 更新 dayHeaders 配置
+    // week 视图或多天视图显示日期头部
+    calendarOptions.dayHeaders = newViewType === 'week' || (newDays ?? 1) > 1
+
+    await nextTick()
+
+    // 强制更新尺寸
+    calendarApi.updateSize()
+
+    // 恢复日期
+    calendarApi.gotoDate(currentDate)
+
+    // 清除缓存
+    clearCache()
   },
   { immediate: false }
 )
 ```
 
 **关键点：**
-- 使用 `watch` 监听 `props.days` 变化
+
+- 使用 `watch` 同时监听 `props.viewType` 和 `props.days` 变化
+- 根据 viewType 和 days 组合确定最终视图（7天时使用 week 视图）
 - 保存并恢复当前日期，避免视图切换时日期跳转
 - 调用 `updateSize()` 确保布局正确
 - 使用 `async/await` 和 `nextTick` 确保 DOM 更新完成
@@ -209,11 +232,11 @@ export function useCalendarOptions(
       initialView = 'timeGridDay'
     }
   }
-  
+
   const calendarOptions = reactive({
     // ...其他配置
     initialView,
-    
+
     // 自定义视图定义
     views: {
       timeGrid3Days: {
@@ -229,16 +252,17 @@ export function useCalendarOptions(
         duration: { days: 7 },
       },
     },
-    
+
     // 多天视图显示日期头部
     dayHeaders: viewType !== 'day' || days > 1,
   })
-  
+
   return { calendarOptions }
 }
 ```
 
 **关键点：**
+
 - 使用 FullCalendar 的自定义视图功能
 - 定义 3天、5天、7天的 `timeGrid` 视图
 - 动态控制 `dayHeaders` 显示
@@ -250,6 +274,7 @@ export function useCalendarOptions(
 ### 问题背景
 
 用户拖动分割线调整左右栏比例时，日历组件不会自动感知容器尺寸变化，导致：
+
 - 日历宽度不匹配容器
 - 需要手动点击才能触发重新渲染
 - 用户体验差
@@ -261,16 +286,16 @@ let rafId: number | null = null
 
 function onDragging(e: MouseEvent) {
   if (!isDragging.value) return
-  
+
   // 计算新的左栏宽度
   const container = document.querySelector('.home-view') as HTMLElement
   const containerRect = container.getBoundingClientRect()
   const mouseX = e.clientX - containerRect.left
   let newWidth = (mouseX / containerRect.width) * 100
   newWidth = Math.max(20, Math.min(80, newWidth))
-  
+
   leftPaneWidth.value = newWidth
-  
+
   // 使用 requestAnimationFrame 实现流畅的实时更新
   if (rafId !== null) {
     cancelAnimationFrame(rafId) // 取消上一帧
@@ -293,10 +318,10 @@ function updateCalendarSize() {
 
 ### 技术对比
 
-| 方案 | 更新时机 | 帧率 | 用户体验 |
-|------|---------|------|---------|
-| **setTimeout(50ms)** | 鼠标停止后 50ms | ~20fps | ❌ 有延迟，不流畅 |
-| **requestAnimationFrame** | 每一帧 | 60fps | ✅ 实时，流畅 |
+| 方案                      | 更新时机        | 帧率   | 用户体验          |
+| ------------------------- | --------------- | ------ | ----------------- |
+| **setTimeout(50ms)**      | 鼠标停止后 50ms | ~20fps | ❌ 有延迟，不流畅 |
+| **requestAnimationFrame** | 每一帧          | 60fps  | ✅ 实时，流畅     |
 
 ### 工作原理
 
@@ -317,6 +342,7 @@ if (rafId !== null) {
 ```
 
 **为什么需要取消？**
+
 - 鼠标移动速度快时，一帧内可能触发多次 `mousemove` 事件
 - 只保留最后一次请求，避免不必要的计算
 - 确保每帧最多更新一次
@@ -328,13 +354,13 @@ async function stopDragging() {
   isDragging.value = false
   document.removeEventListener('mousemove', onDragging)
   document.removeEventListener('mouseup', stopDragging)
-  
+
   // 清除待处理的动画帧
   if (rafId !== null) {
     cancelAnimationFrame(rafId)
     rafId = null
   }
-  
+
   // 最后确保更新一次
   await nextTick()
   updateCalendarSize()
@@ -353,21 +379,25 @@ onBeforeUnmount(() => {
 ## 关键技术点总结
 
 ### 1. 响应式数据流
+
 - **单一数据源**：`calendarDays` 在 HomeView 中管理
 - **v-model 双向绑定**：简化父子组件通信
 - **Props 单向流动**：保持数据流清晰可预测
 
 ### 2. FullCalendar 自定义视图
+
 - 使用 `views` 配置定义自定义天数视图
 - 通过 `calendarApi.changeView()` 动态切换
 - 保存并恢复当前日期，避免跳转
 
 ### 3. 实时尺寸更新
+
 - **requestAnimationFrame**：与浏览器渲染周期同步
 - **取消机制**：避免重复计算，优化性能
 - **清理机制**：防止内存泄漏
 
 ### 4. 异步处理
+
 - 使用 `async/await` 处理 DOM 更新
 - `nextTick()` 确保 Vue 响应式更新完成
 - 先更新 DOM，再调用 FullCalendar API
@@ -376,11 +406,11 @@ onBeforeUnmount(() => {
 
 ## 性能指标
 
-| 指标 | 数值 | 说明 |
-|------|------|------|
-| **天数切换延迟** | < 50ms | 用户点击到视图切换完成 |
-| **拖动更新帧率** | 60fps | 与浏览器刷新率同步 |
-| **内存占用** | 稳定 | 正确清理定时器和事件监听器 |
+| 指标             | 数值   | 说明                       |
+| ---------------- | ------ | -------------------------- |
+| **天数切换延迟** | < 50ms | 用户点击到视图切换完成     |
+| **拖动更新帧率** | 60fps  | 与浏览器刷新率同步         |
+| **内存占用**     | 稳定   | 正确清理定时器和事件监听器 |
 
 ---
 
@@ -407,4 +437,3 @@ onBeforeUnmount(() => {
 - [Vue 3 v-model 文档](https://vuejs.org/guide/components/v-model.html)
 - [FullCalendar Custom Views](https://fullcalendar.io/docs/custom-view-with-settings)
 - [MDN: requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame)
-

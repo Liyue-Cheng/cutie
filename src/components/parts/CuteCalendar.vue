@@ -173,77 +173,51 @@ function getViewName(viewType: 'day' | 'week' | 'month', days: 1 | 3 | 5 | 7): s
   }
 }
 
-// 监听 viewType prop 变化，动态切换视图
+// 监听 viewType 和 days prop 变化，动态切换视图
 watch(
-  () => props.viewType,
-  (newViewType) => {
+  [() => props.viewType, () => props.days],
+  async ([newViewType, newDays]) => {
     if (!calendarRef.value) return
 
     const calendarApi = calendarRef.value.getApi()
     if (!calendarApi) return
 
-    const viewName = getViewName(newViewType, props.days ?? 1)
+    const viewName = getViewName(newViewType, newDays ?? 1)
 
-    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing view type', {
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Changing calendar view', {
       from: calendarApi.view.type,
       to: viewName,
       viewType: newViewType,
-      days: props.days,
+      days: newDays,
     })
 
+    // 保存当前日期
+    const currentDate = calendarApi.getDate()
+
+    // 切换视图
     calendarApi.changeView(viewName)
+
+    // 🔧 FIX: 更新 dayHeaders 配置
+    // week 视图或多天视图显示日期头部
+    calendarOptions.dayHeaders = newViewType === 'week' || (newDays ?? 1) > 1
+
+    // 等待 DOM 更新
+    await nextTick()
+
+    // 强制更新尺寸
+    calendarApi.updateSize()
+
+    // 恢复到之前的日期
+    calendarApi.gotoDate(currentDate)
 
     // 清除缓存，强制重新计算位置
     clearCache()
-  },
-  { immediate: false }
-)
 
-// 监听 days prop 变化，动态切换天数视图
-watch(
-  () => props.days,
-  async (newDays) => {
-    if (!calendarRef.value) return
-
-    const calendarApi = calendarRef.value.getApi()
-    if (!calendarApi) return
-
-    // 只有在 day 视图类型下才切换天数视图
-    if (props.viewType === 'day') {
-      const viewName = getViewName('day', newDays ?? 1)
-
-      logger.info(LogTags.COMPONENT_CALENDAR, 'Changing days count', {
-        from: calendarApi.view.type,
-        to: viewName,
-        days: newDays,
-      })
-
-      // 保存当前日期
-      const currentDate = calendarApi.getDate()
-
-      // 切换视图
-      calendarApi.changeView(viewName)
-
-      // 🔧 FIX: 更新 dayHeaders 配置
-      calendarOptions.dayHeaders = (newDays ?? 1) > 1
-
-      // 等待 DOM 更新
-      await nextTick()
-
-      // 强制更新尺寸
-      calendarApi.updateSize()
-
-      // 恢复到之前的日期
-      calendarApi.gotoDate(currentDate)
-
-      // 清除缓存，强制重新计算位置
-      clearCache()
-
-      logger.debug(LogTags.COMPONENT_CALENDAR, 'Days view changed successfully', {
-        viewName,
-        days: newDays,
-      })
-    }
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar view changed successfully', {
+      viewName,
+      viewType: newViewType,
+      days: newDays,
+    })
   },
   { immediate: false }
 )
