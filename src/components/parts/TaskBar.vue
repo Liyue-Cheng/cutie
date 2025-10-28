@@ -1,5 +1,5 @@
 <template>
-  <div class="task-bar" :class="{ collapsed: isCollapsed }">
+  <div class="task-bar" :class="{ collapsed: isCollapsed }" ref="taskBarRef">
     <!-- 标题栏（可点击折叠） -->
     <div class="task-bar-header" @click="toggleCollapse">
       <div class="header-left">
@@ -10,7 +10,7 @@
           :class="{ rotated: isCollapsed }"
         />
         <h3 class="task-bar-title">{{ title }}</h3>
-        <span class="task-count">{{ tasks.length }}</span>
+        <span class="task-count">{{ displayItems.length }}</span>
       </div>
     </div>
 
@@ -33,15 +33,20 @@
 
       <!-- 任务纸条列表 -->
       <div class="task-list">
-        <TaskStrip
-          v-for="task in tasks"
+        <div
+          v-for="task in displayItems"
           :key="task.id"
-          :task="task"
-          :view-key="viewKey"
-          @toggle-complete="toggleTaskComplete(task.id)"
-          @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
-        />
-        <div v-if="tasks.length === 0" class="empty-state">
+          :class="`task-strip-wrapper-${normalizedViewKey}`"
+          :data-task-id="task.id"
+        >
+          <TaskStrip
+            :task="task"
+            :view-key="viewKey"
+            @toggle-complete="toggleTaskComplete(task.id)"
+            @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
+          />
+        </div>
+        <div v-if="displayItems.length === 0" class="empty-state">
           <p>暂无任务</p>
         </div>
       </div>
@@ -50,10 +55,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import type { ViewMetadata } from '@/types/drag'
 import CuteIcon from './CuteIcon.vue'
 import TaskStrip from './TaskStrip.vue'
 import { useViewTasks } from '@/composables/useViewTasks'
+import { useInteractDrag } from '@/composables/drag/useInteractDrag'
+import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+import { dragPreviewState } from '@/infra/drag-interact'
+import { deriveViewMetadata } from '@/services/viewAdapter'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 
@@ -81,6 +91,72 @@ const { tasks } = useViewTasks(props.viewKey)
 const isCollapsed = ref(props.defaultCollapsed)
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
+const taskBarRef = ref<HTMLElement | null>(null)
+
+// ==================== ViewMetadata 推导 ====================
+const effectiveViewMetadata = computed<ViewMetadata>(() => {
+  const derived = deriveViewMetadata(props.viewKey)
+  if (derived) {
+    return derived
+  }
+
+  // 兜底：提供最小可用元数据
+  return {
+    id: props.viewKey,
+    type: 'custom',
+    label: props.title,
+    config: {},
+  } as ViewMetadata
+})
+
+// ==================== 拖放系统集成 ====================
+const dragStrategy = useDragStrategy()
+
+// 标准化 viewKey 作为 CSS class（:: 替换为 --）
+const normalizedViewKey = computed(() => props.viewKey.replace(/::/g, '--'))
+
+const { displayItems } = useInteractDrag({
+  viewMetadata: effectiveViewMetadata,
+  items: tasks,
+  containerRef: taskBarRef,
+  draggableSelector: `.task-strip-wrapper-${normalizedViewKey.value}`,
+  objectType: 'task',
+  getObjectId: (task) => task.id,
+  onDrop: async (session) => {
+    logger.debug(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop event', {
+      session,
+      targetViewKey: props.viewKey,
+      displayItems: displayItems.value.length,
+      dropIndex: dragPreviewState.value?.computed.dropIndex,
+    })
+
+    // 🎯 执行拖放策略
+    const result = await dragStrategy.executeDrop(session, props.viewKey, {
+      sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
+      targetContext: {
+        taskIds: displayItems.value.map((t) => t.id),
+        displayTasks: displayItems.value,
+        dropIndex: dragPreviewState.value?.computed.dropIndex,
+        viewKey: props.viewKey,
+      },
+    })
+
+    if (!result.success) {
+      const errorMessage = result.message || result.error || 'Unknown error'
+      logger.error(
+        LogTags.COMPONENT_TASK_BAR,
+        'TaskBar drop failed',
+        new Error(errorMessage),
+        { result, session }
+      )
+    } else {
+      logger.info(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop succeeded', {
+        taskId: session.object.id,
+        targetViewKey: props.viewKey,
+      })
+    }
+  },
+})
 
 // Methods
 function toggleCollapse() {
@@ -168,7 +244,7 @@ async function addTask() {
 async function toggleTaskComplete(taskId: string) {
   try {
     // 获取当前任务的完成状态
-    const task = tasks.value.find((t) => t.id === taskId)
+    const task = displayItems.value.find((t) => t.id === taskId)
     if (!task) return
 
     logger.info(LogTags.COMPONENT_TASK_BAR, 'Toggling task completion', {
@@ -202,7 +278,7 @@ async function toggleTaskComplete(taskId: string) {
 async function toggleSubtask(taskId: string, subtaskId: string) {
   try {
     // 获取当前任务
-    const task = tasks.value.find((t) => t.id === taskId)
+    const task = displayItems.value.find((t) => t.id === taskId)
     if (!task || !task.subtasks) return
 
     // 找到要切换的子任务
