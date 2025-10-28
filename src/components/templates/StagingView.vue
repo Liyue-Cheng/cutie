@@ -28,7 +28,7 @@ const taskStore = useTaskStore()
 
 // 获取 staging 任务列表
 const tasks = computed(() => {
-  return taskStore.getTasksByViewKey('misc::staging')
+  return taskStore.getTasksByViewKey_Mux('misc::staging')
 })
 
 onMounted(async () => {
