@@ -108,7 +108,7 @@ const getValidDateString = (): string => {
 
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
 const dayCount = ref(3) // 显示的天数
-const dayCountOptions = [3, 5, 7, 14] // 可选的天数选项
+const dayCountOptions = [1, 3, 5, 7] // 可选的天数选项
 
 // 生成日期列表
 interface DateInfo {
