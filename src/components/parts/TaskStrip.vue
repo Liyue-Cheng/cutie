@@ -421,7 +421,7 @@ function onMouseDown(event: MouseEvent) {
 /* 概览笔记 */
 .task-note {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.6rem;
   margin-bottom: 0.8rem;
   padding-left: 3rem;
