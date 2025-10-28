@@ -455,6 +455,13 @@ defineExpose({
   padding-left: 2.4rem; /* 增加左侧 padding，避免时间标签被截断 */
 }
 
+/* 允许时间标签溢出到左侧 */
+.calendar-container :deep(.fc),
+.calendar-container :deep(.fc-view-harness),
+.calendar-container :deep(.fc-timegrid) {
+  overflow: visible !important;
+}
+
 /* 预览事件样式 */
 .fc-event.preview-event {
   background-color: #bceaee !important;
