@@ -18,6 +18,9 @@
         {{ task.title || '新任务' }}
       </div>
 
+      <!-- 所属 Area 标签（移动到标题旁） -->
+      <AreaTag v-if="area" class="area-tag-inline" :name="area.name" :color="area.color" size="small" />
+
       <!-- 预期时间显示 -->
       <div class="estimated-duration-wrapper">
         <button class="estimated-duration" @click.stop="toggleTimePicker">
@@ -97,11 +100,6 @@
           {{ subtask.title }}
         </span>
       </div>
-    </div>
-
-    <!-- 底部：Area 标签 -->
-    <div v-if="area" class="task-footer">
-      <AreaTag :name="area.name" :color="area.color" size="small" />
     </div>
   </div>
 </template>
@@ -515,10 +513,8 @@ function showContextMenu(event: MouseEvent) {
   text-decoration: line-through;
 }
 
-/* 底部：Area 标签 */
-.task-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0.4rem;
+/* 标题行中的 Area 标签 */
+.area-tag-inline {
+  flex-shrink: 0;
 }
 </style>
