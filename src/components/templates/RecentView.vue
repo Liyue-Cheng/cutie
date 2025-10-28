@@ -3,15 +3,32 @@
     <TwoRowLayout>
       <template #top>
         <div class="recent-controls">
+          <!-- 左右导航按钮 -->
+          <button class="control-btn nav-btn" @click="navigatePrevious" title="上一天">
+            <CuteIcon name="ChevronLeft" :size="16" />
+          </button>
+          <button class="control-btn nav-btn" @click="navigateNext" title="下一天">
+            <CuteIcon name="ChevronRight" :size="16" />
+          </button>
+
           <!-- 今天按钮 -->
           <button class="control-btn today-btn" @click="goToToday" title="回到今天">
             <CuteIcon name="Calendar" :size="16" />
             <span>今天</span>
           </button>
 
-          <!-- 日期选择器 -->
+          <!-- 日历图标（点击弹出日期选择器） -->
           <div class="date-picker-wrapper">
-            <input type="date" v-model="selectedDate" class="date-input" @change="onDateChange" />
+            <button class="control-btn calendar-icon-btn" @click="toggleDatePicker" title="选择日期">
+              <CuteIcon name="CalendarDays" :size="16" />
+            </button>
+            <input
+              ref="dateInputRef"
+              type="date"
+              v-model="selectedDate"
+              class="date-input-hidden"
+              @change="onDateChange"
+            />
           </div>
 
           <!-- 天数选择器（下拉菜单） -->
@@ -77,6 +94,7 @@ const getValidDateString = (): string => {
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
 const dayCount = ref(props.modelValue) // 显示的天数
 const dayCountOptions = [1, 3, 5, 7] // 可选的天数选项
+const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
 
 // 监听 props 变化
 watch(
@@ -154,6 +172,31 @@ function formatDateLabel(dateString: string, today: string): string {
 function goToToday() {
   selectedDate.value = getValidDateString()
   logger.info(LogTags.VIEW_HOME, 'Navigate to today', { date: selectedDate.value })
+}
+
+// 导航到上一天
+function navigatePrevious() {
+  const currentDate = new Date(selectedDate.value)
+  currentDate.setDate(currentDate.getDate() - dayCount.value)
+  selectedDate.value = currentDate.toISOString().split('T')[0] as string
+  logger.info(LogTags.VIEW_HOME, 'Navigate previous', { date: selectedDate.value })
+  loadDateRangeTasks()
+}
+
+// 导航到下一天
+function navigateNext() {
+  const currentDate = new Date(selectedDate.value)
+  currentDate.setDate(currentDate.getDate() + dayCount.value)
+  selectedDate.value = currentDate.toISOString().split('T')[0] as string
+  logger.info(LogTags.VIEW_HOME, 'Navigate next', { date: selectedDate.value })
+  loadDateRangeTasks()
+}
+
+// 切换日期选择器
+function toggleDatePicker() {
+  if (dateInputRef.value) {
+    dateInputRef.value.showPicker()
+  }
 }
 
 // 日期变化
@@ -236,31 +279,26 @@ onMounted(async () => {
 
 /* 日期选择器 */
 .date-picker-wrapper {
-  flex: 1;
-  min-width: 16rem;
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.date-input {
-  width: 100%;
-  padding: 0.8rem 1.2rem;
-  font-size: 1.4rem;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.date-input-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
 }
 
-.date-input:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
+.calendar-icon-btn {
+  padding: 0.8rem;
 }
 
-.date-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 2px rgb(74 144 226 / 10%);
+/* 导航按钮 */
+.nav-btn {
+  padding: 0.8rem;
 }
 
 /* 天数选择器 */
