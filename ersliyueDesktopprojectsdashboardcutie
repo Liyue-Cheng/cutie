@@ -1,0 +1,33 @@
+[33mcommit 9f867e9ce4ec39b442a9ea841dadc2ab679138c4[m[33m ([m[1;32mfeat/original-layout[m[33m)[m
+Author: Liyue-Cheng <liyue_cheng@163.com>
+Date:   Tue Oct 21 18:54:56 2025 +0800
+
+    feat: implement original notebook-inspired UI with task strips
+    
+    ORIGINAL DESIGN FEATURES:
+    - Notebook metaphor: completely new UI paradigm inspired by paper journals
+    - Task Strip component: tasks displayed as journal entries with dashed separators
+    - No rounded corners, no side borders - authentic notebook aesthetic
+    - Left panel: stacked task strips with clean dashed dividers (like ruled paper)
+    - Right panel: 7-day week calendar view
+    
+    COMPLETE DATA INTEGRATION:
+    - TaskBar: uses viewKey system (VIEW_CONTEXT_KEY_SPEC compliant)
+    - Full pipeline integration: task creation, completion toggle, subtask management
+    - Automatic data sync via useViewTasks composable
+    - Support for all view contexts: daily::*, misc::staging, misc::completed
+    
+    STYLING INNOVATIONS:
+    - Remove all list padding for edge-to-edge task strips
+    - 2px dashed borders (bottom only) for clear visual separation
+    - Darker border color for enhanced visibility
+    - Hover effects maintain notebook aesthetic
+    
+    This is a completely original design approach, distinct from traditional kanban layouts.
+
+ .claude/settings.local.json        |   3 [32m+[m[31m-[m
+ src/components/parts/TaskBar.vue   | 208 [32m++++++++++++++++++++++++++++++[m[31m-------[m
+ src/components/parts/TaskStrip.vue |  68 [32m++++++[m[31m------[m
+ src/infra/logging/logger.ts        |   1 [32m+[m
+ src/views/HomeView.vue             | 102 [32m+++++++++[m[31m---------[m
+ 5 files changed, 250 insertions(+), 132 deletions(-)

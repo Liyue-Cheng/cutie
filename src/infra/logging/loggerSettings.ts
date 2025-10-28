@@ -51,9 +51,6 @@ export const TAG_WHITELIST: string[] = [
 export const TAG_BLACKLIST: string[] = [
   // 默认隐藏一些噪音较大的标签
   'Store:View',
-  'Drag:Strategy',
-  'Drag:CrossView',
-  'Drag:Context',
   // 'Component:Kanban:Column', // 如果看板列日志太多可以取消注释
 ]
 

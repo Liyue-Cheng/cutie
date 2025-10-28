@@ -461,7 +461,6 @@ function showContextMenu(event: MouseEvent) {
   gap: 0.8rem;
 }
 
-
 .subtask-title {
   font-size: 1.4rem;
   color: var(--color-text-secondary);
