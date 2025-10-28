@@ -134,7 +134,9 @@ export function createTaskCore() {
    * @deprecated 使用 plannedTasks（只含未完成）
    */
   const scheduledTasks = computed(() => {
-    return allTasksArray.value.filter((task) => task.schedule_status === 'scheduled' && !task.is_deleted)
+    return allTasksArray.value.filter(
+      (task) => task.schedule_status === 'scheduled' && !task.is_deleted
+    )
   })
 
   /**
@@ -222,7 +224,7 @@ export function createTaskCore() {
       logger.debug(LogTags.STORE_TASKS, 'getTasksByViewKey_Mux called', {
         viewKey,
         parts,
-        totalTasks: allTasksArray.value.length
+        totalTasks: allTasksArray.value.length,
       })
 
       switch (type) {
@@ -231,13 +233,12 @@ export function createTaskCore() {
             if (identifier) {
               // misc::staging::${areaId} - 指定 area 的 staging 任务
               const filteredTasks = allTasksArray.value.filter((task) => {
-                const match = (
+                const match =
                   task.area_id === identifier &&
                   task.schedule_status === 'staging' &&
                   !task.is_completed &&
                   !task.is_archived &&
                   !task.is_deleted
-                )
                 if (task.area_id === identifier) {
                   logger.debug(LogTags.STORE_TASKS, 'Task area match check', {
                     taskId: task.id,
@@ -248,7 +249,7 @@ export function createTaskCore() {
                     isCompleted: task.is_completed,
                     isArchived: task.is_archived,
                     isDeleted: task.is_deleted,
-                    finalMatch: match
+                    finalMatch: match,
                   })
                 }
                 return match
@@ -259,7 +260,7 @@ export function createTaskCore() {
                 areaId: identifier,
                 totalTasks: allTasksArray.value.length,
                 filteredCount: filteredTasks.length,
-                filteredTaskIds: filteredTasks.map(t => t.id)
+                filteredTaskIds: filteredTasks.map((t) => t.id),
               })
 
               return filteredTasks
@@ -267,45 +268,45 @@ export function createTaskCore() {
               // misc::staging - 全部 staging 任务
               logger.debug(LogTags.STORE_TASKS, 'Using global staging tasks', {
                 viewKey,
-                count: stagingTasks.value.length
+                count: stagingTasks.value.length,
               })
               return stagingTasks.value
             }
+          } else if (subtype === 'archive') {
+            // misc::archive - 归档任务
+            logger.debug(LogTags.STORE_TASKS, 'Using archived tasks', {
+              viewKey,
+              count: archivedTasks.value.length,
+            })
+            return archivedTasks.value
           } else if (subtype === 'completed') {
             // misc::completed - 已完成任务
             logger.debug(LogTags.STORE_TASKS, 'Using completed tasks', {
               viewKey,
-              count: completedTasks.value.length
+              count: completedTasks.value.length,
             })
             return completedTasks.value
           } else if (subtype === 'incomplete') {
             // misc::incomplete - 未完成任务
             logger.debug(LogTags.STORE_TASKS, 'Using incomplete tasks', {
               viewKey,
-              count: incompleteTasks.value.length
+              count: incompleteTasks.value.length,
             })
             return incompleteTasks.value
           } else if (subtype === 'planned') {
             // misc::planned - 已安排任务
             logger.debug(LogTags.STORE_TASKS, 'Using planned tasks', {
               viewKey,
-              count: plannedTasks.value.length
+              count: plannedTasks.value.length,
             })
             return plannedTasks.value
           } else if (subtype === 'all') {
             // misc::all - 所有任务
             logger.debug(LogTags.STORE_TASKS, 'Using all tasks', {
               viewKey,
-              count: allTasks.value.length
+              count: allTasks.value.length,
             })
             return allTasks.value
-          } else if (subtype === 'archive') {
-            // misc::archive - 归档任务
-            logger.debug(LogTags.STORE_TASKS, 'Using archived tasks', {
-              viewKey,
-              count: archivedTasks.value.length
-            })
-            return archivedTasks.value
           }
           break
 
@@ -317,7 +318,7 @@ export function createTaskCore() {
             logger.debug(LogTags.STORE_TASKS, 'Using daily tasks', {
               viewKey,
               date,
-              count: tasks.length
+              count: tasks.length,
             })
             return tasks
           }
@@ -331,7 +332,7 @@ export function createTaskCore() {
             logger.debug(LogTags.STORE_TASKS, 'Using area tasks', {
               viewKey,
               areaId,
-              count: tasks.length
+              count: tasks.length,
             })
             return tasks
           }
