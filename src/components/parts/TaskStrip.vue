@@ -157,15 +157,21 @@ const area = computed(() => {
   return props.task.area_id ? areaStore.getAreaById(props.task.area_id) : null
 })
 
-// 获取今日日期 (YYYY-MM-DD)
-const todayDate = computed(() => getTodayDateString())
+// 获取当前视图的日期 (YYYY-MM-DD)
+// 如果 viewKey 是 daily::YYYY-MM-DD 格式，提取日期；否则使用今天
+const currentDate = computed(() => {
+  if (props.viewKey && props.viewKey.startsWith('daily::')) {
+    return props.viewKey.split('::')[1]
+  }
+  return getTodayDateString()
+})
 
-// 获取今日的时间块（按开始时间排序）
+// 获取当前日期的时间块（按开始时间排序）
 const todayTimeBlocks = computed(() => {
   if (!props.task.schedules) return []
 
-  const today = todayDate.value
-  const schedule = props.task.schedules.find((s) => s.scheduled_day === today)
+  const targetDate = currentDate.value
+  const schedule = props.task.schedules.find((s) => s.scheduled_day === targetDate)
 
   if (!schedule || !schedule.time_blocks) {
     return []
