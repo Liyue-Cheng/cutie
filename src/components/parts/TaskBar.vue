@@ -17,14 +17,17 @@
     <!-- 内容区（可折叠） -->
     <div v-if="!isCollapsed" class="task-bar-content">
       <!-- 任务输入框 -->
-      <div v-if="showAddInput" class="task-input-wrapper">
+      <div v-if="showAddInput" class="task-input-wrapper" :class="{ focused: isInputFocused }">
         <input
+          ref="taskInputRef"
           v-model="newTaskTitle"
           type="text"
           class="task-input"
           placeholder="添加新任务..."
           :disabled="isCreatingTask"
           @keydown.enter="addTask"
+          @focus="isInputFocused = true"
+          @blur="isInputFocused = false"
         />
         <button v-if="newTaskTitle && !isCreatingTask" class="add-task-btn" @click="addTask">
           <CuteIcon name="Plus" :size="16" />
@@ -92,6 +95,8 @@ const isCollapsed = ref(props.defaultCollapsed)
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
 const taskBarRef = ref<HTMLElement | null>(null)
+const taskInputRef = ref<HTMLInputElement | null>(null)
+const isInputFocused = ref(false)
 
 // ==================== ViewMetadata 推导 ====================
 const effectiveViewMetadata = computed<ViewMetadata>(() => {
@@ -236,6 +241,10 @@ async function addTask() {
     )
   } finally {
     isCreatingTask.value = false
+    // 重新聚焦到输入框
+    setTimeout(() => {
+      taskInputRef.value?.focus()
+    }, 0)
   }
 }
 
@@ -438,6 +447,16 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .add-task-btn:active {
   transform: translateY(-50%) scale(0.95);
+}
+
+/* 输入框聚焦时，+按钮无背景色 */
+.task-input-wrapper.focused .add-task-btn {
+  background-color: transparent;
+  color: var(--color-primary, #4a90e2);
+}
+
+.task-input-wrapper.focused .add-task-btn:hover {
+  background-color: rgb(74 144 226 / 10%);
 }
 
 /* 任务列表 */
