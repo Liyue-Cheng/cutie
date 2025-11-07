@@ -3,15 +3,15 @@
     <!-- 标题栏（可点击折叠） -->
     <div class="task-bar-header" @click="toggleCollapse">
       <div class="header-left">
-        <CuteIcon
-          name="ChevronDown"
-          :size="16"
-          class="collapse-icon"
-          :class="{ rotated: isCollapsed }"
-        />
         <h3 class="task-bar-title">{{ title }}</h3>
         <span class="task-count">{{ displayItems.length }}</span>
       </div>
+      <CuteIcon
+        name="ChevronDown"
+        :size="16"
+        class="collapse-icon"
+        :class="{ rotated: isCollapsed }"
+      />
     </div>
 
     <!-- 内容区（可折叠） -->
