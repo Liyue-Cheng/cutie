@@ -383,7 +383,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 任务输入框 */
 .task-input-wrapper {
   position: relative;
-  margin-bottom: 0;
+  margin-bottom: 0.4rem;
   border-bottom: 2px dashed rgb(0 0 0 / 15%);
 }
 
