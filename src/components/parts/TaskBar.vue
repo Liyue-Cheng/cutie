@@ -384,6 +384,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 .task-input-wrapper {
   position: relative;
   margin-bottom: 0;
+  border-bottom: 2px dashed rgb(0 0 0 / 15%);
 }
 
 .task-input {
@@ -394,8 +395,6 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   color: var(--color-text-primary);
   background-color: transparent;
   border: none;
-
-  /* 移除下方虚线 */
   border-radius: 0;
   outline: none;
   transition: all 0.2s ease;
@@ -451,7 +450,6 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 .empty-state {
   padding: 3rem 2rem;
   text-align: center;
-  border-top: 2px dashed rgb(0 0 0 / 15%);
 }
 
 .empty-state p {

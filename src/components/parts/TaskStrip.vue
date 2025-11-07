@@ -377,7 +377,6 @@ function onMouseDown(event: MouseEvent) {
 .task-strip {
   background-color: var(--color-background-content);
   border: none;
-  border-top: 2px dashed rgb(0 0 0 / 15%);
   border-radius: 0;
   padding: 1.2rem 1.6rem;
   margin-bottom: 0;
