@@ -32,7 +32,7 @@
       </div>
 
       <!-- 任务纸条列表 -->
-      <div class="task-list">
+      <TransitionGroup name="task-list" tag="div" class="task-list">
         <div
           v-for="task in displayItems"
           :key="task.id"
@@ -46,10 +46,10 @@
             @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
           />
         </div>
-        <div v-if="displayItems.length === 0" class="empty-state">
+        <div v-if="displayItems.length === 0" key="empty-state" class="empty-state">
           <p>暂无任务</p>
         </div>
-      </div>
+      </TransitionGroup>
     </div>
   </div>
 </template>
@@ -444,6 +444,37 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 .task-list {
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* 任务卡片包装器 */
+.task-card-wrapper {
+  transition: all 0.3s ease;
+}
+
+/* 任务列表动画 */
+.task-list-move {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-list-enter-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-list-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: absolute;
+  width: 100%;
+}
+
+.task-list-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.task-list-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 /* 空状态 */
