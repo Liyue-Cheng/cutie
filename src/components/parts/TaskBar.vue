@@ -476,17 +476,10 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-list-leave-active {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  position: absolute;
-  width: 100%;
+  display: none;
 }
 
 .task-list-enter-from {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.task-list-leave-to {
   opacity: 0;
   transform: translateY(-10px);
 }
