@@ -370,7 +370,7 @@ function onMouseDown(event: MouseEvent) {
   border-radius: 0;
   padding: 0.8rem 1.6rem;
   margin-bottom: 0;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
   cursor: pointer;
 }
 

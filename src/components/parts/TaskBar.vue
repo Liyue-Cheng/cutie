@@ -447,11 +447,6 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   position: relative;
 }
 
-/* 任务卡片包装器 */
-.task-card-wrapper {
-  transition: all 0.3s ease;
-}
-
 /* 任务列表动画 */
 .task-list-move {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
