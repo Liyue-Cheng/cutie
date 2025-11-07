@@ -212,8 +212,8 @@ async function handleCompleteChange(isChecked: boolean) {
 async function handlePresenceToggle(isChecked: boolean) {
   if (!props.taskId || !todayDate.value) return
 
-  // 使用新的勾选状态来决定 outcome
-  const newOutcome = isChecked ? 'presence_logged' : undefined
+  // 使用新的勾选状态来决定 outcome（后端API使用大写格式）
+  const newOutcome = isChecked ? 'PRESENCE_LOGGED' : 'PLANNED'
 
   await pipeline.dispatch('schedule.update', {
     task_id: props.taskId,

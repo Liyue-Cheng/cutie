@@ -76,6 +76,11 @@ const routes: Array<RouteRecordRaw> = [
     name: 'ai-chat',
     component: () => import('../views/AIChatView.vue'),
   },
+  {
+    path: '/checkbox-test',
+    name: 'checkbox-test',
+    component: () => import('../views/CheckboxTestView.vue'),
+  },
 ]
 
 const router = createRouter({

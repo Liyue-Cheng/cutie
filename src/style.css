@@ -57,6 +57,7 @@ html {
   --color-background-tertiary: var(--c-gray-50);
   --color-background-accent: var(--c-blue-500);
   --color-background-accent-light: var(--c-blue-100);
+  --color-background-hover: rgb(0 0 0 / 5%);
 
   /* 边框与分隔线 */
   --color-border-default: var(--c-gray-200);
@@ -69,6 +70,10 @@ html {
   --color-danger: var(--c-red-500);
   --color-info: var(--c-blue-500);
   --color-status-done: var(--c-done-green);
+  
+  /* 任务状态颜色 */
+  --color-status-completed: var(--c-green-500);
+  --color-status-present: var(--c-blue-500);
 }
 
 
@@ -135,6 +140,7 @@ body.theme-rose-pine {
   --color-background-primary: var(--rose-pine-base);
   --color-background-secondary: var(--rose-pine-surface);
   --color-background-content: var(--rose-pine-overlay);
+  --color-background-hover: var(--rose-pine-highlight-low);
   --color-border-default: var(--rose-pine-muted);
   --color-text-primary: var(--rose-pine-text);
   --color-text-secondary: var(--rose-pine-subtle);
@@ -147,6 +153,10 @@ body.theme-rose-pine {
   --color-danger: var(--rose-pine-love);
   --color-info: var(--rose-pine-pine);
   --color-card-available: var(--rose-pine-surface);
+  
+  /* 任务状态颜色 */
+  --color-status-completed: var(--rose-pine-rose);
+  --color-status-present: var(--rose-pine-pine);
 }
 
 body.theme-rose-pine-moon {
@@ -154,6 +164,7 @@ body.theme-rose-pine-moon {
   --color-background-primary: var(--rose-pine-base);
   --color-background-secondary: var(--rose-pine-surface);
   --color-background-content: var(--rose-pine-overlay);
+  --color-background-hover: var(--rose-pine-highlight-low);
   --color-border-default: var(--rose-pine-muted);
   --color-text-primary: var(--rose-pine-text);
   --color-text-secondary: var(--rose-pine-subtle);
@@ -166,6 +177,10 @@ body.theme-rose-pine-moon {
   --color-danger: var(--rose-pine-love);
   --color-info: var(--rose-pine-pine);
   --color-card-available: var(--rose-pine-surface);
+  
+  /* 任务状态颜色 */
+  --color-status-completed: var(--rose-pine-rose);
+  --color-status-present: var(--rose-pine-pine);
 }
 
 body.theme-rose-pine-dawn {
@@ -173,6 +188,7 @@ body.theme-rose-pine-dawn {
   --color-background-primary: var(--rose-pine-base);
   --color-background-secondary: var(--rose-pine-surface);
   --color-background-content: #f6efe8;
+  --color-background-hover: var(--rose-pine-highlight-low);
   --color-border-default: #e0dce0;
   --color-text-primary: var(--rose-pine-text);
   --color-text-secondary: var(--rose-pine-subtle);
@@ -185,6 +201,10 @@ body.theme-rose-pine-dawn {
   --color-danger: var(--rose-pine-love);
   --color-info: var(--rose-pine-pine);
   --color-card-available: var(--rose-pine-surface);
+  
+  /* 任务状态颜色 */
+  --color-status-completed: var(--rose-pine-rose);
+  --color-status-present: var(--rose-pine-pine);
 }
 
 

@@ -73,6 +73,9 @@
               <li @click="$router.push('/cpu-debug')">
                 <CuteIcon name="Cpu" :size="16" /><span>CPU Pipeline</span>
               </li>
+              <li @click="$router.push('/checkbox-test')">
+                <CuteIcon name="CheckSquare" :size="16" /><span>Checkbox Test</span>
+              </li>
             </ul>
           </div>
         </div>

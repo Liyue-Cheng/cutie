@@ -8,11 +8,11 @@
   >
     <!-- 顶部：完成按钮 + 标题 + 预期时间 -->
     <div class="task-header">
-      <CuteCheckbox
+      <CuteDualModeCheckbox
         class="main-checkbox"
-        :checked="task.is_completed"
+        :state="checkboxState"
         size="large"
-        @update:checked="() => toggleComplete()"
+        @update:state="handleCheckboxStateChange"
         @click.stop
       />
       <div class="task-title" :class="{ completed: task.is_completed }">
@@ -121,6 +121,7 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 import CuteIcon from './CuteIcon.vue'
 import CuteCheckbox from './CuteCheckbox.vue'
+import CuteDualModeCheckbox from './CuteDualModeCheckbox.vue'
 import AreaTag from './AreaTag.vue'
 import TimeDurationPicker from './TimeDurationPicker.vue'
 import KanbanTaskCardMenu from './kanban/KanbanTaskCardMenu.vue'
@@ -135,7 +136,6 @@ const props = defineProps<Props>()
 
 // Emits
 const emit = defineEmits<{
-  'toggle-complete': []
   'toggle-subtask': [subtaskId: string]
 }>()
 
@@ -199,6 +199,38 @@ const todayTimeBlocksTotalDuration = computed(() => {
   return totalMinutes
 })
 
+// 计算双模式复选框的状态
+type CheckboxState = null | 'completed' | 'present'
+const checkboxState = computed<CheckboxState>(() => {
+  // 优先级1：如果任务已完成，显示完成状态
+  if (props.task.is_completed) {
+    return 'completed'
+  }
+
+  // 优先级2：检查当前日期的outcome是否为presence_logged
+  // 从schedules数组中查找当前日期的schedule
+  if (props.task.schedules) {
+    const currentSchedule = props.task.schedules.find((s) => s.scheduled_day === currentDate.value)
+
+    // 调试日志
+    console.log('[TaskStrip] 检查在场状态:', {
+      taskId: props.task.id,
+      taskTitle: props.task.title,
+      currentDate: currentDate.value,
+      currentSchedule,
+      outcome: currentSchedule?.outcome,
+      isPresent: currentSchedule?.outcome === 'presence_logged',
+    })
+
+    if (currentSchedule && currentSchedule.outcome === 'presence_logged') {
+      return 'present'
+    }
+  }
+
+  // 默认：未选中
+  return null
+})
+
 // 格式化时间显示
 const formattedDuration = computed(() => {
   // 如果有今日时间块，显示时间块总和
@@ -248,12 +280,42 @@ function formatDueDate(isoString: string): string {
 }
 
 // Methods
-function toggleComplete() {
-  emit('toggle-complete')
-}
-
 function toggleSubtask(subtaskId: string) {
   emit('toggle-subtask', subtaskId)
+}
+
+// 处理双模式复选框状态变化
+async function handleCheckboxStateChange(newState: CheckboxState) {
+  if (newState === 'completed') {
+    // 完成任务
+    await pipeline.dispatch('task.complete', { id: props.task.id })
+  } else if (newState === 'present') {
+    // 标记在场 - 更新当前日期的schedule outcome（后端API使用大写）
+    await pipeline.dispatch('schedule.update', {
+      task_id: props.task.id,
+      scheduled_day: currentDate.value,
+      updates: { outcome: 'PRESENCE_LOGGED' },
+    })
+  } else {
+    // 取消状态
+    if (props.task.is_completed) {
+      // 重新打开任务
+      await pipeline.dispatch('task.reopen', { id: props.task.id })
+    } else {
+      // 检查当前日期是否标记为在场
+      const currentSchedule = props.task.schedules?.find(
+        (s) => s.scheduled_day === currentDate.value
+      )
+      if (currentSchedule && currentSchedule.outcome === 'presence_logged') {
+        // 取消在场标记，改回planned（后端API使用大写）
+        await pipeline.dispatch('schedule.update', {
+          task_id: props.task.id,
+          scheduled_day: currentDate.value,
+          updates: { outcome: 'PLANNED' },
+        })
+      }
+    }
+  }
 }
 
 // 切换时间选择器显示
