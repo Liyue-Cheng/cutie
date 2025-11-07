@@ -368,7 +368,7 @@ function onMouseDown(event: MouseEvent) {
   background-color: var(--color-background-content);
   border: none;
   border-radius: 0;
-  padding: 1.2rem 1.6rem;
+  padding: 0.8rem 1.6rem;
   margin-bottom: 0;
   transition: all 0.2s ease;
   cursor: pointer;

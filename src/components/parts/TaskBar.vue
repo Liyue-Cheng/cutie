@@ -448,7 +448,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 /* 空状态 */
 .empty-state {
-  padding: 3rem 2rem;
+  padding: 3rem 1.6rem;
   text-align: center;
 }
 
