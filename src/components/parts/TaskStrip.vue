@@ -212,16 +212,6 @@ const checkboxState = computed<CheckboxState>(() => {
   if (props.task.schedules) {
     const currentSchedule = props.task.schedules.find((s) => s.scheduled_day === currentDate.value)
 
-    // 调试日志
-    console.log('[TaskStrip] 检查在场状态:', {
-      taskId: props.task.id,
-      taskTitle: props.task.title,
-      currentDate: currentDate.value,
-      currentSchedule,
-      outcome: currentSchedule?.outcome,
-      isPresent: currentSchedule?.outcome === 'presence_logged',
-    })
-
     if (currentSchedule && currentSchedule.outcome === 'presence_logged') {
       return 'present'
     }
