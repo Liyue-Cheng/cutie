@@ -1,4 +1,4 @@
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
@@ -105,6 +105,9 @@ export function useViewTasks(viewKey: string) {
             case 'archive':
               baseTasks = taskStore.archivedTasks
               break
+            case 'upcoming':
+              baseTasks = taskStore.upcomingTasks
+              break
             default:
               logger.warn(LogTags.STORE_VIEW, 'Unknown misc viewKey', { viewKey })
               baseTasks = []
@@ -169,6 +172,10 @@ export function useViewTasks(viewKey: string) {
           logger.info(LogTags.STORE_VIEW, 'Fetching daily tasks for date', { date, viewKey })
           await taskStore.fetchDailyTasks_DMA(date)
           logger.info(LogTags.STORE_VIEW, 'Daily tasks loaded', { date, viewKey })
+
+          // 3. 注册日视图，以便循环操作后能刷新
+          viewStore.registerDailyView(date)
+          logger.debug(LogTags.STORE_VIEW, 'Registered daily view for refresh', { date, viewKey })
         }
       } catch (error) {
         logger.error(
@@ -177,6 +184,20 @@ export function useViewTasks(viewKey: string) {
           error instanceof Error ? error : new Error(String(error)),
           { viewKey }
         )
+      }
+    }
+  })
+
+  /**
+   * 组件卸载时取消注册日视图
+   */
+  onBeforeUnmount(() => {
+    if (viewKey) {
+      const parts = viewKey.split('::')
+      if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
+        const date = parts[1]
+        viewStore.unregisterDailyView(date)
+        logger.debug(LogTags.STORE_VIEW, 'Unregistered daily view', { date, viewKey })
       }
     }
   })

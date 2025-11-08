@@ -7,6 +7,7 @@ import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import { pipeline } from '@/cpu'
+import draggable from 'vuedraggable'
 
 interface Subtask {
   id: string
@@ -31,7 +32,6 @@ const detailNoteTemplate = ref('')
 const selectedAreaId = ref<string | null>(null)
 const newSubtaskTitle = ref('')
 const showAreaSelector = ref(false)
-const draggingSubtaskId = ref<string | null>(null)
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const mouseDownOnOverlay = ref(false)
@@ -40,9 +40,21 @@ const template = computed(() => {
   return props.templateId ? templateStore.getTemplateById(props.templateId) : null
 })
 
-const subtasks = computed(() => {
-  return template.value?.subtasks_template || []
-})
+// 使用 ref 而不是 computed，以便 vuedraggable 可以修改
+const subtasks = ref<Subtask[]>([])
+
+// 监听 template 变化，同步 subtasks
+watch(
+  () => template.value?.subtasks_template,
+  (newSubtasks) => {
+    if (newSubtasks) {
+      subtasks.value = [...newSubtasks]
+    } else {
+      subtasks.value = []
+    }
+  },
+  { immediate: true }
+)
 
 const selectedArea = computed(() => {
   return selectedAreaId.value ? areaStore.getAreaById(selectedAreaId.value) : null
@@ -172,41 +184,11 @@ async function handleDeleteSubtask(subtaskId: string) {
   })
 }
 
-function handleDragStart(subtaskId: string) {
-  draggingSubtaskId.value = subtaskId
-}
+async function handleSubtaskReorder() {
+  if (!props.templateId) return
 
-function handleDragEnd() {
-  draggingSubtaskId.value = null
-}
-
-function handleDragOver(event: DragEvent) {
-  event.preventDefault()
-}
-
-async function handleDrop(event: DragEvent, targetSubtaskId: string) {
-  event.preventDefault()
-
-  if (!props.templateId || !draggingSubtaskId.value) return
-  if (draggingSubtaskId.value === targetSubtaskId) return
-
-  const currentSubtasks = [...subtasks.value]
-  const dragIndex = currentSubtasks.findIndex((s) => s.id === draggingSubtaskId.value)
-  const dropIndex = currentSubtasks.findIndex((s) => s.id === targetSubtaskId)
-
-  if (dragIndex === -1 || dropIndex === -1) return
-
-  // 移除被拖动的项
-  const draggedItems = currentSubtasks.splice(dragIndex, 1)
-  const draggedItem = draggedItems[0]
-
-  if (!draggedItem) return
-
-  // 插入到新位置
-  currentSubtasks.splice(dropIndex, 0, draggedItem)
-
-  // 更新sort_order
-  const updatedSubtasks = currentSubtasks.map((subtask, index) => ({
+  // 更新 sort_order
+  const updatedSubtasks = subtasks.value.map((subtask, index) => ({
     ...subtask,
     sort_order: `subtask_${Date.now()}_${index}`,
   }))
@@ -215,8 +197,6 @@ async function handleDrop(event: DragEvent, targetSubtaskId: string) {
     id: props.templateId,
     subtasks_template: updatedSubtasks,
   })
-
-  draggingSubtaskId.value = null
 }
 
 function handleOverlayMouseDown() {
@@ -319,32 +299,30 @@ function handleClose() {
         <!-- 第四栏：子任务模板编辑区 -->
         <div class="subtasks-section">
           <div class="subtasks-header">子任务模板</div>
-          <div class="subtasks-list">
-            <div
-              v-for="subtask in subtasks"
-              :key="subtask.id"
-              class="subtask-item"
-              :class="{ dragging: draggingSubtaskId === subtask.id }"
-              draggable="true"
-              @dragstart="handleDragStart(subtask.id)"
-              @dragend="handleDragEnd"
-              @dragover="handleDragOver"
-              @drop="handleDrop($event, subtask.id)"
-            >
-              <div class="drag-handle">⋮⋮</div>
-              <CuteCheckbox
-                :checked="subtask.is_completed"
-                size="small"
-                @update:checked="
-                  (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
-                "
-              />
-              <span class="subtask-title" :class="{ completed: subtask.is_completed }">
-                {{ subtask.title }}
-              </span>
-              <button class="delete-button" @click="handleDeleteSubtask(subtask.id)">×</button>
-            </div>
-          </div>
+          <draggable
+            v-model="subtasks"
+            item-key="id"
+            class="subtasks-list"
+            handle=".drag-handle"
+            @end="handleSubtaskReorder"
+          >
+            <template #item="{ element: subtask }">
+              <div class="subtask-item">
+                <div class="drag-handle">⋮⋮</div>
+                <CuteCheckbox
+                  :checked="subtask.is_completed"
+                  size="small"
+                  @update:checked="
+                    (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
+                  "
+                />
+                <span class="subtask-title" :class="{ completed: subtask.is_completed }">
+                  {{ subtask.title }}
+                </span>
+                <button class="delete-button" @click="handleDeleteSubtask(subtask.id)">×</button>
+              </div>
+            </template>
+          </draggable>
           <div class="add-subtask-form">
             <input
               v-model="newSubtaskTitle"
@@ -609,11 +587,6 @@ function handleClose() {
 
 .subtask-item:hover {
   background-color: var(--color-background-soft, #f9f9f9);
-}
-
-.subtask-item.dragging {
-  opacity: 0.5;
-  background-color: var(--color-background-hover, #e8e8e8);
 }
 
 .drag-handle {

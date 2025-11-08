@@ -31,7 +31,6 @@
       <!-- 预期时间显示 -->
       <div class="estimated-duration-wrapper">
         <button class="estimated-duration" @click.stop="toggleTimePicker">
-          <span class="duration-dot"></span>
           {{ formattedDuration }}
         </button>
 
@@ -368,6 +367,10 @@ function onMouseDown(event: MouseEvent) {
   padding: 0.8rem 1.6rem;
   margin-bottom: 0;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 4.8rem; /* 最小高度，确保有足够空间 */
 
   /* 防止动画过程中出现发丝线 */
   outline: 1px solid transparent;
@@ -390,6 +393,10 @@ function onMouseDown(event: MouseEvent) {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+/* 当有其他内容时，标题栏需要底部间距 */
+.task-strip:has(.task-note, .due-date-section, .subtasks-section) .task-header {
   margin-bottom: 0.8rem;
 }
 
@@ -439,18 +446,6 @@ function onMouseDown(event: MouseEvent) {
   border-color: var(--color-primary, #4a90e2);
   background-color: var(--color-primary-bg, rgb(74 144 226 / 12%));
   color: var(--color-primary, #4a90e2);
-}
-
-.duration-dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  background-color: var(--color-text-tertiary, #999);
-  transition: background-color 0.2s ease;
-}
-
-.estimated-duration:hover .duration-dot {
-  background-color: var(--color-primary, #4a90e2);
 }
 
 .time-picker-popup {

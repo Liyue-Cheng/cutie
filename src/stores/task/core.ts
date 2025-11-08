@@ -66,7 +66,7 @@ export function createTaskCore() {
    *    - 无当前或未来日程（防御性检查，避免前后端状态不同步）
    */
   const stagingTasks = computed(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toISOString().split('T')[0]!
 
     return allTasksArray.value.filter((task) => {
       // 基础状态检查
@@ -126,6 +126,26 @@ export function createTaskCore() {
    */
   const archivedTasks = computed(() => {
     return allTasksArray.value.filter((task) => task.is_archived && !task.is_deleted)
+  })
+
+  /**
+   * 即将到期的任务（有截止日期的未完成任务，按截止日期排序）
+   * ✅ 动态过滤：任务完成后自动消失
+   * ✅ 性能优化：复用 allTasksArray
+   * ✅ 排除已删除和已归档的任务
+   * ✅ 按截止日期排序（最近的在前）
+   */
+  const upcomingTasks = computed(() => {
+    const tasksWithDueDate = allTasksArray.value.filter(
+      (task) => task.due_date && !task.is_archived && !task.is_completed && !task.is_deleted
+    )
+
+    // 按截止日期排序（最近的在前）
+    return tasksWithDueDate.sort((a, b) => {
+      const dateA = new Date(a.due_date!.date).getTime()
+      const dateB = new Date(b.due_date!.date).getTime()
+      return dateA - dateB
+    })
   })
 
   /**
@@ -446,6 +466,7 @@ export function createTaskCore() {
     incompleteTasks,
     completedTasks,
     archivedTasks,
+    upcomingTasks,
     scheduledTasks,
 
     // Getters (多路复用器 - Mux)

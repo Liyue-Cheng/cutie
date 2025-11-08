@@ -18,16 +18,24 @@
       <TwoRowLayout>
         <template #top>
           <div class="calendar-header">
-            <!-- 左侧：年月显示 -->
-            <div class="calendar-year-month">
+            <!-- 左侧：视图选择下拉菜单 -->
+            <select v-model="currentRightPaneView" class="view-selector">
+              <option value="calendar">日历</option>
+              <option value="staging">Staging</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="templates">Templates</option>
+            </select>
+
+            <!-- 日历视图专属：年月显示 -->
+            <div v-if="currentRightPaneView === 'calendar'" class="calendar-year-month">
               {{ calendarYearMonth }}
             </div>
 
             <!-- 中间：占位 -->
             <div class="spacer"></div>
 
-            <!-- 右侧：缩放按钮 -->
-            <div class="calendar-zoom-controls">
+            <!-- 日历视图专属：缩放按钮 -->
+            <div v-if="currentRightPaneView === 'calendar'" class="calendar-zoom-controls">
               <button
                 :class="['zoom-btn', 'zoom-btn-left', { active: calendarZoom === 1 }]"
                 @click="calendarZoom = 1"
@@ -50,7 +58,8 @@
           </div>
         </template>
         <template #bottom>
-          <div class="calendar-wrapper">
+          <!-- 日历视图 -->
+          <div v-if="currentRightPaneView === 'calendar'" class="calendar-wrapper">
             <CuteCalendar
               ref="calendarRef"
               :current-date="currentCalendarDate"
@@ -59,6 +68,12 @@
               :days="calendarDays"
             />
           </div>
+          <!-- Staging 视图 -->
+          <StagingList v-else-if="currentRightPaneView === 'staging'" />
+          <!-- Upcoming 视图 -->
+          <UpcomingList v-else-if="currentRightPaneView === 'upcoming'" />
+          <!-- Templates 视图 -->
+          <TemplateList v-else-if="currentRightPaneView === 'templates'" />
         </template>
       </TwoRowLayout>
     </div>
@@ -79,6 +94,9 @@ import { useRoute } from 'vue-router'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import RecentView from '@/components/templates/RecentView.vue'
 import StagingView from '@/components/templates/StagingView.vue'
+import StagingList from '@/components/parts/StagingList.vue'
+import UpcomingList from '@/components/parts/UpcomingList.vue'
+import TemplateList from '@/components/parts/template/TemplateList.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
@@ -92,6 +110,10 @@ const uiStore = useUIStore()
 
 // ==================== 视图切换状态 ====================
 const currentView = ref<'recent' | 'staging'>('recent') // 当前视图
+
+// ==================== 右栏视图状态 ====================
+type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates'
+const currentRightPaneView = ref<RightPaneView>('calendar') // 右栏当前视图
 
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
@@ -317,6 +339,31 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 1rem;
   padding: 0 1rem;
+}
+
+/* 视图选择下拉菜单 */
+.view-selector {
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.view-selector:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+}
+
+.view-selector:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
 }
 
 /* 年月显示 */

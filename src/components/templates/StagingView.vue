@@ -10,7 +10,7 @@
       <template #bottom>
         <div class="task-list">
           <!-- Staging 任务栏 -->
-          <TaskBar title="待安排任务" view-key="misc::staging" />
+          <TaskBar title="待安排任务" view-key="misc::staging" fill-remaining-space />
         </div>
       </template>
     </TwoRowLayout>

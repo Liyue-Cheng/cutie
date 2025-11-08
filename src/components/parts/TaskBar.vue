@@ -1,5 +1,5 @@
 <template>
-  <div class="task-bar" :class="{ collapsed: isCollapsed }" ref="taskBarRef">
+  <div class="task-bar" :class="taskBarClasses" ref="taskBarRef">
     <!-- 标题栏（可点击折叠） -->
     <div class="task-bar-header" @click="toggleCollapse">
       <div class="header-left">
@@ -84,11 +84,13 @@ interface Props {
   viewKey: string // 🔥 必需：遵循 VIEW_CONTEXT_KEY_SPEC 规范
   defaultCollapsed?: boolean
   showAddInput?: boolean // 是否显示添加任务输入框
+  fillRemainingSpace?: boolean // 是否占满父容器剩余空间
 }
 
 const props = withDefaults(defineProps<Props>(), {
   defaultCollapsed: false,
   showAddInput: true,
+  fillRemainingSpace: false,
 })
 
 // Emits
@@ -107,6 +109,11 @@ const taskBarRef = ref<HTMLElement | null>(null)
 const taskListRef = ref<HTMLElement | null>(null)
 const taskInputRef = ref<HTMLInputElement | null>(null)
 const isInputFocused = ref(false)
+
+const taskBarClasses = computed(() => ({
+  collapsed: isCollapsed.value,
+  'fill-vertical': props.fillRemainingSpace && !isCollapsed.value,
+}))
 
 // ==================== ViewMetadata 推导 ====================
 const effectiveViewMetadata = computed<ViewMetadata>(() => {
@@ -483,6 +490,25 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   flex-direction: column;
   position: relative;
+}
+
+.task-bar.fill-vertical {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.task-bar.fill-vertical .task-bar-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.task-bar.fill-vertical .task-list {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 任务列表动画 */

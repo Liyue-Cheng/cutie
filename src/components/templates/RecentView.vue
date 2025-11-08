@@ -44,10 +44,11 @@
         <div class="task-list">
           <!-- 动态生成的日期任务栏 -->
           <TaskBar
-            v-for="dateInfo in dateList"
+            v-for="(dateInfo, index) in dateList"
             :key="dateInfo.viewKey"
             :title="dateInfo.label"
             :view-key="dateInfo.viewKey"
+            :fill-remaining-space="index === dateList.length - 1"
           />
         </div>
       </template>

@@ -65,6 +65,7 @@ export const useTaskStore = defineStore('task', () => {
     incompleteTasks: core.incompleteTasks,
     completedTasks: core.completedTasks,
     archivedTasks: core.archivedTasks,
+    upcomingTasks: core.upcomingTasks,
 
     // 选择器（多路复用器 - Mux）
     getTaskById_Mux: core.getTaskById_Mux,
