@@ -17,8 +17,26 @@
     <div class="right-column">
       <TwoRowLayout>
         <template #top>
-          <div class="column-header">
-            <h2>日历</h2>
+          <div class="calendar-header">
+            <!-- 左侧：年月显示 -->
+            <div class="calendar-year-month">
+              {{ calendarYearMonth }}
+            </div>
+
+            <!-- 中间：占位 -->
+            <div class="spacer"></div>
+
+            <!-- 右侧：缩放按钮 -->
+            <div class="calendar-zoom-controls">
+              <button
+                v-for="scale in [1, 2, 3] as const"
+                :key="scale"
+                :class="['zoom-btn', { active: calendarZoom === scale }]"
+                @click="calendarZoom = scale as 1 | 2 | 3"
+              >
+                {{ scale }}x
+              </button>
+            </div>
           </div>
         </template>
         <template #bottom>
@@ -27,7 +45,7 @@
               ref="calendarRef"
               :current-date="currentCalendarDate"
               :view-type="effectiveCalendarViewType"
-              :zoom="1"
+              :zoom="calendarZoom"
               :days="calendarDays"
             />
           </div>
@@ -68,6 +86,7 @@ const currentView = ref<'recent' | 'staging'>('recent') // 当前视图
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
+const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
 
 // 根据天数计算视图类型：7天显示本周视图，其他显示多天视图
 const calendarViewType = computed(() => {
@@ -119,6 +138,18 @@ const currentCalendarDate = computed(() => {
     registerStore.readRegister<string>(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME) ||
     getTodayDateString()
   )
+})
+
+// 格式化日历年月显示
+const calendarYearMonth = computed(() => {
+  const dateStr = currentCalendarDate.value
+  if (!dateStr) return ''
+  
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  
+  return `${year}年${month}月`
 })
 
 // ==================== 可拖动分割线逻辑 ====================
@@ -268,18 +299,59 @@ onBeforeUnmount(() => {
   background-color: var(--color-border-hover, var(--color-border-default));
 }
 
-/* 列头部 */
-.column-header {
+/* 日历头部 */
+.calendar-header {
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1rem;
 }
 
-.column-header h2 {
+/* 年月显示 */
+.calendar-year-month {
   font-size: 1.8rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  margin: 0;
+  white-space: nowrap;
+}
+
+/* 占位 */
+.spacer {
+  flex: 1;
+}
+
+/* 缩放按钮组 */
+.calendar-zoom-controls {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.zoom-btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-content);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 3.2rem;
+}
+
+.zoom-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-background-hover);
+  border-color: var(--color-border-hover);
+}
+
+.zoom-btn.active {
+  color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  font-weight: 600;
 }
 
 /* 日历包装器 */
