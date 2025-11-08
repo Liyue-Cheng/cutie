@@ -41,7 +41,11 @@ const manager = {
       props,
     }
 
-    const hideOnClickOutside = () => {
+    const hideOnClickOutside = (e: MouseEvent) => {
+      // 🎯 如果是右键点击，不隐藏菜单（让新的右键菜单逻辑接管）
+      if (e.type === 'contextmenu') {
+        return
+      }
       // 在这个函数里只做hide，不要再手动remove listener
       // 因为清理工作会由manager.hide()统一处理
       manager.hide()
@@ -56,7 +60,8 @@ const manager = {
 
     setTimeout(() => {
       window.addEventListener('click', hideOnClickOutside)
-      // 注意：这里不再使用 { once: true }，因为我们的清理是手动的
+      // 监听 contextmenu 是为了在菜单区域外右键时能够切换到新菜单
+      // 但在 hideOnClickOutside 中会忽略 contextmenu 事件，让 show() 逻辑接管
       window.addEventListener('contextmenu', hideOnClickOutside)
     }, 0)
   },
