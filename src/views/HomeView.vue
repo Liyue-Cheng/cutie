@@ -29,12 +29,22 @@
             <!-- 右侧：缩放按钮 -->
             <div class="calendar-zoom-controls">
               <button
-                v-for="scale in [1, 2, 3] as const"
-                :key="scale"
-                :class="['zoom-btn', { active: calendarZoom === scale }]"
-                @click="calendarZoom = scale as 1 | 2 | 3"
+                :class="['zoom-btn', 'zoom-btn-left', { active: calendarZoom === 1 }]"
+                @click="calendarZoom = 1"
               >
-                {{ scale }}x
+                1x
+              </button>
+              <button
+                :class="['zoom-btn', 'zoom-btn-middle', { active: calendarZoom === 2 }]"
+                @click="calendarZoom = 2"
+              >
+                2x
+              </button>
+              <button
+                :class="['zoom-btn', 'zoom-btn-right', { active: calendarZoom === 3 }]"
+                @click="calendarZoom = 3"
+              >
+                3x
               </button>
             </div>
           </div>
@@ -325,7 +335,7 @@ onBeforeUnmount(() => {
 /* 缩放按钮组 */
 .calendar-zoom-controls {
   display: flex;
-  gap: 0.4rem;
+  height: 3.6rem;
 }
 
 .zoom-btn {
@@ -339,16 +349,35 @@ onBeforeUnmount(() => {
   color: var(--color-text-primary);
   background-color: var(--color-background-secondary, #f5f5f5);
   border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
   min-width: 3.6rem;
 }
 
+/* 左侧按钮 */
+.zoom-btn-left {
+  border-radius: 0.6rem 0 0 0.6rem;
+  border-right: none;
+}
+
+/* 中间按钮 */
+.zoom-btn-middle {
+  border-radius: 0;
+  border-right: none;
+  border-left: 1px solid var(--color-border-default);
+}
+
+/* 右侧按钮 */
+.zoom-btn-right {
+  border-radius: 0 0.6rem 0.6rem 0;
+  border-left: 1px solid var(--color-border-default);
+}
+
 .zoom-btn:hover {
   background-color: var(--color-background-hover, #e8e8e8);
   border-color: var(--color-border-hover);
+  z-index: 1;
 }
 
 .zoom-btn:active {
@@ -360,6 +389,7 @@ onBeforeUnmount(() => {
   background-color: var(--color-primary-bg);
   border-color: var(--color-primary);
   font-weight: 600;
+  z-index: 2;
 }
 
 /* 日历包装器 */
