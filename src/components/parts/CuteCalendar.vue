@@ -7,6 +7,7 @@
         v-for="dateInfo in displayDates"
         :key="dateInfo.date"
         class="custom-day-header"
+        :data-date="dateInfo.date"
         :class="{ 'is-today': dateInfo.isToday }"
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
       >
@@ -43,7 +44,7 @@
 
 <script setup lang="ts">
 import FullCalendar from '@fullcalendar/vue3'
-import { computed, ref, nextTick, watch, onMounted } from 'vue'
+import { computed, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useRegisterStore } from '@/stores/register'
 import { useAutoScroll } from '@/composables/calendar/useAutoScroll'
@@ -54,6 +55,8 @@ import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInteractDrag'
+import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+import { interactManager } from '@/infra/drag-interact'
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
@@ -105,6 +108,7 @@ const drag = useCalendarInteractDrag(calendarRef, {
   handleAutoScroll,
   stopAutoScroll,
 })
+const dragStrategy = useDragStrategy()
 
 // 日历事件数据（传入视图类型）
 const viewTypeRef = computed(() => props.viewType)
@@ -162,6 +166,7 @@ interface DateHeaderInfo {
 
 const displayDates = ref<DateHeaderInfo[]>([])
 const timeAxisWidth = ref(0) // 时间轴宽度
+const headerDropzones = new Map<string, HTMLElement>()
 
 // 同步列宽度：从日历网格获取实际列宽
 function syncColumnWidths() {
@@ -248,9 +253,10 @@ function updateDisplayDates() {
 
   displayDates.value = dates
 
-  // 在下一帧同步列宽度
+  // 在下一帧同步列宽度并注册头部拖放区域
   nextTick(() => {
     syncColumnWidths()
+    registerHeaderDropzones()
   })
 
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Display dates updated', { count: dates.length })
@@ -449,6 +455,73 @@ onMounted(async () => {
     )
   }
 })
+
+onBeforeUnmount(() => {
+  headerDropzones.forEach((el) => interactManager.unregisterDropzone(el))
+  headerDropzones.clear()
+})
+
+// ==================== 日期头部拖放处理 ====================
+function registerHeaderDropzones() {
+  // 清理旧的dropzones
+  headerDropzones.forEach((el) => {
+    interactManager.unregisterDropzone(el)
+  })
+  headerDropzones.clear()
+
+  const headerEls = document.querySelectorAll(
+    '.custom-day-headers .custom-day-header'
+  ) as NodeListOf<HTMLElement>
+
+  headerEls.forEach((el) => {
+    const date = el.dataset.date
+    if (!date) return
+
+    const zoneId = `calendar-header-${date}`
+    el.setAttribute('data-zone-id', zoneId)
+
+    interactManager.registerDropzone(el, {
+      zoneId,
+      type: 'calendar',
+      onDrop: async (session) => {
+        try {
+          logger.info(LogTags.COMPONENT_CALENDAR, 'Drop task on calendar header', {
+            taskId: session.object.data.id,
+            targetDate: date,
+          })
+
+          // 构造日期视图的viewKey
+          const viewKey = `daily::${date}`
+
+          // 执行拖放策略，排序放在最前面
+          const result = await dragStrategy.executeDrop(session, viewKey, {
+            sourceContext: session.metadata?.sourceContext || {},
+            targetContext: {
+              taskIds: [], // 空列表表示放在最前面
+              displayTasks: [],
+            },
+          })
+
+          if (!result.success) {
+            logger.error(
+              LogTags.COMPONENT_CALENDAR,
+              'Failed to drop task on calendar header',
+              new Error(result.error || 'Unknown error')
+            )
+          }
+        } catch (error) {
+          logger.error(
+            LogTags.COMPONENT_CALENDAR,
+            'Error handling calendar header drop',
+            error instanceof Error ? error : new Error(String(error))
+          )
+        }
+      },
+    })
+
+    headerDropzones.set(zoneId, el)
+  })
+}
 
 // ==================== 暴露给父组件 ====================
 defineExpose({
@@ -910,7 +983,7 @@ defineExpose({
 .custom-day-headers {
   display: flex;
   align-items: center;
-  background-color: var(--color-background-primary, #fff);
+  background-color: var(--color-background-content, #fff);
   border-bottom: 1px solid var(--color-border-default, #e0e0e0);
   position: sticky;
   top: 0;
@@ -934,10 +1007,11 @@ defineExpose({
   border-right: 1px solid var(--color-border-default, #e0e0e0);
   transition: background-color 0.2s ease;
   box-sizing: border-box; /* 确保 padding 不影响宽度 */
+  cursor: pointer;
 }
 
 .custom-day-header:hover {
-  background-color: var(--color-background-secondary, #f5f5f5);
+  background-color: var(--color-background-hover, rgb(0 0 0 / 3%));
 }
 
 .custom-day-header.is-today {
