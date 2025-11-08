@@ -32,43 +32,11 @@ const manager = {
     // 在设置新状态之前，先调用上一次的清理函数，确保window是干净的。
     cleanupListeners()
 
-    // 计算初始位置
-    let x = event?.clientX ?? 0
-    let y = event?.clientY ?? 0
-
-    // 🎯 屏幕边缘检测和位置调整
-    // 预估菜单尺寸（可以根据实际菜单调整）
-    const MENU_WIDTH = 200
-    const MENU_HEIGHT = 300
-    const PADDING = 8 // 距离边缘的安全距离
-
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-
-    // 检查右边缘
-    if (x + MENU_WIDTH + PADDING > viewportWidth) {
-      x = viewportWidth - MENU_WIDTH - PADDING
-    }
-
-    // 检查底部边缘
-    if (y + MENU_HEIGHT + PADDING > viewportHeight) {
-      y = viewportHeight - MENU_HEIGHT - PADDING
-    }
-
-    // 检查左边缘
-    if (x < PADDING) {
-      x = PADDING
-    }
-
-    // 检查顶部边缘
-    if (y < PADDING) {
-      y = PADDING
-    }
-
+    // 🎯 使用原始鼠标位置，边缘检测由 ContextMenuHost 根据实际尺寸处理
     state.value = {
       show: true,
-      x,
-      y,
+      x: event?.clientX ?? 0,
+      y: event?.clientY ?? 0,
       component: markRaw(component),
       props,
     }
