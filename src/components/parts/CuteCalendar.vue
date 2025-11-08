@@ -15,7 +15,10 @@
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
       >
         <span class="day-name">{{ dateInfo.dayName }}</span>
-        <span class="date-number">{{ dateInfo.dateNumber }}<span v-if="dateInfo.isToday" class="today-label">·今天</span></span>
+        <span class="date-number">{{ dateInfo.dateNumber }}</span>
+        <span v-if="dateInfo.isToday" class="today-badge">
+          <span class="today-dot"></span>今天
+        </span>
         <!-- 拖动预览指示器 -->
         <span v-if="isDragTargetDate(dateInfo.date)" class="drag-preview-indicator">+</span>
       </div>
@@ -1070,10 +1073,24 @@ defineExpose({
   color: var(--color-text-primary, #333);
 }
 
-.custom-day-header .date-number .today-label {
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--color-text-secondary, #666);
-  margin-left: 0.2rem;
+.custom-day-header .today-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  margin-left: 0.4rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary, #4a90e2);
+  background-color: var(--color-primary-bg, rgb(74 144 226 / 10%));
+  border-radius: 1rem;
+  line-height: 1.4;
+}
+
+.custom-day-header .today-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--color-primary, #4a90e2);
 }
 </style>
