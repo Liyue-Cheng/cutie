@@ -144,11 +144,11 @@ const currentCalendarDate = computed(() => {
 const calendarYearMonth = computed(() => {
   const dateStr = currentCalendarDate.value
   if (!dateStr) return ''
-  
+
   const date = new Date(dateStr)
   const year = date.getFullYear()
   const month = date.getMonth() + 1
-  
+
   return `${year}年${month}月`
 })
 
@@ -329,22 +329,30 @@ onBeforeUnmount(() => {
 }
 
 .zoom-btn {
-  padding: 0.4rem 0.8rem;
-  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-content);
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
   border: 1px solid var(--color-border-default);
-  border-radius: 0.4rem;
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 3.2rem;
+  white-space: nowrap;
+  min-width: 3.6rem;
 }
 
 .zoom-btn:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-background-hover);
+  background-color: var(--color-background-hover, #e8e8e8);
   border-color: var(--color-border-hover);
+}
+
+.zoom-btn:active {
+  transform: scale(0.98);
 }
 
 .zoom-btn.active {
