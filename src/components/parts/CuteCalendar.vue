@@ -406,12 +406,36 @@ watch(
   }
 )
 
+// 窗口resize处理函数
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(async () => {
   // 使用 nextTick 确保DOM完全渲染后再获取数据
   await nextTick()
 
   // 🔥 注册日历为 dropzone（新系统）
   drag.registerCalendarDropzone()
+
+  // 🔥 监听窗口大小变化，同步列宽和更新日历尺寸
+  resizeObserver = new ResizeObserver(() => {
+    if (calendarRef.value) {
+      const calendarApi = calendarRef.value.getApi()
+      if (calendarApi) {
+        // 更新日历尺寸
+        calendarApi.updateSize()
+        // 延迟同步列宽，等待DOM更新
+        nextTick(() => {
+          syncColumnWidths()
+        })
+      }
+    }
+  })
+
+  // 观察日历容器的大小变化
+  const calendarContainer = document.querySelector('.calendar-container')
+  if (calendarContainer) {
+    resizeObserver.observe(calendarContainer)
+  }
 
   try {
     // 🔧 FIX: 加载更大的时间范围（前后各 3 个月），避免切换日历时看不到数据
@@ -465,6 +489,13 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  // 清理resize observer
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+
+  // 清理header dropzones
   headerDropzones.forEach((el) => interactManager.unregisterDropzone(el))
   headerDropzones.clear()
 })
