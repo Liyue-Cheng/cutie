@@ -339,7 +339,7 @@ function handleClick() {
 // 右键菜单
 function showContextMenu(event: MouseEvent) {
   event.preventDefault()
-  contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
+  contextMenu.show(KanbanTaskCardMenu, { task: props.task, viewKey: props.viewKey }, event)
 }
 
 function onMouseDown(event: MouseEvent) {

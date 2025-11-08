@@ -29,6 +29,16 @@
       <CuteIcon name="RotateCcw" :size="14" />
       返回暂存区
     </button>
+    
+    <!-- 取消今日排期（只在日期视图显示） -->
+    <template v-if="showCancelSchedule">
+      <div class="divider"></div>
+      <button class="menu-button" @click="handleAction('cancel-today-schedule')">
+        <CuteIcon name="CalendarX" :size="14" />
+        取消今日排期
+      </button>
+    </template>
+    
     <div class="divider"></div>
     <button v-if="!task.is_archived" class="menu-button" @click="handleAction('archive')">
       归档任务
@@ -49,6 +59,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
   task: TaskCard
+  viewKey?: string
 }>()
 
 const emit = defineEmits(['close'])
@@ -61,12 +72,28 @@ const isRecurringTask = computed(() => {
   return !!(props.task.recurrence_id && props.task.recurrence_original_date)
 })
 
+// 检查是否显示"取消今日排期"选项
+// 只在日期视图（viewKey 为 daily::YYYY-MM-DD 格式）中显示
+const showCancelSchedule = computed(() => {
+  if (!props.viewKey) return false
+  return props.viewKey.startsWith('daily::')
+})
+
+// 获取当前日期
+const currentDate = computed(() => {
+  if (props.viewKey && props.viewKey.startsWith('daily::')) {
+    return props.viewKey.split('::')[1]
+  }
+  return ''
+})
+
 type ActionType =
   | 'edit'
   | 'delete'
   | 'archive'
   | 'unarchive'
   | 'return-to-staging'
+  | 'cancel-today-schedule'
   | 'stop-repeating'
   | 'change-frequency'
   | 'update-all-instances'
@@ -117,6 +144,29 @@ const handleAction = async (action: ActionType) => {
       logger.error(
         LogTags.COMPONENT_KANBAN,
         'Failed to return task to staging',
+        error instanceof Error ? error : new Error(String(error))
+      )
+    }
+  } else if (action === 'cancel-today-schedule') {
+    try {
+      const dateToCancel = currentDate.value
+      if (!dateToCancel) {
+        logger.warn(LogTags.COMPONENT_KANBAN, 'No date to cancel schedule for')
+        return
+      }
+      
+      await pipeline.dispatch('schedule.delete', {
+        task_id: props.task.id,
+        scheduled_day: dateToCancel,
+      })
+      logger.info(LogTags.COMPONENT_KANBAN, 'Cancelled today schedule', {
+        taskTitle: props.task.title,
+        date: dateToCancel,
+      })
+    } catch (error) {
+      logger.error(
+        LogTags.COMPONENT_KANBAN,
+        'Failed to cancel today schedule',
         error instanceof Error ? error : new Error(String(error))
       )
     }
