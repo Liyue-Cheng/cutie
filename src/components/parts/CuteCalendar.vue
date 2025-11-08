@@ -595,7 +595,7 @@ defineExpose({
 /* 预览事件样式 */
 .fc-event.preview-event {
   background-color: #bceaee !important;
-  color: #fff !important;
+  color: var(--color-text-primary, #575279) !important;
   border-color: #357abd !important;
   pointer-events: none !important; /* 允许命中检测到下方的真实事件，避免阻挡 */
 }
@@ -603,7 +603,7 @@ defineExpose({
 /* 创建中事件样式 */
 .fc-event.creating-event {
   background-color: #bceaee !important;
-  color: #fff !important;
+  color: var(--color-text-primary, #575279) !important;
   border-color: #357abd !important;
   opacity: 0.8;
   animation: pulse 1s infinite;
@@ -725,6 +725,15 @@ defineExpose({
 .fc-timegrid-event {
   border-color: #ddd !important; /* 设置事件边框为灰色 */
   box-shadow: none !important; /* 移除默认阴影效果 */
+}
+
+/* 所有时间块事件使用项目默认字体颜色 */
+.fc-event .fc-event-title,
+.fc-event .fc-event-time,
+.fc-timegrid-event .fc-event-title,
+.fc-timegrid-event .fc-event-time {
+  color: var(--color-text-primary, #575279) !important;
+  font-weight: 600 !important;
 }
 
 /* 全天事件内边距 */
