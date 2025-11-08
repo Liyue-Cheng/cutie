@@ -938,76 +938,97 @@ defineExpose({
 }
 
 /* ===============================================
- * 12. 任务事件样式
+ * 12. 任务事件样式（统一为图标+文本）
  * =============================================== */
 
-/* 任务事件（全日）样式 */
+/* 任务事件（全日）样式 - 无背景，图标+文本 */
 .fc-event.task-event {
-  opacity: 0.85;
-  border-left: 3px solid currentcolor;
+  background: transparent !important;
+  border: none !important;
   font-weight: 500;
-  cursor: default; /* ✅ 不可拖动，使用默认光标 */
+  cursor: default;
+  padding-left: 0 !important;
+}
+
+.fc-event.task-event .fc-event-main {
+  color: var(--color-text-primary, #575279) !important;
 }
 
 .fc-event.task-event:hover {
-  opacity: 1;
-  transform: scale(1.02);
-  transition: all 0.15s ease;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
 }
 
-/* 月视图中的任务事件 */
+/* 月视图中的任务事件 - 左侧加彩色圆点 */
 .fc-daygrid-event.task-event {
-  border-left-width: 3px;
+  position: relative;
+}
+
+.fc-daygrid-event.task-event::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--fc-event-border-color);
+}
+
+/* 任务事件标题需要左侧留出空间给圆点 */
+.fc-daygrid-event.task-event .fc-event-main {
+  padding-left: 16px;
 }
 
 /* ===============================================
- * 13. 截止日期事件样式
+ * 13. 截止日期事件样式（统一为图标+文本）
  * =============================================== */
 
-/* 截止日期事件样式 */
+/* 截止日期事件样式 - 无背景，图标+文本 */
 .fc-event.due-date-event {
-  opacity: 0.9;
-  border: 2px dashed currentcolor;
-  border-left-width: 4px;
-  border-left-style: solid;
+  background: transparent !important;
+  border: none !important;
   font-weight: 600;
-  cursor: default; /* ✅ 不可拖动，使用默认光标 */
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 10px,
-    rgb(255 255 255 / 10%) 10px,
-    rgb(255 255 255 / 10%) 20px
-  );
+  cursor: default;
+  padding-left: 0 !important;
+}
+
+.fc-event.due-date-event .fc-event-main {
+  color: var(--color-text-primary, #575279) !important;
 }
 
 .fc-event.due-date-event:hover {
-  opacity: 1;
-  transform: scale(1.03);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
-  transition: all 0.15s ease;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
 }
 
-/* 逾期的截止日期事件（更明显的样式） */
-.fc-event.due-date-event.overdue {
-  animation: pulse-overdue 2s ease-in-out infinite;
-  font-weight: 700;
-}
-
-@keyframes pulse-overdue {
-  0%,
-  100% {
-    opacity: 0.9;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
-/* 月视图中的截止日期事件 */
+/* 月视图中的截止日期事件 - 左侧加彩色圆点 */
 .fc-daygrid-event.due-date-event {
-  border-left-width: 4px;
+  position: relative;
+}
+
+.fc-daygrid-event.due-date-event::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--fc-event-border-color);
+}
+
+/* 截止日期事件标题需要左侧留出空间给圆点 */
+.fc-daygrid-event.due-date-event .fc-event-main {
+  padding-left: 16px;
+}
+
+/* 逾期的截止日期事件 - 文字颜色更醒目 */
+.fc-event.due-date-event.overdue .fc-event-main {
+  color: #ef4444 !important;
+  font-weight: 700;
 }
 
 /* ===============================================
