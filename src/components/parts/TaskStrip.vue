@@ -44,17 +44,17 @@
           />
         </div>
       </div>
-    </div>
 
-    <!-- 时间块显示（如果有） -->
-    <div v-if="todayTimeBlocks.length > 0" class="time-blocks-section">
-      <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
-        <span class="time-tag-dot" :style="{ backgroundColor: area?.color || '#999' }"></span>
-        {{ formatTimeBlockStart(block) }}
-      </span>
-      <span v-if="todayTimeBlocks.length > 3" class="time-tag-more"
-        >+{{ todayTimeBlocks.length - 3 }}</span
-      >
+      <!-- 时间块显示（如果有） -->
+      <div v-if="todayTimeBlocks.length > 0" class="time-blocks-inline">
+        <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
+          <span class="time-tag-dot" :style="{ backgroundColor: area?.color || '#999' }"></span>
+          {{ formatTimeBlockStart(block) }}
+        </span>
+        <span v-if="todayTimeBlocks.length > 3" class="time-tag-more"
+          >+{{ todayTimeBlocks.length - 3 }}</span
+        >
+      </div>
     </div>
 
     <!-- 概览笔记 -->
@@ -459,13 +459,11 @@ function onMouseDown(event: MouseEvent) {
   z-index: 100;
 }
 
-/* 时间块显示 */
-.time-blocks-section {
+/* 时间块内联显示 */
+.time-blocks-inline {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.8rem;
-  padding-left: 3rem;
   flex-wrap: wrap;
 }
 
