@@ -31,6 +31,7 @@
       <!-- 预期时间显示 -->
       <div class="estimated-duration-wrapper">
         <button class="estimated-duration" @click.stop="toggleTimePicker">
+          <span class="duration-dot"></span>
           {{ formattedDuration }}
         </button>
 
@@ -51,8 +52,8 @@
         v-for="block in todayTimeBlocks.slice(0, 3)"
         :key="block.id"
         class="time-tag"
-        :style="{ backgroundColor: area?.color || '#ccc' }"
       >
+        <span class="time-tag-dot" :style="{ backgroundColor: area?.color || '#999' }"></span>
         {{ formatTimeBlockStart(block) }}
       </span>
       <span v-if="todayTimeBlocks.length > 3" class="time-tag-more"
@@ -422,20 +423,36 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .estimated-duration {
-  padding: 0.3rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-secondary);
-  background-color: transparent;
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.3rem;
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border: 1px solid var(--color-border-default, #e0e0e0);
+  border-radius: 1.2rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .estimated-duration:hover {
   border-color: var(--color-primary, #4a90e2);
-  background-color: var(--color-primary-bg, #e3f2fd);
+  background-color: var(--color-primary-bg, rgb(74 144 226 / 12%));
+  color: var(--color-primary, #4a90e2);
+}
+
+.duration-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background-color: var(--color-text-tertiary, #999);
+  transition: background-color 0.2s ease;
+}
+
+.estimated-duration:hover .duration-dot {
+  background-color: var(--color-primary, #4a90e2);
 }
 
 .time-picker-popup {
@@ -457,27 +474,37 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .time-tag {
-  display: inline-block;
-  padding: 0.18rem 0.54rem;
-  font-size: 1.08rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 1.1rem;
   font-weight: 500;
-  color: #fff;
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border: 1px solid var(--color-border-default, #e0e0e0);
   white-space: nowrap;
-  border-radius: 0.36rem;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+  border-radius: 1.2rem;
   line-height: 1.4;
 }
 
+.time-tag-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
 .time-tag-more {
-  display: inline-block;
-  padding: 0.18rem 0.54rem;
-  font-size: 1.08rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.8rem;
+  font-size: 1.1rem;
   font-weight: 500;
-  color: #666;
+  color: var(--color-text-tertiary);
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  border: 1px solid var(--color-border-default, #e0e0e0);
   white-space: nowrap;
-  border-radius: 0.27rem;
-  background-color: #f0f0f0;
+  border-radius: 1.2rem;
   line-height: 1.4;
 }
 
