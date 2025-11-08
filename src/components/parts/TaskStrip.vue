@@ -423,12 +423,14 @@ function onMouseDown(event: MouseEvent) {
   align-items: center;
   gap: 0.4rem;
   padding: 0.3rem 0.8rem;
+  font-family: inherit;
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
   border: 1.5px solid rgb(0 0 0 / 15%);
   border-radius: 1.2rem;
+  line-height: 1.4;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -472,7 +474,7 @@ function onMouseDown(event: MouseEvent) {
   align-items: center;
   gap: 0.4rem;
   padding: 0.3rem 0.8rem;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
@@ -492,7 +494,7 @@ function onMouseDown(event: MouseEvent) {
   display: inline-flex;
   align-items: center;
   padding: 0.3rem 0.8rem;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-tertiary);
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
