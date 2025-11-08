@@ -466,6 +466,12 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   position: relative;
 }
 
+/* 任务卡片包装器 - 避免margin导致的拖动闪烁 */
+.task-card-wrapper {
+  margin: 0;
+  padding: 0;
+}
+
 /* 任务列表动画 */
 .task-list-move {
   transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
