@@ -15,7 +15,6 @@
           <div class="combined-btn-wrapper">
             <!-- 左半边：今天 -->
             <button class="combined-btn-left" @click="goToToday" title="回到今天">
-              <CuteIcon name="Calendar" :size="16" />
               <span>今天</span>
             </button>
             <!-- 右半边：日历选择器 -->
