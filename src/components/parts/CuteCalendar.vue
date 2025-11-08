@@ -1003,7 +1003,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  padding: 0.6rem 0.4rem;
+  padding: 1.2rem 0.4rem;
   border-right: 1px solid var(--color-border-default, #e0e0e0);
   transition: background-color 0.2s ease;
   box-sizing: border-box; /* 确保 padding 不影响宽度 */
