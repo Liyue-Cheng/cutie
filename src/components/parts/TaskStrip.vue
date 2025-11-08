@@ -370,14 +370,14 @@ function onMouseDown(event: MouseEvent) {
   border-radius: 0;
   padding: 0.8rem 1.6rem;
   margin-bottom: 0;
-  transition:
-    background-color 0.2s ease,
-    opacity 0.2s ease;
   cursor: pointer;
 
   /* 防止动画过程中出现发丝线 */
   outline: 1px solid transparent;
   background-clip: padding-box;
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .task-strip:hover {

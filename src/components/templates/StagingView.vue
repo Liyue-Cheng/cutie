@@ -72,5 +72,13 @@ onMounted(async () => {
   height: 100%;
   overflow-y: auto;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 最后一个TaskBar延展到底部，避免拖动到底部空白区域时闪烁 */
+.task-list > :deep(:last-child) {
+  flex: 1;
+  min-height: auto;
 }
 </style>
