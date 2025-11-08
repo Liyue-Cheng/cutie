@@ -15,7 +15,7 @@
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
       >
         <span class="day-name">{{ dateInfo.dayName }}</span>
-        <span class="date-number">{{ dateInfo.dateNumber }}</span>
+        <span class="date-number">{{ dateInfo.dateNumber }}<span v-if="dateInfo.isToday" class="today-label">·今天</span></span>
         <!-- 拖动预览指示器 -->
         <span v-if="isDragTargetDate(dateInfo.date)" class="drag-preview-indicator">+</span>
       </div>
@@ -473,10 +473,20 @@ function isDragTargetDate(date: string): boolean {
   if (!preview) return false
 
   const targetZoneId = preview.raw.targetZoneId
-  if (!targetZoneId) return false
+  if (!targetZoneId || targetZoneId !== `daily::${date}`) {
+    return false
+  }
 
-  // 检查目标zone是否匹配该日期的视图key
-  return targetZoneId === `daily::${date}`
+  const mousePosition = preview.raw.mousePosition
+  const headerEl = headerDropzones.get(targetZoneId)
+  if (!mousePosition || !headerEl) {
+    return false
+  }
+
+  const rect = headerEl.getBoundingClientRect()
+  const { x, y } = mousePosition
+
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
 }
 
 function registerHeaderDropzones() {
@@ -1040,10 +1050,6 @@ defineExpose({
   border-color: var(--color-primary, #4a90e2);
 }
 
-.custom-day-header.is-today {
-  background-color: var(--color-primary-bg, rgb(139 92 246 / 10%));
-}
-
 .drag-preview-indicator {
   font-size: 1.6rem;
   font-weight: 600;
@@ -1058,18 +1064,16 @@ defineExpose({
   text-transform: uppercase;
 }
 
-.custom-day-header.is-today .day-name {
-  color: var(--color-primary, #8b5cf6);
-}
-
 .custom-day-header .date-number {
   font-size: 1.4rem;
   font-weight: 500;
   color: var(--color-text-primary, #333);
 }
 
-.custom-day-header.is-today .date-number {
-  color: var(--color-primary, #8b5cf6);
-  font-weight: 700;
+.custom-day-header .date-number .today-label {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+  margin-left: 0.2rem;
 }
 </style>
