@@ -11,19 +11,15 @@
             <CuteIcon name="ChevronRight" :size="16" />
           </button>
 
-          <!-- 今天按钮 -->
-          <button class="control-btn today-btn" @click="goToToday" title="回到今天">
-            <CuteIcon name="Calendar" :size="16" />
-            <span>今天</span>
-          </button>
-
-          <!-- 日历图标（点击弹出日期选择器） -->
-          <div class="date-picker-wrapper">
-            <button
-              class="control-btn calendar-icon-btn"
-              @click="toggleDatePicker"
-              title="选择日期"
-            >
+          <!-- 今天/日历合并按钮 -->
+          <div class="combined-btn-wrapper">
+            <!-- 左半边：今天 -->
+            <button class="combined-btn-left" @click="goToToday" title="回到今天">
+              <CuteIcon name="Calendar" :size="16" />
+              <span>今天</span>
+            </button>
+            <!-- 右半边：日历选择器 -->
+            <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
               <CuteIcon name="CalendarDays" :size="16" />
             </button>
             <input
@@ -289,11 +285,54 @@ onMounted(async () => {
   transform: scale(0.98);
 }
 
-/* 日期选择器 */
-.date-picker-wrapper {
+/* 合并按钮（今天 + 日历） */
+.combined-btn-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  height: 3.6rem;
+}
+
+.combined-btn-left,
+.combined-btn-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3.6rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.combined-btn-left {
+  gap: 0.6rem;
+  padding: 0 1.2rem;
+  border-radius: 0.6rem 0 0 0.6rem;
+  border-right: none;
+}
+
+.combined-btn-right {
+  width: 3.6rem;
+  padding: 0;
+  border-radius: 0 0.6rem 0.6rem 0;
+  border-left: 1px solid var(--color-border-default);
+}
+
+.combined-btn-left:hover,
+.combined-btn-right:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+  z-index: 1;
+}
+
+.combined-btn-left:active,
+.combined-btn-right:active {
+  transform: scale(0.98);
 }
 
 .date-input-hidden {
@@ -302,11 +341,6 @@ onMounted(async () => {
   pointer-events: none;
   width: 0;
   height: 0;
-}
-
-.calendar-icon-btn {
-  width: 3.6rem;
-  padding: 0;
 }
 
 /* 导航按钮 */
