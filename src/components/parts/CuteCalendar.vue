@@ -627,9 +627,9 @@ defineExpose({
   z-index: 10 !important;
 }
 
+/* 隐藏时间指示器的三角箭头 */
 .fc-timegrid-now-indicator-arrow {
-  border-left-color: #ff6b6b !important;
-  border-right-color: #ff6b6b !important;
+  display: none !important;
 }
 
 /* ===============================================
