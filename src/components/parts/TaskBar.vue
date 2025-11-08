@@ -35,24 +35,26 @@
       </div>
 
       <!-- 任务纸条列表 -->
-      <TransitionGroup name="task-list" tag="div" class="task-list">
-        <div
-          v-for="task in displayItems"
-          :key="task.id"
-          :class="['task-card-wrapper', `task-strip-wrapper-${normalizedViewKey}`]"
-          :data-task-id="task.id"
-        >
-          <TaskStrip
-            :task="task"
-            :view-key="viewKey"
-            @toggle-complete="toggleTaskComplete(task.id)"
-            @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
-          />
-        </div>
-        <div v-if="displayItems.length === 0" key="empty-state" class="empty-state">
-          <p>暂无任务</p>
-        </div>
-      </TransitionGroup>
+      <div ref="taskListRef" class="task-list-container">
+        <TransitionGroup name="task-list" tag="div" class="task-list">
+          <div
+            v-for="task in displayItems"
+            :key="task.id"
+            :class="['task-card-wrapper', `task-strip-wrapper-${normalizedViewKey}`]"
+            :data-task-id="task.id"
+          >
+            <TaskStrip
+              :task="task"
+              :view-key="viewKey"
+              @toggle-complete="toggleTaskComplete(task.id)"
+              @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
+            />
+          </div>
+          <div v-if="displayItems.length === 0" key="empty-state" class="empty-state">
+            <p>暂无任务</p>
+          </div>
+        </TransitionGroup>
+      </div>
     </div>
   </div>
 </template>
@@ -95,6 +97,7 @@ const isCollapsed = ref(props.defaultCollapsed)
 const newTaskTitle = ref('')
 const isCreatingTask = ref(false)
 const taskBarRef = ref<HTMLElement | null>(null)
+const taskListRef = ref<HTMLElement | null>(null)
 const taskInputRef = ref<HTMLInputElement | null>(null)
 const isInputFocused = ref(false)
 
@@ -123,7 +126,7 @@ const normalizedViewKey = computed(() => props.viewKey.replace(/::/g, '--'))
 const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   items: tasks,
-  containerRef: taskBarRef,
+  containerRef: taskListRef,
   draggableSelector: `.task-strip-wrapper-${normalizedViewKey.value}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
@@ -458,6 +461,14 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .task-input-wrapper.focused .add-task-btn:hover {
   background-color: rgb(74 144 226 / 10%);
+}
+
+/* 任务列表容器（拖放接收区） */
+.task-list-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* 任务列表 */
