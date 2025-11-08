@@ -80,12 +80,7 @@ async function handleDelete(id: string) {
             @keyup.enter="handleCreate"
           />
           <div class="color-picker-wrapper">
-            <input
-              v-model="newAreaColor"
-              type="color"
-              class="color-input"
-              title="选择颜色"
-            />
+            <input v-model="newAreaColor" type="color" class="color-input" title="选择颜色" />
             <div class="color-preview" :style="{ backgroundColor: newAreaColor }"></div>
           </div>
           <button
@@ -125,11 +120,7 @@ async function handleDelete(id: string) {
               <div v-if="editingArea?.id === area.id" class="edit-mode">
                 <div class="edit-form">
                   <div class="edit-color-wrapper">
-                    <input
-                      v-model="editingArea.color"
-                      type="color"
-                      class="edit-color-input"
-                    />
+                    <input v-model="editingArea.color" type="color" class="edit-color-input" />
                     <div
                       class="edit-color-preview"
                       :style="{ backgroundColor: editingArea.color }"
@@ -312,6 +303,7 @@ async function handleDelete(id: string) {
   border-radius: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  pointer-events: none;
 }
 
 .color-picker-wrapper:hover .color-preview {
@@ -527,6 +519,7 @@ async function handleDelete(id: string) {
   border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
   border-radius: 0.6rem;
   cursor: pointer;
+  pointer-events: none;
 }
 
 .edit-name-input {
