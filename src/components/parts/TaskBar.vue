@@ -470,6 +470,9 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 任务列表动画 */
 .task-list-move {
   transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: paint;
 }
 
 .task-list-enter-active {

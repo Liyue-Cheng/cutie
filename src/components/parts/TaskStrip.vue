@@ -369,12 +369,15 @@ function onMouseDown(event: MouseEvent) {
   border: none;
   border-radius: 0;
   padding: 0.8rem 1.6rem;
-  padding-bottom: 1.4rem;
-  margin: 0;
+  margin-bottom: 0;
   transition:
     background-color 0.2s ease,
     opacity 0.2s ease;
   cursor: pointer;
+
+  /* 防止动画过程中出现发丝线 */
+  outline: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 .task-strip:hover {
