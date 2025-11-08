@@ -999,10 +999,10 @@ defineExpose({
 .custom-day-header {
   flex-shrink: 0; /* 使用固定宽度，不自动伸缩 */
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.6rem;
   padding: 0.6rem 0.4rem;
   border-right: 1px solid var(--color-border-default, #e0e0e0);
   transition: background-color 0.2s ease;
