@@ -48,11 +48,7 @@
 
     <!-- 时间块显示（如果有） -->
     <div v-if="todayTimeBlocks.length > 0" class="time-blocks-section">
-      <span
-        v-for="block in todayTimeBlocks.slice(0, 3)"
-        :key="block.id"
-        class="time-tag"
-      >
+      <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
         <span class="time-tag-dot" :style="{ backgroundColor: area?.color || '#999' }"></span>
         {{ formatTimeBlockStart(block) }}
       </span>
@@ -431,7 +427,7 @@ function onMouseDown(event: MouseEvent) {
   font-weight: 500;
   color: var(--color-text-secondary);
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border: 1px solid var(--color-border-default, #e0e0e0);
+  border: 1.5px solid rgb(0 0 0 / 15%);
   border-radius: 1.2rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -482,7 +478,7 @@ function onMouseDown(event: MouseEvent) {
   font-weight: 500;
   color: var(--color-text-secondary);
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border: 1px solid var(--color-border-default, #e0e0e0);
+  border: 1.5px solid rgb(0 0 0 / 15%);
   white-space: nowrap;
   border-radius: 1.2rem;
   line-height: 1.4;
@@ -502,7 +498,7 @@ function onMouseDown(event: MouseEvent) {
   font-weight: 500;
   color: var(--color-text-tertiary);
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border: 1px solid var(--color-border-default, #e0e0e0);
+  border: 1.5px solid rgb(0 0 0 / 15%);
   white-space: nowrap;
   border-radius: 1.2rem;
   line-height: 1.4;
