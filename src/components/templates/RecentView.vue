@@ -265,8 +265,10 @@ onMounted(async () => {
 .control-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.6rem;
-  padding: 0.8rem 1.2rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
   font-size: 1.4rem;
   font-weight: 500;
   color: var(--color-text-primary);
@@ -303,12 +305,14 @@ onMounted(async () => {
 }
 
 .calendar-icon-btn {
-  padding: 0.8rem;
+  width: 3.6rem;
+  padding: 0;
 }
 
 /* 导航按钮 */
 .nav-btn {
-  padding: 0.8rem;
+  width: 3.6rem;
+  padding: 0;
 }
 
 /* 天数选择器 */
@@ -318,7 +322,8 @@ onMounted(async () => {
 }
 
 .day-count-select {
-  padding: 0.6rem 1rem;
+  height: 3.6rem;
+  padding: 0 1rem;
   font-size: 1.3rem;
   font-weight: 500;
   color: var(--color-text-primary);
