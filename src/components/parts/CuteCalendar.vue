@@ -8,11 +8,16 @@
         :key="dateInfo.date"
         class="custom-day-header"
         :data-date="dateInfo.date"
-        :class="{ 'is-today': dateInfo.isToday }"
+        :class="{ 
+          'is-today': dateInfo.isToday,
+          'is-drag-target': isDragTargetDate(dateInfo.date)
+        }"
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
       >
         <span class="day-name">{{ dateInfo.dayName }}</span>
         <span class="date-number">{{ dateInfo.dateNumber }}</span>
+        <!-- 拖动预览指示器 -->
+        <span v-if="isDragTargetDate(dateInfo.date)" class="drag-preview-indicator">+</span>
       </div>
     </div>
 
@@ -56,7 +61,7 @@ import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
-import { interactManager } from '@/infra/drag-interact'
+import { interactManager, dragPreviewState } from '@/infra/drag-interact'
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
@@ -462,6 +467,18 @@ onBeforeUnmount(() => {
 })
 
 // ==================== 日期头部拖放处理 ====================
+// 检测是否拖动到指定日期
+function isDragTargetDate(date: string): boolean {
+  const preview = dragPreviewState.value
+  if (!preview) return false
+  
+  const targetZoneId = preview.raw.targetZoneId
+  if (!targetZoneId) return false
+  
+  // 检查目标zone是否匹配该日期的视图key
+  return targetZoneId === `daily::${date}`
+}
+
 function registerHeaderDropzones() {
   // 清理旧的dropzones
   headerDropzones.forEach((el) => {
@@ -477,12 +494,16 @@ function registerHeaderDropzones() {
     const date = el.dataset.date
     if (!date) return
 
-    const zoneId = `calendar-header-${date}`
+    // 使用daily::date作为zoneId，这样预览系统可以统一识别
+    const zoneId = `daily::${date}`
     el.setAttribute('data-zone-id', zoneId)
 
     interactManager.registerDropzone(el, {
       zoneId,
-      type: 'calendar',
+      type: 'kanban', // 改为kanban类型，这样预览系统会把它当作看板处理
+      computePreview: () => ({
+        dropIndex: 0, // 总是放在最上面
+      }),
       onDrop: async (session) => {
         try {
           logger.info(LogTags.COMPONENT_CALENDAR, 'Drop task on calendar header', {
@@ -1014,8 +1035,20 @@ defineExpose({
   background-color: var(--color-background-hover, rgb(0 0 0 / 3%));
 }
 
+.custom-day-header.is-drag-target {
+  background-color: var(--color-primary-bg, rgb(74 144 226 / 15%));
+  border-color: var(--color-primary, #4a90e2);
+}
+
 .custom-day-header.is-today {
   background-color: var(--color-primary-bg, rgb(139 92 246 / 10%));
+}
+
+.drag-preview-indicator {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--color-primary, #4a90e2);
+  line-height: 1;
 }
 
 .custom-day-header .day-name {
