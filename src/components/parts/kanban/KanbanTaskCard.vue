@@ -29,6 +29,10 @@ const emit = defineEmits<{
 
 const contextMenu = useContextMenu()
 
+const currentViewKey = computed(() => {
+  return props.viewMetadata?.id ?? ''
+})
+
 // ✅ 防误触状态：刚点击过在场按钮
 const justToggledPresence = ref(false)
 
@@ -166,7 +170,14 @@ const buttonLayoutMode = computed(() => {
 })
 
 function showContextMenu(event: MouseEvent) {
-  contextMenu.show(KanbanTaskCardMenu, { task: props.task }, event)
+  contextMenu.show(
+    KanbanTaskCardMenu,
+    {
+      task: props.task,
+      viewKey: currentViewKey.value,
+    },
+    event
+  )
 }
 
 async function handleStatusChange(isChecked: boolean) {
