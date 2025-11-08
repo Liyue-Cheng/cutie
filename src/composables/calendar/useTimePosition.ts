@@ -41,33 +41,37 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
 
     // 🔧 FIX: 根据视图类型确定日期
     let currentDate: Date
-    if (currentView.type === 'timeGridWeek') {
-      // 周视图：根据 X 坐标确定日期
-      const relativeX = event.clientX - cachedRect.value.left
-      const columnPercentage = relativeX / cachedRect.value.width
+    if (currentView.type === 'timeGridWeek' || currentView.type === 'timeGrid3Days') {
+      // 周视图或三天视图：找到鼠标实际所在的日期列
+      // 注意：排除第一列（时间轴列），只查询有 data-date 属性的日期列
+      const dayColumns = currentTarget.querySelectorAll('.fc-timegrid-col[data-date]')
+      let dayIndex = -1
 
-      // 计算是周几（0-6，假设一周有7天）
-      const dayIndex = Math.floor(columnPercentage * 7)
-      const clampedDayIndex = Math.max(0, Math.min(dayIndex, 6))
+      // 遍历所有日期列，找到鼠标所在的列
+      for (let i = 0; i < dayColumns.length; i++) {
+        const col = dayColumns[i] as HTMLElement
+        const colRect = col.getBoundingClientRect()
+        
+        // 检查鼠标X坐标是否在这一列的范围内
+        if (event.clientX >= colRect.left && event.clientX <= colRect.right) {
+          dayIndex = i
+          break
+        }
+      }
 
-      // 获取周的起始日期
-      const weekStart = new Date(currentView.activeStart)
-      currentDate = new Date(weekStart)
-      currentDate.setDate(weekStart.getDate() + clampedDayIndex)
-      currentDate.setHours(0, 0, 0, 0)
-    } else if (currentView.type === 'timeGrid3Days') {
-      // 三天视图：根据 X 坐标确定日期
-      const relativeX = event.clientX - cachedRect.value.left
-      const columnPercentage = relativeX / cachedRect.value.width
-
-      // 计算是哪一天（0-2，三天视图有3天）
-      const dayIndex = Math.floor(columnPercentage * 3)
-      const clampedDayIndex = Math.max(0, Math.min(dayIndex, 2))
+      // 如果没找到（比如在边界外），使用fallback逻辑
+      if (dayIndex === -1) {
+        const relativeX = event.clientX - cachedRect.value.left
+        const columnPercentage = relativeX / cachedRect.value.width
+        const numDays = currentView.type === 'timeGridWeek' ? 7 : 3
+        dayIndex = Math.floor(columnPercentage * numDays)
+        dayIndex = Math.max(0, Math.min(dayIndex, numDays - 1))
+      }
 
       // 获取视图起始日期
       const viewStart = new Date(currentView.activeStart)
       currentDate = new Date(viewStart)
-      currentDate.setDate(viewStart.getDate() + clampedDayIndex)
+      currentDate.setDate(viewStart.getDate() + dayIndex)
       currentDate.setHours(0, 0, 0, 0)
     } else if (currentView.type === 'dayGridMonth') {
       // 月视图：月视图通常不需要精确时间，这里返回当日0点
