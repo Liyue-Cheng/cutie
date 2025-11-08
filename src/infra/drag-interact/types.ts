@@ -20,6 +20,18 @@ export interface Position {
 }
 
 /**
+ * dropzone 的矩形定义
+ */
+export interface DropzoneRect {
+  left: number
+  right: number
+  top: number
+  bottom: number
+  width: number
+  height: number
+}
+
+/**
  * 拖放阶段枚举
  */
 export const DragPhase = {
@@ -67,6 +79,7 @@ export interface DragPreviewState<T = DragObject> {
   /** 计算数据 */
   computed: {
     dropIndex?: number // 在目标列表中的插入位置
+    isCompact?: boolean // 是否启用截断预览
     calendarMeta?: {
       start: string
       end: string
@@ -108,6 +121,9 @@ export interface DropzoneOptions {
 
   /** 区域类型 */
   type: 'kanban' | 'calendar'
+
+  /** 自定义矩形计算函数（可选） */
+  rectChecker?: (element: HTMLElement) => DropzoneRect
 
   /** 计算预览位置的函数（可选，由控制器提供标准实现） */
   computePreview?: (rawData: DragPreviewRawData<any>, element: HTMLElement) => DragPreviewComputed

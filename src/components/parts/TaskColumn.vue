@@ -144,7 +144,14 @@ const { displayItems } = useInteractDrag({
       <div
         v-for="task in displayItems"
         :key="task.id"
-        :class="`task-card-wrapper-${viewKey.replace(/::/g, '--')}`"
+        :class="[
+          'task-card-wrapper',
+          `task-card-wrapper-${viewKey.replace(/::/g, '--')}`,
+          {
+            'is-preview': (task as any)._isPreview === true,
+            'drag-compact': (task as any)._dragCompact === true,
+          },
+        ]"
         :data-task-id="task.id"
       >
         <KanbanTaskCard :task="task" :view-key="viewKey" :view-metadata="effectiveViewMetadata" />

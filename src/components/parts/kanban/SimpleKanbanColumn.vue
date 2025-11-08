@@ -403,7 +403,14 @@ function handleTitleClick() {
         <div
           v-for="task in displayItems"
           :key="task.id"
-          :class="`task-card-wrapper task-card-wrapper-${viewKey.replace(/::/g, '--')}`"
+          :class="[
+            'task-card-wrapper',
+            `task-card-wrapper-${viewKey.replace(/::/g, '--')}`,
+            {
+              'is-preview': (task as any)._isPreview === true,
+              'drag-compact': (task as any)._dragCompact === true,
+            },
+          ]"
           :data-task-id="task.id"
         >
           <KanbanTaskCard
@@ -625,6 +632,7 @@ function handleTitleClick() {
 }
 
 /* 过期看板中的标题和数量 */
+/* stylelint-disable-next-line no-descending-specificity */
 .simple-kanban-column.is-expired .title,
 .simple-kanban-column.is-expired .subtitle,
 .simple-kanban-column.is-expired .count {

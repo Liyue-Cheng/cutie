@@ -51,7 +51,7 @@ export function useTimePosition(calendarRef: Ref<InstanceType<typeof FullCalenda
       for (let i = 0; i < dayColumns.length; i++) {
         const col = dayColumns[i] as HTMLElement
         const colRect = col.getBoundingClientRect()
-        
+
         // 检查鼠标X坐标是否在这一列的范围内
         if (event.clientX >= colRect.left && event.clientX <= colRect.right) {
           dayIndex = i

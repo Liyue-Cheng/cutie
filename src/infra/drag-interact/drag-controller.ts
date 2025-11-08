@@ -53,6 +53,9 @@ class InteractDragController {
   private currentDropzoneElement: HTMLElement | null = null // 当前所在的 dropzone 元素
   private pendingLeaveTimer: number | null = null // 离开缓冲计时器
   private isProcessingDrop: boolean = false // 标记是否正在处理 drop（用于避免提前清理与重复执行）
+  private isCompactModeActive: boolean = false // 标记当前拖动是否启用了截断模式
+  private dragSourceElement: HTMLElement | null = null // 记录当前拖动的源元素
+  private dynamicDropEnabled: boolean = false // 标记是否已启用动态 drop 匹配
 
   // ==================== 状态管理 ====================
 
@@ -81,6 +84,8 @@ class InteractDragController {
   private cleanup() {
     this.cancelPendingLeave()
     this.removeGhost()
+    this.clearDragSourceElement()
+    this.isCompactModeActive = false
     dragPreviewActions.clear()
     this.state.session = null
     this.state.targetZone = null
@@ -122,6 +127,77 @@ class InteractDragController {
     // 清理其他状态
     this.validZones.clear()
     this.cleanup()
+  }
+
+  /**
+   * 确保启用 interact.js 的动态 drop 功能
+   * 该功能会在拖动过程中实时重新计算 dropzone 的位置与尺寸
+   */
+  private ensureDynamicDropEnabled() {
+    if (this.dynamicDropEnabled) {
+      return
+    }
+
+    interact.dynamicDrop(true)
+    this.dynamicDropEnabled = true
+    logger.debug(LogTags.DRAG_CROSS_VIEW, '[DragController] dynamicDrop enabled')
+  }
+
+  /**
+   * 计算当前 dropzone 的实时矩形
+   * 使用页面坐标系，确保在滚动或布局变化时仍能正确命中
+   */
+  private getDynamicDropzoneRect(element: HTMLElement) {
+    const rect = element.getBoundingClientRect()
+    const scrollX = window.scrollX ?? window.pageXOffset ?? 0
+    const scrollY = window.scrollY ?? window.pageYOffset ?? 0
+
+    return {
+      left: rect.left + scrollX,
+      right: rect.right + scrollX,
+      top: rect.top + scrollY,
+      bottom: rect.bottom + scrollY,
+      width: rect.width,
+      height: rect.height,
+    }
+  }
+
+  /**
+   * 判断当前任务卡是否需要进入截断模式
+   * 统一采用高度阈值（像素），避免依赖具体结构
+   */
+  private shouldApplyCompactMode(element: HTMLElement): boolean {
+    const rect = element.getBoundingClientRect()
+    // 阈值经验值：标题栏 + 笔记约 120px，高于该值视为内容过长
+    const COMPACT_HEIGHT_THRESHOLD = 120
+    return rect.height > COMPACT_HEIGHT_THRESHOLD
+  }
+
+  /**
+   * 应用/移除源元素的截断状态
+   */
+  private setDragSourceElement(element: HTMLElement, compact: boolean) {
+    if (this.dragSourceElement && this.dragSourceElement !== element) {
+      this.dragSourceElement.classList.remove('drag-compact')
+    }
+
+    this.dragSourceElement = element
+
+    if (compact) {
+      element.classList.add('drag-compact')
+    } else {
+      element.classList.remove('drag-compact')
+    }
+  }
+
+  /**
+   * 清理源元素的截断状态
+   */
+  private clearDragSourceElement() {
+    if (this.dragSourceElement) {
+      this.dragSourceElement.classList.remove('drag-compact')
+      this.dragSourceElement = null
+    }
   }
 
   // ==================== 幽灵元素管理 ====================
@@ -255,7 +331,9 @@ class InteractDragController {
       return
     }
 
-    const sourceElement = event.target as HTMLElement
+    const rawElement = event.target as HTMLElement
+    const sourceElement =
+      (rawElement.closest('[data-task-id], [data-object-id]') as HTMLElement | null) ?? rawElement
     // 记录拖拽起点（兼容性处理）
     this.startPointer = {
       x: event?.clientX ?? event?.pageX ?? event?.x0 ?? 0,
@@ -290,6 +368,10 @@ class InteractDragController {
         sourceContext: dragData.sourceContext,
       },
     }
+
+    const shouldCompact = this.shouldApplyCompactMode(sourceElement)
+    this.isCompactModeActive = shouldCompact
+    this.setDragSourceElement(sourceElement, shouldCompact)
 
     this.enterPhase('PREPARING', { session })
 
@@ -483,6 +565,7 @@ class InteractDragController {
                   targetZoneId: top.zoneId,
                   mousePosition: { x: event.clientX, y: event.clientY },
                   dropIndex,
+                  isCompact: this.isCompactModeActive,
                 })
                 this.enterTarget(top.zoneId, dropIndex)
                 // 初始化方向门控的参考坐标
@@ -546,6 +629,8 @@ class InteractDragController {
       return
     }
 
+    this.ensureDynamicDropEnabled()
+
     // 记录为有效区域
     this.validZones.add(zoneId)
 
@@ -556,10 +641,15 @@ class InteractDragController {
     // ✅ 原生版本：完全依赖 interact.js 的 dropzone 事件
     const isPhysicalZone = type === 'kanban'
 
-    interact(element).dropzone({
+    const interactable = interact(element)
+    const rectChecker = options.rectChecker ?? (() => this.getDynamicDropzoneRect(element))
+
+    interactable.dropzone({
       // 接受任务与模板两类卡片包装元素（支持跨类型拖放）
       accept: '.task-card-wrapper, .template-card-wrapper',
       overlap: 'pointer', // 指针模式：鼠标进入即触发
+      // 启用实时矩形检测，确保拖动过程中区域变化能被捕捉
+      rectChecker,
 
       listeners: {
         dragenter: (event: any) => {
@@ -602,6 +692,7 @@ class InteractDragController {
               targetZoneId: zoneId,
               mousePosition: { x: clientX, y: clientY },
               dropIndex,
+              isCompact: this.isCompactModeActive,
             })
           } else {
             // 日历等非物理区域：触发回弹
@@ -659,7 +750,7 @@ class InteractDragController {
           }
         },
       },
-    })
+    } as any)
 
     // 记录已注册的元素
     this.registeredElements.add(element)
@@ -798,6 +889,7 @@ class InteractDragController {
         targetZoneId: top.zoneId,
         mousePosition: { x: clientX, y: clientY },
         dropIndex,
+        isCompact: this.isCompactModeActive,
       })
       this.enterTarget(top.zoneId, dropIndex)
     } else {

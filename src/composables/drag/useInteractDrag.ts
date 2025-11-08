@@ -84,20 +84,41 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
 
     const { draggedObject, objectType: previewObjectType, sourceZoneId, targetZoneId } = preview.raw
     const { dropIndex } = preview.computed
+    const isSourceView = sourceZoneId === currentViewId
+    const isCompact = preview.computed.isCompact === true
 
     // 只处理匹配的对象类型
     if (previewObjectType !== objectType) {
       return currentItems
     }
 
+    const draggedId = getObjectId(draggedObject as T)
+
+    const applyCompactFlag = (list: T[]): T[] => {
+      if (!isSourceView || !isCompact) {
+        return list
+      }
+
+      let applied = false
+      const mapped = list.map((item) => {
+        if (getObjectId(item) === draggedId) {
+          applied = true
+          return {
+            ...item,
+            _dragCompact: true,
+          } as T & { _dragCompact?: boolean }
+        }
+        return item
+      })
+
+      return applied ? (mapped as T[]) : list
+    }
+
     // 🔥 场景C: 越界回弹 (targetZoneId === null)
     // 所有列表都回到原始状态
     if (targetZoneId === null) {
-      return currentItems
+      return applyCompactFlag(currentItems)
     }
-
-    // 获取拖动对象的ID
-    const draggedId = getObjectId(draggedObject as T)
 
     // 场景A: 实体元素在本列表中预览
     if (targetZoneId === currentViewId) {
@@ -112,12 +133,13 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
         previewList.splice(safeIndex, 0, {
           ...draggedObject,
           _isPreview: true, // 标记为预览状态
-        } as T & { _isPreview?: boolean })
+          _dragCompact: preview.computed.isCompact === true,
+        } as T & { _isPreview?: boolean; _dragCompact?: boolean })
 
         return previewList
       }
 
-      return withoutDragged
+      return applyCompactFlag(withoutDragged)
     }
 
     // 场景B: 实体元素在其他列表中预览（从本列表移除）
@@ -142,7 +164,7 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
           console.log('🔍 [useInteractDrag] Drag decision:', decision)
 
           if (decision.keepSourceElement) {
-            return currentItems
+            return applyCompactFlag(currentItems)
           }
         }
       }

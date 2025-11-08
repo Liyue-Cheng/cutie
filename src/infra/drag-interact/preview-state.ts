@@ -61,7 +61,9 @@ export const dragPreviewActions = {
     targetZoneId: string
     mousePosition: Position
     dropIndex?: number
+    isCompact?: boolean
   }) {
+    const isCompact = data.isCompact === true
     _previewState.value = {
       type: 'kanban',
       raw: {
@@ -73,6 +75,7 @@ export const dragPreviewActions = {
       },
       computed: {
         dropIndex: data.dropIndex,
+        isCompact,
       },
     }
   },

@@ -29,7 +29,7 @@
       <CuteIcon name="RotateCcw" :size="14" />
       返回暂存区
     </button>
-    
+
     <!-- 取消今日排期（只在日期视图显示） -->
     <template v-if="showCancelSchedule">
       <div class="divider"></div>
@@ -38,7 +38,7 @@
         取消今日排期
       </button>
     </template>
-    
+
     <div class="divider"></div>
     <button v-if="!task.is_archived" class="menu-button" @click="handleAction('archive')">
       归档任务
@@ -154,7 +154,7 @@ const handleAction = async (action: ActionType) => {
         logger.warn(LogTags.COMPONENT_KANBAN, 'No date to cancel schedule for')
         return
       }
-      
+
       await pipeline.dispatch('schedule.delete', {
         task_id: props.task.id,
         scheduled_day: dateToCancel,

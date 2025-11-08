@@ -40,7 +40,14 @@
           <div
             v-for="task in displayItems"
             :key="task.id"
-            :class="['task-card-wrapper', `task-strip-wrapper-${normalizedViewKey}`]"
+            :class="[
+              'task-card-wrapper',
+              `task-strip-wrapper-${normalizedViewKey}`,
+              {
+                'is-preview': (task as any)._isPreview === true,
+                'drag-compact': (task as any)._dragCompact === true,
+              },
+            ]"
             :data-task-id="task.id"
           >
             <TaskStrip
@@ -126,7 +133,7 @@ const normalizedViewKey = computed(() => props.viewKey.replace(/::/g, '--'))
 const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   items: tasks,
-  containerRef: taskListRef,
+  containerRef: taskBarRef,
   draggableSelector: `.task-strip-wrapper-${normalizedViewKey.value}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
@@ -509,6 +516,13 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   font-size: 1.4rem;
   color: var(--color-text-tertiary);
   margin: 0;
+  line-height: 2.35;
+
+  /* 确保与 task-strip 的最小高度一致 */
+
+  /* task-strip: padding 0.8rem + checkbox/title 2.1rem + padding 0.8rem = 3.7rem */
+
+  /* empty-state: padding 0.8rem + text (1.4rem * 1.5 = 2.1rem) + padding 0.8rem = 3.7rem */
 }
 
 /* 折叠状态 */

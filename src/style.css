@@ -286,3 +286,78 @@ body.theme-dark ::-webkit-scrollbar-thumb {
 body.theme-dark ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.3);
 }
+
+/* --- 拖拽截断模式：限制任务卡高度并显示省略号 --- */
+.drag-compact {
+  position: relative;
+}
+
+.drag-compact :where(.task-strip, .task-card) {
+  position: relative;
+  overflow: hidden;
+}
+
+.drag-compact :where(.task-strip) {
+  padding-bottom: 1.2rem;
+}
+
+.drag-compact :where(.task-card) {
+  padding-bottom: 1.4rem;
+}
+
+.drag-compact :where(.task-strip)::after,
+.drag-compact :where(.task-card)::after {
+  content: '…';
+  position: absolute;
+  right: 1.2rem;
+  bottom: 0.8rem;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.drag-compact :where(.task-strip)::after {
+  bottom: 0.6rem;
+}
+
+.drag-compact
+  :where(
+    .task-strip .area-tag-inline,
+    .task-strip .estimated-duration-wrapper,
+    .task-strip .time-blocks-inline,
+    .task-strip .due-date-section,
+    .task-strip .subtasks-section
+  ) {
+  display: none !important;
+}
+
+.drag-compact
+  :where(
+    .task-card .time-indicator-bar,
+    .task-card .card-footer,
+    .task-card .due-date-section,
+    .task-card .subtasks-section,
+    .task-card .estimated-duration-wrapper,
+    .task-card .time-picker-popup
+  ) {
+  display: none !important;
+}
+
+.drag-compact :where(.task-strip .task-note, .task-card .notes-section) {
+  margin-top: 0.4rem;
+}
+
+.drag-compact
+  :where(
+    .task-strip .task-title,
+    .task-strip .note-text,
+    .task-card .title,
+    .task-card .note-text
+  ) {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
