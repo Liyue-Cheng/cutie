@@ -329,7 +329,8 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 <style scoped>
 .task-bar {
   background-color: transparent;
-  margin-bottom: 1.6rem;
+  margin-bottom: 0;
+  padding-bottom: 1.6rem;
 }
 
 /* 标题栏 */
@@ -464,12 +465,6 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   flex-direction: column;
   position: relative;
-}
-
-/* 任务卡片包装器 - 避免margin导致的拖动闪烁 */
-.task-card-wrapper {
-  margin: 0;
-  padding: 0;
 }
 
 /* 任务列表动画 */
