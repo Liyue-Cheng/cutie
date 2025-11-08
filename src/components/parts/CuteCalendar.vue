@@ -8,9 +8,9 @@
         :key="dateInfo.date"
         class="custom-day-header"
         :data-date="dateInfo.date"
-        :class="{ 
+        :class="{
           'is-today': dateInfo.isToday,
-          'is-drag-target': isDragTargetDate(dateInfo.date)
+          'is-drag-target': isDragTargetDate(dateInfo.date),
         }"
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
       >
@@ -471,10 +471,10 @@ onBeforeUnmount(() => {
 function isDragTargetDate(date: string): boolean {
   const preview = dragPreviewState.value
   if (!preview) return false
-  
+
   const targetZoneId = preview.raw.targetZoneId
   if (!targetZoneId) return false
-  
+
   // 检查目标zone是否匹配该日期的视图key
   return targetZoneId === `daily::${date}`
 }
