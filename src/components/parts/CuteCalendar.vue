@@ -148,6 +148,8 @@ function formatDateShort(d: Date) {
   return `${y}-${m}-${day}`
 }
 
+const MAX_CONCURRENT_DAILY_FETCHES = 5
+
 // 🔥 拉取月视图数据的辅助函数
 const fetchMonthViewData = async () => {
   if (props.viewType !== 'month' || !calendarRef.value) {
@@ -166,6 +168,9 @@ const fetchMonthViewData = async () => {
     startDate: startDateStr,
     endDate: endDateStr,
   })
+
+  const fetchStartTs = typeof performance !== 'undefined' ? performance.now() : Date.now()
+  let totalFetchDays = 0
 
   try {
     // 拉取该月份的时间块数据（后端会自动生成循环任务）
@@ -190,23 +195,38 @@ const fetchMonthViewData = async () => {
       cursor.setDate(cursor.getDate() + 1)
     }
 
-    const CHUNK_SIZE = 5
-    for (let i = 0; i < datesToFetch.length; i += CHUNK_SIZE) {
-      const chunk = datesToFetch.slice(i, i + CHUNK_SIZE)
-      await Promise.all(
-        chunk.map((date) =>
-          taskStore
-            .fetchDailyTasks_DMA(date)
-            .catch((error) =>
-              logger.error(
-                LogTags.COMPONENT_CALENDAR,
-                'Failed to fetch daily tasks for month view',
-                error instanceof Error ? error : new Error(String(error)),
-                { date }
-              )
-            )
+    totalFetchDays = datesToFetch.length
+
+    const executing = new Set<Promise<void>>()
+
+    const scheduleFetch = (date: string) => {
+      const taskPromise = taskStore
+        .fetchDailyTasks_DMA(date)
+        .catch((error) =>
+          logger.error(
+            LogTags.COMPONENT_CALENDAR,
+            'Failed to fetch daily tasks for month view',
+            error instanceof Error ? error : new Error(String(error)),
+            { date }
+          )
         )
-      )
+        .finally(() => {
+          executing.delete(taskPromise)
+        }) as Promise<void>
+
+      executing.add(taskPromise)
+      return taskPromise
+    }
+
+    for (const date of datesToFetch) {
+      scheduleFetch(date)
+      if (executing.size >= MAX_CONCURRENT_DAILY_FETCHES) {
+        await Promise.race(executing)
+      }
+    }
+
+    if (executing.size > 0) {
+      await Promise.allSettled(Array.from(executing))
     }
   } catch (error) {
     logger.error(
@@ -215,6 +235,15 @@ const fetchMonthViewData = async () => {
       error instanceof Error ? error : new Error(String(error)),
       { startDate: startDateStr, endDate: endDateStr }
     )
+  } finally {
+    const fetchEndTs = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const durationMs = Math.round(fetchEndTs - fetchStartTs)
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Month view data fetch completed', {
+      startDate: startDateStr,
+      endDate: endDateStr,
+      durationMs,
+      totalDays: totalFetchDays,
+    })
   }
 }
 
@@ -738,9 +767,9 @@ defineExpose({
 
 /* 预览事件样式 */
 .fc-event.preview-event {
-  background-color: #bceaee !important;
+  background-color: var(--preview-bg, #bceaee) !important;
   color: var(--color-text-primary, #575279) !important;
-  border-color: #357abd !important;
+  border-color: var(--preview-border, #357abd) !important;
   pointer-events: none !important; /* 允许命中检测到下方的真实事件，避免阻挡 */
 }
 

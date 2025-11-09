@@ -172,7 +172,7 @@ export function useCalendarInteractDrag(
 
       previewEvent.value = {
         id: 'preview-event',
-        title: taskTitle,
+        title: `${taskTitle}`,
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         allDay: true,
@@ -187,6 +187,7 @@ export function useCalendarInteractDrag(
           isPreview: true,
           scheduleOutcome: null,
           isCompleted: Boolean(task && (task as any).is_completed),
+          previewColor,
         },
       }
       lastPreviewKey = previewKey
@@ -234,6 +235,8 @@ export function useCalendarInteractDrag(
       end: endTime.toISOString(),
       allDay: false,
       color: previewColor,
+      backgroundColor: previewColor,
+      borderColor: previewColor,
       classNames: ['preview-event'],
       display: 'block',
       extendedProps: {
@@ -244,6 +247,7 @@ export function useCalendarInteractDrag(
         isPreview: true,
         scheduleOutcome: null,
         isCompleted: Boolean(task && (task as any).is_completed),
+        previewColor,
       },
     }
     lastPreviewKey = previewKey

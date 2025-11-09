@@ -291,6 +291,12 @@ export function useCalendarHandlers(
         scheduleDay?: string
       }
 
+      // 截止日期事件不提供右键菜单
+      if (extended?.type === 'due_date') {
+        e.preventDefault()
+        return
+      }
+
       if (extended?.type === 'task' && extended.taskId) {
         const task = taskStore.getTaskById_Mux(extended.taskId)
 
@@ -314,6 +320,16 @@ export function useCalendarHandlers(
    */
   function handleEventDidMount(info: EventMountArg) {
     handleEventContextMenu(info)
+
+    const extended = info.event.extendedProps as {
+      isPreview?: boolean
+      previewColor?: string
+    }
+
+    if (info.event.id === 'preview-event' && extended?.previewColor) {
+      info.el.style.setProperty('--preview-bg', extended.previewColor)
+      info.el.style.setProperty('--preview-border', extended.previewColor)
+    }
   }
 
   /**
