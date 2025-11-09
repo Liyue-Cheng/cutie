@@ -51,12 +51,12 @@ const manager = {
         // 点击在菜单内部，允许事件正常传播（菜单项会自己处理）
         return
       }
-      
+
       // 🎯 点击在菜单外部：阻止事件传播，只关闭菜单
       // 使用捕获阶段确保在事件到达目标元素之前就拦截
       event.stopPropagation()
       event.preventDefault()
-      
+
       // 关闭菜单
       manager.hide()
     }
@@ -85,12 +85,12 @@ const manager = {
       cleanupListeners()
       // 清理后，将清理函数重置为空，防止重复调用
       cleanupListeners = () => {}
-      
+
       // 清理菜单元素引用
       menuElement = null
     }
   },
-  
+
   /**
    * 设置菜单元素的引用（由 ContextMenuHost 调用）
    * 用于判断点击是否在菜单内部
