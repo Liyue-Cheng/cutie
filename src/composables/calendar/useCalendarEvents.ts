@@ -148,9 +148,8 @@ export function useCalendarEvents(
       // 🔥 遍历所有有日程的任务（包括过去的日期）
       // 不能只用 plannedTasks，因为它只包含未来的任务
       taskStore.allTasks.forEach((task) => {
-        // 跳过已完成、已删除、没有日程的任务
-        if (task.is_completed || task.is_deleted || !task.schedules || task.schedules.length === 0)
-          return
+        // 跳过已删除、没有日程的任务
+        if (task.is_deleted || !task.schedules || task.schedules.length === 0) return
 
         // 如果任务已经有时间块，不重复显示
         if (tasksWithTimeBlocks.has(task.id)) return
@@ -181,9 +180,6 @@ export function useCalendarEvents(
           const endDate = new Date(startDate)
           endDate.setDate(endDate.getDate() + 1)
 
-          // 循环任务使用特殊图标
-          const taskIcon = isRecurringTask ? '🔁' : '📋'
-
           const scheduleOutcome = schedule.outcome ?? null
 
           const scheduleKey = `${task.id}::${schedule.scheduled_day}`
@@ -191,7 +187,7 @@ export function useCalendarEvents(
 
           events.push({
             id: `task-${task.id}-${schedule.scheduled_day}`,
-            title: `${taskIcon} ${task.title}`,
+            title: task.title,
             start: startDate.toISOString(),
             end: endDate.toISOString(),
             allDay: true,

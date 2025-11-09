@@ -166,14 +166,13 @@ export function useCalendarInteractDrag(
 
       const isRecurringTask = Boolean(task && (task as any).recurrence_id)
       const taskTitle = ((task as any)?.title ?? (task as any)?.name ?? '任务') as string
-      const taskIcon = isRecurringTask ? '🔁' : '📋'
       const classNames = isRecurringTask
         ? ['task-event', 'recurring-task', 'preview-task-event']
         : ['task-event', 'preview-task-event']
 
       previewEvent.value = {
         id: 'preview-event',
-        title: `${taskIcon} ${taskTitle}`,
+        title: taskTitle,
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         allDay: true,

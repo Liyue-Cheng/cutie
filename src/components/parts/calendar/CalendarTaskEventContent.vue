@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 
@@ -9,11 +10,11 @@ export type CheckboxState = null | 'completed' | 'present'
 interface Props {
   taskId?: string
   title: string
-  color: string
   scheduleDay?: string
   scheduleOutcome?: string | null
   isCompleted?: boolean
   isPreview?: boolean
+  isRecurring?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   scheduleOutcome: null,
   isCompleted: false,
   isPreview: false,
+  isRecurring: false,
 })
 
 const derivedState = () => {
@@ -49,9 +51,7 @@ const titleClass = computed(() => ({
   completed: localState.value === 'completed',
 }))
 
-const colorDotStyle = computed(() => ({
-  backgroundColor: props.color || '#9ca3af',
-}))
+const showRecurringIcon = computed(() => Boolean(props.isRecurring))
 
 async function updateTaskCompleted(taskId: string, completed: boolean) {
   if (completed) {
@@ -118,7 +118,12 @@ async function handleStateChange(nextState: CheckboxState) {
       @click.stop
     />
     <span class="calendar-task-title" :class="titleClass">{{ title }}</span>
-    <span class="calendar-task-color-dot" :style="colorDotStyle"></span>
+    <CuteIcon
+      v-if="showRecurringIcon"
+      name="RefreshCcw"
+      :size="13"
+      class="calendar-task-recurring-icon"
+    />
   </div>
 </template>
 
@@ -149,6 +154,7 @@ async function handleStateChange(nextState: CheckboxState) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--color-text-tertiary, #9ca3af);
 }
 
 .calendar-task-title.completed {
@@ -156,10 +162,8 @@ async function handleStateChange(nextState: CheckboxState) {
   opacity: 0.65;
 }
 
-.calendar-task-color-dot {
+.calendar-task-recurring-icon {
   flex: 0 0 auto;
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
+  color: var(--color-text-tertiary, #9ca3af);
 }
 </style>

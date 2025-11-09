@@ -148,18 +148,15 @@ export function useCalendarOptions(
           }
         }
 
-        const colorSource =
-          arg.backgroundColor || arg.borderColor || (extended as any)?.color || '#9ca3af'
-
         // 使用 Vue 组件渲染
         const app = createApp(CalendarTaskEventContent, {
           taskId: extended.taskId,
           title: arg.event.title || '任务',
-          color: colorSource,
           scheduleDay: extended.scheduleDay,
           scheduleOutcome,
           isCompleted,
           isPreview: Boolean(extended.isPreview),
+          isRecurring: Boolean(extended.isRecurring),
         })
 
         app.mount(container)
