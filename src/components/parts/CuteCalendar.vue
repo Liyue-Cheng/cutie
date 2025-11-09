@@ -1091,11 +1091,64 @@ defineExpose({
   padding: 2px 4px;
   border-radius: 3px;
   transition: background-color 0.15s ease;
+  cursor: pointer;
 }
 
 .fc .fc-daygrid-more-link:hover {
   background-color: var(--color-primary-bg, #e3f2fd);
   text-decoration: none;
+}
+
+/* FullCalendar Popover 样式优化 */
+.fc .fc-popover {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  z-index: 9999;
+}
+
+.fc .fc-popover-header {
+  background: var(--color-background-primary);
+  border-bottom: 1px solid var(--color-border-default);
+  padding: 0.8rem 1rem;
+  border-radius: 8px 8px 0 0;
+}
+
+.fc .fc-popover-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.fc .fc-popover-close {
+  font-size: 1.6rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.fc .fc-popover-close:hover {
+  opacity: 1;
+}
+
+.fc .fc-popover-body {
+  background: var(--color-background-primary);
+  padding: 0.4rem;
+  max-height: 400px;
+  overflow-y: auto;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Popover 内的事件样式 */
+.fc .fc-popover-body .fc-daygrid-event {
+  margin: 2px 0;
+  cursor: pointer;
+}
+
+.fc .fc-popover-body .fc-daygrid-event:hover {
+  opacity: 0.8;
 }
 
 /* ===============================================
