@@ -67,6 +67,7 @@
             <!-- 最右侧：视图选择下拉菜单 -->
             <select v-model="currentRightPaneView" class="view-selector">
               <option value="calendar">日历</option>
+              <option value="timeline">时间线</option>
               <option value="staging">Staging</option>
               <option value="upcoming">Upcoming</option>
               <option value="templates">Templates</option>
@@ -85,6 +86,12 @@
               :month-view-filters="monthViewFilters"
             />
           </div>
+          <!-- 时间线视图 -->
+          <DoubleRowTimeline
+            v-else-if="currentRightPaneView === 'timeline'"
+            :current-month="currentCalendarDate.slice(0, 7)"
+            :month-view-filters="monthViewFilters"
+          />
           <!-- Staging 视图 -->
           <StagingList v-else-if="currentRightPaneView === 'staging'" />
           <!-- Upcoming 视图 -->
@@ -115,6 +122,7 @@ import StagingList from '@/components/parts/StagingList.vue'
 import UpcomingList from '@/components/parts/UpcomingList.vue'
 import TemplateList from '@/components/parts/template/TemplateList.vue'
 import CuteCalendar from '@/components/parts/CuteCalendar.vue'
+import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
@@ -129,7 +137,7 @@ const uiStore = useUIStore()
 const currentView = ref<'recent' | 'staging'>('recent') // 当前视图
 
 // ==================== 右栏视图状态 ====================
-type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates'
+type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右栏当前视图
 
 // ==================== 日历天数联动状态 ====================
