@@ -1,17 +1,18 @@
 <template>
   <div class="staging-list">
-    <TaskBar
+    <TaskList
       title="待安排"
       view-key="misc::staging"
       :show-add-input="true"
       :default-collapsed="false"
+      :collapsible="false"
       fill-remaining-space
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import TaskBar from './TaskBar.vue'
+import TaskList from './TaskList.vue'
 </script>
 
 <style scoped>

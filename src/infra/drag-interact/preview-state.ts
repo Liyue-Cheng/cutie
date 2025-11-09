@@ -8,7 +8,7 @@
  * - 越界回弹支持 (targetZoneId = null)
  */
 
-import { ref, computed, readonly } from 'vue'
+import { ref, shallowRef, computed, readonly } from 'vue'
 import type { DragPreviewState, Position } from './types'
 import type { DragObject, DragObjectType } from '@/types/dtos'
 
@@ -18,6 +18,11 @@ import type { DragObject, DragObjectType } from '@/types/dtos'
  * 内部预览状态（可变）
  */
 const _previewState = ref<DragPreviewState<any> | null>(null)
+const _mousePosition = shallowRef<Position | null>(null)
+
+const hasWindow = typeof window !== 'undefined'
+let pendingMousePosition: Position | null = null
+let mousePositionRaf: number | null = null
 
 // ==================== 导出的只读状态 ====================
 
@@ -25,6 +30,7 @@ const _previewState = ref<DragPreviewState<any> | null>(null)
  * 只读的预览状态（组件订阅）
  */
 export const dragPreviewState = readonly(_previewState)
+export const previewMousePosition = readonly(_mousePosition)
 
 /**
  * 派生状态：是否有预览
@@ -64,6 +70,10 @@ export const dragPreviewActions = {
     isCompact?: boolean
   }) {
     const isCompact = data.isCompact === true
+    cancelPendingMouseUpdate()
+
+    const initialPosition = { ...data.mousePosition }
+
     _previewState.value = {
       type: 'kanban',
       raw: {
@@ -71,13 +81,15 @@ export const dragPreviewActions = {
         objectType: data.objectType,
         sourceZoneId: data.sourceZoneId,
         targetZoneId: data.targetZoneId,
-        mousePosition: data.mousePosition,
+        mousePosition: initialPosition,
       },
       computed: {
         dropIndex: data.dropIndex,
         isCompact,
       },
     }
+
+    _mousePosition.value = initialPosition
   },
 
   /**
@@ -96,6 +108,10 @@ export const dragPreviewActions = {
       color: string
     }
   }) {
+    cancelPendingMouseUpdate()
+
+    const initialPosition = { ...data.mousePosition }
+
     _previewState.value = {
       type: 'calendar',
       raw: {
@@ -103,12 +119,14 @@ export const dragPreviewActions = {
         objectType: data.objectType,
         sourceZoneId: data.sourceZoneId,
         targetZoneId: 'calendar',
-        mousePosition: data.mousePosition,
+        mousePosition: initialPosition,
       },
       computed: {
         calendarMeta: data.calendarMeta,
       },
     }
+
+    _mousePosition.value = initialPosition
   },
 
   /**
@@ -130,15 +148,30 @@ export const dragPreviewActions = {
    * 更新鼠标位置
    */
   updateMousePosition(position: Position) {
-    if (_previewState.value) {
-      _previewState.value = {
-        ..._previewState.value,
-        raw: {
-          ..._previewState.value.raw,
-          mousePosition: position,
-        },
-      }
+    if (!_previewState.value) {
+      return
     }
+
+    const lastPosition = _mousePosition.value
+    if (lastPosition && lastPosition.x === position.x && lastPosition.y === position.y) {
+      return
+    }
+
+    pendingMousePosition = { ...position }
+
+    if (!hasWindow) {
+      commitMousePosition()
+      return
+    }
+
+    if (mousePositionRaf !== null) {
+      return
+    }
+
+    mousePositionRaf = window.requestAnimationFrame(() => {
+      mousePositionRaf = null
+      commitMousePosition()
+    })
   },
 
   /**
@@ -161,7 +194,9 @@ export const dragPreviewActions = {
    * 清除预览（拖动结束）
    */
   clear() {
+    cancelPendingMouseUpdate()
     _previewState.value = null
+    _mousePosition.value = null
   },
 }
 
@@ -190,6 +225,26 @@ export function getPreviewDebugInfo() {
     objectTitle,
     mousePosition: preview.raw.mousePosition,
   }
+}
+
+function commitMousePosition() {
+  if (!_previewState.value || !pendingMousePosition) {
+    return
+  }
+
+  const nextPosition = pendingMousePosition
+  pendingMousePosition = null
+
+  _previewState.value.raw.mousePosition = nextPosition
+  _mousePosition.value = nextPosition
+}
+
+function cancelPendingMouseUpdate() {
+  pendingMousePosition = null
+  if (mousePositionRaf !== null && hasWindow) {
+    window.cancelAnimationFrame(mousePositionRaf)
+  }
+  mousePositionRaf = null
 }
 
 /**

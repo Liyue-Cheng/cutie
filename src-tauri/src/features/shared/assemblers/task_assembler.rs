@@ -6,7 +6,6 @@
 /// - entities 层保持纯粹的数据结构定义
 /// - 业务逻辑集中在 features 层
 /// - 易于测试和维护
-use chrono::Utc;
 
 use crate::entities::task::TaskScheduleDto;
 use crate::entities::{
@@ -46,10 +45,17 @@ impl TaskAssembler {
             area_id: task.area_id, // ✅ 直接传递 area_id，前端从 area store 获取完整信息
             project_id: task.project_id,
             schedule_info: None, // 需要后续填充
-            due_date: task.due_date.map(|date| DueDateInfo {
-                date,
-                due_date_type: task.due_date_type.clone().unwrap_or(DueDateType::Soft),
-                is_overdue: Utc::now() > date,
+            due_date: task.due_date.map(|date| {
+                // 使用本地时区进行逾期判断
+                use chrono::Local;
+                let now_local = Local::now().date_naive();
+                let due_date_local = date.with_timezone(&Local).date_naive();
+
+                DueDateInfo {
+                    date,
+                    due_date_type: task.due_date_type.clone().unwrap_or(DueDateType::Soft),
+                    is_overdue: now_local > due_date_local,
+                }
             }),
             schedules: None, // 需要后续填充（调用 assemble_schedules）
             has_detail_note: task.detail_note.is_some(),

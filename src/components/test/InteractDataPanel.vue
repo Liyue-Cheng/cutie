@@ -45,7 +45,7 @@
           <div class="data-item">
             <label>鼠标位置</label>
             <span class="value position">
-              ({{ previewData?.raw.mousePosition.x }}, {{ previewData?.raw.mousePosition.y }})
+              ({{ pointerPosition?.x ?? '-' }}, {{ pointerPosition?.y ?? '-' }})
             </span>
           </div>
         </div>
@@ -128,6 +128,7 @@ import {
   previewType,
   isRebounding,
   controllerDebugState,
+  previewMousePosition,
 } from '@/infra/drag-interact'
 
 // 日志系统
@@ -151,6 +152,7 @@ const addLog = (message: string, type: LogEntry['type'] = 'info') => {
 
 // 预览数据
 const previewData = computed(() => dragPreviewState.value)
+const pointerPosition = computed(() => previewMousePosition.value)
 
 // 控制器调试信息（响应式）
 const controllerDebug = computed(() => controllerDebugState.value)

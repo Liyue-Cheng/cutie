@@ -9,9 +9,9 @@ import type { EventInput } from '@fullcalendar/core'
 import type FullCalendar from '@fullcalendar/vue3'
 import { useAreaStore } from '@/stores/area'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
-import { dragPreviewState } from '@/infra/drag-interact/preview-state'
+import { dragPreviewState, previewMousePosition } from '@/infra/drag-interact/preview-state'
 import { interactManager } from '@/infra/drag-interact/drag-controller'
-import type { DragSession } from '@/infra/drag-interact/types'
+import type { DragSession, Position } from '@/infra/drag-interact/types'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { isTaskCard, isTemplate } from '@/types/dtos'
 import { apiPost } from '@/stores/shared'
@@ -30,51 +30,77 @@ export function useCalendarInteractDrag(
   const areaStore = useAreaStore()
   const dragStrategy = useDragStrategy()
 
+  const POSITION_EPSILON = 0.5
+  let lastPreviewPosition: Position | null = null
+
+  function clearHoveredEvent() {
+    if (!hoveredEventId.value) {
+      return
+    }
+    const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
+    if (prevHoveredEl) {
+      prevHoveredEl.classList.remove('hover-link-target')
+    }
+    hoveredEventId.value = null
+  }
+
   /**
-   * 更新预览事件（根据 dragPreviewState）
+   * 更新预览事件（根据 dragPreviewState 与鼠标位置）
    */
-  function updatePreviewFromDragState() {
+  function updatePreviewFromDragState(positionOverride?: Position | null, force = false) {
     const preview = dragPreviewState.value
+
     if (!preview) {
+      lastPreviewPosition = null
       previewEvent.value = null
+      clearHoveredEvent()
       return
     }
 
-    // 统一从 draggedObject 读取被拖动任务
-    const task = (preview.raw as any).draggedObject || (preview as any).raw.ghostTask
-
-    // 🔥 检查是否在日历容器内
     const calendarContainer = calendarRef.value?.$el as HTMLElement
     if (!calendarContainer) {
+      lastPreviewPosition = null
       previewEvent.value = null
+      clearHoveredEvent()
       return
     }
 
-    // 🔥 获取鼠标位置（从 preview.raw）
-    const mouseX = (preview.raw as any).mousePosition?.x || 0
-    const mouseY = (preview.raw as any).mousePosition?.y || 0
+    const position =
+      positionOverride ??
+      previewMousePosition.value ??
+      ((preview.raw as any).mousePosition as Position | undefined) ??
+      null
 
-    const target = document.elementFromPoint(mouseX, mouseY) as HTMLElement
+    if (!position) {
+      lastPreviewPosition = null
+      previewEvent.value = null
+      clearHoveredEvent()
+      return
+    }
 
-    // 🔥 检查鼠标是否在日历容器内
-    // 使用 getBoundingClientRect 检查坐标是否在日历边界内
+    if (
+      !force &&
+      lastPreviewPosition &&
+      Math.abs(lastPreviewPosition.x - position.x) < POSITION_EPSILON &&
+      Math.abs(lastPreviewPosition.y - position.y) < POSITION_EPSILON
+    ) {
+      return
+    }
+
+    lastPreviewPosition = { ...position }
+
+    const { x: mouseX, y: mouseY } = position
     const rect = calendarContainer.getBoundingClientRect()
     const isOverCalendar =
       mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom
 
     if (!isOverCalendar) {
-      // 鼠标不在日历上，清除预览
       previewEvent.value = null
-      // 清除悬浮状态
-      if (hoveredEventId.value) {
-        const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
-        if (prevHoveredEl) {
-          prevHoveredEl.classList.remove('hover-link-target')
-        }
-        hoveredEventId.value = null
-      }
+      clearHoveredEvent()
       return
     }
+
+    const target = document.elementFromPoint(mouseX, mouseY) as HTMLElement | null
 
     // 🔥 检查是否悬浮在已有事件上
     const fcEvent = target?.closest('.fc-event') as HTMLElement | null
@@ -82,28 +108,27 @@ export function useCalendarInteractDrag(
       const eventEl = fcEvent as any
       const eventId = eventEl?.fcSeg?.eventRange?.def?.publicId
       if (eventId && eventId !== 'preview-event') {
+        clearHoveredEvent()
         hoveredEventId.value = eventId
         previewEvent.value = null // 清除预览，显示链接图标
         fcEvent.classList.add('hover-link-target')
         return
       }
     } else {
-      // 清除悬浮状态
-      if (hoveredEventId.value) {
-        const prevHoveredEl = document.querySelector('.fc-event.hover-link-target')
-        if (prevHoveredEl) {
-          prevHoveredEl.classList.remove('hover-link-target')
-        }
-        hoveredEventId.value = null
-      }
+      clearHoveredEvent()
     }
+
+    // 统一从 draggedObject 读取被拖动任务
+    const task = (preview.raw as any).draggedObject || (preview as any).raw.ghostTask
 
     // 🔥 检查是否在全日区域
     const dayCell = target?.closest('.fc-daygrid-day') as HTMLElement | null
     if (dayCell) {
-      // 全日预览
       const dateStr = dayCell.getAttribute('data-date')
-      if (!dateStr) return
+      if (!dateStr) {
+        previewEvent.value = null
+        return
+      }
 
       const startDate = parseDateString(dateStr)
       const endDate = new Date(startDate)
@@ -126,27 +151,19 @@ export function useCalendarInteractDrag(
       return
     }
 
-    // 🔥 分时预览
-    // 使用 dependencies.getTimeFromDropPosition
-    // 伪造一个 DragEvent 来调用现有的时间计算逻辑
-    const fakeEvent = new DragEvent('dragover', {
-      clientX: mouseX,
-      clientY: mouseY,
-    })
+    const eventLike = { clientX: mouseX, clientY: mouseY } as DragEvent
 
-    const dropTime = dependencies.getTimeFromDropPosition(fakeEvent, calendarContainer)
+    const dropTime = dependencies.getTimeFromDropPosition(eventLike, calendarContainer)
     if (!dropTime) {
       previewEvent.value = null
       return
     }
 
-    // 根据任务的 estimated_duration 计算预览时间块长度
     const rawDuration = (task && (task as any).estimated_duration) as number | undefined
     const durationMinutes = typeof rawDuration === 'number' && rawDuration > 0 ? rawDuration : 15
     const durationMs = durationMinutes * 60 * 1000
     let endTime = new Date(dropTime.getTime() + durationMs)
 
-    // 🔧 FIX: 截断到 dropTime 所在的当日 24:00（而不是日历的基准日期）
     const dayStart = new Date(dropTime)
     dayStart.setHours(0, 0, 0, 0)
     const dayEnd = new Date(dayStart)
@@ -181,9 +198,17 @@ export function useCalendarInteractDrag(
   watch(
     dragPreviewState,
     () => {
-      updatePreviewFromDragState()
+      updatePreviewFromDragState(undefined, true)
     },
-    { deep: true }
+    { deep: false }
+  )
+
+  watch(
+    previewMousePosition,
+    (position) => {
+      updatePreviewFromDragState(position ?? null)
+    },
+    { flush: 'sync' }
   )
 
   /**
@@ -242,8 +267,7 @@ export function useCalendarInteractDrag(
 
         // 2. 检查是否在全日/分时区域
         // 从 dragPreviewState 获取当前鼠标位置
-        const currentPreview = dragPreviewState.value
-        const mousePos = currentPreview?.raw.mousePosition
+        const mousePos = previewMousePosition.value
         if (!mousePos) {
           logger.warn(LogTags.COMPONENT_CALENDAR, 'No mouse position in preview state')
           return
@@ -278,12 +302,9 @@ export function useCalendarInteractDrag(
           logger.debug(LogTags.COMPONENT_CALENDAR, 'All-day drop', { viewKey, calendarConfig })
         } else {
           // 计算分时
-          const fakeEvent = new DragEvent('drop', {
-            clientX: mousePos.x,
-            clientY: mousePos.y,
-          })
+          const dropEventLike = { clientX: mousePos.x, clientY: mousePos.y } as DragEvent
 
-          const dropTime = dependencies.getTimeFromDropPosition(fakeEvent, calendarContainer)
+          const dropTime = dependencies.getTimeFromDropPosition(dropEventLike, calendarContainer)
 
           if (!dropTime) {
             logger.warn(LogTags.COMPONENT_CALENDAR, 'Failed to calculate drop time')

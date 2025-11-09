@@ -43,7 +43,7 @@
       <template #bottom>
         <div class="task-list">
           <!-- 动态生成的日期任务栏 -->
-          <TaskBar
+          <TaskList
             v-for="(dateInfo, index) in dateList"
             :key="dateInfo.viewKey"
             :title="dateInfo.label"
@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import TaskBar from '@/components/parts/TaskBar.vue'
+import TaskList from '@/components/parts/TaskList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -376,8 +376,7 @@ onMounted(async () => {
 }
 
 .day-count-select:focus {
-  border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 2px rgb(74 144 226 / 10%);
+  outline: none;
 }
 
 /* 任务列表 */
@@ -388,7 +387,7 @@ onMounted(async () => {
   flex-direction: column;
 }
 
-/* 最后一个TaskBar延展到底部，避免拖动到底部空白区域时闪烁 */
+/* 最后一个TaskList延展到底部，避免拖动到底部空白区域时闪烁 */
 .task-list > :deep(:last-child) {
   flex: 1;
   min-height: auto;

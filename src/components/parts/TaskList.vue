@@ -1,12 +1,17 @@
 <template>
   <div class="task-bar" :class="taskBarClasses" ref="taskBarRef">
-    <!-- 标题栏（可点击折叠） -->
-    <div class="task-bar-header" @click="toggleCollapse">
+    <!-- 标题栏 -->
+    <div
+      class="task-bar-header"
+      :class="{ 'non-collapsible': !props.collapsible }"
+      @click="props.collapsible ? toggleCollapse() : undefined"
+    >
       <div class="header-left">
         <h3 class="task-bar-title">{{ title }}</h3>
         <span class="task-count">{{ displayItems.length }}</span>
       </div>
       <CuteIcon
+        v-if="props.collapsible"
         name="ChevronDown"
         :size="16"
         class="collapse-icon"
@@ -85,12 +90,14 @@ interface Props {
   defaultCollapsed?: boolean
   showAddInput?: boolean // 是否显示添加任务输入框
   fillRemainingSpace?: boolean // 是否占满父容器剩余空间
+  collapsible?: boolean // 是否可折叠
 }
 
 const props = withDefaults(defineProps<Props>(), {
   defaultCollapsed: false,
   showAddInput: true,
   fillRemainingSpace: false,
+  collapsible: true,
 })
 
 // Emits
@@ -364,6 +371,15 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .task-bar-header:hover {
   background-color: rgb(0 0 0 / 3%);
+}
+
+/* 不可折叠的标题栏 */
+.task-bar-header.non-collapsible {
+  cursor: default;
+}
+
+.task-bar-header.non-collapsible:hover {
+  background-color: transparent;
 }
 
 .header-left {

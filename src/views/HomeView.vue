@@ -18,15 +18,7 @@
       <TwoRowLayout>
         <template #top>
           <div class="calendar-header">
-            <!-- 左侧：视图选择下拉菜单 -->
-            <select v-model="currentRightPaneView" class="view-selector">
-              <option value="calendar">日历</option>
-              <option value="staging">Staging</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="templates">Templates</option>
-            </select>
-
-            <!-- 日历视图专属：年月显示 -->
+            <!-- 最左侧：日历视图专属年月显示 -->
             <div v-if="currentRightPaneView === 'calendar'" class="calendar-year-month">
               {{ calendarYearMonth }}
             </div>
@@ -34,27 +26,22 @@
             <!-- 中间：占位 -->
             <div class="spacer"></div>
 
-            <!-- 日历视图专属：缩放按钮 -->
-            <div v-if="currentRightPaneView === 'calendar'" class="calendar-zoom-controls">
-              <button
-                :class="['zoom-btn', 'zoom-btn-left', { active: calendarZoom === 1 }]"
-                @click="calendarZoom = 1"
-              >
-                1x
-              </button>
-              <button
-                :class="['zoom-btn', 'zoom-btn-middle', { active: calendarZoom === 2 }]"
-                @click="calendarZoom = 2"
-              >
-                2x
-              </button>
-              <button
-                :class="['zoom-btn', 'zoom-btn-right', { active: calendarZoom === 3 }]"
-                @click="calendarZoom = 3"
-              >
-                3x
-              </button>
-            </div>
+            <!-- 日历视图专属：缩放按钮（右侧，日历下拉菜单左边） -->
+            <button
+              v-if="currentRightPaneView === 'calendar'"
+              class="zoom-toggle-btn"
+              @click="cycleZoom"
+            >
+              {{ calendarZoom }}x
+            </button>
+
+            <!-- 最右侧：视图选择下拉菜单 -->
+            <select v-model="currentRightPaneView" class="view-selector">
+              <option value="calendar">日历</option>
+              <option value="staging">Staging</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="templates">Templates</option>
+            </select>
           </div>
         </template>
         <template #bottom>
@@ -156,6 +143,18 @@ function onRecentDateChange(date: string) {
   // 更新寄存器中的日历日期
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, date)
   logger.debug(LogTags.VIEW_HOME, 'Calendar date synced from RecentView', { date })
+}
+
+// 循环切换缩放等级
+function cycleZoom() {
+  if (calendarZoom.value === 1) {
+    calendarZoom.value = 2
+  } else if (calendarZoom.value === 2) {
+    calendarZoom.value = 3
+  } else {
+    calendarZoom.value = 1
+  }
+  logger.debug(LogTags.VIEW_HOME, 'Calendar zoom cycled', { zoom: calendarZoom.value })
 }
 
 // 初始化
@@ -362,8 +361,7 @@ onBeforeUnmount(() => {
 }
 
 .view-selector:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
+  outline: none;
 }
 
 /* 年月显示 */
@@ -379,13 +377,8 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-/* 缩放按钮组 */
-.calendar-zoom-controls {
-  display: flex;
-  height: 3.6rem;
-}
-
-.zoom-btn {
+/* 缩放切换按钮 */
+.zoom-toggle-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -396,47 +389,20 @@ onBeforeUnmount(() => {
   color: var(--color-text-primary);
   background-color: var(--color-background-secondary, #f5f5f5);
   border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  min-width: 3.6rem;
+  min-width: 5.6rem;
 }
 
-/* 左侧按钮 */
-.zoom-btn-left {
-  border-radius: 0.6rem 0 0 0.6rem;
-  border-right: none;
-}
-
-/* 中间按钮 */
-.zoom-btn-middle {
-  border-radius: 0;
-  border-right: none;
-  border-left: 1px solid var(--color-border-default);
-}
-
-/* 右侧按钮 */
-.zoom-btn-right {
-  border-radius: 0 0.6rem 0.6rem 0;
-  border-left: 1px solid var(--color-border-default);
-}
-
-.zoom-btn:hover {
+.zoom-toggle-btn:hover {
   background-color: var(--color-background-hover, #e8e8e8);
   border-color: var(--color-border-hover);
-  z-index: 1;
 }
 
-.zoom-btn:active {
+.zoom-toggle-btn:active {
   transform: scale(0.98);
-}
-
-.zoom-btn.active {
-  color: var(--color-primary);
-  background-color: var(--color-primary-bg);
-  border-color: var(--color-primary);
-  font-weight: 600;
-  z-index: 2;
 }
 
 /* 日历包装器 */

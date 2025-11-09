@@ -64,7 +64,7 @@ import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
-import { interactManager, dragPreviewState } from '@/infra/drag-interact'
+import { interactManager, dragPreviewState, previewMousePosition } from '@/infra/drag-interact'
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
@@ -511,7 +511,7 @@ function isDragTargetDate(date: string): boolean {
     return false
   }
 
-  const mousePosition = preview.raw.mousePosition
+  const mousePosition = previewMousePosition.value
   const headerEl = headerDropzones.get(targetZoneId)
   if (!mousePosition || !headerEl) {
     return false

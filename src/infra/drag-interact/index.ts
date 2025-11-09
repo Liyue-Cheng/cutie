@@ -11,6 +11,7 @@ export {
   hasPreview,
   previewType,
   isRebounding,
+  previewMousePosition,
   getPreviewDebugInfo,
 } from './preview-state'
 

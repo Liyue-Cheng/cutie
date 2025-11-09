@@ -28,8 +28,33 @@
         size="normal"
       />
 
-      <!-- 预期时间显示 -->
-      <div class="estimated-duration-wrapper">
+      <!-- 即将到期列表：截止日期显示在标题栏最右边 -->
+      <div v-if="isInUpcomingList && task.due_date" class="due-date-inline">
+        <span class="icon-wrapper">
+          <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
+          <CuteIcon
+            v-if="task.due_date.type === 'HARD'"
+            name="Flag"
+            size="1.4rem"
+            :color="task.due_date.is_overdue ? '#f44336' : '#999'"
+          />
+          <!-- 软截止：使用波浪号 -->
+          <span v-else class="soft-deadline-icon">~</span>
+        </span>
+
+        <span
+          class="due-date-text"
+          :class="{
+            overdue: task.due_date.is_overdue && task.due_date.type === 'HARD',
+            'hard-deadline': task.due_date.type === 'HARD',
+          }"
+        >
+          {{ formatDueDate(task.due_date.date) }}
+        </span>
+      </div>
+
+      <!-- 非即将到期列表：显示预期时间 -->
+      <div v-if="!isInUpcomingList" class="estimated-duration-wrapper">
         <button class="estimated-duration" @click.stop="toggleTimePicker">
           {{ formattedDuration }}
         </button>
@@ -44,8 +69,8 @@
         </div>
       </div>
 
-      <!-- 时间块显示（如果有） -->
-      <div v-if="todayTimeBlocks.length > 0" class="time-blocks-inline">
+      <!-- 非即将到期列表：时间块显示（如果有） -->
+      <div v-if="!isInUpcomingList && todayTimeBlocks.length > 0" class="time-blocks-inline">
         <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
           <span class="time-tag-dot" :style="{ backgroundColor: area?.color || '#999' }"></span>
           {{ formatTimeBlockStart(block) }}
@@ -64,8 +89,8 @@
       <span class="note-text">{{ task.glance_note }}</span>
     </div>
 
-    <!-- 截止日期显示 -->
-    <div v-if="task.due_date" class="due-date-section">
+    <!-- 截止日期显示（仅在非即将到期列表中显示） -->
+    <div v-if="!isInUpcomingList && task.due_date" class="due-date-section">
       <span class="icon-wrapper">
         <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
         <CuteIcon
@@ -151,6 +176,11 @@ const showTimePicker = ref(false)
 // 通过 area_id 从 store 获取完整 area 信息
 const area = computed(() => {
   return props.task.area_id ? areaStore.getAreaById(props.task.area_id) : null
+})
+
+// 判断是否在即将到期列表中
+const isInUpcomingList = computed(() => {
+  return props.viewKey === 'misc::upcoming'
 })
 
 // 获取当前视图的日期 (YYYY-MM-DD)
@@ -582,5 +612,46 @@ function onMouseDown(event: MouseEvent) {
 /* 标题行中的 Area 标签 */
 .area-tag-inline {
   flex-shrink: 0;
+}
+
+/* 标题行中的截止日期（即将到期列表专用） */
+.due-date-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.due-date-inline .icon-wrapper {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-tertiary);
+}
+
+.due-date-inline .soft-deadline-icon {
+  font-size: 1.4rem;
+  color: #999;
+  font-weight: 400;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.due-date-inline .due-date-text {
+  font-size: 1.3rem;
+  color: #999;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.due-date-inline .due-date-text.hard-deadline {
+  font-weight: 500;
+}
+
+.due-date-inline .due-date-text.overdue {
+  color: #f44336;
+  font-weight: 600;
 }
 </style>

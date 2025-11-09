@@ -3,14 +3,17 @@
     <TwoRowLayout>
       <template #top>
         <div class="staging-header">
-          <h2 class="staging-title">Staging</h2>
-          <span class="task-count">{{ tasks.length }} 个任务</span>
+          <!-- 筛选按钮 -->
+          <button class="filter-btn" @click="handleFilter">
+            <CuteIcon name="ListFilter" :size="16" />
+            <span>筛选</span>
+          </button>
         </div>
       </template>
       <template #bottom>
         <div class="task-list">
           <!-- Staging 任务栏 -->
-          <TaskBar title="待安排任务" view-key="misc::staging" fill-remaining-space />
+          <TaskList title="待安排任务" view-key="misc::staging" fill-remaining-space />
         </div>
       </template>
     </TwoRowLayout>
@@ -20,7 +23,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import TaskBar from '@/components/parts/TaskBar.vue'
+import TaskList from '@/components/parts/TaskList.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
 
@@ -30,6 +34,11 @@ const taskStore = useTaskStore()
 const tasks = computed(() => {
   return taskStore.getTasksByViewKey_Mux('misc::staging')
 })
+
+// 筛选功能（暂未实现）
+function handleFilter() {
+  logger.debug(LogTags.VIEW_HOME, 'Filter button clicked (not implemented yet)')
+}
 
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing StagingView component...')
@@ -50,21 +59,33 @@ onMounted(async () => {
 .staging-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 1.6rem;
 }
 
-.staging-title {
-  font-size: 1.8rem;
-  font-weight: 600;
+/* 筛选按钮 */
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
   color: var(--color-text-primary);
-  margin: 0;
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.task-count {
-  font-size: 1.3rem;
-  color: var(--color-text-tertiary);
-  font-weight: 500;
+.filter-btn:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+}
+
+.filter-btn:active {
+  transform: scale(0.98);
 }
 
 /* 任务列表 */
@@ -76,7 +97,7 @@ onMounted(async () => {
   flex-direction: column;
 }
 
-/* 最后一个TaskBar延展到底部，避免拖动到底部空白区域时闪烁 */
+/* 最后一个TaskList延展到底部，避免拖动到底部空白区域时闪烁 */
 .task-list > :deep(:last-child) {
   flex: 1;
   min-height: auto;
