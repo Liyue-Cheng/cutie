@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import type { TaskCard, TimeBlockView } from '@/types/dtos'
 import CalendarTaskEventContent from '@/components/parts/calendar/CalendarTaskEventContent.vue'
 import CalendarDueDateEventContent from '@/components/parts/calendar/CalendarDueDateEventContent.vue'
 import CalendarTimeBlockEventContent from '@/components/parts/calendar/CalendarTimeBlockEventContent.vue'
-import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import { useContextMenu } from '@/composables/useContextMenu'
 import KanbanTaskCardMenu from '@/components/parts/kanban/KanbanTaskCardMenu.vue'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
+import { interactManager } from '@/infra/drag-interact'
+import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+import type { DragSession } from '@/infra/drag-interact/types'
+import { logger, LogTags } from '@/infra/logging/logger'
 
 interface Props {
   date: string // YYYY-MM-DD
@@ -22,9 +25,11 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const taskStore = useTaskStore()
 const uiStore = useUIStore()
 const contextMenu = useContextMenu()
+const dragStrategy = useDragStrategy()
+
+const cellRef = ref<HTMLElement | null>(null)
 
 const hasContent = computed(() => {
   return props.tasks.length > 0 || props.dueDates.length > 0 || props.allDayEvents.length > 0
@@ -49,10 +54,64 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
   event.stopPropagation()
   contextMenu.show(CalendarEventMenu, { event: { id: timeBlock.id } }, event)
 }
+
+// 拖放支持
+onMounted(() => {
+  if (!cellRef.value) return
+
+  const zoneId = `timeline::${props.date}`
+  cellRef.value.setAttribute('data-zone-id', zoneId)
+
+  interactManager.registerDropzone(cellRef.value, {
+    zoneId,
+    type: 'kanban',
+    computePreview: () => ({
+      dropIndex: 0, // 总是放在最前面
+    }),
+    onDrop: async (session: DragSession) => {
+      logger.info(LogTags.COMPONENT_CALENDAR, 'Drop task on timeline cell', {
+        taskId: (session.object.data as any)?.id,
+        targetDate: props.date,
+      })
+
+      // 构造日期视图的 viewKey
+      const viewKey = `daily::${props.date}`
+
+      // 执行拖放策略
+      const result = await dragStrategy.executeDrop(session, viewKey, {
+        sourceContext: session.metadata?.sourceContext || {},
+        targetContext: {
+          taskIds: [], // 空列表表示放在最前面
+          displayTasks: [],
+        },
+      })
+
+      if (!result.success) {
+        logger.error(
+          LogTags.COMPONENT_CALENDAR,
+          'Failed to drop task on timeline cell',
+          new Error(result.error || 'Unknown error')
+        )
+      }
+    },
+  })
+
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Timeline cell dropzone registered', {
+    date: props.date,
+    zoneId,
+  })
+})
+
+onBeforeUnmount(() => {
+  if (cellRef.value) {
+    interactManager.unregisterDropzone(cellRef.value)
+  }
+})
 </script>
 
 <template>
   <div
+    ref="cellRef"
     class="timeline-day-cell"
     :class="{
       'is-today': isToday,
