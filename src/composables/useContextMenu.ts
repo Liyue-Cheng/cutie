@@ -22,6 +22,9 @@ const state = shallowRef<ContextMenuState>({
 // 模块级别的清理函数，用于存储上一次添加的监听器的移除逻辑
 let cleanupListeners: () => void = () => {}
 
+// 存储菜单元素的引用，用于判断点击是否在菜单内部
+let menuElement: HTMLElement | null = null
+
 const manager = {
   state: readonly(state),
 
@@ -41,23 +44,35 @@ const manager = {
       props,
     }
 
-    const hideOnClickOutside = () => {
-      // 在这个函数里只做hide，不要再手动remove listener
-      // 因为清理工作会由manager.hide()统一处理
+    const hideOnClickOutside = (event: Event) => {
+      // 🎯 检查点击是否在菜单内部
+      const target = event.target as Node
+      if (menuElement && menuElement.contains(target)) {
+        // 点击在菜单内部，允许事件正常传播（菜单项会自己处理）
+        return
+      }
+      
+      // 🎯 点击在菜单外部：阻止事件传播，只关闭菜单
+      // 使用捕获阶段确保在事件到达目标元素之前就拦截
+      event.stopPropagation()
+      event.preventDefault()
+      
+      // 关闭菜单
       manager.hide()
     }
 
     // --- BUG修复关键点 2 ---
     // 定义本次show操作的清理逻辑
     cleanupListeners = () => {
-      window.removeEventListener('click', hideOnClickOutside)
-      window.removeEventListener('contextmenu', hideOnClickOutside)
+      window.removeEventListener('click', hideOnClickOutside, true)
+      window.removeEventListener('contextmenu', hideOnClickOutside, true)
     }
 
     setTimeout(() => {
-      window.addEventListener('click', hideOnClickOutside)
-      // 注意：这里不再使用 { once: true }，因为我们的清理是手动的
-      window.addEventListener('contextmenu', hideOnClickOutside)
+      // 🎯 使用捕获阶段 ({ capture: true }) 来优先拦截点击事件
+      // 这样可以在事件到达目标元素之前就拦截并关闭菜单
+      window.addEventListener('click', hideOnClickOutside, true)
+      window.addEventListener('contextmenu', hideOnClickOutside, true)
     }, 0)
   },
 
@@ -70,7 +85,18 @@ const manager = {
       cleanupListeners()
       // 清理后，将清理函数重置为空，防止重复调用
       cleanupListeners = () => {}
+      
+      // 清理菜单元素引用
+      menuElement = null
     }
+  },
+  
+  /**
+   * 设置菜单元素的引用（由 ContextMenuHost 调用）
+   * 用于判断点击是否在菜单内部
+   */
+  setMenuElement(element: HTMLElement | null) {
+    menuElement = element
   },
 }
 

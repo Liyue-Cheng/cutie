@@ -27,6 +27,8 @@ watch(
   () => contextMenu.state.value,
   async (menuState) => {
     if (!menuState.show) {
+      // 菜单隐藏时清理元素引用
+      contextMenu.setMenuElement(null)
       return
     }
 
@@ -40,6 +42,9 @@ watch(
     if (!host) {
       return
     }
+
+    // 🎯 设置菜单元素引用，用于判断点击是否在菜单内部
+    contextMenu.setMenuElement(host)
 
     const rect = host.getBoundingClientRect()
     const PADDING = 8
