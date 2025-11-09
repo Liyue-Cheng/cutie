@@ -1063,17 +1063,16 @@ defineExpose({
   background-color: var(--color-primary-bg, #e3f2fd);
 }
 
-/* 月视图日期数字样式 */
-.fc .fc-daygrid-day-number {
-  padding: 0.4rem;
-  font-size: 1.3rem;
-  font-weight: 500;
-}
-
 /* 月视图今天的日期数字高亮 */
 .fc .fc-day-today .fc-daygrid-day-number {
-  color: var(--color-primary, #4a90e2);
-  font-weight: 600;
+  color: #fff;
+  background-color: var(--color-primary, #4a90e2);
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 月视图事件样式 */
@@ -1121,30 +1120,30 @@ defineExpose({
   transition: opacity 0.15s ease;
 }
 
-/* 月视图中的任务事件 - 左侧加彩色圆点 */
-.fc-daygrid-event.task-event {
-  position: relative;
+/* ===============================================
+ * 13. 全天时间块事件样式（月视图）
+ * =============================================== */
+
+/* 月视图全天时间块 - 无背景，使用自定义 Vue 组件渲染 */
+.fc-event.timeblock-allday {
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500;
+  cursor: pointer;
+  padding-left: 0 !important;
 }
 
-.fc-daygrid-event.task-event::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--fc-event-border-color);
+.fc-event.timeblock-allday .fc-event-main {
+  color: var(--color-text-primary, #575279) !important;
 }
 
-/* 任务事件标题需要左侧留出空间给圆点 */
-.fc-daygrid-event.task-event .fc-event-main {
-  padding-left: 16px;
+.fc-event.timeblock-allday:hover {
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
 }
 
 /* ===============================================
- * 13. 截止日期事件样式（统一为图标+文本）
+ * 14. 截止日期事件样式（统一为图标+文本）
  * =============================================== */
 
 /* 截止日期事件样式 - 无背景，图标+文本 */
@@ -1163,28 +1162,6 @@ defineExpose({
 .fc-event.due-date-event:hover {
   opacity: 0.7;
   transition: opacity 0.15s ease;
-}
-
-/* 月视图中的截止日期事件 - 左侧加彩色圆点 */
-.fc-daygrid-event.due-date-event {
-  position: relative;
-}
-
-.fc-daygrid-event.due-date-event::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--fc-event-border-color);
-}
-
-/* 截止日期事件标题需要左侧留出空间给圆点 */
-.fc-daygrid-event.due-date-event .fc-event-main {
-  padding-left: 16px;
 }
 
 /* 逾期的截止日期事件 - 文字颜色更醒目 */

@@ -133,8 +133,14 @@ export function useCalendarEvents(
         end: displayEndTime,
         allDay: timeBlock.is_all_day,
         color: color,
+        display: viewType.value === 'month' && timeBlock.is_all_day ? 'block' : undefined,
+        classNames:
+          viewType.value === 'month' && timeBlock.is_all_day
+            ? ['timeblock-event', 'timeblock-allday']
+            : [],
         extendedProps: {
           type: 'timeblock',
+          areaColor: color,
         },
       })
     })
@@ -164,6 +170,10 @@ export function useCalendarEvents(
           if (filters?.showScheduledTasks === false) return
         }
 
+        const dueDateIso = task.due_date?.date ?? null
+        const dueDateDay = dueDateIso ? dueDateIso.slice(0, 10) : null
+        const dueIsOverdue = task.due_date?.is_overdue ?? false
+
         // 遍历该任务的所有日程
         task.schedules?.forEach((schedule) => {
           const area = task.area_id ? areaStore.getAreaById(task.area_id) : null
@@ -180,10 +190,10 @@ export function useCalendarEvents(
           const endDate = new Date(startDate)
           endDate.setDate(endDate.getDate() + 1)
 
-          const scheduleOutcome = schedule.outcome ?? null
-
           const scheduleKey = `${task.id}::${schedule.scheduled_day}`
           scheduledTaskKeys.add(scheduleKey)
+
+          const hasDueFlag = dueDateDay === schedule.scheduled_day
 
           events.push({
             id: `task-${task.id}-${schedule.scheduled_day}`,
@@ -192,6 +202,7 @@ export function useCalendarEvents(
             end: endDate.toISOString(),
             allDay: true,
             color: color,
+            display: 'block',
             editable: false, // ✅ 任务事件也不可拖动（它们只是显示，不是时间块）
             classNames: isRecurringTask ? ['task-event', 'recurring-task'] : ['task-event'],
             extendedProps: {
@@ -199,8 +210,10 @@ export function useCalendarEvents(
               taskId: task.id,
               scheduleDay: schedule.scheduled_day,
               isRecurring: isRecurringTask,
-              scheduleOutcome,
+              scheduleOutcome: schedule.outcome ?? null,
               isCompleted: task.is_completed,
+              hasDueFlag,
+              isDueOverdue: hasDueFlag ? dueIsOverdue : false,
             },
           })
         })
@@ -215,6 +228,19 @@ export function useCalendarEvents(
 
         // 只显示有截止日期的任务
         if (!task.due_date) return
+
+        const dueDateIso = task.due_date.date
+        if (!dueDateIso) return
+
+        const dueDateDay = dueDateIso.slice(0, 10)
+
+        // 如果同一天已有排期，交由排期事件显示旗标，不再单独显示截止日期
+        const hasScheduleSameDay = task.schedules?.some(
+          (schedule) => schedule.scheduled_day === dueDateDay
+        )
+        if (hasScheduleSameDay) {
+          return
+        }
 
         // 截止日期使用特殊颜色：逾期=红色，未逾期=橙色
         const color = task.due_date.is_overdue ? '#ef4444' : '#f59e0b'
@@ -237,10 +263,11 @@ export function useCalendarEvents(
 
         events.push({
           id: `due-${task.id}`,
-          title: `⏰ ${task.title}`,
+          title: task.title,
           start: startDate.toISOString(),
           end: endDate.toISOString(),
           allDay: true,
+          display: 'block',
           color: color,
           editable: false, // ✅ 截止日期不可拖动
           classNames: ['due-date-event', task.due_date.is_overdue ? 'overdue' : ''],

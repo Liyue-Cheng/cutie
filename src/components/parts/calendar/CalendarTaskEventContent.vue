@@ -15,6 +15,8 @@ interface Props {
   isCompleted?: boolean
   isPreview?: boolean
   isRecurring?: boolean
+  hasDueFlag?: boolean
+  isDueOverdue?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
   isCompleted: false,
   isPreview: false,
   isRecurring: false,
+  hasDueFlag: false,
+  isDueOverdue: false,
 })
 
 const derivedState = () => {
@@ -52,6 +56,8 @@ const titleClass = computed(() => ({
 }))
 
 const showRecurringIcon = computed(() => Boolean(props.isRecurring))
+const showDueFlag = computed(() => Boolean(props.hasDueFlag))
+const dueFlagColor = computed(() => (props.isDueOverdue ? '#ef4444' : '#9ca3af'))
 
 async function updateTaskCompleted(taskId: string, completed: boolean) {
   if (completed) {
@@ -118,12 +124,21 @@ async function handleStateChange(nextState: CheckboxState) {
       @click.stop
     />
     <span class="calendar-task-title" :class="titleClass">{{ title }}</span>
-    <CuteIcon
-      v-if="showRecurringIcon"
-      name="RefreshCcw"
-      :size="13"
-      class="calendar-task-recurring-icon"
-    />
+    <div class="calendar-task-icons">
+      <CuteIcon
+        v-if="showRecurringIcon"
+        name="RefreshCcw"
+        :size="13"
+        class="calendar-task-recurring-icon"
+      />
+      <CuteIcon
+        v-if="showDueFlag"
+        name="Flag"
+        :size="14"
+        :color="dueFlagColor"
+        class="calendar-task-due-icon"
+      />
+    </div>
   </div>
 </template>
 
@@ -154,7 +169,6 @@ async function handleStateChange(nextState: CheckboxState) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--color-text-tertiary, #9ca3af);
 }
 
 .calendar-task-title.completed {
@@ -162,8 +176,18 @@ async function handleStateChange(nextState: CheckboxState) {
   opacity: 0.65;
 }
 
-.calendar-task-recurring-icon {
+.calendar-task-icons {
   flex: 0 0 auto;
-  color: var(--color-text-tertiary, #9ca3af);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calendar-task-recurring-icon {
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.calendar-task-due-icon {
+  color: var(--color-text-secondary, #6b7280);
 }
 </style>

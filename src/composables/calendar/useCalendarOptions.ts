@@ -18,6 +18,8 @@ import type {
   EventContentArg,
 } from '@fullcalendar/core'
 import CalendarTaskEventContent from '@/components/parts/calendar/CalendarTaskEventContent.vue'
+import CalendarTimeBlockEventContent from '@/components/parts/calendar/CalendarTimeBlockEventContent.vue'
+import CalendarDueDateEventContent from '@/components/parts/calendar/CalendarDueDateEventContent.vue'
 import { useTaskStore } from '@/stores/task'
 
 export function useCalendarOptions(
@@ -122,10 +124,11 @@ export function useCalendarOptions(
         scheduleOutcome?: string | null
         isCompleted?: boolean
         isPreview?: boolean
+        areaColor?: string
         [key: string]: any
       }
 
-      // 只对月视图的任务事件进行自定义渲染
+      // 月视图的任务事件自定义渲染
       if (extended?.type === 'task' && arg.view.type === 'dayGridMonth') {
         const container = document.createElement('div')
         container.style.width = '100%'
@@ -134,6 +137,8 @@ export function useCalendarOptions(
         // 获取最新的任务数据
         let isCompleted = extended.isCompleted ?? false
         let scheduleOutcome = extended.scheduleOutcome ?? null
+        let hasDueFlag = Boolean(extended.hasDueFlag)
+        let isDueOverdue = Boolean(extended.isDueOverdue)
 
         if (extended.taskId) {
           const task = taskStore.getTaskById_Mux(extended.taskId)
@@ -143,6 +148,14 @@ export function useCalendarOptions(
               const schedule = task.schedules?.find((s) => s.scheduled_day === extended.scheduleDay)
               if (schedule) {
                 scheduleOutcome = schedule.outcome ?? scheduleOutcome
+              }
+            }
+
+            if (task.due_date && extended.scheduleDay) {
+              const dueDateDay = task.due_date.date?.slice(0, 10)
+              if (dueDateDay && dueDateDay === extended.scheduleDay) {
+                hasDueFlag = true
+                isDueOverdue = task.due_date.is_overdue
               }
             }
           }
@@ -157,6 +170,45 @@ export function useCalendarOptions(
           isCompleted,
           isPreview: Boolean(extended.isPreview),
           isRecurring: Boolean(extended.isRecurring),
+          hasDueFlag,
+          isDueOverdue,
+        })
+
+        app.mount(container)
+
+        // 返回自定义内容
+        return { domNodes: [container] }
+      }
+
+      // 月视图的全天时间块事件自定义渲染
+      if (extended?.type === 'timeblock' && arg.view.type === 'dayGridMonth') {
+        const container = document.createElement('div')
+        container.style.width = '100%'
+        container.style.height = '100%'
+
+        const areaColor = extended.areaColor || '#9ca3af'
+
+        // 使用 Vue 组件渲染
+        const app = createApp(CalendarTimeBlockEventContent, {
+          title: arg.event.title || 'Time Block',
+          areaColor,
+        })
+
+        app.mount(container)
+
+        // 返回自定义内容
+        return { domNodes: [container] }
+      }
+
+      // 月视图的截止日期事件自定义渲染
+      if (extended?.type === 'due_date' && arg.view.type === 'dayGridMonth') {
+        const container = document.createElement('div')
+        container.style.width = '100%'
+        container.style.height = '100%'
+
+        const app = createApp(CalendarDueDateEventContent, {
+          title: arg.event.title || '任务',
+          isOverdue: Boolean(extended.isOverdue),
         })
 
         app.mount(container)
