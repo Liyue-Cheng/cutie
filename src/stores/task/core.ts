@@ -58,29 +58,23 @@ export function createTaskCore() {
    * Staging 任务（未安排且未完成）
    * ✅ 动态过滤：任务完成后自动消失
    * ✅ 性能优化：复用 allTasksArray
+   * ✅ 实时计算：根据 schedules 数组判断，不依赖 schedule_status
    * ✅ 过滤规则：
-   *    - schedule_status === 'staging'（后端计算的状态）
    *    - !is_completed（未完成）
    *    - !is_archived（未归档）
    *    - !is_deleted（未删除）
-   *    - 无当前或未来日程（防御性检查，避免前后端状态不同步）
+   *    - 无当前或未来日程（实时计算）
    */
   const stagingTasks = computed(() => {
     const today = new Date().toISOString().split('T')[0]!
 
     return allTasksArray.value.filter((task) => {
       // 基础状态检查
-      if (
-        task.schedule_status !== 'staging' ||
-        task.is_completed ||
-        task.is_archived ||
-        task.is_deleted
-      ) {
+      if (task.is_completed || task.is_archived || task.is_deleted) {
         return false
       }
 
-      // 🔥 防御性检查：确保没有当前或未来的日程
-      // 即使 schedule_status 是 'staging'，也要确保没有 >= today 的 schedule
+      // 🔥 实时计算：没有当前或未来的日程 = staging
       const hasFutureOrTodaySchedule =
         task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
 
@@ -93,11 +87,23 @@ export function createTaskCore() {
    * ✅ 动态过滤：任务完成后自动消失
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
+   * ✅ 实时计算：根据 schedules 数组判断，不依赖 schedule_status
    */
   const plannedTasks = computed(() => {
-    return allTasksArray.value.filter(
-      (task) => task.schedule_status === 'scheduled' && !task.is_completed && !task.is_deleted
-    )
+    const today = new Date().toISOString().split('T')[0]!
+
+    return allTasksArray.value.filter((task) => {
+      // 基础过滤：未完成 + 未删除
+      if (task.is_completed || task.is_deleted) {
+        return false
+      }
+
+      // 🔥 实时计算：有当前或未来的日程 = scheduled
+      const hasFutureOrTodaySchedule =
+        task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+
+      return hasFutureOrTodaySchedule
+    })
   })
 
   /**
@@ -151,12 +157,21 @@ export function createTaskCore() {
   /**
    * 已安排的任务（包括已完成和未完成）
    * ✅ 排除已删除的任务：删除后立即消失
+   * ✅ 实时计算：根据 schedules 数组判断，不依赖 schedule_status
    * @deprecated 使用 plannedTasks（只含未完成）
    */
   const scheduledTasks = computed(() => {
-    return allTasksArray.value.filter(
-      (task) => task.schedule_status === 'scheduled' && !task.is_deleted
-    )
+    const today = new Date().toISOString().split('T')[0]!
+
+    return allTasksArray.value.filter((task) => {
+      if (task.is_deleted) return false
+
+      // 🔥 实时计算：有当前或未来的日程 = scheduled
+      const hasFutureOrTodaySchedule =
+        task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+
+      return hasFutureOrTodaySchedule
+    })
   })
 
   /**
@@ -252,27 +267,32 @@ export function createTaskCore() {
           if (subtype === 'staging') {
             if (identifier) {
               // misc::staging::${areaId} - 指定 area 的 staging 任务
+              const today = new Date().toISOString().split('T')[0]!
               const filteredTasks = allTasksArray.value.filter((task) => {
-                const match =
-                  task.area_id === identifier &&
-                  task.schedule_status === 'staging' &&
-                  !task.is_completed &&
-                  !task.is_archived &&
-                  !task.is_deleted
+                // 基础检查
+                if (task.area_id !== identifier || task.is_completed || task.is_archived || task.is_deleted) {
+                  return false
+                }
+
+                // 🔥 实时计算：没有当前或未来的日程 = staging
+                const hasFutureOrTodaySchedule =
+                  task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+                const isStaging = !hasFutureOrTodaySchedule
+
                 if (task.area_id === identifier) {
                   logger.debug(LogTags.STORE_TASKS, 'Task area match check', {
                     taskId: task.id,
                     taskTitle: task.title,
                     taskAreaId: task.area_id,
                     targetAreaId: identifier,
-                    scheduleStatus: task.schedule_status,
+                    isStaging,
                     isCompleted: task.is_completed,
                     isArchived: task.is_archived,
                     isDeleted: task.is_deleted,
-                    finalMatch: match,
+                    finalMatch: isStaging,
                   })
                 }
-                return match
+                return isStaging
               })
 
               logger.info(LogTags.STORE_TASKS, 'Area staging filter result', {

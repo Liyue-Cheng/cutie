@@ -4,7 +4,7 @@
  * 配置 FullCalendar 插件、视图、时间槽等选项
  */
 
-import { reactive, type ComputedRef } from 'vue'
+import { reactive, type ComputedRef, createApp } from 'vue'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -15,7 +15,10 @@ import type {
   EventMountArg,
   EventClickArg,
   DatesSetArg,
+  EventContentArg,
 } from '@fullcalendar/core'
+import CalendarTaskEventContent from '@/components/parts/calendar/CalendarTaskEventContent.vue'
+import { useTaskStore } from '@/stores/task'
 
 export function useCalendarOptions(
   calendarEvents: ComputedRef<EventInput[]>,
@@ -24,11 +27,14 @@ export function useCalendarOptions(
     handleEventChange: (changeInfo: EventChangeArg) => Promise<void>
     handleEventContextMenu: (info: EventMountArg) => void
     handleEventClick: (clickInfo: EventClickArg) => void
+    handleEventDidMount: (arg: EventMountArg) => void
   },
   viewType: 'day' | 'week' | 'month' = 'day', // ✅ 新增：视图类型参数，默认为单天
   handleDatesSet?: (dateInfo: DatesSetArg) => void, // 🆕 日期变化回调
   days: 1 | 3 | 5 | 7 = 1 // 🆕 显示天数（1天、3天、5天或7天）
 ) {
+  const taskStore = useTaskStore()
+
   // ✅ 加载所有插件，支持动态切换视图
   const plugins = [interactionPlugin, timeGridPlugin, dayGridPlugin]
 
@@ -103,9 +109,68 @@ export function useCalendarOptions(
     events: calendarEvents,
     select: handlers.handleDateSelect,
     eventChange: handlers.handleEventChange,
-    eventDidMount: handlers.handleEventContextMenu,
+    eventDidMount: handlers.handleEventDidMount,
     eventClick: handlers.handleEventClick,
     datesSet: handleDatesSet, // 🆕 日期变化回调
+
+    // 🔥 自定义事件内容渲染（官方推荐方式）
+    eventContent: (arg: EventContentArg) => {
+      const extended = arg.event.extendedProps as {
+        type?: string
+        taskId?: string
+        scheduleDay?: string
+        scheduleOutcome?: string | null
+        isCompleted?: boolean
+        isPreview?: boolean
+        [key: string]: any
+      }
+
+      // 只对月视图的任务事件进行自定义渲染
+      if (extended?.type === 'task' && arg.view.type === 'dayGridMonth') {
+        const container = document.createElement('div')
+        container.style.width = '100%'
+        container.style.height = '100%'
+
+        // 获取最新的任务数据
+        let isCompleted = extended.isCompleted ?? false
+        let scheduleOutcome = extended.scheduleOutcome ?? null
+
+        if (extended.taskId) {
+          const task = taskStore.getTaskById_Mux(extended.taskId)
+          if (task) {
+            isCompleted = task.is_completed
+            if (extended.scheduleDay) {
+              const schedule = task.schedules?.find((s) => s.scheduled_day === extended.scheduleDay)
+              if (schedule) {
+                scheduleOutcome = schedule.outcome ?? scheduleOutcome
+              }
+            }
+          }
+        }
+
+        const colorSource =
+          arg.backgroundColor || arg.borderColor || (extended as any)?.color || '#9ca3af'
+
+        // 使用 Vue 组件渲染
+        const app = createApp(CalendarTaskEventContent, {
+          taskId: extended.taskId,
+          title: arg.event.title || '任务',
+          color: colorSource,
+          scheduleDay: extended.scheduleDay,
+          scheduleOutcome,
+          isCompleted,
+          isPreview: Boolean(extended.isPreview),
+        })
+
+        app.mount(container)
+
+        // 返回自定义内容
+        return { domNodes: [container] }
+      }
+
+      // 其他事件使用默认渲染
+      return true
+    },
   })
 
   return {

@@ -35,6 +35,35 @@
               {{ calendarZoom }}x
             </button>
 
+            <!-- 月视图筛选按钮 -->
+            <div
+              v-if="currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'"
+              class="filter-dropdown"
+            >
+              <button class="filter-btn" @click="toggleFilterMenu">
+                筛选
+                <span class="filter-icon">▼</span>
+              </button>
+              <div v-if="showFilterMenu" class="filter-menu">
+                <label class="filter-item">
+                  <input v-model="monthViewFilters.showRecurringTasks" type="checkbox" />
+                  <span>循环任务</span>
+                </label>
+                <label class="filter-item">
+                  <input v-model="monthViewFilters.showScheduledTasks" type="checkbox" />
+                  <span>已排期任务</span>
+                </label>
+                <label class="filter-item">
+                  <input v-model="monthViewFilters.showDueDates" type="checkbox" />
+                  <span>截止日期</span>
+                </label>
+                <label class="filter-item">
+                  <input v-model="monthViewFilters.showAllDayEvents" type="checkbox" />
+                  <span>全天事件</span>
+                </label>
+              </div>
+            </div>
+
             <!-- 最右侧：视图选择下拉菜单 -->
             <select v-model="currentRightPaneView" class="view-selector">
               <option value="calendar">日历</option>
@@ -53,6 +82,7 @@
               :view-type="effectiveCalendarViewType"
               :zoom="calendarZoom"
               :days="calendarDays"
+              :month-view-filters="monthViewFilters"
             />
           </div>
           <!-- Staging 视图 -->
@@ -106,6 +136,28 @@ const currentRightPaneView = ref<RightPaneView>('calendar') // 右栏当前视�
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
+
+// ==================== 月视图筛选状态 ====================
+const monthViewFilters = ref({
+  showRecurringTasks: true,
+  showScheduledTasks: true,
+  showDueDates: true,
+  showAllDayEvents: true,
+})
+
+const showFilterMenu = ref(false)
+
+function toggleFilterMenu() {
+  showFilterMenu.value = !showFilterMenu.value
+}
+
+// 点击外部关闭筛选菜单
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.filter-dropdown')) {
+    showFilterMenu.value = false
+  }
+}
 
 // 根据天数计算视图类型：7天显示本周视图，其他显示多天视图
 const calendarViewType = computed(() => {
@@ -161,6 +213,11 @@ function cycleZoom() {
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing Home view with Recent + Calendar...')
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'home')
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 // ==================== 日历状态 ====================
@@ -424,5 +481,76 @@ onBeforeUnmount(() => {
 .placeholder-text {
   font-size: 1.6rem;
   color: var(--color-text-secondary);
+}
+
+/* 筛选下拉菜单 */
+.filter-dropdown {
+  position: relative;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+}
+
+.filter-icon {
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 16rem;
+  background-color: var(--color-background-primary, #fff);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  padding: 0.8rem 0;
+  z-index: 1000;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.filter-item:hover {
+  background-color: var(--color-background-hover, #f5f5f5);
+}
+
+.filter-item input[type='checkbox'] {
+  width: 1.6rem;
+  height: 1.6rem;
+  cursor: pointer;
+}
+
+.filter-item span {
+  font-size: 1.4rem;
+  color: var(--color-text-primary);
 }
 </style>

@@ -347,7 +347,6 @@ export const TaskISA: ISADefinition = {
           task_id: payload.id,
           had_task: true,
           original_schedules: task.schedules ? JSON.parse(JSON.stringify(task.schedules)) : null,
-          original_schedule_status: task.schedule_status,
           original_is_completed: task.is_completed,
           original_completed_at: task.completed_at,
         }
@@ -359,13 +358,11 @@ export const TaskISA: ISADefinition = {
           task.schedules?.filter((schedule) => schedule.scheduled_day < today) || []
 
         // 🔥 立即更新任务状态
-        // - 清除当前和未来日程
-        // - 设为 staging 状态
+        // - 清除当前和未来日程（schedule_status 由 store 实时计算）
         // - 如果已完成，重新打开
         taskStore.addOrUpdateTask_mut({
           ...task,
           schedules: pastSchedules.length > 0 ? pastSchedules : null,
-          schedule_status: 'staging' as const,
           is_completed: false, // 后端会自动重新打开
           completed_at: null,
         })
@@ -379,11 +376,10 @@ export const TaskISA: ISADefinition = {
         const task = taskStore.getTaskById_Mux(snapshot.task_id)
 
         if (task) {
-          // 🔥 恢复原始状态
+          // 🔥 恢复原始状态（schedule_status 由 store 实时计算）
           taskStore.addOrUpdateTask_mut({
             ...task,
             schedules: snapshot.original_schedules,
-            schedule_status: snapshot.original_schedule_status,
             is_completed: snapshot.original_is_completed,
             completed_at: snapshot.original_completed_at,
           })

@@ -32,6 +32,7 @@ export function useCalendarInteractDrag(
 
   const POSITION_EPSILON = 0.5
   let lastPreviewPosition: Position | null = null
+  let lastPreviewKey: string | null = null
 
   function clearHoveredEvent() {
     if (!hoveredEventId.value) {
@@ -52,6 +53,7 @@ export function useCalendarInteractDrag(
 
     if (!preview) {
       lastPreviewPosition = null
+      lastPreviewKey = null
       previewEvent.value = null
       clearHoveredEvent()
       return
@@ -73,6 +75,7 @@ export function useCalendarInteractDrag(
 
     if (!position) {
       lastPreviewPosition = null
+      lastPreviewKey = null
       previewEvent.value = null
       clearHoveredEvent()
       return
@@ -96,6 +99,7 @@ export function useCalendarInteractDrag(
 
     if (!isOverCalendar) {
       previewEvent.value = null
+      lastPreviewKey = null
       clearHoveredEvent()
       return
     }
@@ -106,8 +110,24 @@ export function useCalendarInteractDrag(
     const fcEvent = target?.closest('.fc-event') as HTMLElement | null
     if (fcEvent) {
       const eventEl = fcEvent as any
-      const eventId = eventEl?.fcSeg?.eventRange?.def?.publicId
-      if (eventId && eventId !== 'preview-event') {
+      const eventRange = eventEl?.fcSeg?.eventRange
+      const eventId = eventRange?.def?.publicId
+      const eventType =
+        eventRange?.def?.extendedProps?.type ||
+        eventEl?.dataset?.eventType ||
+        eventEl?.dataset?.type
+
+      const isLinkableType =
+        eventType === 'timeblock' ||
+        eventType === 'time-block' ||
+        eventType === 'timeblock_event' ||
+        eventType === 'time_block'
+
+      if (!isLinkableType) {
+        clearHoveredEvent()
+        hoveredEventId.value = null
+        // 保留预览事件
+      } else if (eventId && eventId !== 'preview-event') {
         clearHoveredEvent()
         hoveredEventId.value = eventId
         previewEvent.value = null // 清除预览，显示链接图标
@@ -127,6 +147,7 @@ export function useCalendarInteractDrag(
       const dateStr = dayCell.getAttribute('data-date')
       if (!dateStr) {
         previewEvent.value = null
+        lastPreviewKey = null
         return
       }
 
@@ -134,20 +155,42 @@ export function useCalendarInteractDrag(
       const endDate = new Date(startDate)
       endDate.setDate(endDate.getDate() + 1)
 
+      const previewKey = `allday-${dateStr}`
+      if (!force && lastPreviewKey === previewKey && previewEvent.value) {
+        return
+      }
+
       const areaId = task && (task as any).area_id ? (task as any).area_id : undefined
       const area = areaId ? areaStore.getAreaById(areaId) : null
       const previewColor = area?.color || '#9ca3af'
 
+      const isRecurringTask = Boolean(task && (task as any).recurrence_id)
+      const taskTitle = ((task as any)?.title ?? (task as any)?.name ?? '任务') as string
+      const taskIcon = isRecurringTask ? '🔁' : '📋'
+      const classNames = isRecurringTask
+        ? ['task-event', 'recurring-task', 'preview-task-event']
+        : ['task-event', 'preview-task-event']
+
       previewEvent.value = {
         id: 'preview-event',
-        title: ((task as any)?.title ?? (task as any)?.name ?? '任务') as string,
+        title: `${taskIcon} ${taskTitle}`,
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         allDay: true,
         color: previewColor,
-        classNames: ['preview-event'],
+        classNames,
         display: 'block',
+        extendedProps: {
+          type: 'task',
+          taskId: (task as any)?.id,
+          scheduleDay: dateStr,
+          isRecurring: isRecurringTask,
+          isPreview: true,
+          scheduleOutcome: null,
+          isCompleted: Boolean(task && (task as any).is_completed),
+        },
       }
+      lastPreviewKey = previewKey
       return
     }
 
@@ -180,6 +223,11 @@ export function useCalendarInteractDrag(
     const area = areaId2 ? areaStore.getAreaById(areaId2) : null
     const previewColor = area?.color || '#9ca3af'
 
+    const previewKey = `timed-${startTimeForPreview.toISOString()}-${endTime.toISOString()}`
+    if (!force && lastPreviewKey === previewKey && previewEvent.value) {
+      return
+    }
+
     previewEvent.value = {
       id: 'preview-event',
       title: ((task as any)?.title ?? (task as any)?.name ?? '任务') as string,
@@ -189,7 +237,17 @@ export function useCalendarInteractDrag(
       color: previewColor,
       classNames: ['preview-event'],
       display: 'block',
+      extendedProps: {
+        type: 'task',
+        taskId: (task as any)?.id,
+        scheduleDay: undefined,
+        isRecurring: Boolean(task && (task as any).recurrence_id),
+        isPreview: true,
+        scheduleOutcome: null,
+        isCompleted: Boolean(task && (task as any).is_completed),
+      },
     }
+    lastPreviewKey = previewKey
   }
 
   /**
@@ -281,6 +339,13 @@ export function useCalendarInteractDrag(
         let viewKey: string
         let calendarConfig: any
 
+        const calendarApi = calendarRef.value?.getApi()
+        const currentViewTypeName = calendarApi?.view?.type || ''
+
+        const targetContextExtras: Record<string, any> = {
+          calendarViewType: currentViewTypeName,
+        }
+
         if (isAllDay) {
           const dateStr = dayCell.getAttribute('data-date')
           if (!dateStr) {
@@ -298,6 +363,8 @@ export function useCalendarInteractDrag(
             endTime: endDate.toISOString(),
             isAllDay: true,
           }
+
+          targetContextExtras.calendarDate = dateStr
 
           logger.debug(LogTags.COMPONENT_CALENDAR, 'All-day drop', { viewKey, calendarConfig })
         } else {
@@ -346,6 +413,7 @@ export function useCalendarInteractDrag(
           sourceContext: session.metadata?.sourceContext || {},
           targetContext: {
             calendarConfig,
+            ...targetContextExtras,
           },
         })
 

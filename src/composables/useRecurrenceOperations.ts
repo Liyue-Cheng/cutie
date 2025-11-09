@@ -6,6 +6,15 @@ import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 
+interface RecurrenceCleanupOptions {
+  removeAfterDateExclusive?: string | null
+  removeFromDateInclusive?: string | null
+}
+
+function getTodayDateString(): string {
+  return new Date().toISOString().split('T')[0]!
+}
+
 /**
  * 循环任务操作 Composable
  *
@@ -20,6 +29,98 @@ export function useRecurrenceOperations() {
   const viewStore = useViewStore()
   const taskStore = useTaskStore()
   const uiStore = useUIStore()
+
+  /**
+   * 计算需要从 TaskStore 中移除的任务 ID
+   */
+  function collectRecurrenceTaskIds(
+    recurrenceId: string,
+    options: RecurrenceCleanupOptions = {}
+  ): string[] {
+    const { removeAfterDateExclusive, removeFromDateInclusive } = options
+    const candidates = taskStore.allTasks.filter((task) => {
+      if (task.recurrence_id !== recurrenceId) {
+        return false
+      }
+
+      if (task.is_completed) {
+        return false
+      }
+
+      if (task.is_deleted) {
+        return true
+      }
+
+      const originalDate = task.recurrence_original_date
+
+      if (removeAfterDateExclusive != null) {
+        const cutoff = removeAfterDateExclusive
+        if (!originalDate) {
+          return true
+        }
+        if (originalDate > cutoff) {
+          return true
+        }
+        return false
+      }
+
+      if (removeFromDateInclusive != null) {
+        const cutoff = removeFromDateInclusive
+        if (!originalDate) {
+          return true
+        }
+        if (originalDate >= cutoff) {
+          return true
+        }
+        return false
+      }
+
+      return true
+    })
+
+    return candidates.map((task) => task.id)
+  }
+
+  /**
+   * 删除本地缓存中的循环任务实例，并刷新任务 / 视图数据
+   */
+  async function synchronizeAfterRecurrenceMutation(
+    recurrenceId: string,
+    options: RecurrenceCleanupOptions
+  ) {
+    const taskIdsToRemove = collectRecurrenceTaskIds(recurrenceId, options)
+
+    if (taskIdsToRemove.length > 0) {
+      taskStore.batchRemoveTasks_mut(taskIdsToRemove)
+      logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Removed recurrence tasks from store', {
+        recurrenceId,
+        count: taskIdsToRemove.length,
+        options,
+      })
+    }
+
+    try {
+      await taskStore.fetchAllIncompleteTasks_DMA()
+    } catch (error) {
+      logger.error(
+        LogTags.COMPOSABLE_RECURRENCE,
+        'Failed to refetch incomplete tasks after recurrence mutation',
+        error instanceof Error ? error : new Error(String(error)),
+        { recurrenceId }
+      )
+    }
+
+    try {
+      await viewStore.refreshAllMountedDailyViews()
+    } catch (error) {
+      logger.error(
+        LogTags.COMPOSABLE_RECURRENCE,
+        'Failed to refresh mounted daily views after recurrence mutation',
+        error instanceof Error ? error : new Error(String(error)),
+        { recurrenceId }
+      )
+    }
+  }
 
   /**
    * 停止重复（设置结束日期为当前任务的原始日期）
@@ -37,8 +138,9 @@ export function useRecurrenceOperations() {
         end_date: originalDate,
       })
 
-      // 刷新所有已挂载的日视图
-      await viewStore.refreshAllMountedDailyViews()
+      await synchronizeAfterRecurrenceMutation(recurrenceId, {
+        removeAfterDateExclusive: originalDate,
+      })
 
       logger.info(LogTags.COMPOSABLE_RECURRENCE, 'Successfully stopped repeating', {
         recurrenceId,
@@ -142,7 +244,9 @@ export function useRecurrenceOperations() {
           recurrenceId,
           payload: {
             ...updatePayload,
-            detail_note: updatePayload.detail_note ? `(${updatePayload.detail_note.length} chars)` : null,
+            detail_note: updatePayload.detail_note
+              ? `(${updatePayload.detail_note.length} chars)`
+              : null,
             subtasks: updatePayload.subtasks ? `(${updatePayload.subtasks.length} items)` : null,
           },
         }
@@ -189,8 +293,9 @@ export function useRecurrenceOperations() {
       // 使用CPU指令删除循环规则，后端会自动清理所有未完成实例
       await pipeline.dispatch('recurrence.delete', { id: recurrenceId })
 
-      // 刷新所有已挂载的日视图
-      await viewStore.refreshAllMountedDailyViews()
+      await synchronizeAfterRecurrenceMutation(recurrenceId, {
+        removeFromDateInclusive: getTodayDateString(),
+      })
 
       logger.info(
         LogTags.COMPOSABLE_RECURRENCE,

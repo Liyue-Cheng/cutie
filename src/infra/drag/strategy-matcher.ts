@@ -106,10 +106,18 @@ function matchSource(condition: SourceCondition, session: DragSession): boolean 
     const statuses = Array.isArray(condition.taskStatus)
       ? condition.taskStatus
       : [condition.taskStatus]
-    if (!statuses.includes((session.object.data as any).schedule_status)) {
+    
+    // 🔥 实时计算任务状态
+    const task = session.object.data as any
+    const today = new Date().toISOString().split('T')[0]!
+    const hasFutureOrTodaySchedule =
+      task.schedules?.some((schedule: any) => schedule.scheduled_day >= today) ?? false
+    const actualStatus = hasFutureOrTodaySchedule ? 'scheduled' : 'staging'
+    
+    if (!statuses.includes(actualStatus)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Source taskStatus not matched', {
         expected: statuses,
-        actual: (session.object.data as any).schedule_status,
+        actual: actualStatus,
       })
       return false
     }
@@ -171,10 +179,17 @@ function matchTarget(
 
   // 匹配接受的任务状态（仅当对象类型为 task 时有效）
   if (condition.acceptsStatus && session.object.type === 'task') {
-    if (!condition.acceptsStatus.includes((session.object.data as any).schedule_status)) {
+    // 🔥 实时计算任务状态
+    const task = session.object.data as any
+    const today = new Date().toISOString().split('T')[0]!
+    const hasFutureOrTodaySchedule =
+      task.schedules?.some((schedule: any) => schedule.scheduled_day >= today) ?? false
+    const actualStatus = hasFutureOrTodaySchedule ? 'scheduled' : 'staging'
+    
+    if (!condition.acceptsStatus.includes(actualStatus)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Target acceptsStatus not matched', {
         acceptsStatus: condition.acceptsStatus,
-        taskStatus: (session.object.data as any).schedule_status,
+        taskStatus: actualStatus,
       })
       return false
     }
@@ -196,8 +211,8 @@ function matchTarget(
  */
 export function calculateMatchScore(
   condition: StrategyCondition,
-  session: DragSession,
-  targetZone: string
+  _session: DragSession,
+  _targetZone: string
 ): number {
   let score = 0
 

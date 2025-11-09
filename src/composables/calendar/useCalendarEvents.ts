@@ -10,9 +10,17 @@ import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 
+export interface MonthViewFilters {
+  showRecurringTasks: boolean
+  showScheduledTasks: boolean
+  showDueDates: boolean
+  showAllDayEvents: boolean
+}
+
 export function useCalendarEvents(
   previewEvent: Ref<EventInput | null>,
-  viewType: Ref<'day' | 'week' | 'month'>
+  viewType: Ref<'day' | 'week' | 'month'>,
+  monthViewFilters?: Ref<MonthViewFilters | undefined>
 ) {
   const timeBlockStore = useTimeBlockStore()
   const taskStore = useTaskStore()
@@ -33,9 +41,26 @@ export function useCalendarEvents(
    */
   const calendarEvents = computed((): EventInput[] => {
     const events: EventInput[] = []
+    const scheduledTaskKeys = new Set<string>()
+    const filters = monthViewFilters?.value
 
     // 1. 添加时间块事件
     timeBlockStore.allTimeBlocks.forEach((timeBlock) => {
+      // 月视图下仅展示全天时间块，避免与已排期任务重复
+      if (viewType.value === 'month' && timeBlock.is_all_day !== true) {
+        return
+      }
+
+      // 月视图筛选：全天事件
+      if (
+        viewType.value === 'month' &&
+        filters &&
+        !filters.showAllDayEvents &&
+        timeBlock.is_all_day
+      ) {
+        return
+      }
+
       // 颜色优先级：
       // 1. 如果有 area，使用 area 的颜色
       // 2. 如果没有 area 但有关联任务（从任务创建），使用灰色
@@ -120,13 +145,25 @@ export function useCalendarEvents(
         timeBlockStore.allTimeBlocks.flatMap((tb) => (tb.linked_tasks || []).map((t) => t.id))
       )
 
-      // 遍历所有已排期的任务
-      taskStore.plannedTasks.forEach((task) => {
-        // 跳过已完成的任务
-        if (task.is_completed) return
+      // 🔥 遍历所有有日程的任务（包括过去的日期）
+      // 不能只用 plannedTasks，因为它只包含未来的任务
+      taskStore.allTasks.forEach((task) => {
+        // 跳过已完成、已删除、没有日程的任务
+        if (task.is_completed || task.is_deleted || !task.schedules || task.schedules.length === 0)
+          return
 
         // 如果任务已经有时间块，不重复显示
         if (tasksWithTimeBlocks.has(task.id)) return
+
+        // 根据筛选器判断是否显示
+        const isRecurringTask = task.recurrence_id !== null
+        if (isRecurringTask) {
+          // 循环任务：只有勾选"循环任务"才显示
+          if (filters?.showRecurringTasks === false) return
+        } else {
+          // 非循环任务：只有勾选"已排期任务"才显示
+          if (filters?.showScheduledTasks === false) return
+        }
 
         // 遍历该任务的所有日程
         task.schedules?.forEach((schedule) => {
@@ -144,19 +181,30 @@ export function useCalendarEvents(
           const endDate = new Date(startDate)
           endDate.setDate(endDate.getDate() + 1)
 
+          // 循环任务使用特殊图标
+          const taskIcon = isRecurringTask ? '🔁' : '📋'
+
+          const scheduleOutcome = schedule.outcome ?? null
+
+          const scheduleKey = `${task.id}::${schedule.scheduled_day}`
+          scheduledTaskKeys.add(scheduleKey)
+
           events.push({
             id: `task-${task.id}-${schedule.scheduled_day}`,
-            title: `📋 ${task.title}`,
+            title: `${taskIcon} ${task.title}`,
             start: startDate.toISOString(),
             end: endDate.toISOString(),
             allDay: true,
             color: color,
             editable: false, // ✅ 任务事件也不可拖动（它们只是显示，不是时间块）
-            classNames: ['task-event'],
+            classNames: isRecurringTask ? ['task-event', 'recurring-task'] : ['task-event'],
             extendedProps: {
               type: 'task',
               taskId: task.id,
               scheduleDay: schedule.scheduled_day,
+              isRecurring: isRecurringTask,
+              scheduleOutcome,
+              isCompleted: task.is_completed,
             },
           })
         })
@@ -164,7 +212,7 @@ export function useCalendarEvents(
     }
 
     // 3. 添加截止日期事件（仅在月视图）
-    if (viewType.value === 'month') {
+    if (viewType.value === 'month' && filters?.showDueDates !== false) {
       taskStore.allTasks.forEach((task) => {
         // 跳过已完成、已归档、已删除的任务
         if (task.is_completed || task.is_archived || task.is_deleted) return
@@ -211,6 +259,26 @@ export function useCalendarEvents(
 
     // 4. 添加预览事件
     if (previewEvent.value) {
+      const previewProps = previewEvent.value.extendedProps as
+        | {
+            type?: string
+            taskId?: string
+            scheduleDay?: string
+            scheduleOutcome?: string | null
+            isCompleted?: boolean
+            [key: string]: any
+          }
+        | undefined
+
+      if (
+        previewProps?.type === 'task' &&
+        previewProps.taskId &&
+        previewProps.scheduleDay &&
+        scheduledTaskKeys.has(`${previewProps.taskId}::${previewProps.scheduleDay}`)
+      ) {
+        return events
+      }
+
       events.push({
         id: previewEvent.value.id || 'preview-event',
         title: previewEvent.value.title || '预览',
@@ -218,6 +286,8 @@ export function useCalendarEvents(
         end: typeof previewEvent.value.end === 'string' ? previewEvent.value.end : '',
         allDay: previewEvent.value.allDay || false,
         color: previewEvent.value.color || '#BCEAEE',
+        classNames: previewEvent.value.classNames,
+        extendedProps: previewEvent.value.extendedProps,
       })
     }
 

@@ -3,7 +3,6 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useRecurrenceStore } from '@/stores/recurrence'
-import { useTemplateStore } from '@/stores/template'
 import { useViewStore } from '@/stores/view'
 import { pipeline } from '@/cpu'
 import { RRule } from 'rrule'
@@ -16,6 +15,7 @@ import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConf
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString, parseDateString, toUtcIsoString } from '@/infra/utils/dateUtils'
 import draggable from 'vuedraggable'
+import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
 
 interface Subtask {
   id: string
@@ -34,8 +34,8 @@ const emit = defineEmits(['close'])
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const recurrenceStore = useRecurrenceStore()
-const templateStore = useTemplateStore()
 const viewStore = useViewStore()
+const recurrenceOps = useRecurrenceOperations()
 
 // 本地编辑状态
 const titleInput = ref('')
@@ -411,15 +411,9 @@ async function handleStopRepeating() {
         recurrenceId: currentRecurrence.value.id,
         instanceDate,
       })
-      // 🔥 使用CPU指令更新循环规则
-      await pipeline.dispatch('recurrence.update', {
-        id: currentRecurrence.value.id,
-        end_date: instanceDate,
-      })
-      // 重新加载以更新状态
+      await recurrenceOps.stopRepeating(currentRecurrence.value.id, instanceDate)
+
       await loadRecurrence()
-      logger.info(LogTags.STORE_VIEW, 'Refreshing mounted daily views')
-      await viewStore.refreshAllMountedDailyViews()
     } catch (error) {
       console.error('Failed to stop repeating:', error)
       alert('操作失败，请重试')
@@ -452,10 +446,9 @@ async function handleDeleteRecurrence() {
 
   if (confirm('确定删除这个循环规则吗？已生成的任务不会被删除。')) {
     try {
-      // 🔥 使用CPU指令删除循环规则
-      await pipeline.dispatch('recurrence.delete', { id: currentRecurrence.value.id })
+      await recurrenceOps.deleteAllInstancesAndStop(currentRecurrence.value.id)
       currentRecurrence.value = null
-      await viewStore.refreshAllMountedDailyViews()
+      await loadRecurrence()
     } catch (error) {
       console.error('Failed to delete recurrence:', error)
       alert('删除失败，请重试')

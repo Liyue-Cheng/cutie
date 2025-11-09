@@ -51,6 +51,36 @@ export const anyToCalendarAllDayStrategy: Strategy = {
         }
 
         const { startTime, endTime } = targetConfig
+        const viewType = ctx.targetContext?.calendarViewType
+        const calendarDate: string | null =
+          ctx.targetContext?.calendarDate ??
+          (startTime ? new Date(startTime).toISOString().split('T')[0] : null)
+
+        // 月视图：只创建日程，不创建时间块
+        if (viewType === 'dayGridMonth') {
+          if (!calendarDate) {
+            return {
+              success: false,
+              message: '❌ 无法解析日历日期',
+            }
+          }
+
+          await pipeline.dispatch('schedule.create', {
+            task_id: task.id,
+            scheduled_day: calendarDate,
+          })
+
+          logger.info(LogTags.DRAG_STRATEGY, 'Scheduled task via calendar month drop', {
+            taskId: task.id,
+            calendarDate,
+          })
+
+          return {
+            success: true,
+            message: '✅ 已排期任务',
+            affectedViews: [ctx.sourceViewId, 'calendar'],
+          }
+        }
 
         // 🎯 步骤 1: 如果是 tiny 任务，先更新 estimated_duration
         if (task.estimated_duration === null || task.estimated_duration === 0) {

@@ -14,8 +14,10 @@ import type {
 } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
+import KanbanTaskCardMenu from '@/components/parts/kanban/KanbanTaskCardMenu.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
+import { useTaskStore } from '@/stores/task'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
@@ -23,6 +25,7 @@ export function useCalendarHandlers(
   selectedTimeBlockId: Ref<string | null>
 ) {
   const contextMenu = useContextMenu()
+  const taskStore = useTaskStore()
 
   /**
    * 处理日期选择 - 创建新的时间块
@@ -282,8 +285,35 @@ export function useCalendarHandlers(
    */
   function handleEventContextMenu(info: EventMountArg) {
     info.el.addEventListener('contextmenu', (e: MouseEvent) => {
+      const extended = info.event.extendedProps as {
+        type?: string
+        taskId?: string
+        scheduleDay?: string
+      }
+
+      if (extended?.type === 'task' && extended.taskId) {
+        const task = taskStore.getTaskById_Mux(extended.taskId)
+
+        if (task) {
+          const viewKey = extended.scheduleDay ? `daily::${extended.scheduleDay}` : undefined
+          contextMenu.show(KanbanTaskCardMenu, { task, viewKey }, e)
+          return
+        } else {
+          logger.warn(LogTags.COMPONENT_CALENDAR, 'Task not found for calendar event', {
+            taskId: extended.taskId,
+          })
+        }
+      }
+
       contextMenu.show(CalendarEventMenu, { event: info.event }, e)
     })
+  }
+
+  /**
+   * 处理事件挂载 - 只用于注册右键菜单
+   */
+  function handleEventDidMount(info: EventMountArg) {
+    handleEventContextMenu(info)
   }
 
   /**
@@ -304,5 +334,6 @@ export function useCalendarHandlers(
     handleEventChange,
     handleEventContextMenu,
     handleEventClick,
+    handleEventDidMount,
   }
 }

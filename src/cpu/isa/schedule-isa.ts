@@ -40,7 +40,6 @@ export const ScheduleISA: ISADefinition = {
           task_id: payload.task_id,
           had_task: true,
           original_schedules: task.schedules ? JSON.parse(JSON.stringify(task.schedules)) : null,
-          original_schedule_status: task.schedule_status,
         }
 
         // 🔥 立即添加新日程到 schedules 数组
@@ -52,11 +51,10 @@ export const ScheduleISA: ISADefinition = {
 
         const newSchedules = task.schedules ? [...task.schedules, newSchedule] : [newSchedule]
 
-        // 立即更新任务：添加日程并设为 scheduled 状态
+        // 立即更新任务：添加日程（schedule_status 由 store 实时计算）
         taskStore.addOrUpdateTask_mut({
           ...task,
           schedules: newSchedules,
-          schedule_status: 'scheduled' as const,
         })
 
         return snapshot
@@ -68,11 +66,10 @@ export const ScheduleISA: ISADefinition = {
         const task = taskStore.getTaskById_Mux(snapshot.task_id)
 
         if (task) {
-          // 🔥 恢复原始状态
+          // 🔥 恢复原始状态（schedule_status 由 store 实时计算）
           taskStore.addOrUpdateTask_mut({
             ...task,
             schedules: snapshot.original_schedules,
-            schedule_status: snapshot.original_schedule_status,
           })
         }
       },
@@ -216,7 +213,6 @@ export const ScheduleISA: ISADefinition = {
           task_id: payload.task_id,
           had_task: true,
           original_schedules: JSON.parse(JSON.stringify(task.schedules)),
-          original_schedule_status: task.schedule_status,
         }
 
         // 🔥 立即删除指定日期的日程
@@ -224,16 +220,10 @@ export const ScheduleISA: ISADefinition = {
           (schedule) => schedule.scheduled_day !== payload.scheduled_day
         )
 
-        // 🔥 智能更新 schedule_status
-        // 如果删除后没有未来日程，设为 staging；否则保持 scheduled
-        const today = new Date().toISOString().split('T')[0]
-        const hasFutureSchedule = newSchedules.some((schedule) => schedule.scheduled_day >= today)
-
-        // 立即更新任务
+        // 立即更新任务（schedule_status 由 store 实时计算）
         taskStore.addOrUpdateTask_mut({
           ...task,
           schedules: newSchedules.length > 0 ? newSchedules : null,
-          schedule_status: hasFutureSchedule ? 'scheduled' : 'staging',
         })
 
         return snapshot
@@ -245,11 +235,10 @@ export const ScheduleISA: ISADefinition = {
         const task = taskStore.getTaskById_Mux(snapshot.task_id)
 
         if (task) {
-          // 🔥 恢复原始状态
+          // 🔥 恢复原始状态（schedule_status 由 store 实时计算）
           taskStore.addOrUpdateTask_mut({
             ...task,
             schedules: snapshot.original_schedules,
-            schedule_status: snapshot.original_schedule_status,
           })
         }
       },

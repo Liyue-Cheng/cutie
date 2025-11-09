@@ -52,8 +52,10 @@
 
 <script setup lang="ts">
 import FullCalendar from '@fullcalendar/vue3'
+import type { DatesSetArg } from '@fullcalendar/core'
 import { computed, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
+import { useTaskStore } from '@/stores/task'
 import { useRegisterStore } from '@/stores/register'
 import { useAutoScroll } from '@/composables/calendar/useAutoScroll'
 import { useTimePosition } from '@/composables/calendar/useTimePosition'
@@ -68,6 +70,7 @@ import { interactManager, dragPreviewState, previewMousePosition } from '@/infra
 import TimeBlockDetailPanel from './TimeBlockDetailPanel.vue'
 
 const timeBlockStore = useTimeBlockStore()
+const taskStore = useTaskStore()
 const registerStore = useRegisterStore()
 
 // ==================== Props ====================
@@ -77,10 +80,22 @@ const props = withDefaults(
     zoom?: 1 | 2 | 3 // 缩放倍率
     viewType?: 'day' | 'week' | 'month' // ✅ 新增：视图类型（单天、周或月视图）
     days?: 1 | 3 | 5 | 7 // 🆕 新增：显示天数（1天、3天、5天或7天）
+    monthViewFilters?: {
+      showRecurringTasks: boolean
+      showScheduledTasks: boolean
+      showDueDates: boolean
+      showAllDayEvents: boolean
+    }
   }>(),
   {
     viewType: 'day', // 默认单天视图
     days: 1, // 默认显示1天
+    monthViewFilters: () => ({
+      showRecurringTasks: true,
+      showScheduledTasks: true,
+      showDueDates: true,
+      showAllDayEvents: true,
+    }),
   }
 )
 
@@ -118,21 +133,101 @@ const drag = useCalendarInteractDrag(calendarRef, {
 })
 const dragStrategy = useDragStrategy()
 
-// 日历事件数据（传入视图类型）
+// 日历事件数据（传入视图类型和筛选器）
 const viewTypeRef = computed(() => props.viewType)
-const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef)
+const monthViewFiltersRef = computed(() => props.monthViewFilters)
+const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef, monthViewFiltersRef)
 
 // 事件处理器
 const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
 
+function formatDateShort(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// 🔥 拉取月视图数据的辅助函数
+const fetchMonthViewData = async () => {
+  if (props.viewType !== 'month' || !calendarRef.value) {
+    return
+  }
+
+  const calendarApi = calendarRef.value.getApi()
+  const view = calendarApi.view
+  const startDate = view.activeStart
+  const endDate = view.activeEnd
+
+  const startDateStr = formatDateShort(startDate)
+  const endDateStr = formatDateShort(new Date(endDate.getTime() - 1)) // 结束日期为独，占用前一天
+
+  logger.info(LogTags.COMPONENT_CALENDAR, 'Fetching data for month view', {
+    startDate: startDateStr,
+    endDate: endDateStr,
+  })
+
+  try {
+    // 拉取该月份的时间块数据（后端会自动生成循环任务）
+    await timeBlockStore.fetchTimeBlocksForRange(startDateStr, endDateStr)
+  } catch (error) {
+    logger.error(
+      LogTags.COMPONENT_CALENDAR,
+      'Failed to fetch time blocks for month view',
+      error instanceof Error ? error : new Error(String(error)),
+      { startDate: startDateStr, endDate: endDateStr }
+    )
+  }
+
+  // 🔄 同步加载每一天的任务，确保循环任务实例生成
+  try {
+    const datesToFetch: string[] = []
+    const cursor = new Date(startDate)
+    const exclusiveEnd = new Date(endDate)
+
+    while (cursor < exclusiveEnd) {
+      datesToFetch.push(formatDateShort(cursor))
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    const CHUNK_SIZE = 5
+    for (let i = 0; i < datesToFetch.length; i += CHUNK_SIZE) {
+      const chunk = datesToFetch.slice(i, i + CHUNK_SIZE)
+      await Promise.all(
+        chunk.map((date) =>
+          taskStore
+            .fetchDailyTasks_DMA(date)
+            .catch((error) =>
+              logger.error(
+                LogTags.COMPONENT_CALENDAR,
+                'Failed to fetch daily tasks for month view',
+                error instanceof Error ? error : new Error(String(error)),
+                { date }
+              )
+            )
+        )
+      )
+    }
+  } catch (error) {
+    logger.error(
+      LogTags.COMPONENT_CALENDAR,
+      'Failed to load calendar tasks for month view',
+      error instanceof Error ? error : new Error(String(error)),
+      { startDate: startDateStr, endDate: endDateStr }
+    )
+  }
+}
+
 // 日历日期变化回调
-const handleDatesSet = (dateInfo: { start: Date; end: Date }) => {
+const handleDatesSet = (dateInfo: DatesSetArg) => {
+  const calendarApi = calendarRef.value?.getApi()
+  const activeDate =
+    calendarApi?.getDate() ??
+    (dateInfo.view?.currentStart ? new Date(dateInfo.view.currentStart.valueOf()) : dateInfo.start)
+
   // 🔧 FIX: 使用本地时间而不是 UTC 时间，避免时区偏移
-  const date = dateInfo.start
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const dateStr = `${year}-${month}-${day}`
+  const date = activeDate
+  const dateStr = formatDateShort(date)
 
   // ✅ 直接写入寄存器，消除 props drilling
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, dateStr)
@@ -274,7 +369,7 @@ function updateDisplayDates() {
 // 监听 currentDate prop 变化，切换日历显示的日期
 watch(
   () => props.currentDate,
-  (newDate, oldDate) => {
+  async (newDate, oldDate) => {
     // 🔍 检查点3：日历日期同步
     logger.debug(LogTags.COMPONENT_CALENDAR, 'Date changed', { oldDate, newDate })
 
@@ -286,6 +381,12 @@ watch(
 
         // 🔧 FIX: 清除缓存，强制重新计算位置
         clearCache()
+
+        // 🔥 月视图：日期变化时拉取新月份的数据
+        if (props.viewType === 'month') {
+          await nextTick() // 确保日期已切换
+          await fetchMonthViewData()
+        }
 
         // 🔍 检查点3：确认切换后的日期
         logger.debug(LogTags.COMPONENT_CALENDAR, 'After gotoDate', {
@@ -350,6 +451,12 @@ watch(
 
     // 更新自定义日期头部
     updateDisplayDates()
+
+    // 🔥 如果切换到月视图，拉取该月份的数据
+    if (newViewType === 'month') {
+      await nextTick() // 确保视图已切换
+      await fetchMonthViewData()
+    }
 
     logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar view changed successfully', {
       viewName,
@@ -438,17 +545,6 @@ onMounted(async () => {
   }
 
   try {
-    // 🔧 FIX: 加载更大的时间范围（前后各 3 个月），避免切换日历时看不到数据
-    const today = new Date()
-    const startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1) // 3个月前
-    const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0) // 3个月后（下个月的0号=本月最后一天）
-
-    logger.debug(LogTags.COMPONENT_CALENDAR, 'Loading time blocks for range', {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-    })
-    await timeBlockStore.fetchTimeBlocksForRange(startDate.toISOString(), endDate.toISOString())
-
     // 如果有初始日期，切换到该日期
     if (props.currentDate && calendarRef.value) {
       const calendarApi = calendarRef.value.getApi()
@@ -458,6 +554,23 @@ onMounted(async () => {
         })
         calendarApi.gotoDate(props.currentDate)
       }
+    }
+
+    // 🔥 月视图：拉取当前月份的数据
+    if (props.viewType === 'month') {
+      await nextTick() // 确保日历已渲染
+      await fetchMonthViewData()
+    } else {
+      // 其他视图：加载更大的时间范围（前后各 3 个月）
+      const today = new Date()
+      const startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1) // 3个月前
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0) // 3个月后
+
+      logger.debug(LogTags.COMPONENT_CALENDAR, 'Loading time blocks for range', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      })
+      await timeBlockStore.fetchTimeBlocksForRange(startDate.toISOString(), endDate.toISOString())
     }
 
     // 计算装饰竖线位置（已禁用）
@@ -629,6 +742,15 @@ defineExpose({
   color: var(--color-text-primary, #575279) !important;
   border-color: #357abd !important;
   pointer-events: none !important; /* 允许命中检测到下方的真实事件，避免阻挡 */
+}
+
+/* 月视图任务事件样式调整 */
+.calendar-container :deep(.fc-daygrid-event.task-event) {
+  padding: 0.2rem 0.4rem;
+}
+
+.calendar-container :deep(.fc-daygrid-event.task-event .fc-event-main) {
+  padding: 0;
 }
 
 /* 创建中事件样式 */
