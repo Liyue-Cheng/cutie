@@ -109,10 +109,14 @@ import CutePane from '../components/alias/CutePane.vue'
 import SettingsView from '../components/temp/TempSetting.vue'
 import AreaManager from '../components/parts/AreaManager.vue'
 import { useRegisterStore } from '../stores/register'
+import { useMidnightRefresh } from '../composables/useMidnightRefresh'
 
 const appWindow = getCurrentWindow()
 const router = useRouter()
 const registerStore = useRegisterStore()
+
+// 启动全局午夜刷新监测
+useMidnightRefresh()
 
 const isLegacyOpen = ref(false)
 const isSettingsOpen = ref(false)
