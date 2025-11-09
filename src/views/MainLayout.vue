@@ -26,8 +26,13 @@
             <li @click="$router.push({ path: '/', query: { view: 'recent' } })">
               <CuteIcon name="Clock" :size="16" /><span>Recent</span>
             </li>
-            <li @click="$router.push({ path: '/', query: { view: 'staging' } })">
-              <CuteIcon name="Layers" :size="16" /><span>Staging</span>
+            <li class="nav-item-with-action">
+              <div class="nav-item-main" @click="$router.push({ path: '/', query: { view: 'staging' } })">
+                <CuteIcon name="Layers" :size="16" /><span>Staging</span>
+              </div>
+              <button class="quick-add-button" @click.stop="showQuickAddDialog = true" title="快速添加任务">
+                <CuteIcon name="Plus" :size="14" />
+              </button>
             </li>
             <li @click="$router.push({ path: '/', query: { view: 'upcoming' } })">
               <CuteIcon name="CalendarClock" :size="16" /><span>Upcoming</span>
@@ -74,7 +79,7 @@
                 <CuteIcon name="Cpu" :size="16" /><span>CPU Pipeline</span>
               </li>
               <li @click="$router.push('/checkbox-test')">
-                <CuteIcon name="CheckSquare" :size="16" /><span>Checkbox Test</span>
+                <CuteIcon name="SquareCheck" :size="16" /><span>Checkbox Test</span>
               </li>
             </ul>
           </div>
@@ -97,6 +102,9 @@
       </main>
     </CutePane>
   </CutePane>
+
+  <!-- 快速添加任务对话框 -->
+  <QuickAddTaskDialog :show="showQuickAddDialog" @close="showQuickAddDialog = false" />
 </template>
 
 <script setup lang="ts">
@@ -108,6 +116,7 @@ import CuteIcon from '../components/parts/CuteIcon.vue'
 import CutePane from '../components/alias/CutePane.vue'
 import SettingsView from '../components/temp/TempSetting.vue'
 import AreaManager from '../components/parts/AreaManager.vue'
+import QuickAddTaskDialog from '../components/parts/QuickAddTaskDialog.vue'
 import { useRegisterStore } from '../stores/register'
 import { useMidnightRefresh } from '../composables/useMidnightRefresh'
 
@@ -121,6 +130,7 @@ useMidnightRefresh()
 const isLegacyOpen = ref(false)
 const isSettingsOpen = ref(false)
 const isAreaManagerOpen = ref(false)
+const showQuickAddDialog = ref(false)
 
 // 导航到 Legacy Home 并设置模式
 function navigateToLegacyHome(mode: 'default' | 'board' | 'calendar') {
@@ -294,6 +304,53 @@ onBeforeUnmount(() => {
 
 .nav-group li:hover {
   background-color: rgb(0 0 0 / 5%);
+}
+
+/* 带操作按钮的导航项 */
+.nav-group li.nav-item-with-action {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+
+.nav-item-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}
+
+.quick-add-button {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin-right: 0.4rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  color: var(--color-text-tertiary, #9893a5);
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.quick-add-button:hover {
+  background-color: var(--color-primary-bg, rgb(40 105 131 / 10%));
+  color: var(--color-primary, #286983);
+}
+
+.quick-add-button:active {
+  background-color: var(--color-primary-bg, rgb(40 105 131 / 15%));
+  transform: scale(0.95);
+}
+
+.nav-item-with-action:hover .quick-add-button {
+  opacity: 1;
 }
 
 .section-header {
