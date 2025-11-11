@@ -61,7 +61,93 @@ impl TaskAssembler {
             has_detail_note: task.detail_note.is_some(),
             recurrence_id: task.recurrence_id,
             recurrence_original_date: task.recurrence_original_date.clone(),
+            recurrence_expiry_behavior: None, // 需要后续填充（调用 fill_recurrence_expiry_behavior）
         }
+    }
+
+    /// 填充 TaskCardDto 的 recurrence_expiry_behavior 字段（从数据库查询）
+    pub async fn fill_recurrence_expiry_behavior(
+        card: &mut TaskCardDto,
+        pool: &sqlx::SqlitePool,
+    ) -> AppResult<()> {
+        if let Some(recurrence_id) = card.recurrence_id {
+            let query = r#"
+                SELECT expiry_behavior
+                FROM task_recurrences
+                WHERE id = ?
+            "#;
+
+            let expiry_behavior: Option<String> = sqlx::query_scalar(query)
+                .bind(recurrence_id.to_string())
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    crate::infra::core::AppError::DatabaseError(
+                        crate::infra::core::DbError::ConnectionError(e),
+                    )
+                })?;
+
+            card.recurrence_expiry_behavior = expiry_behavior;
+        }
+        Ok(())
+    }
+
+    /// 批量填充 TaskCardDto 的 recurrence_expiry_behavior 字段
+    pub async fn fill_recurrence_expiry_behavior_batch(
+        cards: &mut [TaskCardDto],
+        pool: &sqlx::SqlitePool,
+    ) -> AppResult<()> {
+        // 收集所有需要查询的 recurrence_id
+        let recurrence_ids: Vec<Uuid> = cards
+            .iter()
+            .filter_map(|card| card.recurrence_id)
+            .collect();
+
+        if recurrence_ids.is_empty() {
+            return Ok(());
+        }
+
+        // 批量查询所有 recurrence 的 expiry_behavior
+        let placeholders = recurrence_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(", ");
+        let query = format!(
+            "SELECT id, expiry_behavior FROM task_recurrences WHERE id IN ({})",
+            placeholders
+        );
+
+        let mut q = sqlx::query_as::<_, (String, String)>(&query);
+        for id in &recurrence_ids {
+            q = q.bind(id.to_string());
+        }
+
+        let results: Vec<(String, String)> = q
+            .fetch_all(pool)
+            .await
+            .map_err(|e| {
+                crate::infra::core::AppError::DatabaseError(
+                    crate::infra::core::DbError::ConnectionError(e),
+                )
+            })?;
+
+        // 构建 id -> expiry_behavior 的映射
+        let expiry_map: std::collections::HashMap<Uuid, String> = results
+            .into_iter()
+            .filter_map(|(id_str, expiry_behavior)| {
+                Uuid::parse_str(&id_str).ok().map(|id| (id, expiry_behavior))
+            })
+            .collect();
+
+        // 填充每个 card
+        for card in cards.iter_mut() {
+            if let Some(recurrence_id) = card.recurrence_id {
+                card.recurrence_expiry_behavior = expiry_map.get(&recurrence_id).cloned();
+            }
+        }
+
+        Ok(())
     }
 
     /// 在事务中组装任务的 schedules（包含 time_blocks）

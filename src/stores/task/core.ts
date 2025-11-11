@@ -64,6 +64,7 @@ export function createTaskCore() {
    *    - !is_archived（未归档）
    *    - !is_deleted（未删除）
    *    - 无当前或未来日程（实时计算）
+   *    - 排除 EXPIRE 类型且已过期的循环任务
    */
   const stagingTasks = computed(() => {
     const today = new Date().toISOString().split('T')[0]!
@@ -78,7 +79,23 @@ export function createTaskCore() {
       const hasFutureOrTodaySchedule =
         task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
 
-      return !hasFutureOrTodaySchedule
+      if (hasFutureOrTodaySchedule) {
+        return false
+      }
+
+      // 🔥 排除 EXPIRE 类型且已过期的循环任务
+      if (
+        task.recurrence_id &&
+        task.recurrence_original_date &&
+        task.recurrence_expiry_behavior === 'EXPIRE'
+      ) {
+        // 判断是否过期：原始日期 < 今天
+        if (task.recurrence_original_date < today) {
+          return false
+        }
+      }
+
+      return true
     })
   })
 
@@ -279,6 +296,22 @@ export function createTaskCore() {
                   task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
                 const isStaging = !hasFutureOrTodaySchedule
 
+                if (!isStaging) {
+                  return false
+                }
+
+                // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                if (
+                  task.recurrence_id &&
+                  task.recurrence_original_date &&
+                  task.recurrence_expiry_behavior === 'EXPIRE'
+                ) {
+                  // 判断是否过期：原始日期 < 今天
+                  if (task.recurrence_original_date < today) {
+                    return false
+                  }
+                }
+
                 if (task.area_id === identifier) {
                   logger.debug(LogTags.STORE_TASKS, 'Task area match check', {
                     taskId: task.id,
@@ -289,10 +322,10 @@ export function createTaskCore() {
                     isCompleted: task.is_completed,
                     isArchived: task.is_archived,
                     isDeleted: task.is_deleted,
-                    finalMatch: isStaging,
+                    finalMatch: true,
                   })
                 }
-                return isStaging
+                return true
               })
 
               logger.info(LogTags.STORE_TASKS, 'Area staging filter result', {

@@ -27,6 +27,7 @@ const bymonthday = ref<number | null>(null)
 const bymonth = ref<number | null>(null)
 const startDate = ref<string | null>(null)
 const endDate = ref<string | null>(null)
+const expiryBehavior = ref<'CARRYOVER_TO_STAGING' | 'EXPIRE'>('CARRYOVER_TO_STAGING') // 过期行为
 
 const templateStore = useTemplateStore()
 const recurrenceStore = useRecurrenceStore()
@@ -127,12 +128,11 @@ async function handleSave() {
       time_type: 'FLOATING',
       start_date: startDate.value,
       end_date: endDate.value,
+      expiry_behavior: expiryBehavior.value, // 🔥 传入过期行为
       is_active: true,
       source_task_id: props.task.id, // 🔥 传入原任务ID
     })
-
-    // 🔥 成功后，刷新所有已挂载的 daily 视图，确保最新实例被加载
-    await viewStore.refreshAllMountedDailyViews()
+    // ✅ 刷新由 CPU 指令的 commit 阶段统一处理
 
     emit('success')
     emit('close')
@@ -245,6 +245,33 @@ function setWeekdays() {
           <label class="section-label">结束日期（可选）</label>
           <input type="date" v-model="endDate" class="date-input" />
         </div>
+        <div class="form-section">
+          <label class="section-label">过期后的处理方式</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input
+                type="radio"
+                value="CARRYOVER_TO_STAGING"
+                v-model="expiryBehavior"
+              />
+              <span>
+                <strong>结转到暂存区</strong>
+                <div class="radio-description">如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）</div>
+              </span>
+            </label>
+            <label class="radio-item">
+              <input
+                type="radio"
+                value="EXPIRE"
+                v-model="expiryBehavior"
+              />
+              <span>
+                <strong>自动过期</strong>
+                <div class="radio-description">如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）</div>
+              </span>
+            </label>
+          </div>
+        </div>
       </details>
 
       <!-- 预览 -->
@@ -328,6 +355,20 @@ h3 {
 
 .radio-item input[type='radio'] {
   margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.radio-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radio-description {
+  font-size: 0.85em;
+  color: #888;
+  font-weight: normal;
+  line-height: 1.4;
 }
 
 .weekday-buttons {

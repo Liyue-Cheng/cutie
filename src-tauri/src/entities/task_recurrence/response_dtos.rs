@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use super::model::TimeType;
+use super::model::{ExpiryBehavior, TimeType};
 
 /// 循环规则 DTO
 #[derive(Debug, Serialize)]
@@ -30,6 +30,9 @@ pub struct TaskRecurrenceDto {
 
     /// 时区
     pub timezone: Option<String>,
+
+    /// 过期行为
+    pub expiry_behavior: ExpiryBehavior,
 
     /// 是否激活
     pub is_active: bool,

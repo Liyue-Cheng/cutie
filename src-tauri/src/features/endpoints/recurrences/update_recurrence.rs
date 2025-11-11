@@ -163,6 +163,7 @@ mod logic {
             start_date: recurrence.start_date,
             end_date: recurrence.end_date,
             timezone: recurrence.timezone,
+            expiry_behavior: recurrence.expiry_behavior,
             is_active: recurrence.is_active,
             created_at: recurrence.created_at,
             updated_at: recurrence.updated_at,
@@ -300,7 +301,8 @@ mod logic {
             task_ids.len()
         );
 
-        // 2. 软删除这些任务
+        // 2. 软删除这些任务并清除循环字段
+        let now = chrono::Utc::now();
         for task_id_str in task_ids {
             let task_id = Uuid::parse_str(&task_id_str).map_err(|e| {
                 crate::infra::core::AppError::ValidationFailed(vec![
@@ -313,7 +315,28 @@ mod logic {
             })?;
 
             tracing::info!("🔄 [CLEANUP] Deleting task instance: {}", task_id);
-            TaskRepository::soft_delete_in_tx(tx, task_id, chrono::Utc::now()).await?;
+
+            // ✅ 先清除循环参数
+            let clear_params_query = r#"
+                UPDATE tasks
+                SET recurrence_id = NULL,
+                    recurrence_original_date = NULL,
+                    updated_at = ?
+                WHERE id = ?
+            "#;
+            sqlx::query(clear_params_query)
+                .bind(now.to_rfc3339())
+                .bind(task_id.to_string())
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| {
+                    crate::infra::core::AppError::DatabaseError(
+                        crate::infra::core::DbError::ConnectionError(e),
+                    )
+                })?;
+
+            // 然后软删除任务
+            TaskRepository::soft_delete_in_tx(tx, task_id, now).await?;
         }
 
         // 3. 删除对应的链接记录
@@ -439,8 +462,29 @@ mod logic {
                 instance_date
             );
 
-            // 软删除任务
-            TaskRepository::soft_delete_in_tx(tx, task_id, chrono::Utc::now()).await?;
+            let now = chrono::Utc::now();
+
+            // ✅ 先清除循环参数
+            let clear_params_query = r#"
+                UPDATE tasks
+                SET recurrence_id = NULL,
+                    recurrence_original_date = NULL,
+                    updated_at = ?
+                WHERE id = ?
+            "#;
+            sqlx::query(clear_params_query)
+                .bind(now.to_rfc3339())
+                .bind(task_id.to_string())
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| {
+                    crate::infra::core::AppError::DatabaseError(
+                        crate::infra::core::DbError::ConnectionError(e),
+                    )
+                })?;
+
+            // 然后软删除任务
+            TaskRepository::soft_delete_in_tx(tx, task_id, now).await?;
 
             // 删除链接记录
             let delete_link_query = r#"

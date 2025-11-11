@@ -50,6 +50,7 @@ import { defineProps, defineEmits, computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { pipeline } from '@/cpu'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
+import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
 import CuteContextMenu from '@/components/parts/CuteContextMenu.vue'
 import CuteMenuItem from '@/components/parts/CuteMenuItem.vue'
@@ -62,6 +63,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['close'])
+
+// UI Store
+const uiStore = useUIStore()
 
 // 循环规则相关操作暂时保留 composable（等后续统一迁移）
 const recurrenceOps = useRecurrenceOperations()
@@ -170,8 +174,9 @@ const handleAction = async (action: ActionType) => {
       )
     }
   } else if (action === 'edit') {
-    logger.debug(LogTags.COMPONENT_KANBAN, 'Task action', { action, taskId: props.task.id })
-    // TODO: 实现编辑功能
+    logger.debug(LogTags.COMPONENT_KANBAN, 'Opening task editor', { taskId: props.task.id })
+    // ✅ 打开任务编辑框
+    uiStore.openEditor(props.task.id, props.viewKey)
   } else if (action === 'stop-repeating') {
     if (!props.task.recurrence_id || !props.task.recurrence_original_date) return
 

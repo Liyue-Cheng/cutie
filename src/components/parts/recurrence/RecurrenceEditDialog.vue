@@ -2,8 +2,6 @@
 import { ref, computed, watch } from 'vue'
 import { RRule, Frequency } from 'rrule'
 import type { TaskRecurrence } from '@/types/dtos'
-import { useRecurrenceStore } from '@/stores/recurrence'
-import { useViewStore } from '@/stores/view'
 import { pipeline } from '@/cpu'
 
 const props = defineProps<{
@@ -24,10 +22,7 @@ const bymonthday = ref<number | null>(null)
 const bymonth = ref<number | null>(null)
 const startDate = ref<string | null>(null)
 const endDate = ref<string | null>(null)
-const isActive = ref<boolean>(true)
-
-const recurrenceStore = useRecurrenceStore()
-const viewStore = useViewStore()
+const expiryBehavior = ref<'CARRYOVER_TO_STAGING' | 'EXPIRE'>('CARRYOVER_TO_STAGING') // 过期行为
 
 // 当打开对话框时，从现有规则中解析参数
 watch(
@@ -98,7 +93,7 @@ function parseExistingRule(recurrence: TaskRecurrence) {
     }
     startDate.value = recurrence.start_date
     endDate.value = recurrence.end_date
-    isActive.value = recurrence.is_active
+    expiryBehavior.value = recurrence.expiry_behavior // 加载过期行为
   } catch (e) {
     console.error('Failed to parse RRULE:', e)
     // 使用默认值
@@ -170,7 +165,6 @@ async function handleSave() {
     // 🔥 构造符合后端三态字段要求的 payload
     const payload: any = {
       rule: ruleString.value,
-      is_active: isActive.value,
     }
 
     // 🔥 注意：后端禁止修改 start_date，所以不发送该字段
@@ -183,17 +177,22 @@ async function handleSave() {
       payload.end_date = endDate.value || null // 空字符串转为 null
     }
 
+    // 🔥 只有当 expiry_behavior 发生变化时才包含该字段
+    if (expiryBehavior.value !== props.recurrence.expiry_behavior) {
+      payload.expiry_behavior = expiryBehavior.value
+    }
+
     console.log('Updating recurrence with payload:', payload)
 
     // 使用CPU指令更新循环规则
     await pipeline.dispatch('recurrence.update', {
       id: props.recurrence.id,
-      ...payload
+      ...payload,
     })
 
     emit('success')
     emit('close')
-    await viewStore.refreshAllMountedDailyViews()
+    // ✅ 视图刷新由 CPU 指令的 commit 阶段统一处理
   } catch (error) {
     console.error('Failed to update recurrence:', error)
     alert('更新循环规则失败')
@@ -313,12 +312,33 @@ function setWeekdays() {
         </div>
       </section>
 
-      <!-- 激活状态 -->
+      <!-- 过期行为 -->
       <section class="form-section">
-        <label class="checkbox-label">
-          <input type="checkbox" v-model="isActive" />
-          <span>激活此循环规则</span>
-        </label>
+        <label class="section-label">过期后的处理方式</label>
+        <div class="radio-group">
+          <label class="radio-item">
+            <input
+              type="radio"
+              value="CARRYOVER_TO_STAGING"
+              v-model="expiryBehavior"
+            />
+            <span>
+              <strong>结转到暂存区</strong>
+              <div class="radio-description">如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）</div>
+            </span>
+          </label>
+          <label class="radio-item">
+            <input
+              type="radio"
+              value="EXPIRE"
+              v-model="expiryBehavior"
+            />
+            <span>
+              <strong>自动过期</strong>
+              <div class="radio-description">如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）</div>
+            </span>
+          </label>
+        </div>
       </section>
 
       <!-- 规则预览 -->
@@ -406,6 +426,20 @@ h3 {
 
 .radio-item input[type='radio'] {
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.radio-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radio-description {
+  font-size: 0.85em;
+  color: #888;
+  font-weight: normal;
+  line-height: 1.4;
 }
 
 .weekday-buttons {

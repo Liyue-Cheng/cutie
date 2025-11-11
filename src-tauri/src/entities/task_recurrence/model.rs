@@ -35,6 +35,35 @@ impl TryFrom<&str> for TimeType {
     }
 }
 
+/// 过期行为枚举
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ExpiryBehavior {
+    CarryoverToStaging,
+    Expire,
+}
+
+impl ExpiryBehavior {
+    pub fn as_str(&self) -> &str {
+        match self {
+            ExpiryBehavior::CarryoverToStaging => "CARRYOVER_TO_STAGING",
+            ExpiryBehavior::Expire => "EXPIRE",
+        }
+    }
+}
+
+impl TryFrom<&str> for ExpiryBehavior {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "CARRYOVER_TO_STAGING" => Ok(ExpiryBehavior::CarryoverToStaging),
+            "EXPIRE" => Ok(ExpiryBehavior::Expire),
+            _ => Err(format!("Invalid expiry behavior: {}", s)),
+        }
+    }
+}
+
 /// TaskRecurrence (循环任务规则) 实体定义
 ///
 /// 存储生效的循环规则，用于自动生成任务实例
@@ -61,6 +90,9 @@ pub struct TaskRecurrence {
     /// 时区 (可选，仅 FIXED 类型使用)
     pub timezone: Option<String>,
 
+    /// 过期行为（过期后是否结转到暂存区）
+    pub expiry_behavior: ExpiryBehavior,
+
     /// 是否激活
     pub is_active: bool,
 
@@ -81,6 +113,7 @@ pub struct TaskRecurrenceRow {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub timezone: Option<String>,
+    pub expiry_behavior: String,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -98,6 +131,7 @@ impl TryFrom<TaskRecurrenceRow> for TaskRecurrence {
             start_date: row.start_date,
             end_date: row.end_date,
             timezone: row.timezone,
+            expiry_behavior: ExpiryBehavior::try_from(row.expiry_behavior.as_str())?,
             is_active: row.is_active,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -122,6 +156,7 @@ impl TaskRecurrence {
             start_date: None,
             end_date: None,
             timezone: None,
+            expiry_behavior: ExpiryBehavior::CarryoverToStaging, // 默认值
             is_active: true,
             created_at,
             updated_at: created_at,

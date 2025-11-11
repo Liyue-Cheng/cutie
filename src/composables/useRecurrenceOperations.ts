@@ -1,5 +1,4 @@
 import { useRecurrenceStore } from '@/stores/recurrence'
-import { useViewStore } from '@/stores/view'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import type { TaskCard } from '@/types/dtos'
@@ -26,7 +25,6 @@ function getTodayDateString(): string {
  */
 export function useRecurrenceOperations() {
   const recurrenceStore = useRecurrenceStore()
-  const viewStore = useViewStore()
   const taskStore = useTaskStore()
   const uiStore = useUIStore()
 
@@ -82,7 +80,9 @@ export function useRecurrenceOperations() {
   }
 
   /**
-   * 删除本地缓存中的循环任务实例，并刷新任务 / 视图数据
+   * 删除本地缓存中的循环任务实例，并刷新任务数据
+   *
+   * ⚠️ 注意：视图刷新已由 CPU 指令的 commit 阶段统一处理，这里只需要清理本地缓存
    */
   async function synchronizeAfterRecurrenceMutation(
     recurrenceId: string,
@@ -110,16 +110,7 @@ export function useRecurrenceOperations() {
       )
     }
 
-    try {
-      await viewStore.refreshAllMountedDailyViews()
-    } catch (error) {
-      logger.error(
-        LogTags.COMPOSABLE_RECURRENCE,
-        'Failed to refresh mounted daily views after recurrence mutation',
-        error instanceof Error ? error : new Error(String(error)),
-        { recurrenceId }
-      )
-    }
+    // ✅ 视图刷新已由 CPU 指令的 commit 阶段统一处理，这里不再重复调用
   }
 
   /**
@@ -267,8 +258,7 @@ export function useRecurrenceOperations() {
         instancesUpdatedCount: instances_updated_count,
       })
 
-      // 6. 刷新所有已挂载的日视图
-      await viewStore.refreshAllMountedDailyViews()
+      // ✅ 视图刷新已由 CPU 指令的 commit 阶段统一处理
 
       alert(
         `成功更新了模板${template_updated ? '和' : '，'}${instances_updated_count} 个未完成的任务实例。\n未来生成的新实例也会使用更新后的内容。`

@@ -64,8 +64,6 @@ mod logic {
     pub async fn execute(app_state: &AppState, recurrence_id: Uuid) -> AppResult<()> {
         // 1. 获取时间
         let now = app_state.clock().now_utc();
-        let today =
-            crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(&now.date_naive());
 
         // ✅ 获取写入许可，确保写操作串行执行
         let _permit = app_state.acquire_write_permit().await;
@@ -73,53 +71,68 @@ mod logic {
         // 2. 开启事务
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
-        // 3. 🔥 删除所有未来的未完成任务实例，并清除其循环参数
+        // 3. 🔥 先查询所有未完成的任务实例（在删除链接表之前）
         tracing::info!(
-            "🔄 [DELETE_RECURRENCE] Deleting recurrence {} and cleaning up future instances...",
+            "🔄 [DELETE_RECURRENCE] Finding all uncompleted instances of recurrence {}",
             recurrence_id
         );
 
-        cleanup_all_future_instances(&mut tx, recurrence_id, &today, now).await?;
+        let uncompleted_task_ids = find_all_uncompleted_instances(&mut tx, recurrence_id).await?;
 
-        // 4. 标记为不激活
+        tracing::info!(
+            "🔄 [DELETE_RECURRENCE] Found {} uncompleted instances to delete",
+            uncompleted_task_ids.len()
+        );
+
+        // 4. 🔥 删除所有链接记录（现在可以安全删除了，因为已经获取了任务ID）
+        delete_all_recurrence_links(&mut tx, recurrence_id).await?;
+
+        // 5. 🔥 清除所有任务的循环字段（包括已完成的）
+        tracing::info!(
+            "🔄 [DELETE_RECURRENCE] Clearing recurrence fields for all tasks of recurrence {}",
+            recurrence_id
+        );
+
+        clear_all_recurrence_fields(&mut tx, recurrence_id, now).await?;
+
+        // 6. 🔥 软删除所有未完成的任务实例
+        tracing::info!(
+            "🔄 [DELETE_RECURRENCE] Soft deleting {} uncompleted task instances",
+            uncompleted_task_ids.len()
+        );
+
+        for task_id in uncompleted_task_ids {
+            TaskRepository::soft_delete_in_tx(&mut tx, task_id, now).await?;
+        }
+
+        // 7. 标记循环规则为不激活
         TaskRecurrenceRepository::deactivate_in_tx(&mut tx, recurrence_id, now).await?;
 
-        // 5. 提交事务
+        // 8. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 6. (可选) 发送 SSE 事件
+        // 9. (可选) 发送 SSE 事件
         // TODO: 实现 SSE 事件
 
         Ok(())
     }
 
-    /// 清理所有未来的未完成任务实例，并清除其循环参数
-    async fn cleanup_all_future_instances(
+    /// 查询所有未完成的任务实例（在删除链接表之前调用）
+    async fn find_all_uncompleted_instances(
         tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         recurrence_id: Uuid,
-        today: &str,
-        now: chrono::DateTime<chrono::Utc>,
-    ) -> AppResult<()> {
-        // 1. 查询所有未来的未完成任务实例
+    ) -> AppResult<Vec<Uuid>> {
         let query = r#"
-            SELECT trl.task_id, trl.instance_date
+            SELECT trl.task_id
             FROM task_recurrence_links trl
             JOIN tasks t ON t.id = trl.task_id
             WHERE trl.recurrence_id = ?
-              AND trl.instance_date >= ?
               AND t.completed_at IS NULL
               AND t.deleted_at IS NULL
         "#;
 
-        #[derive(sqlx::FromRow)]
-        struct TaskInstance {
-            task_id: String,
-            instance_date: String,
-        }
-
-        let instances: Vec<TaskInstance> = sqlx::query_as(query)
+        let task_id_strs: Vec<String> = sqlx::query_scalar(query)
             .bind(recurrence_id.to_string())
-            .bind(today)
             .fetch_all(&mut **tx)
             .await
             .map_err(|e| {
@@ -128,54 +141,20 @@ mod logic {
                 )
             })?;
 
-        tracing::info!(
-            "🔄 [DELETE_RECURRENCE] Found {} future uncompleted instances to clean",
-            instances.len()
-        );
+        // 解析 UUID
+        let task_ids: Vec<Uuid> = task_id_strs
+            .into_iter()
+            .filter_map(|s| Uuid::parse_str(&s).ok())
+            .collect();
 
-        // 2. 对每个实例：清除循环参数并软删除
-        for instance in instances {
-            let task_id = Uuid::parse_str(&instance.task_id).map_err(|e| {
-                crate::infra::core::AppError::ValidationFailed(vec![
-                    crate::infra::core::ValidationError::new(
-                        "task_id".to_string(),
-                        format!("Invalid UUID: {}", e),
-                        "INVALID_UUID".to_string(),
-                    ),
-                ])
-            })?;
+        Ok(task_ids)
+    }
 
-            tracing::info!(
-                "🔄 [DELETE_RECURRENCE] Cleaning task instance: {} on {}",
-                task_id,
-                instance.instance_date
-            );
-
-            // 清除循环参数
-            let clear_params_query = r#"
-                UPDATE tasks
-                SET recurrence_id = NULL,
-                    recurrence_original_date = NULL,
-                    updated_at = ?
-                WHERE id = ?
-            "#;
-
-            sqlx::query(clear_params_query)
-                .bind(now)
-                .bind(task_id.to_string())
-                .execute(&mut **tx)
-                .await
-                .map_err(|e| {
-                    crate::infra::core::AppError::DatabaseError(
-                        crate::infra::core::DbError::ConnectionError(e),
-                    )
-                })?;
-
-            // 软删除任务
-            TaskRepository::soft_delete_in_tx(tx, task_id, now).await?;
-        }
-
-        // 3. 删除所有链接记录（包括已完成的）
+    /// 删除所有循环链接记录
+    async fn delete_all_recurrence_links(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        recurrence_id: Uuid,
+    ) -> AppResult<()> {
         let delete_links_query = r#"
             DELETE FROM task_recurrence_links
             WHERE recurrence_id = ?
@@ -194,6 +173,40 @@ mod logic {
         tracing::info!(
             "🔄 [DELETE_RECURRENCE] Deleted {} recurrence links",
             deleted_links.rows_affected()
+        );
+
+        Ok(())
+    }
+
+    /// 清除所有任务的循环字段（包括已完成的）
+    async fn clear_all_recurrence_fields(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        recurrence_id: Uuid,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> AppResult<()> {
+        let clear_all_query = r#"
+            UPDATE tasks
+            SET recurrence_id = NULL,
+                recurrence_original_date = NULL,
+                updated_at = ?
+            WHERE recurrence_id = ?
+              AND deleted_at IS NULL
+        "#;
+
+        let result = sqlx::query(clear_all_query)
+            .bind(now.to_rfc3339())
+            .bind(recurrence_id.to_string())
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                crate::infra::core::AppError::DatabaseError(
+                    crate::infra::core::DbError::ConnectionError(e),
+                )
+            })?;
+
+        tracing::info!(
+            "🔄 [DELETE_RECURRENCE] Cleared recurrence fields for {} tasks",
+            result.rows_affected()
         );
 
         Ok(())

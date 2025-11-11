@@ -10,6 +10,7 @@
 import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type { TaskRecurrence } from '@/types/dtos'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { useViewStore } from '@/stores/view'
 import * as recurrenceCore from '@/stores/recurrence/core'
 
 export const RecurrenceISA: ISADefinition = {
@@ -43,6 +44,9 @@ export const RecurrenceISA: ISADefinition = {
 
     commit: async (result: TaskRecurrence) => {
       recurrenceCore.addOrUpdateRecurrence(result)
+      // 🔥 创建循环规则后，立即刷新所有日历视图
+      const viewStore = useViewStore()
+      await viewStore.refreshAllMountedDailyViewsImmediately()
     },
   },
 
@@ -77,6 +81,9 @@ export const RecurrenceISA: ISADefinition = {
 
     commit: async (result: TaskRecurrence) => {
       recurrenceCore.addOrUpdateRecurrence(result)
+      // 🔥 更新循环规则后，立即刷新所有日历视图
+      const viewStore = useViewStore()
+      await viewStore.refreshAllMountedDailyViewsImmediately()
     },
   },
 
@@ -90,10 +97,9 @@ export const RecurrenceISA: ISADefinition = {
     },
 
     validate: async (payload) => {
-      const recurrenceStore = useRecurrenceStore()
-      const recurrence = recurrenceStore.getRecurrenceById(payload.id)
-      if (!recurrence) {
-        console.warn('❌ 循环规则不存在:', payload.id)
+      // ✅ 只验证参数完整性，不验证数据存在性（由后端验证）
+      if (!payload.id?.trim()) {
+        console.warn('❌ 循环规则ID不能为空')
         return false
       }
       return true
@@ -107,6 +113,9 @@ export const RecurrenceISA: ISADefinition = {
 
     commit: async (_result, payload) => {
       recurrenceCore.removeRecurrence(payload.id)
+      // 🔥 删除循环规则后，立即刷新所有日历视图
+      const viewStore = useViewStore()
+      await viewStore.refreshAllMountedDailyViewsImmediately()
     },
   },
 
@@ -174,10 +183,9 @@ export const RecurrenceISA: ISADefinition = {
     },
 
     validate: async (payload) => {
-      const recurrenceStore = useRecurrenceStore()
-      const recurrence = recurrenceStore.getRecurrenceById(payload.recurrence_id)
-      if (!recurrence) {
-        console.warn('❌ 循环规则不存在:', payload.recurrence_id)
+      // ✅ 只验证参数完整性，不验证数据存在性（由后端验证）
+      if (!payload.recurrence_id?.trim()) {
+        console.warn('❌ 循环规则ID不能为空')
         return false
       }
       return true
@@ -197,6 +205,9 @@ export const RecurrenceISA: ISADefinition = {
       // 批量操作的结果通常包含统计信息，但不需要更新本地store
       // 因为具体的任务更新会通过SSE事件处理
       console.info('✅ 模板和实例批量更新完成:', result)
+      // 🔥 批量更新后，立即刷新所有日历视图
+      const viewStore = useViewStore()
+      await viewStore.refreshAllMountedDailyViewsImmediately()
     },
   },
 }

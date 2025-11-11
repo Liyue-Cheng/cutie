@@ -3,7 +3,6 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useRecurrenceStore } from '@/stores/recurrence'
-import { useViewStore } from '@/stores/view'
 import { pipeline } from '@/cpu'
 import { RRule } from 'rrule'
 import type { TaskDetail } from '@/types/dtos'
@@ -34,7 +33,6 @@ const emit = defineEmits(['close'])
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const recurrenceStore = useRecurrenceStore()
-const viewStore = useViewStore()
 const recurrenceOps = useRecurrenceOperations()
 
 // 本地编辑状态
@@ -57,6 +55,20 @@ const currentRecurrence = ref<any>(null)
 const task = computed(() => {
   return props.taskId ? taskStore.getTaskById_Mux(props.taskId) : null
 })
+
+// 🔥 监听任务是否存在，如果任务被删除则自动关闭编辑框
+watch(
+  task,
+  (newTask) => {
+    // 如果有 taskId 但任务不存在（被删除了），则自动关闭
+    if (props.taskId && !newTask) {
+      logger.info(LogTags.COMPONENT_KANBAN, 'Task no longer exists, closing editor', {
+        taskId: props.taskId,
+      })
+      emit('close')
+    }
+  }
+)
 
 // 使用 ref 而不是 computed，以便 vuedraggable 可以修改
 const subtasks = ref<Subtask[]>([])
@@ -401,23 +413,19 @@ async function handleStopRepeating() {
   if (!currentRecurrence.value || !taskData?.recurrence_original_date) return
 
   const instanceDate = taskData.recurrence_original_date
-  if (
-    confirm(
-      `确定停止此循环吗？\n将从 ${instanceDate} 之后停止生成新任务。\n已生成的任务不会被删除。`
-    )
-  ) {
-    try {
-      logger.info(LogTags.STORE_RECURRENCE, 'Stopping recurrence', {
-        recurrenceId: currentRecurrence.value.id,
-        instanceDate,
-      })
-      await recurrenceOps.stopRepeating(currentRecurrence.value.id, instanceDate)
 
-      await loadRecurrence()
-    } catch (error) {
-      console.error('Failed to stop repeating:', error)
-      alert('操作失败，请重试')
-    }
+  try {
+    logger.info(LogTags.STORE_RECURRENCE, 'Stopping recurrence', {
+      recurrenceId: currentRecurrence.value.id,
+      instanceDate,
+    })
+    // ✅ stopRepeating 内部已包含 confirm 确认，无需重复弹窗
+    await recurrenceOps.stopRepeating(currentRecurrence.value.id, instanceDate)
+
+    await loadRecurrence()
+  } catch (error) {
+    console.error('Failed to stop repeating:', error)
+    alert('操作失败，请重试')
   }
 }
 
@@ -433,7 +441,7 @@ async function handleExtendRecurrence() {
       })
       // 重新加载以更新状态
       await loadRecurrence()
-      await viewStore.refreshAllMountedDailyViews()
+      // ✅ 视图刷新由 CPU 指令的 commit 阶段统一处理
     } catch (error) {
       console.error('Failed to extend recurrence:', error)
       alert('操作失败，请重试')
@@ -453,24 +461,6 @@ async function handleDeleteRecurrence() {
       console.error('Failed to delete recurrence:', error)
       alert('删除失败，请重试')
     }
-  }
-}
-
-async function handleToggleRecurrenceActive() {
-  if (!currentRecurrence.value) return
-
-  try {
-    // 🔥 使用CPU指令更新循环规则
-    await pipeline.dispatch('recurrence.update', {
-      id: currentRecurrence.value.id,
-      is_active: !currentRecurrence.value.is_active,
-    })
-    // 重新加载以更新状态
-    await loadRecurrence()
-    await viewStore.refreshAllMountedDailyViews()
-  } catch (error) {
-    console.error('Failed to toggle recurrence:', error)
-    alert('操作失败，请重试')
   }
 }
 </script>
@@ -628,14 +618,6 @@ async function handleToggleRecurrenceActive() {
                 title="继续循环（清除结束日期）"
               >
                 <CuteIcon name="Check" :size="14" />
-              </button>
-              <!-- 暂停/激活 -->
-              <button
-                class="action-icon-btn"
-                @click="handleToggleRecurrenceActive"
-                :title="currentRecurrence.is_active ? '暂停' : '激活'"
-              >
-                <CuteIcon :name="currentRecurrence.is_active ? 'Pause' : 'Play'" :size="14" />
               </button>
               <!-- 删除 -->
               <button

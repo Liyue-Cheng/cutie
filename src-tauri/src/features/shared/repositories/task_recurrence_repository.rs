@@ -17,8 +17,8 @@ impl TaskRecurrenceRepository {
         recurrence_id: Uuid,
     ) -> AppResult<Option<TaskRecurrence>> {
         let query = r#"
-            SELECT id, template_id, rule, time_type, start_date, end_date, timezone, is_active,
-                   created_at, updated_at
+            SELECT id, template_id, rule, time_type, start_date, end_date, timezone,
+                   expiry_behavior, is_active, created_at, updated_at
             FROM task_recurrences
             WHERE id = ?
         "#;
@@ -45,8 +45,8 @@ impl TaskRecurrenceRepository {
         recurrence_id: Uuid,
     ) -> AppResult<Option<TaskRecurrence>> {
         let query = r#"
-            SELECT id, template_id, rule, time_type, start_date, end_date, timezone, is_active,
-                   created_at, updated_at
+            SELECT id, template_id, rule, time_type, start_date, end_date, timezone,
+                   expiry_behavior, is_active, created_at, updated_at
             FROM task_recurrences
             WHERE id = ?
         "#;
@@ -74,9 +74,9 @@ impl TaskRecurrenceRepository {
     ) -> AppResult<()> {
         let query = r#"
             INSERT INTO task_recurrences (
-                id, template_id, rule, time_type, start_date, end_date, timezone, is_active,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, template_id, rule, time_type, start_date, end_date, timezone,
+                expiry_behavior, is_active, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -87,6 +87,7 @@ impl TaskRecurrenceRepository {
             .bind(&recurrence.start_date)
             .bind(&recurrence.end_date)
             .bind(&recurrence.timezone)
+            .bind(recurrence.expiry_behavior.as_str())
             .bind(recurrence.is_active)
             .bind(recurrence.created_at)
             .bind(recurrence.updated_at)
@@ -123,6 +124,9 @@ impl TaskRecurrenceRepository {
         }
         if request.timezone.is_some() {
             set_clauses.push("timezone = ?");
+        }
+        if request.expiry_behavior.is_some() {
+            set_clauses.push("expiry_behavior = ?");
         }
         if request.is_active.is_some() {
             set_clauses.push("is_active = ?");
@@ -165,6 +169,9 @@ impl TaskRecurrenceRepository {
         if let Some(ref timezone_opt) = request.timezone {
             let bind_val: Option<String> = timezone_opt.clone();
             q = q.bind(bind_val);
+        }
+        if let Some(ref expiry_behavior) = request.expiry_behavior {
+            q = q.bind(expiry_behavior.as_str());
         }
         if let Some(is_active) = request.is_active {
             q = q.bind(is_active);
@@ -228,8 +235,8 @@ impl TaskRecurrenceRepository {
     /// 查询所有激活的循环规则
     pub async fn find_all_active(pool: &SqlitePool) -> AppResult<Vec<TaskRecurrence>> {
         let query = r#"
-            SELECT id, template_id, rule, time_type, start_date, end_date, timezone, is_active,
-                   created_at, updated_at
+            SELECT id, template_id, rule, time_type, start_date, end_date, timezone,
+                   expiry_behavior, is_active, created_at, updated_at
             FROM task_recurrences
             WHERE is_active = 1
             ORDER BY created_at DESC
@@ -252,8 +259,8 @@ impl TaskRecurrenceRepository {
         template_id: Uuid,
     ) -> AppResult<Vec<TaskRecurrence>> {
         let query = r#"
-            SELECT id, template_id, rule, time_type, start_date, end_date, timezone, is_active,
-                   created_at, updated_at
+            SELECT id, template_id, rule, time_type, start_date, end_date, timezone,
+                   expiry_behavior, is_active, created_at, updated_at
             FROM task_recurrences
             WHERE template_id = ?
             ORDER BY created_at DESC
@@ -277,8 +284,8 @@ impl TaskRecurrenceRepository {
         date: &str,
     ) -> AppResult<Vec<TaskRecurrence>> {
         let query = r#"
-            SELECT id, template_id, rule, time_type, start_date, end_date, timezone, is_active,
-                   created_at, updated_at
+            SELECT id, template_id, rule, time_type, start_date, end_date, timezone,
+                   expiry_behavior, is_active, created_at, updated_at
             FROM task_recurrences
             WHERE is_active = 1
               AND (start_date IS NULL OR start_date <= ?)

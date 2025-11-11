@@ -201,10 +201,11 @@ CREATE TABLE task_recurrences (
     start_date TEXT,                         -- YYYY-MM-DD (日历日期字符串)
     end_date TEXT,                           -- YYYY-MM-DD (日历日期字符串)
     timezone TEXT,                           -- e.g. "Asia/Shanghai"
+    expiry_behavior TEXT NOT NULL DEFAULT 'CARRYOVER_TO_STAGING' CHECK (expiry_behavior IN ('CARRYOVER_TO_STAGING', 'EXPIRE')), -- 过期处理策略
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TEXT NOT NULL,                -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL,                -- UTC timestamp in RFC 3339 format
-    
+
     FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
 );
 

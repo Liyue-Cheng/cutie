@@ -88,7 +88,9 @@ use axum::{
 };
 
 use crate::{
-    entities::{CreateTaskRecurrenceRequest, TaskRecurrence, TaskRecurrenceDto, TimeType},
+    entities::{
+        CreateTaskRecurrenceRequest, ExpiryBehavior, TaskRecurrence, TaskRecurrenceDto, TimeType,
+    },
     features::{shared::TaskRecurrenceRepository, shared::TransactionHelper},
     infra::{
         core::{AppError, AppResult},
@@ -231,6 +233,7 @@ mod logic {
 
         // 5. 创建循环规则
         let time_type = request.time_type.unwrap_or(TimeType::Floating);
+        let expiry_behavior = request.expiry_behavior.unwrap_or(ExpiryBehavior::CarryoverToStaging);
         let recurrence = TaskRecurrence {
             id,
             template_id: request.template_id,
@@ -239,6 +242,7 @@ mod logic {
             start_date: request.start_date,
             end_date: request.end_date,
             timezone: request.timezone,
+            expiry_behavior,
             is_active: request.is_active.unwrap_or(true),
             created_at: now,
             updated_at: now,
@@ -300,6 +304,7 @@ mod logic {
             start_date: recurrence.start_date,
             end_date: recurrence.end_date,
             timezone: recurrence.timezone,
+            expiry_behavior: recurrence.expiry_behavior,
             is_active: recurrence.is_active,
             created_at: recurrence.created_at,
             updated_at: recurrence.updated_at,

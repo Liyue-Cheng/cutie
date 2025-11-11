@@ -27,6 +27,9 @@ impl ViewTaskCardAssembler {
 
         card.schedules = schedules;
 
+        // 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
+
         Ok(card)
     }
 
@@ -40,6 +43,10 @@ impl ViewTaskCardAssembler {
             let task_card = Self::assemble_full(&task, pool).await?;
             task_cards.push(task_card);
         }
+
+        // 批量填充 recurrence_expiry_behavior（优化性能）
+        TaskAssembler::fill_recurrence_expiry_behavior_batch(&mut task_cards, pool).await?;
+
         Ok(task_cards)
     }
 
@@ -57,6 +64,9 @@ impl ViewTaskCardAssembler {
         // 明确设置 schedule_status
         card.schedule_status = status;
         card.schedules = schedules;
+
+        // 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
 
         Ok(card)
     }

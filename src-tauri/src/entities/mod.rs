@@ -64,8 +64,8 @@ pub use template::{Template, TemplateRow};
 
 // TaskRecurrence 相关类型
 pub use task_recurrence::{
-    CreateTaskRecurrenceRequest, TaskRecurrence, TaskRecurrenceDto, TaskRecurrenceRow, TimeType,
-    UpdateTaskRecurrenceRequest,
+    CreateTaskRecurrenceRequest, ExpiryBehavior, TaskRecurrence, TaskRecurrenceDto,
+    TaskRecurrenceRow, TimeType, UpdateTaskRecurrenceRequest,
 };
 
 // TimeBlock 相关类型

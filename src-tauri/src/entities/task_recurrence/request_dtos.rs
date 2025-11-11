@@ -4,7 +4,7 @@
 use serde::Deserialize;
 use uuid::Uuid;
 
-use super::model::TimeType;
+use super::model::{ExpiryBehavior, TimeType};
 
 /// 创建循环规则请求
 #[derive(Debug, Deserialize)]
@@ -26,6 +26,9 @@ pub struct CreateTaskRecurrenceRequest {
 
     /// 时区 (可选，仅 FIXED 类型使用)
     pub timezone: Option<String>,
+
+    /// 过期行为 (可选，默认为 CARRYOVER_TO_STAGING)
+    pub expiry_behavior: Option<ExpiryBehavior>,
 
     /// 是否激活 (可选，默认为 true)
     pub is_active: Option<bool>,
@@ -57,6 +60,9 @@ pub struct UpdateTaskRecurrenceRequest {
     /// 时区
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub timezone: Option<Option<String>>,
+
+    /// 过期行为
+    pub expiry_behavior: Option<ExpiryBehavior>,
 
     /// 是否激活
     pub is_active: Option<bool>,

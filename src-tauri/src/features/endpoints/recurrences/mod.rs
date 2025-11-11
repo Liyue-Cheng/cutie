@@ -1,7 +1,6 @@
 /// Recurrence endpoints
-/// 
+///
 /// 循环任务相关的HTTP端点
-
 pub use batch_update_instances::handle as batch_update_instances;
 pub use batch_update_template_and_instances::handle as batch_update_template_and_instances;
 pub use create_recurrence::handle as create_recurrence;

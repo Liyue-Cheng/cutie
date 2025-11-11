@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch } from 'vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
-import { useViewStore } from '@/stores/view'
 import { useTemplateStore } from '@/stores/template'
 import { useUIStore } from '@/stores/ui'
 import { pipeline } from '@/cpu'
@@ -11,7 +10,6 @@ import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import type { TaskRecurrence } from '@/types/dtos'
 
 const recurrenceStore = useRecurrenceStore()
-const viewStore = useViewStore()
 const templateStore = useTemplateStore()
 const uiStore = useUIStore()
 const recurrenceOps = useRecurrenceOperations()
@@ -45,19 +43,6 @@ onMounted(async () => {
     pipeline.dispatch('recurrence.fetch_all', {}),
   ])
 })
-
-async function handleToggleActive(id: string, currentStatus: boolean) {
-  try {
-    await pipeline.dispatch('recurrence.update', {
-      id,
-      is_active: !currentStatus,
-    })
-    await viewStore.refreshAllMountedDailyViews()
-  } catch (error) {
-    console.error('Failed to toggle recurrence:', error)
-    alert('操作失败，请重试')
-  }
-}
 
 function handleEdit(id: string) {
   editingRecurrenceId.value = id
@@ -105,7 +90,6 @@ function handleEditSuccess() {
         v-for="recurrence in recurrenceStore.allRecurrences"
         :key="recurrence.id"
         :recurrence="recurrence"
-        @toggle-active="handleToggleActive"
         @edit="handleEdit"
         @delete="handleDelete"
       />

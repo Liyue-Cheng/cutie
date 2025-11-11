@@ -109,6 +109,7 @@ export interface TaskCard {
   // --- 循环任务相关字段 ---
   recurrence_id: string | null // 循环规则ID，null 表示非循环任务
   recurrence_original_date: string | null // 循环任务的原始日期 (YYYY-MM-DD)
+  recurrence_expiry_behavior: string | null // 循环任务的过期行为 ("CARRYOVER_TO_STAGING" | "EXPIRE")
 }
 
 /**
@@ -212,6 +213,7 @@ export interface TaskRecurrence {
   start_date: string | null // 生效起始日期 (YYYY-MM-DD)
   end_date: string | null // 生效结束日期 (YYYY-MM-DD)
   timezone: string | null // 时区（仅 FIXED 类型使用）
+  expiry_behavior: 'CARRYOVER_TO_STAGING' | 'EXPIRE' // 过期行为
   is_active: boolean // 是否激活
   created_at: string
   updated_at: string
@@ -227,6 +229,7 @@ export interface CreateTaskRecurrencePayload {
   start_date?: string | null
   end_date?: string | null
   timezone?: string | null
+  expiry_behavior?: 'CARRYOVER_TO_STAGING' | 'EXPIRE' // 过期行为
   is_active?: boolean
   source_task_id?: string // 源任务ID - 如果提供，将其作为第一个循环实例（避免重复创建）
 }
@@ -246,6 +249,7 @@ export interface UpdateTaskRecurrencePayload {
   start_date?: string | null // 三态：undefined=不更新, null=清空, string=设置值
   end_date?: string | null // 三态：undefined=不更新, null=清空, string=设置值
   timezone?: string | null // 三态：undefined=不更新, null=清空, string=设置值
+  expiry_behavior?: 'CARRYOVER_TO_STAGING' | 'EXPIRE' // 过期行为
   is_active?: boolean
 }
 

@@ -32,7 +32,10 @@ GET /api/views/staging
 
 ### 2.2. 核心业务逻辑 (Core Business Logic)
 
-从数据库中查询所有符合"Staging"定义的任务：未删除、未完成、且今天及未来不存在 task_schedules 记录的任务（过去的排期不影响）。
+从数据库中查询所有符合"Staging"定义的任务：
+- 未删除、未完成、且今天及未来不存在 task_schedules 记录的任务（过去的排期不影响）
+- 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
+
 为每个任务组装完整的 TaskCardDto（包含 area 信息、schedules 等上下文），并明确标记 schedule_status 为 Staging。
 
 ## 3. 输入输出规范 (Request/Response Specification)
@@ -78,12 +81,14 @@ GET /api/views/staging
   - `is_deleted = false`
   - `completed_at IS NULL`
   - 不存在于 `task_schedules` 表中
+  - 排除 EXPIRE 类型且已过期的循环任务
 
 ## 5. 业务逻辑详解 (Business Logic Walkthrough)
 
 1.  调用 `database::find_staging_tasks` 查询数据库：
     - 查询 `tasks` 表，过滤 `is_deleted = false` 和 `completed_at IS NULL`
     - 通过 `NOT EXISTS` 子查询排除所有在 `task_schedules` 中有记录的任务
+    - 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
     - 按 `created_at` 降序排列（最新的在前）
 2.  遍历每个任务，调用 `assemble_task_card` 进行组装：
     - 调用 `TaskAssembler::task_to_card_basic` 创建基础 TaskCard
@@ -160,6 +165,9 @@ mod logic {
         // 3. 设置 schedule_status 为 staging
         card.schedule_status = ScheduleStatus::Staging;
 
+        // 4. 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
+
         Ok(card)
     }
 }
@@ -176,6 +184,7 @@ mod database {
     /// - completed_at IS NULL
     /// - archived_at IS NULL
     /// - 今天及未来不存在 schedule（过去的 schedule 不影响）
+    /// - 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
     ///
     /// # 参数
     /// - `today`: 本地时间的今天日期 (YYYY-MM-DD 格式)
@@ -196,11 +205,23 @@ mod database {
                   WHERE ts.task_id = t.id
                     AND ts.scheduled_day >= ?
               )
+              AND NOT (
+                  -- 排除 EXPIRE 类型且已过期的循环任务
+                  t.recurrence_id IS NOT NULL
+                  AND t.recurrence_original_date IS NOT NULL
+                  AND t.recurrence_original_date < ?
+                  AND EXISTS (
+                      SELECT 1 FROM task_recurrences tr
+                      WHERE tr.id = t.recurrence_id
+                        AND tr.expiry_behavior = 'EXPIRE'
+                  )
+              )
             ORDER BY t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, TaskRow>(query)
-            .bind(today)
+            .bind(today) // 用于 task_schedules.scheduled_day >= ?
+            .bind(today) // 用于 recurrence_original_date < ?
             .fetch_all(pool)
             .await
             .map_err(|e| {

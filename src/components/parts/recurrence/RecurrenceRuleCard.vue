@@ -9,7 +9,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'toggle-active': [id: string, currentStatus: boolean]
   edit: [id: string]
   delete: [id: string]
 }>()
@@ -31,28 +30,21 @@ const ruleDescription = computed(() => {
   }
 })
 
-function handleToggleActive() {
-  emit('toggle-active', props.recurrence.id, props.recurrence.is_active)
-}
-
 function handleEdit() {
   emit('edit', props.recurrence.id)
 }
 
 function handleDelete() {
-  if (confirm('确定删除这个循环规则吗？已生成的任务不会被删除。')) {
+  if (confirm('确定删除这个循环规则吗？\n将删除所有未来的未完成实例。\n已完成的任务会保留。')) {
     emit('delete', props.recurrence.id)
   }
 }
 </script>
 
 <template>
-  <div class="recurrence-card" :class="{ inactive: !recurrence.is_active }">
+  <div class="recurrence-card">
     <div class="card-header">
       <h4 class="template-title">{{ template?.title || '未知模板' }}</h4>
-      <div class="status-badge" :class="{ active: recurrence.is_active }">
-        {{ recurrence.is_active ? '激活中' : '已暂停' }}
-      </div>
     </div>
 
     <div class="card-body">
@@ -70,13 +62,6 @@ function handleDelete() {
     </div>
 
     <div class="card-actions">
-      <button
-        @click="handleToggleActive"
-        class="btn-action"
-        :title="recurrence.is_active ? '暂停' : '激活'"
-      >
-        {{ recurrence.is_active ? '⏸️ 暂停' : '▶️ 激活' }}
-      </button>
       <button @click="handleEdit" class="btn-action" title="编辑循环规则">✏️ 编辑</button>
       <button @click="handleDelete" class="btn-action btn-danger" title="删除">🗑️ 删除</button>
     </div>
@@ -97,15 +82,7 @@ function handleDelete() {
   box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
 }
 
-.recurrence-card.inactive {
-  opacity: 0.6;
-  background: #f9f9f9;
-}
-
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 12px;
 }
 
@@ -114,20 +91,6 @@ function handleDelete() {
   font-size: 1.1em;
   font-weight: 600;
   color: #333;
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.85em;
-  font-weight: 500;
-  background: #e0e0e0;
-  color: #666;
-}
-
-.status-badge.active {
-  background: #e8f5e9;
-  color: #2e7d32;
 }
 
 .card-body {

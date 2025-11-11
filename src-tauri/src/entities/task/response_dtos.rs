@@ -51,6 +51,8 @@ pub struct TaskCardDto {
     pub recurrence_id: Option<Uuid>,
     /// 循环任务的原始日期 (YYYY-MM-DD)
     pub recurrence_original_date: Option<String>,
+    /// 循环任务的过期行为（从关联的 recurrence 获取，用于前端筛选）
+    pub recurrence_expiry_behavior: Option<String>, // "CARRYOVER_TO_STAGING" | "EXPIRE"
 }
 
 /// 任务日程 DTO（包含时间片）

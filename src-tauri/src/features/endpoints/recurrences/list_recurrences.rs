@@ -98,6 +98,7 @@ mod logic {
                 start_date: r.start_date,
                 end_date: r.end_date,
                 timezone: r.timezone,
+                expiry_behavior: r.expiry_behavior,
                 is_active: r.is_active,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
