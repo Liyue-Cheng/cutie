@@ -142,7 +142,10 @@ export const TaskISA: ISADefinition = {
     request: {
       method: 'POST',
       url: (payload) => `/tasks/${payload.id}/completion`,
-      body: () => ({}), // 空 body
+      body: (payload) => ({
+        completed_at_client: new Date().toISOString(), // 客户端当前时间
+        view_context: payload.view_context || 'misc::staging', // 视图上下文
+      }),
     },
 
     commit: async (result: TaskTransactionResult, _payload, context) => {

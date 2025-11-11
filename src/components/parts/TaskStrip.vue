@@ -137,6 +137,7 @@ import type { TaskCard } from '@/types/dtos'
 import { useAreaStore } from '@/stores/area'
 import { useUIStore } from '@/stores/ui'
 import { useContextMenu } from '@/composables/useContextMenu'
+import { useViewContext } from '@/composables/useViewContext'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
@@ -164,6 +165,13 @@ const emit = defineEmits<{
 const areaStore = useAreaStore()
 const uiStore = useUIStore()
 const contextMenu = useContextMenu()
+
+// ✅ 视图上下文：直接使用 viewKey prop（已经是正确的格式）
+// 如果没有 viewKey，降级到路由获取
+const { viewContext: routeViewContext } = useViewContext()
+const viewContext = computed(() => {
+  return props.viewKey || routeViewContext.value
+})
 
 // 防误触：拖动后抑制一次点击
 const suppressClickOnce = ref(false)
@@ -303,8 +311,11 @@ function toggleSubtask(subtaskId: string) {
 // 处理双模式复选框状态变化
 async function handleCheckboxStateChange(newState: CheckboxState) {
   if (newState === 'completed') {
-    // 完成任务
-    await pipeline.dispatch('task.complete', { id: props.task.id })
+    // 完成任务 - 传递视图上下文
+    await pipeline.dispatch('task.complete', {
+      id: props.task.id,
+      view_context: viewContext.value,
+    })
   } else if (newState === 'present') {
     // 标记在场 - 更新当前日期的schedule outcome（后端API使用大写）
     await pipeline.dispatch('schedule.update', {

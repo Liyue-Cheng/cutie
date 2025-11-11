@@ -86,3 +86,20 @@ impl Default for SearchTasksQuery {
         }
     }
 }
+
+/// 完成任务的请求载荷
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompleteTaskRequest {
+    /// 客户端时间（用户实际完成的时刻）
+    pub completed_at_client: DateTime<Utc>,
+
+    /// 视图上下文（决定日程创建位置）
+    /// 格式：{type}::{identifier}
+    /// 例如：
+    /// - "daily::2025-10-01" - 过去日期视图
+    /// - "daily::2025-10-05" - 今天日期视图
+    /// - "daily::2025-10-10" - 未来日期视图
+    /// - "misc::staging" - 通用视图
+    /// - "area::{uuid}" - 区域视图
+    pub view_context: String,
+}

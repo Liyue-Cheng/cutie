@@ -33,6 +33,34 @@ const currentViewKey = computed(() => {
   return props.viewMetadata?.id ?? ''
 })
 
+// ✅ 从 viewMetadata 生成 view_context（而不是从路由获取）
+const viewContext = computed(() => {
+  if (!props.viewMetadata) {
+    return 'misc::staging' // 降级默认值
+  }
+
+  const metadata = props.viewMetadata
+
+  // 根据 viewMetadata 的类型生成 view_context
+  if (metadata.type === 'date') {
+    // 日期看板：daily::2025-10-01
+    const config = metadata.config as DateViewConfig
+    return `daily::${config.date}`
+  } else if (metadata.type === 'misc') {
+    // 杂项看板：misc::staging, misc::incomplete 等
+    return metadata.id
+  } else if (metadata.type === 'area') {
+    // 区域看板：area::{uuid}
+    return metadata.id
+  } else if (metadata.type === 'project') {
+    // 项目看板：project::{uuid}
+    return metadata.id
+  }
+
+  // 降级默认值
+  return 'misc::staging'
+})
+
 // ✅ 防误触状态：刚点击过在场按钮
 const justToggledPresence = ref(false)
 
@@ -182,8 +210,11 @@ function showContextMenu(event: MouseEvent) {
 
 async function handleStatusChange(isChecked: boolean) {
   if (isChecked) {
-    // ✅ 完成任务 - 自动追踪！
-    await pipeline.dispatch('task.complete', { id: props.task.id })
+    // ✅ 完成任务 - 传递视图上下文
+    await pipeline.dispatch('task.complete', {
+      id: props.task.id,
+      view_context: viewContext.value,
+    })
     // 通知父组件任务已完成，以便重新排序
     emit('taskCompleted', props.task.id)
   } else {
