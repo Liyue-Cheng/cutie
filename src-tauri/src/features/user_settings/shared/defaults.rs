@@ -70,6 +70,19 @@ pub fn get_default_settings() -> Vec<DefaultSetting> {
             value_type: ValueType::String,
             category: SettingCategory::Account,
         },
+        // Debug 设置
+        DefaultSetting {
+            key: "debug.show_logs",
+            value: "false",
+            value_type: ValueType::Boolean,
+            category: SettingCategory::Debug,
+        },
+        DefaultSetting {
+            key: "debug.log_level",
+            value: "\"info\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Debug,
+        },
     ]
 }
 
@@ -83,9 +96,7 @@ pub fn get_default_settings_map() -> HashMap<String, DefaultSetting> {
 
 /// 获取指定 key 的默认值
 pub fn get_default_value(key: &str) -> Option<DefaultSetting> {
-    get_default_settings()
-        .into_iter()
-        .find(|s| s.key == key)
+    get_default_settings().into_iter().find(|s| s.key == key)
 }
 
 /// 创建默认设置实体
@@ -114,4 +125,3 @@ pub fn create_all_default_entities() -> Vec<UserSetting> {
         })
         .collect()
 }
-

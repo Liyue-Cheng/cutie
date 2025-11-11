@@ -455,8 +455,9 @@ CREATE TABLE user_settings (
     -- 'behavior' - 行为设置
     -- 'data' - 数据设置
     -- 'account' - 账号设置
+    -- 'debug' - 调试设置
     -- 'system' - 系统设置
-    category TEXT NOT NULL CHECK (category IN ('appearance', 'behavior', 'data', 'account', 'system')),
+    category TEXT NOT NULL CHECK (category IN ('appearance', 'behavior', 'data', 'account', 'debug', 'system')),
     
     -- 最后更新时间 (UTC timestamp in RFC 3339 format)
     updated_at TEXT NOT NULL,

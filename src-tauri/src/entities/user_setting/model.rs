@@ -43,6 +43,7 @@ pub enum SettingCategory {
     Behavior,
     Data,
     Account,
+    Debug,
     System,
 }
 

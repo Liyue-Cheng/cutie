@@ -18,17 +18,17 @@ impl UserSettingRepository {
         .fetch_all(pool)
         .await
         .map_err(|e| {
-            AppError::DatabaseError(DbError::QueryError(format!("Failed to fetch all user settings: {}", e)))
+            AppError::DatabaseError(DbError::QueryError(format!(
+                "Failed to fetch all user settings: {}",
+                e
+            )))
         })?;
 
         Ok(settings)
     }
 
     /// 按 key 查询单个设置
-    pub async fn find_by_key(
-        pool: &SqlitePool,
-        key: &str,
-    ) -> AppResult<Option<UserSetting>> {
+    pub async fn find_by_key(pool: &SqlitePool, key: &str) -> AppResult<Option<UserSetting>> {
         let setting = sqlx::query_as::<_, UserSetting>(
             r#"
             SELECT setting_key, setting_value, value_type, category, updated_at, created_at
@@ -40,7 +40,10 @@ impl UserSettingRepository {
         .fetch_optional(pool)
         .await
         .map_err(|e| {
-            AppError::DatabaseError(DbError::QueryError(format!("Failed to fetch user setting by key: {}", e)))
+            AppError::DatabaseError(DbError::QueryError(format!(
+                "Failed to fetch user setting by key: {}",
+                e
+            )))
         })?;
 
         Ok(setting)
@@ -56,6 +59,7 @@ impl UserSettingRepository {
             SettingCategory::Behavior => "behavior",
             SettingCategory::Data => "data",
             SettingCategory::Account => "account",
+            SettingCategory::Debug => "debug",
             SettingCategory::System => "system",
         };
 
@@ -87,6 +91,7 @@ impl UserSettingRepository {
             SettingCategory::Behavior => "behavior",
             SettingCategory::Data => "data",
             SettingCategory::Account => "account",
+            SettingCategory::Debug => "debug",
             SettingCategory::System => "system",
         };
 
@@ -117,13 +122,20 @@ impl UserSettingRepository {
         .bind(setting.created_at)
         .execute(pool)
         .await
-        .map_err(|e| AppError::DatabaseError(DbError::QueryError(format!("Failed to upsert user setting: {}", e))))?;
+        .map_err(|e| {
+            AppError::DatabaseError(DbError::QueryError(format!(
+                "Failed to upsert user setting: {}",
+                e
+            )))
+        })?;
 
         // 返回更新后的设置
         Self::find_by_key(pool, &setting.setting_key)
             .await?
             .ok_or_else(|| {
-                AppError::DatabaseError(DbError::QueryError("Failed to fetch setting after upsert".to_string()))
+                AppError::DatabaseError(DbError::QueryError(
+                    "Failed to fetch setting after upsert".to_string(),
+                ))
             })
     }
 
@@ -133,7 +145,9 @@ impl UserSettingRepository {
         settings: &[UserSetting],
     ) -> AppResult<Vec<UserSetting>> {
         let mut tx = pool.begin().await.map_err(|e| {
-            AppError::DatabaseError(DbError::TransactionFailed { message: format!("Failed to start transaction: {}", e) })
+            AppError::DatabaseError(DbError::TransactionFailed {
+                message: format!("Failed to start transaction: {}", e),
+            })
         })?;
 
         for setting in settings {
@@ -142,6 +156,7 @@ impl UserSettingRepository {
                 SettingCategory::Behavior => "behavior",
                 SettingCategory::Data => "data",
                 SettingCategory::Account => "account",
+                SettingCategory::Debug => "debug",
                 SettingCategory::System => "system",
             };
 
@@ -173,12 +188,17 @@ impl UserSettingRepository {
             .execute(&mut *tx)
             .await
             .map_err(|e| {
-                AppError::DatabaseError(DbError::QueryError(format!("Failed to upsert setting in batch: {}", e)))
+                AppError::DatabaseError(DbError::QueryError(format!(
+                    "Failed to upsert setting in batch: {}",
+                    e
+                )))
             })?;
         }
 
         tx.commit().await.map_err(|e| {
-            AppError::DatabaseError(DbError::TransactionFailed { message: format!("Failed to commit transaction: {}", e) })
+            AppError::DatabaseError(DbError::TransactionFailed {
+                message: format!("Failed to commit transaction: {}", e),
+            })
         })?;
 
         // 返回所有更新后的设置
@@ -199,7 +219,10 @@ impl UserSettingRepository {
         }
 
         let updated_settings = query_builder.fetch_all(pool).await.map_err(|e| {
-            AppError::DatabaseError(DbError::QueryError(format!("Failed to fetch settings after batch upsert: {}", e)))
+            AppError::DatabaseError(DbError::QueryError(format!(
+                "Failed to fetch settings after batch upsert: {}",
+                e
+            )))
         })?;
 
         Ok(updated_settings)
@@ -215,10 +238,12 @@ impl UserSettingRepository {
         .execute(pool)
         .await
         .map_err(|e| {
-            AppError::DatabaseError(DbError::QueryError(format!("Failed to delete all user settings: {}", e)))
+            AppError::DatabaseError(DbError::QueryError(format!(
+                "Failed to delete all user settings: {}",
+                e
+            )))
         })?;
 
         Ok(result.rows_affected())
     }
 }
-
