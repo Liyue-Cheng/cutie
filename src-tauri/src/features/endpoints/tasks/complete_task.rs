@@ -23,7 +23,7 @@ use crate::{
     },
     infra::{
         core::{AppError, AppResult},
-        http::{error_handler::success_response, extractors::extract_correlation_id},
+        http::{error_handler::success_response, extractors::{extract_correlation_id, extract_client_time}},
     },
     startup::AppState,
 };
@@ -87,18 +87,19 @@ POST /api/tasks/{id}/completion
 **Request Body:**
 ```json
 {
-  "completed_at_client": "2025-10-05T14:30:00+08:00",
   "view_context": "daily::2025-10-01"
 }
 ```
 
 **Body Schema:**
-- `completed_at_client` (DateTime<Utc>, required): 客户端时间（用户实际完成的时刻）
 - `view_context` (String, required): 视图上下文，格式 `{type}::{identifier}`
   - 例如：`"daily::2025-10-01"`, `"misc::staging"`, `"area::{uuid}"`
 
 **请求头 (Request Headers):**
 - `X-Correlation-ID` (optional): 用于前端去重和请求追踪
+- `X-Client-Time` (required): 客户端时间（ISO 8601 格式），例如 `"2025-10-05T14:30:00+08:00"`
+  - 前端统一在所有请求中发送此请求头
+  - 后端通过 `extract_client_time()` 提取并解析
 
 ### 3.2. 响应 (Responses)
 
@@ -165,9 +166,11 @@ POST /api/tasks/{id}/completion
     - **必须**是有效的 UUID 格式。
     - **必须**存在于数据库中。
     - 违反时返回 `404 NOT_FOUND`
-- `completed_at_client`:
+- `X-Client-Time` (请求头):
+    - **必须**存在于请求头中。
     - **必须**是有效的 ISO 8601 日期时间格式。
     - **必须**包含时区信息。
+    - 违反时返回 `400 VALIDATION_ERROR`
 - `view_context`:
     - **必须**是有效的上下文格式 `{type}::{identifier}`。
     - `type` 必须是 `daily`, `misc`, `area`, 或 `project`。
@@ -179,6 +182,7 @@ POST /api/tasks/{id}/completion
 
 ## 5. 业务逻辑详解 (Business Logic Walkthrough)
 
+0.  **提取请求头**：从请求头提取 `X-Client-Time`（`extract_client_time`）和 `X-Correlation-ID`。
 1.  获取写入许可（`app_state.acquire_write_permit()`）。
 2.  启动数据库事务（`TransactionHelper::begin`）。
 3.  查询任务（`TaskRepository::find_by_id_in_tx`）。
@@ -190,7 +194,7 @@ POST /api/tasks/{id}/completion
       - 视图日期 < 今天 → 返回视图日期（补记录历史）
       - 视图日期 >= 今天 → 返回今天（正常/提前完成）
     - 如果是其他类型 → 返回今天
-7.  设置任务为已完成（`TaskRepository::set_completed_in_tx`），使用 `completed_at_client`。
+7.  设置任务为已完成（`TaskRepository::set_completed_in_tx`），使用从请求头提取的客户端时间。
 8.  更新子任务：将所有子任务标记为已完成。
 9.  **处理日程**：
     - 检查 `schedule_date` 是否有日程（`has_schedule_for_day_in_tx`）
@@ -302,7 +306,13 @@ pub async fn handle(
     Json(request): Json<CompleteTaskRequest>,
 ) -> Response {
     let correlation_id = extract_correlation_id(&headers);
-    match logic::execute(&app_state, task_id, request, correlation_id).await {
+    // ✅ 从请求头提取客户端时间
+    let client_time = match extract_client_time(&headers) {
+        Ok(time) => time,
+        Err(err) => return err.into_response(),
+    };
+
+    match logic::execute(&app_state, task_id, request, client_time, correlation_id).await {
         Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
@@ -317,11 +327,9 @@ mod logic {
         app_state: &AppState,
         task_id: Uuid,
         request: CompleteTaskRequest,
+        completed_at: chrono::DateTime<chrono::Utc>, // ✅ 从请求头传入
         correlation_id: Option<String>,
     ) -> AppResult<CompleteTaskResponse> {
-        // ✅ 使用客户端时间作为完成时间
-        let completed_at = request.completed_at_client;
-
         // ✅ 获取写入许可，确保写操作串行执行
         let _permit = app_state.acquire_write_permit().await;
 

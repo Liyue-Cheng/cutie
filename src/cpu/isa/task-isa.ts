@@ -143,7 +143,7 @@ export const TaskISA: ISADefinition = {
       method: 'POST',
       url: (payload) => `/tasks/${payload.id}/completion`,
       body: (payload) => ({
-        completed_at_client: new Date().toISOString(), // 客户端当前时间
+        // ✅ 客户端时间已通过 X-Client-Time 请求头统一发送
         view_context: payload.view_context || 'misc::staging', // 视图上下文
       }),
     },

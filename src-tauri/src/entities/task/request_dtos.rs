@@ -88,11 +88,10 @@ impl Default for SearchTasksQuery {
 }
 
 /// 完成任务的请求载荷
+///
+/// ✅ 客户端时间通过 `X-Client-Time` 请求头传递，不在 body 中
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompleteTaskRequest {
-    /// 客户端时间（用户实际完成的时刻）
-    pub completed_at_client: DateTime<Utc>,
-
     /// 视图上下文（决定日程创建位置）
     /// 格式：{type}::{identifier}
     /// 例如：

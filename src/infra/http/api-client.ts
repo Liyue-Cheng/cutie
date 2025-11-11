@@ -34,11 +34,18 @@ export async function apiCall<T = any>(
 
   const apiBaseUrl = await waitForApiReady()
 
-  // 添加 Correlation ID 到请求头
+  // 添加标准请求头
   const headers = new Headers(fetchOptions.headers)
+
+  // Correlation ID（请求追踪）
   if (correlationId) {
     headers.set('X-Correlation-ID', correlationId)
   }
+
+  // ✅ 客户端时间（ISO 8601 格式）
+  // 所有写操作（POST/PUT/PATCH/DELETE）都会自动包含客户端时间
+  // 后端可以统一从请求头提取，避免在每个 DTO 中重复定义
+  headers.set('X-Client-Time', new Date().toISOString())
 
   const response = await fetch(`${apiBaseUrl}${endpoint}`, {
     ...fetchOptions,

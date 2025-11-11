@@ -2,6 +2,9 @@
 ///
 /// 用于从 HTTP 请求中提取常用的元数据和上下文信息
 use axum::http::HeaderMap;
+use chrono::{DateTime, Utc};
+
+use crate::infra::core::AppError;
 
 /// 从 HTTP 请求头中提取 Correlation ID
 ///
@@ -31,6 +34,53 @@ pub fn extract_correlation_id(headers: &HeaderMap) -> Option<String> {
         .get("X-Correlation-ID")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string())
+}
+
+/// 从 HTTP 请求头中提取客户端时间
+///
+/// 前端会在所有请求中通过 `X-Client-Time` header 发送客户端当前时间（ISO 8601 格式）
+/// 这样避免了在每个 DTO 中重复定义时间字段，实现统一的时间处理
+///
+/// # 设计理由
+/// - **统一处理**：所有需要客户端时间的 API 都从请求头获取，避免重复代码
+/// - **时区一致性**：使用客户端时间，消除服务器时区假设
+/// - **职责分离**：时间作为元数据放在请求头更合理
+///
+/// # 返回值
+/// - `Ok(DateTime<Utc>)`：成功解析的客户端时间
+/// - `Err(AppError)`：请求头缺失或时间格式无效
+///
+/// # 示例
+/// ```rust
+/// use axum::http::HeaderMap;
+/// use crate::infra::http::extractors::extract_client_time;
+///
+/// pub async fn handle(headers: HeaderMap) -> Result<Response, AppError> {
+///     let client_time = extract_client_time(&headers)?;
+///     // 使用 client_time 进行业务逻辑...
+/// }
+/// ```
+pub fn extract_client_time(headers: &HeaderMap) -> Result<DateTime<Utc>, AppError> {
+    let time_str = headers
+        .get("X-Client-Time")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| {
+            AppError::validation_error(
+                "X-Client-Time",
+                "Missing X-Client-Time header",
+                "MISSING_CLIENT_TIME",
+            )
+        })?;
+
+    DateTime::parse_from_rfc3339(time_str)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|_| {
+            AppError::validation_error(
+                "X-Client-Time",
+                "Invalid ISO 8601 time format",
+                "INVALID_TIME_FORMAT",
+            )
+        })
 }
 
 #[cfg(test)]
@@ -72,5 +122,50 @@ mod tests {
         // 这里测试 to_str() 失败的情况
         let result = extract_correlation_id(&headers);
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extract_client_time_valid() {
+        let headers = {
+            let mut h = HeaderMap::new();
+            h.insert(
+                "X-Client-Time",
+                "2025-11-11T13:45:32.123Z".parse().unwrap(),
+            );
+            h
+        };
+
+        let result = extract_client_time(&headers);
+        assert!(result.is_ok());
+
+        let time = result.unwrap();
+        assert_eq!(time.year(), 2025);
+        assert_eq!(time.month(), 11);
+        assert_eq!(time.day(), 11);
+    }
+
+    #[test]
+    fn test_extract_client_time_missing() {
+        let headers = HeaderMap::new();
+        let result = extract_client_time(&headers);
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(matches!(err, AppError::ValidationError { .. }));
+    }
+
+    #[test]
+    fn test_extract_client_time_invalid_format() {
+        let headers = {
+            let mut h = HeaderMap::new();
+            h.insert("X-Client-Time", "not-a-valid-date".parse().unwrap());
+            h
+        };
+
+        let result = extract_client_time(&headers);
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(matches!(err, AppError::ValidationError { .. }));
     }
 }
