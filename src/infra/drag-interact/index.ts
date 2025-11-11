@@ -13,6 +13,7 @@ export {
   isRebounding,
   previewMousePosition,
   getPreviewDebugInfo,
+  dragPreviewActions, // 🔥 导出 actions（包含 forceReset）
 } from './preview-state'
 
 // 类型定义

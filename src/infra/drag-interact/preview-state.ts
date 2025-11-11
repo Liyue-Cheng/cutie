@@ -198,6 +198,20 @@ export const dragPreviewActions = {
     _previewState.value = null
     _mousePosition.value = null
   },
+
+  /**
+   * 🔥 安全重置：强制清理所有状态，用于错误恢复
+   */
+  forceReset() {
+    cancelPendingMouseUpdate()
+    _previewState.value = null
+    _mousePosition.value = null
+    pendingMousePosition = null
+    if (mousePositionRaf !== null && hasWindow) {
+      window.cancelAnimationFrame(mousePositionRaf)
+      mousePositionRaf = null
+    }
+  },
 }
 
 // ==================== 调试辅助 ====================

@@ -56,6 +56,7 @@ class InteractDragController {
   private isCompactModeActive: boolean = false // 标记当前拖动是否启用了截断模式
   private dragSourceElement: HTMLElement | null = null // 记录当前拖动的源元素
   private dynamicDropEnabled: boolean = false // 标记是否已启用动态 drop 匹配
+  private globalEventHandlers: Map<string, EventListener> = new Map() // 🔥 存储全局事件处理器以便清理
 
   // ==================== 状态管理 ====================
 
@@ -86,7 +87,8 @@ class InteractDragController {
     this.removeGhost()
     this.clearDragSourceElement()
     this.isCompactModeActive = false
-    dragPreviewActions.clear()
+    // 🔥 使用 forceReset 确保完全清理
+    dragPreviewActions.forceReset()
     this.state.session = null
     this.state.targetZone = null
     this.state.dropIndex = null
@@ -112,6 +114,11 @@ class InteractDragController {
    * 清理所有 interact.js 绑定
    */
   public cleanupAll() {
+    // 🔥 先取消当前拖动操作
+    if (this.state.phase !== 'IDLE') {
+      this.cancel()
+    }
+
     // 清理所有已注册的选择器
     for (const selector of this.registeredSelectors) {
       interact(selector).unset()
@@ -124,9 +131,21 @@ class InteractDragController {
     }
     this.registeredElements.clear()
 
+    // 🔥 清理全局事件监听器
+    for (const [eventName, handler] of this.globalEventHandlers) {
+      if (eventName === 'keydown') {
+        document.removeEventListener(eventName, handler)
+      } else {
+        window.removeEventListener(eventName, handler)
+      }
+    }
+    this.globalEventHandlers.clear()
+
     // 清理其他状态
     this.validZones.clear()
     this.cleanup()
+
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'All drag interactions cleaned up')
   }
 
   /**
@@ -273,7 +292,9 @@ class InteractDragController {
    * 在缓冲时间内若重新进入任意 dropzone，将取消离开
    */
   private scheduleLeaveWithGrace() {
-    if (this.pendingLeaveTimer !== null) return
+    // 🔥 安全：如果已有定时器，先清除再创建新的
+    this.cancelPendingLeave()
+
     this.pendingLeaveTimer = window.setTimeout(() => {
       this.pendingLeaveTimer = null
       // 真正离开并回弹
@@ -447,12 +468,15 @@ class InteractDragController {
       return
     }
 
+    // 🔥 安全：保存session副本，防止在异步过程中被清理
+    const sessionCopy = { ...this.state.session }
+
     this.enterPhase('DROPPING')
 
     try {
       // 检查中断
       if (this.interruptionDetector) {
-        const shouldInterrupt = await this.interruptionDetector.shouldInterrupt(this.state.session)
+        const shouldInterrupt = await this.interruptionDetector.shouldInterrupt(sessionCopy)
         if (shouldInterrupt) {
           const reason = this.interruptionDetector.getInterruptionReason()
           logger.warn(LogTags.DRAG_CROSS_VIEW, 'Drop interrupted', { reason })
@@ -467,12 +491,12 @@ class InteractDragController {
       // await strategy.execute(this.buildContext())
 
       logger.info(LogTags.DRAG_CROSS_VIEW, '✅ 拖放完成', {
-        objectType: this.state.session.object.type,
-        objectId: this.state.session.object.data.id,
-        objectTitle: this.state.session.object.data.title,
-        sourceView: this.state.session.source.viewId,
+        objectType: sessionCopy.object.type,
+        objectId: sessionCopy.object.data.id,
+        objectTitle: sessionCopy.object.data.title,
+        sourceView: sessionCopy.source.viewId,
         targetZone: this.state.targetZone,
-        dragMode: this.state.session.dragMode,
+        dragMode: sessionCopy.dragMode,
       })
 
       this.enterPhase('IDLE')
@@ -480,7 +504,8 @@ class InteractDragController {
       logger.error(LogTags.DRAG_CROSS_VIEW, 'Drop failed', error as Error)
       const errorMessage = error instanceof Error ? error.message : '未知错误'
       showErrorMessage(`操作失败: ${errorMessage}`)
-      this.cancel()
+      // 🔥 安全：确保即使出错也能返回到 IDLE 状态
+      this.enterPhase('IDLE')
     }
   }
 
@@ -501,10 +526,13 @@ class InteractDragController {
    * 安装可拖拽元素
    */
   installDraggable(selector: string, options: DraggableOptions) {
-    // 避免重复注册
+    // 🔥 确保全局事件监听器已注册
+    this.setupGlobalEventListeners()
+
+    // 🔥 安全：先清理旧的绑定再注册新的
     if (this.registeredSelectors.has(selector)) {
-      logger.debug(LogTags.DRAG_CROSS_VIEW, `Selector already registered: ${selector}`)
-      return
+      logger.debug(LogTags.DRAG_CROSS_VIEW, `Selector already registered, re-registering: ${selector}`)
+      interact(selector).unset() // 清理旧的绑定
     }
 
     interact(selector).draggable({
@@ -514,12 +542,33 @@ class InteractDragController {
 
       listeners: {
         start: (event) => {
+          // 🔥 安全检查：确保状态为 IDLE 才允许开始
+          if (this.state.phase !== 'IDLE') {
+            logger.warn(LogTags.DRAG_CROSS_VIEW, `Cannot start drag: current phase is ${this.state.phase}`)
+            event.preventDefault()
+            return
+          }
           // 阻止默认行为和事件冒泡
           event.preventDefault()
           this.startPreparing(event, options)
         },
 
         move: (event) => {
+          // 🔥 防御性检查：确保事件有效
+          if (!event || typeof event.clientX !== 'number' || typeof event.clientY !== 'number') {
+            logger.warn(LogTags.DRAG_CROSS_VIEW, 'Invalid move event received', event)
+            return
+          }
+
+          // 🔥 防御性检查：确保坐标在合理范围内
+          if (!isFinite(event.clientX) || !isFinite(event.clientY)) {
+            logger.warn(LogTags.DRAG_CROSS_VIEW, 'Invalid coordinates in move event', {
+              x: event.clientX,
+              y: event.clientY,
+            })
+            return
+          }
+
           // 更新幽灵元素位置
           this.updateGhostPosition(event.clientX, event.clientY)
 
@@ -918,6 +967,48 @@ class InteractDragController {
       hasGhost: !!this.ghost,
     }
   }
+
+  /**
+   * 🔥 注册全局事件监听器（可清理）
+   */
+  private setupGlobalEventListeners() {
+    if (typeof window === 'undefined') return
+    if (this.globalEventHandlers.size > 0) return // 已注册
+
+    // beforeunload 事件
+    const beforeunloadHandler = () => {
+      this.cleanup()
+    }
+    window.addEventListener('beforeunload', beforeunloadHandler)
+    this.globalEventHandlers.set('beforeunload', beforeunloadHandler)
+
+    // visibilitychange 事件
+    const visibilitychangeHandler = () => {
+      if (document.hidden) {
+        this.cancel()
+      }
+    }
+    document.addEventListener('visibilitychange', visibilitychangeHandler as EventListener)
+    this.globalEventHandlers.set('visibilitychange', visibilitychangeHandler as EventListener)
+
+    // blur 事件
+    const blurHandler = () => {
+      this.cancel()
+    }
+    window.addEventListener('blur', blurHandler)
+    this.globalEventHandlers.set('blur', blurHandler)
+
+    // keydown 事件（ESC取消）
+    const keydownHandler = (event: Event) => {
+      if ((event as KeyboardEvent).key === 'Escape') {
+        this.cancel()
+      }
+    }
+    document.addEventListener('keydown', keydownHandler)
+    this.globalEventHandlers.set('keydown', keydownHandler)
+
+    logger.debug(LogTags.DRAG_CROSS_VIEW, 'Global event listeners registered')
+  }
 }
 
 // ==================== 单例导出 ====================
@@ -937,30 +1028,6 @@ export const controllerDebugState = shallowRef({
 // 初始化一次，以反映初始状态
 controllerDebugState.value = interactManager.getDebugInfo()
 
-// ==================== 全局清理 ====================
-
-if (typeof window !== 'undefined') {
-  // 页面卸载时清理
-  window.addEventListener('beforeunload', () => {
-    interactManager['cleanup']()
-  })
-
-  // 页面隐藏时清理（切换标签页）
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      interactManager['cancel']()
-    }
-  })
-
-  // 失焦时清理（切换到其他应用）
-  window.addEventListener('blur', () => {
-    interactManager['cancel']()
-  })
-
-  // ESC 键取消
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      interactManager['cancel']()
-    }
-  })
-}
+// ==================== 🔥 全局清理已移至类内部管理 ====================
+// 全局事件监听器现在通过 setupGlobalEventListeners() 方法管理
+// 可以通过 cleanupAll() 方法清理

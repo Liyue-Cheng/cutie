@@ -39,8 +39,13 @@ export function calculateDropIndex(
   if (lastDropIndex !== undefined && lastDropIndex !== null) {
     let i = Math.max(0, Math.min(lastDropIndex, wrappers.length))
 
+    // 🔥 安全检查：防止无限循环，最多迭代元素数量次
+    const MAX_ITERATIONS = wrappers.length + 2
+    let iterations = 0
+
     // 允许一次跨越多项：循环消费触发区
-    while (true) {
+    while (iterations < MAX_ITERATIONS) {
+      iterations++
       let moved = false
 
       // 尝试上移：检查上一项的底部10%
@@ -49,6 +54,8 @@ export function calculateDropIndex(
         const prevEl = wrappers[prevIndex]
         if (!prevEl) break
         const prevRect = prevEl.getBoundingClientRect()
+        // 🔥 安全检查：确保rect值有效
+        if (!isFinite(prevRect.height) || !isFinite(prevRect.bottom)) break
         const topEdge = prevRect.bottom - zonePx(prevRect.height)
         if (mouseY <= topEdge) {
           i = prevIndex
@@ -63,6 +70,8 @@ export function calculateDropIndex(
           const nextEl = wrappers[nextIndex]
           if (!nextEl) break
           const nextRect = nextEl.getBoundingClientRect()
+          // 🔥 安全检查：确保rect值有效
+          if (!isFinite(nextRect.height) || !isFinite(nextRect.top)) break
           const bottomEdge = nextRect.top + zonePx(nextRect.height)
           if (mouseY >= bottomEdge) {
             i = nextIndex + 1
@@ -72,6 +81,11 @@ export function calculateDropIndex(
       }
 
       if (!moved) break
+    }
+
+    // 🔥 警告：如果达到最大迭代次数，记录日志
+    if (iterations >= MAX_ITERATIONS) {
+      console.warn('[calculateDropIndex] Reached max iterations, potential infinite loop prevented')
     }
 
     return Math.max(0, Math.min(i, wrappers.length))
