@@ -430,41 +430,41 @@ CREATE INDEX idx_outbox_aggregate ON event_outbox(aggregate_type, aggregate_id);
 CREATE INDEX idx_outbox_created_at ON event_outbox(created_at);
 
 -- ============================================================
--- 循环任务排除表 (Recurrence Exclusions)
+-- 用户设置表 (User Settings) - V1.0
 -- ============================================================
--- 存储循环任务中被删除的单个实例日期
--- 用于实现"删除某天的循环任务实例"功能
+-- 存储用户的个性化配置
+-- 采用 Key-Value 结构，每个设置项为一行记录
 
-CREATE TABLE recurrence_exclusions (
-    id TEXT PRIMARY KEY NOT NULL,
-    parent_task_id TEXT NOT NULL,
-    excluded_date TEXT NOT NULL,            -- YYYY-MM-DD (日历日期字符串)
-    created_at TEXT NOT NULL,               -- UTC timestamp in RFC 3339 format
+CREATE TABLE user_settings (
+    -- 设置项的唯一标识符 (主键)
+    setting_key TEXT PRIMARY KEY NOT NULL,
     
-    FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    -- 设置值 (JSON 格式存储，支持复杂数据类型)
+    -- 示例:
+    -- - 字符串: '"zh-CN"'
+    -- - 数字: '100'
+    -- - 布尔: 'true'
+    -- - 对象: '{"format": "24h", "showSeconds": true}'
+    setting_value TEXT NOT NULL,
+    
+    -- 设置项的数据类型 (用于前端反序列化)
+    value_type TEXT NOT NULL CHECK (value_type IN ('string', 'number', 'boolean', 'object', 'array')),
+    
+    -- 设置项的分类 (用于UI分组显示)
+    -- 'appearance' - 外观设置
+    -- 'behavior' - 行为设置
+    -- 'data' - 数据设置
+    -- 'account' - 账号设置
+    -- 'system' - 系统设置
+    category TEXT NOT NULL CHECK (category IN ('appearance', 'behavior', 'data', 'account', 'system')),
+    
+    -- 最后更新时间 (UTC timestamp in RFC 3339 format)
+    updated_at TEXT NOT NULL,
+    
+    -- 创建时间 (UTC timestamp in RFC 3339 format)
+    created_at TEXT NOT NULL
 );
 
--- 为 recurrence_exclusions 表创建索引
-CREATE INDEX idx_exclusions_task ON recurrence_exclusions(parent_task_id);
-CREATE INDEX idx_exclusions_date ON recurrence_exclusions(excluded_date);
-CREATE UNIQUE INDEX idx_exclusions_unique ON recurrence_exclusions(parent_task_id, excluded_date);
-
--- ============================================================
--- 循环时间块排除表 (Time Block Recurrence Exclusions)
--- ============================================================
--- 存储循环时间块中被删除的单个实例日期
--- 用于实现"删除某天的循环时间块实例"功能
-
-CREATE TABLE time_block_recurrence_exclusions (
-    id TEXT PRIMARY KEY NOT NULL,
-    parent_time_block_id TEXT NOT NULL,
-    excluded_date TEXT NOT NULL,            -- YYYY-MM-DD (日历日期字符串)
-    created_at TEXT NOT NULL,               -- UTC timestamp in RFC 3339 format
-    
-    FOREIGN KEY (parent_time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE
-);
-
--- 为 time_block_recurrence_exclusions 表创建索引
-CREATE INDEX idx_tb_exclusions_block ON time_block_recurrence_exclusions(parent_time_block_id);
-CREATE INDEX idx_tb_exclusions_date ON time_block_recurrence_exclusions(excluded_date);
-CREATE UNIQUE INDEX idx_tb_exclusions_unique ON time_block_recurrence_exclusions(parent_time_block_id, excluded_date);
+-- 为常用查询创建索引
+CREATE INDEX idx_user_settings_category ON user_settings(category);
+CREATE INDEX idx_user_settings_updated_at ON user_settings(updated_at);

@@ -157,24 +157,26 @@ mod logic {
         let pool = app_state.db_pool();
 
         // 1. 获取 category（从默认值或现有记录）
-        let category = if let Some(existing) = UserSettingRepository::find_by_key(pool, &key).await?
-        {
-            existing.category
-        } else {
-            get_default_value(&key)
-                .map(|d| d.category)
-                .ok_or_else(|| {
+        let category =
+            if let Some(existing) = UserSettingRepository::find_by_key(pool, &key).await? {
+                existing.category
+            } else {
+                get_default_value(&key).map(|d| d.category).ok_or_else(|| {
                     AppError::validation_error(
                         "key",
                         format!("Unknown setting key '{}' and no default found", key),
                         "UNKNOWN_KEY",
                     )
                 })?
-        };
+            };
 
         // 2. 序列化值为 JSON 字符串
         let setting_value = serde_json::to_string(&request.value).map_err(|e| {
-            AppError::validation_error("value", format!("Invalid JSON value: {}", e), "INVALID_JSON")
+            AppError::validation_error(
+                "value",
+                format!("Invalid JSON value: {}", e),
+                "INVALID_JSON",
+            )
         })?;
 
         // 3. 创建设置实体
@@ -206,8 +208,12 @@ mod database {
     ) -> AppResult<()> {
         let outbox_repo = SqlxEventOutboxRepository::new(pool.clone());
         let payload = serde_json::to_value(dto)?;
-        let event =
-            DomainEvent::new("user_settings.updated", "user_setting", key.to_string(), payload);
+        let event = DomainEvent::new(
+            "user_settings.updated",
+            "user_setting",
+            key.to_string(),
+            payload,
+        );
 
         let mut tx = pool.begin().await.map_err(|e| {
             AppError::DatabaseError(crate::infra::core::DbError::TransactionFailed {
