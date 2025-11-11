@@ -21,6 +21,7 @@ pub mod tasks;
 pub mod templates;
 pub mod time_blocks;
 pub mod trash;
+pub mod user_settings;
 pub mod view_preferences;
 pub mod views;
 
@@ -44,6 +45,7 @@ pub fn create_api_router() -> Router<AppState> {
         .nest("/templates", templates::create_routes())
         .nest("/time-blocks", time_blocks::create_routes())
         .nest("/trash", trash::create_routes())
+        .nest("/user-settings", endpoints::user_settings::create_routes())
         .nest("/view-preferences", view_preferences::create_routes())
         .nest("/views", views::create_routes())
         .route("/events/stream", get(sse::handle))

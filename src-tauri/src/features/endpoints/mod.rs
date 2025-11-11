@@ -8,5 +8,6 @@ pub mod tasks;
 pub mod templates;
 pub mod time_blocks;
 pub mod trash;
+pub mod user_settings;
 pub mod view_preferences;
 pub mod views;
