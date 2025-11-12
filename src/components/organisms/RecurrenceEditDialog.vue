@@ -39,14 +39,6 @@
           </select>
           <p class="form-hint">未完成的任务在当天结束后的处理方式</p>
         </div>
-
-        <!-- 激活状态 -->
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input v-model="formData.is_active" type="checkbox" class="form-checkbox" />
-            <span>启用此循环规则</span>
-          </label>
-        </div>
       </div>
 
       <div class="dialog-footer">
@@ -78,7 +70,6 @@ const formData = ref({
   start_date: props.recurrence.start_date || '',
   end_date: props.recurrence.end_date || '',
   expiry_behavior: props.recurrence.expiry_behavior || 'CARRYOVER_TO_STAGING',
-  is_active: props.recurrence.is_active,
 })
 
 function handleClose() {
@@ -90,7 +81,6 @@ function handleSave() {
     start_date: formData.value.start_date || null,
     end_date: formData.value.end_date || null,
     expiry_behavior: formData.value.expiry_behavior as 'CARRYOVER_TO_STAGING' | 'EXPIRE',
-    is_active: formData.value.is_active,
   }
   emit('save', updates)
 }
@@ -191,20 +181,6 @@ function handleSave() {
   margin: 0;
   font-size: 1.2rem;
   color: var(--color-text-tertiary);
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.form-checkbox {
-  width: 1.6rem;
-  height: 1.6rem;
-  cursor: pointer;
 }
 
 .dialog-footer {
