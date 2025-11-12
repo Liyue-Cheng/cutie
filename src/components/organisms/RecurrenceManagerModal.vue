@@ -371,11 +371,19 @@ async function handleSaveEdit(updates: Partial<TaskRecurrence>) {
 
 // 删除循环规则
 async function deleteRecurrence(recurrence: TaskRecurrence) {
-  const confirmed = confirm(`确定要删除这个循环规则吗？\n\n${formatRule(recurrence.rule)}`)
+  const confirmed = confirm(
+    `确定要删除这个循环规则吗？\n\n${formatRule(recurrence.rule)}\n\n将会删除所有未完成的任务实例。`
+  )
   if (!confirmed) return
 
   try {
+    // 删除循环规则
     await pipeline.dispatch('recurrence.delete', { id: recurrence.id })
+
+    // 清理本地未完成任务（从今天开始的所有未完成任务）
+    const today = getTodayDateString()
+    await cleanupRecurrenceTasks(recurrence.id, today)
+
     logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Deleted recurrence', {
       id: recurrence.id,
     })
@@ -385,6 +393,47 @@ async function deleteRecurrence(recurrence: TaskRecurrence) {
       'Failed to delete recurrence',
       error as Error
     )
+  }
+}
+
+// 清理循环规则的所有未完成任务（从指定日期开始）
+async function cleanupRecurrenceTasks(recurrenceId: string, fromDate: string) {
+  const allTasks = taskStore.allTasks
+
+  // 找出所有属于该循环规则且从指定日期开始的未完成任务
+  const taskIdsToRemove = allTasks
+    .filter((task: any) => {
+      if (task.recurrence_id !== recurrenceId) return false
+      if (task.is_completed) return false
+
+      // 检查任务的原始日期
+      const originalDate = task.recurrence_original_date
+      if (!originalDate) return true // 没有原始日期的也删除
+
+      return originalDate >= fromDate
+    })
+    .map((task: any) => task.id)
+
+  if (taskIdsToRemove.length > 0) {
+    // 从本地 store 中移除
+    taskStore.batchRemoveTasks_mut(taskIdsToRemove)
+
+    logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Removed recurrence tasks', {
+      recurrenceId,
+      count: taskIdsToRemove.length,
+      fromDate,
+    })
+
+    // 重新获取任务数据以保持同步
+    try {
+      await taskStore.fetchAllIncompleteTasks_DMA()
+    } catch (error) {
+      logger.error(
+        LogTags.COMPONENT_RECURRENCE_MANAGER,
+        'Failed to refetch tasks after cleanup',
+        error as Error
+      )
+    }
   }
 }
 
