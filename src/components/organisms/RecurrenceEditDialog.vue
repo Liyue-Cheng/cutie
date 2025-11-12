@@ -247,4 +247,3 @@ function handleSave() {
   background-color: var(--color-primary-hover, #1f5469);
 }
 </style>
-

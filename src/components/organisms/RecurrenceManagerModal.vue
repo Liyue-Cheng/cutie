@@ -40,8 +40,12 @@
                 <!-- 左侧：规则信息 -->
                 <div class="recurrence-info">
                   <div class="recurrence-header">
-                    <span class="recurrence-rule">{{ formatRule(recurrence.rule) }}</span>
+                    <span class="recurrence-title">{{ getTemplateTitle(recurrence.template_id) }}</span>
                     <span v-if="!recurrence.is_active" class="inactive-badge">已停用</span>
+                  </div>
+                  <div class="recurrence-subtitle">
+                    <CuteIcon name="RefreshCw" :size="12" />
+                    <span>{{ formatRule(recurrence.rule) }}</span>
                   </div>
                   <div class="recurrence-details">
                     <span v-if="recurrence.start_date" class="detail-item">
@@ -72,7 +76,11 @@
                   >
                     <CuteIcon :name="recurrence.is_active ? 'Pause' : 'Play'" :size="16" />
                   </button>
-                  <button class="action-btn edit-btn" title="编辑" @click="editRecurrence(recurrence)">
+                  <button
+                    class="action-btn edit-btn"
+                    title="编辑"
+                    @click="editRecurrence(recurrence)"
+                  >
                     <CuteIcon name="Pencil" :size="16" />
                   </button>
                   <button
@@ -114,6 +122,7 @@ import { ref, computed, watch } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { useTemplateStore } from '@/stores/template'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 import type { TaskRecurrence } from '@/types/dtos'
@@ -129,6 +138,7 @@ const emit = defineEmits<{
 }>()
 
 const recurrenceStore = useRecurrenceStore()
+const templateStore = useTemplateStore()
 const isLoading = ref(false)
 const editingRecurrence = ref<TaskRecurrence | null>(null)
 
@@ -155,13 +165,18 @@ watch(
   { immediate: true }
 )
 
-// 加载循环规则
+// 加载循环规则和模板
 async function loadRecurrences() {
   isLoading.value = true
   try {
-    await pipeline.dispatch('recurrence.fetch_all', {})
-    logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Loaded recurrences', {
-      count: recurrences.value.length,
+    // 并行加载循环规则和模板
+    await Promise.all([
+      pipeline.dispatch('recurrence.fetch_all', {}),
+      templateStore.fetchAllTemplates(),
+    ])
+    logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Loaded recurrences and templates', {
+      recurrenceCount: recurrences.value.length,
+      templateCount: templateStore.allTemplates.length,
     })
   } catch (error) {
     logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to load recurrences', { error })
@@ -173,6 +188,12 @@ async function loadRecurrences() {
 // 刷新循环规则
 async function refreshRecurrences() {
   await loadRecurrences()
+}
+
+// 获取模板标题
+function getTemplateTitle(templateId: string): string {
+  const template = templateStore.getTemplateById(templateId)
+  return template?.title || '未知任务'
 }
 
 // 格式化循环规则
@@ -432,7 +453,7 @@ function handleClose() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.6rem;
 }
 
 .recurrence-header {
@@ -441,10 +462,18 @@ function handleClose() {
   gap: 1.2rem;
 }
 
-.recurrence-rule {
+.recurrence-title {
   font-size: 1.6rem;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.recurrence-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.3rem;
+  color: var(--color-text-secondary);
 }
 
 .inactive-badge {
@@ -583,4 +612,3 @@ function handleClose() {
   transform: scale(0.95);
 }
 </style>
-

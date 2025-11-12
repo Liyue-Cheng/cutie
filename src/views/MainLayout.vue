@@ -1,6 +1,9 @@
 <template>
   <AreaManager v-if="isAreaManagerOpen" @close="isAreaManagerOpen = false" />
-  <RecurrenceManagerModal :show="isRecurrenceManagerOpen" @close="isRecurrenceManagerOpen = false" />
+  <RecurrenceManagerModal
+    :show="isRecurrenceManagerOpen"
+    @close="isRecurrenceManagerOpen = false"
+  />
   <SettingsModal :show="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
     <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
