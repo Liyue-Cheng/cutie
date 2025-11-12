@@ -232,7 +232,7 @@ async function loadDateRangeTasks() {
 
 // 初始化
 onMounted(async () => {
-  logger.info(LogTags.VIEW_HOME, 'Initializing RecentView component...')
+  logger.info(LogTags.VIEW_HOME, 'Initializing RecentTaskPanel component...')
 
   // 加载日期范围的任务
   await loadDateRangeTasks()

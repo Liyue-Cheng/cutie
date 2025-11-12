@@ -41,7 +41,7 @@ function handleFilter() {
 }
 
 onMounted(async () => {
-  logger.info(LogTags.VIEW_HOME, 'Initializing StagingView component...')
+  logger.info(LogTags.VIEW_HOME, 'Initializing StagingTaskPanel component...')
   // 加载 staging 任务
   await taskStore.fetchAllIncompleteTasks_DMA()
 })

@@ -160,3 +160,5 @@ if ($Detailed -and $usedComponents.Count -gt 0) {
 Write-Host ""
 Write-Host "=== 扫描完成 ===" -ForegroundColor Cyan
 
+
+

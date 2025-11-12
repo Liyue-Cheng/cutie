@@ -139,7 +139,7 @@ class ComponentAnalyzer {
 
     for (const [file, analysis] of this.fileAnalysis) {
       for (const imp of analysis.imports) {
-        if (!imp.exists && imp.importPath.startsWith('.')) {
+        if (!imp.exists && this.isLocalImport(imp.importPath)) {
           brokenCount++
           await this.generateSuggestions(file, imp)
         }
@@ -351,7 +351,8 @@ class ComponentAnalyzer {
   }
 
   private printSuggestion(suggestion: PathSuggestion): void {
-    console.log(`      📍 ${suggestion.file}:${suggestion.lineNumber}`)
+    const lineInfo = suggestion.importLine ?? '?'
+    console.log(`      📍 ${suggestion.file}:${lineInfo}`)
     console.log(`         问题: ${suggestion.issue}`)
     console.log(`         当前路径: ${suggestion.currentPath}`)
 
@@ -473,7 +474,8 @@ class ComponentAnalyzer {
   }
 
   private formatSuggestion(suggestion: PathSuggestion): string {
-    let result = `#### 📍 ${suggestion.file}:${suggestion.lineNumber}\n\n`
+    const lineInfo = suggestion.importLine ?? '?'
+    let result = `#### 📍 ${suggestion.file}:${lineInfo}\n\n`
     result += `**问题:** ${suggestion.issue}\n\n`
     result += `**当前路径:** \`${suggestion.currentPath}\`\n\n`
 
@@ -728,6 +730,13 @@ class ComponentAnalyzer {
     }
 
     return null
+  }
+
+  /**
+   * 判断是否为本地导入（相对路径或别名路径）
+   */
+  private isLocalImport(importPath: string): boolean {
+    return importPath.startsWith('.') || importPath.startsWith('@/') || importPath.startsWith('~@/')
   }
 
   /**

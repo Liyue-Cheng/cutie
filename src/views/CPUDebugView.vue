@@ -245,12 +245,36 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { pipeline } from '@/cpu'
-import { cpuConsole, ConsoleLevel } from '@/cpu/logging'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
 import { storeToRefs } from 'pinia'
 import { interruptHandler } from '@/cpu/interrupt/InterruptHandler'
+
+enum ConsoleLevel {
+  SILENT = 0,
+  MINIMAL = 1,
+  NORMAL = 2,
+  VERBOSE = 3,
+  DEBUG = 4,
+}
+
+let currentConsoleLevel: ConsoleLevel = ConsoleLevel.NORMAL
+
+const cpuConsole = {
+  getLevel(): ConsoleLevel {
+    return currentConsoleLevel
+  },
+  setLevel(level: ConsoleLevel) {
+    currentConsoleLevel = level
+  },
+  printSeparator(label: string) {
+    const line = '-'.repeat(Math.max(12, label.length + 4))
+    console.log(`\n${line}`)
+    console.log(`  ${label}`)
+    console.log(`${line}\n`)
+  },
+}
 
 const isRunning = ref(false)
 
@@ -277,13 +301,15 @@ const availableTasks = computed(() => {
 // ✅ 安全的流水线状态访问
 const pipelineStatus = computed(() => {
   const status = pipeline?.status?.value
-  return status || {
-    ifBufferSize: 0,
-    schPendingSize: 0,
-    schActiveSize: 0,
-    totalCompleted: 0,
-    totalFailed: 0,
-  }
+  return (
+    status || {
+      ifBufferSize: 0,
+      schPendingSize: 0,
+      schActiveSize: 0,
+      totalCompleted: 0,
+      totalFailed: 0,
+    }
+  )
 })
 
 // INT 中断处理器状态

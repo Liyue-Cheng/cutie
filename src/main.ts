@@ -104,7 +104,7 @@ if (import.meta.env.DEV) {
 
 💡 CPU Pipeline 日志:
   前往 CPU 调试页面调整控制台级别，或使用：
-  import { cpuConsole, ConsoleLevel } from '@/cpu/logging'
+  const { cpuConsole, ConsoleLevel } = await import('@/cpu/logging')
   cpuConsole.setLevel(ConsoleLevel.VERBOSE)
       `)
     },

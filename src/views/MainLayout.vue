@@ -27,10 +27,17 @@
               <CuteIcon name="Clock" :size="16" /><span>Recent</span>
             </li>
             <li class="nav-item-with-action">
-              <div class="nav-item-main" @click="$router.push({ path: '/', query: { view: 'staging' } })">
+              <div
+                class="nav-item-main"
+                @click="$router.push({ path: '/', query: { view: 'staging' } })"
+              >
                 <CuteIcon name="Layers" :size="16" /><span>Staging</span>
               </div>
-              <button class="quick-add-button" @click.stop="showQuickAddDialog = true" title="快速添加任务">
+              <button
+                class="quick-add-button"
+                @click.stop="showQuickAddDialog = true"
+                title="快速添加任务"
+              >
                 <CuteIcon name="Plus" :size="14" />
               </button>
             </li>
@@ -104,7 +111,7 @@
   </CutePane>
 
   <!-- 快速添加任务对话框 -->
-  <QuickAddTaskDialog :show="showQuickAddDialog" @close="showQuickAddDialog = false" />
+  <QuickAddTaskModal :show="showQuickAddDialog" @close="showQuickAddDialog = false" />
 </template>
 
 <script setup lang="ts">
@@ -115,7 +122,7 @@ import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CutePane from '@/components/alias/CutePane.vue'
 import AreaManager from '@/components/parts/AreaManager.vue'
-import QuickAddTaskDialog from '@/components/organisms/QuickAddTaskDialog.vue'
+import QuickAddTaskModal from '@/components/organisms/QuickAddTaskModal.vue'
 import SettingsModal from '@/components/organisms/SettingsModal.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useMidnightRefresh } from '@/composables/useMidnightRefresh'

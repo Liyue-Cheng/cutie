@@ -2,12 +2,12 @@
   <div class="home-view">
     <!-- 左栏 -->
     <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-      <RecentView
+      <RecentTaskPanel
         v-if="currentView === 'recent'"
         v-model="calendarDays"
         @date-change="onRecentDateChange"
       />
-      <StagingView v-else-if="currentView === 'staging'" />
+      <StagingTaskPanel v-else-if="currentView === 'staging'" />
     </div>
 
     <!-- 可拖动的分割线 -->
@@ -116,8 +116,8 @@
 import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import RecentView from '@/components/organisms/RecentView.vue'
-import StagingView from '@/components/organisms/StagingView.vue'
+import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
+import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
 import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
 import UpcomingList from '@/components/assembles/tasks/list/UpcomingList.vue'
 import TemplateList from '@/components/assembles/template/TemplateList.vue'
@@ -141,7 +141,7 @@ type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeli
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右栏当前视图
 
 // ==================== 日历天数联动状态 ====================
-const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentView 联动
+const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentTaskPanel 联动
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
 
@@ -198,11 +198,11 @@ watch(
   { immediate: true }
 )
 
-// 处理 RecentView 的日期变化
+// 处理 RecentTaskPanel 的日期变化
 function onRecentDateChange(date: string) {
   // 更新寄存器中的日历日期
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, date)
-  logger.debug(LogTags.VIEW_HOME, 'Calendar date synced from RecentView', { date })
+  logger.debug(LogTags.VIEW_HOME, 'Calendar date synced from RecentTaskPanel', { date })
 }
 
 // 循环切换缩放等级
