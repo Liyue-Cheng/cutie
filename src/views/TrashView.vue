@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useTrashStore } from '@/stores/trash'
-import KanbanTaskCard from '@/components/parts/kanban/KanbanTaskCard.vue'
+import KanbanTaskCard from '@/components/assembles/tasks/kanban/KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 

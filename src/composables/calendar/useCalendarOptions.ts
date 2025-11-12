@@ -17,9 +17,9 @@ import type {
   DatesSetArg,
   EventContentArg,
 } from '@fullcalendar/core'
-import CalendarTaskEventContent from '@/components/parts/calendar/CalendarTaskEventContent.vue'
-import CalendarTimeBlockEventContent from '@/components/parts/calendar/CalendarTimeBlockEventContent.vue'
-import CalendarDueDateEventContent from '@/components/parts/calendar/CalendarDueDateEventContent.vue'
+import CalendarTaskEventContent from '@/components/assembles/calender/CalendarTaskEventContent.vue'
+import CalendarTimeBlockEventContent from '@/components/assembles/calender/CalendarTimeBlockEventContent.vue'
+import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
 import { useTaskStore } from '@/stores/task'
 
 export function useCalendarOptions(

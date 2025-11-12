@@ -8,7 +8,9 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "docs:generate": "cd src-tauri && cargo run --bin doc-composer",
-    "prebuild": "npm run docs:generate"
+    "prebuild": "npm run docs:generate",
+    "analyze:components": "tsx script/analyze_component_references.ts",
+    "analyze:unused": "node script/find_unused_components.js"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.19",
@@ -44,6 +46,7 @@
     "prettier": "^3.6.2",
     "stylelint": "^16.24.0",
     "stylelint-config-standard-vue": "^1.0.0",
+    "tsx": "^4.20.6",
     "typescript": "~5.8.3",
     "vite": "^7.1.6",
     "vue-tsc": "^3.0.7"

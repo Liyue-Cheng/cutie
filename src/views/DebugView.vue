@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
 import type { TaskCard } from '@/types/dtos'
-import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
-import KanbanTaskEditorModal from '@/components/parts/kanban/KanbanTaskEditorModal.vue'
-import CuteCalendar from '@/components/parts/CuteCalendar.vue'
+import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue'
+import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'

@@ -1,0 +1,6068 @@
+{
+  "timestamp": "2025-11-12T10:42:34.839Z",
+  "components": [
+    {
+      "name": "App",
+      "count": 1,
+      "locations": [
+        "App.vue"
+      ]
+    },
+    {
+      "name": "CutePane",
+      "count": 1,
+      "locations": [
+        "components/alias/CutePane.vue"
+      ]
+    },
+    {
+      "name": "CalendarDueDateEventContent",
+      "count": 1,
+      "locations": [
+        "components/assembles/calender/CalendarDueDateEventContent.vue"
+      ]
+    },
+    {
+      "name": "CalendarTaskEventContent",
+      "count": 1,
+      "locations": [
+        "components/assembles/calender/CalendarTaskEventContent.vue"
+      ]
+    },
+    {
+      "name": "CalendarTimeBlockEventContent",
+      "count": 1,
+      "locations": [
+        "components/assembles/calender/CalendarTimeBlockEventContent.vue"
+      ]
+    },
+    {
+      "name": "CuteCalendar",
+      "count": 1,
+      "locations": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "name": "CalendarEventMenu",
+      "count": 1,
+      "locations": [
+        "components/assembles/ContextMenu/CalendarEventMenu.vue"
+      ]
+    },
+    {
+      "name": "CuteContextMenu",
+      "count": 1,
+      "locations": [
+        "components/assembles/ContextMenu/shared/CuteContextMenu.vue"
+      ]
+    },
+    {
+      "name": "CuteMenuDivider",
+      "count": 1,
+      "locations": [
+        "components/assembles/ContextMenu/shared/CuteMenuDivider.vue"
+      ]
+    },
+    {
+      "name": "CuteMenuItem",
+      "count": 1,
+      "locations": [
+        "components/assembles/ContextMenu/shared/CuteMenuItem.vue"
+      ]
+    },
+    {
+      "name": "CuteMenuSection",
+      "count": 1,
+      "locations": [
+        "components/assembles/ContextMenu/shared/CuteMenuSection.vue"
+      ]
+    },
+    {
+      "name": "TemplateCardMenu",
+      "count": 1,
+      "locations": [
+        "components/assembles/ContextMenu/TemplateCardMenu.vue"
+      ]
+    },
+    {
+      "name": "ArchiveColumn",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/ArchiveColumn.vue"
+      ]
+    },
+    {
+      "name": "KanbanTaskCard",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue"
+      ]
+    },
+    {
+      "name": "KanbanTaskCardMenu",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue"
+      ]
+    },
+    {
+      "name": "KanbanTaskEditorModal",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue"
+      ]
+    },
+    {
+      "name": "SimpleKanbanColumn",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue"
+      ]
+    },
+    {
+      "name": "StagingColumn",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/StagingColumn.vue"
+      ]
+    },
+    {
+      "name": "UpcomingColumn",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/kanban/UpcomingColumn.vue"
+      ]
+    },
+    {
+      "name": "StagingList",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/list/StagingList.vue"
+      ]
+    },
+    {
+      "name": "TaskList",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/list/TaskList.vue"
+      ]
+    },
+    {
+      "name": "TaskStrip",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/list/TaskStrip.vue"
+      ]
+    },
+    {
+      "name": "UpcomingList",
+      "count": 1,
+      "locations": [
+        "components/assembles/tasks/list/UpcomingList.vue"
+      ]
+    },
+    {
+      "name": "TemplateCard",
+      "count": 1,
+      "locations": [
+        "components/assembles/template/TemplateCard.vue"
+      ]
+    },
+    {
+      "name": "TemplateEditorModal",
+      "count": 1,
+      "locations": [
+        "components/assembles/template/TemplateEditorModal.vue"
+      ]
+    },
+    {
+      "name": "TemplateKanbanColumn",
+      "count": 1,
+      "locations": [
+        "components/assembles/template/TemplateKanbanColumn.vue"
+      ]
+    },
+    {
+      "name": "TemplateList",
+      "count": 1,
+      "locations": [
+        "components/assembles/template/TemplateList.vue"
+      ]
+    },
+    {
+      "name": "TemplateStrip",
+      "count": 1,
+      "locations": [
+        "components/assembles/template/TemplateStrip.vue"
+      ]
+    },
+    {
+      "name": "ContextMenuHost",
+      "count": 1,
+      "locations": [
+        "components/functional/ContextMenuHost.vue"
+      ]
+    },
+    {
+      "name": "InfiniteAreaKanban",
+      "count": 1,
+      "locations": [
+        "components/organisms/InfiniteAreaKanban.vue"
+      ]
+    },
+    {
+      "name": "InfiniteDailyKanban",
+      "count": 1,
+      "locations": [
+        "components/organisms/InfiniteDailyKanban.vue"
+      ]
+    },
+    {
+      "name": "InfiniteTimeline",
+      "count": 1,
+      "locations": [
+        "components/organisms/InfiniteTimeline.vue"
+      ]
+    },
+    {
+      "name": "QuickAddTaskDialog",
+      "count": 1,
+      "locations": [
+        "components/organisms/QuickAddTaskDialog.vue"
+      ]
+    },
+    {
+      "name": "RecentView",
+      "count": 1,
+      "locations": [
+        "components/organisms/RecentView.vue"
+      ]
+    },
+    {
+      "name": "SettingsModal",
+      "count": 1,
+      "locations": [
+        "components/organisms/SettingsModal.vue"
+      ]
+    },
+    {
+      "name": "StagingView",
+      "count": 2,
+      "locations": [
+        "components/organisms/StagingView.vue",
+        "views/StagingView.vue"
+      ]
+    },
+    {
+      "name": "TimeBlockDetailPanel",
+      "count": 1,
+      "locations": [
+        "components/organisms/TimeBlockDetailPanel.vue"
+      ]
+    },
+    {
+      "name": "UnderConstruction",
+      "count": 1,
+      "locations": [
+        "components/organisms/UnderConstruction.vue"
+      ]
+    },
+    {
+      "name": "AiChatDialog",
+      "count": 1,
+      "locations": [
+        "components/parts/ai/AiChatDialog.vue"
+      ]
+    },
+    {
+      "name": "AreaManager",
+      "count": 1,
+      "locations": [
+        "components/parts/AreaManager.vue"
+      ]
+    },
+    {
+      "name": "AreaTag",
+      "count": 1,
+      "locations": [
+        "components/parts/AreaTag.vue"
+      ]
+    },
+    {
+      "name": "CuteButton",
+      "count": 1,
+      "locations": [
+        "components/parts/CuteButton.vue"
+      ]
+    },
+    {
+      "name": "CuteCheckbox",
+      "count": 1,
+      "locations": [
+        "components/parts/CuteCheckbox.vue"
+      ]
+    },
+    {
+      "name": "CuteDualModeCheckbox",
+      "count": 1,
+      "locations": [
+        "components/parts/CuteDualModeCheckbox.vue"
+      ]
+    },
+    {
+      "name": "CuteIcon",
+      "count": 1,
+      "locations": [
+        "components/parts/CuteIcon.vue"
+      ]
+    },
+    {
+      "name": "GlobalRecurrenceEditDialog",
+      "count": 1,
+      "locations": [
+        "components/parts/recurrence/GlobalRecurrenceEditDialog.vue"
+      ]
+    },
+    {
+      "name": "RecurrenceConfigDialog",
+      "count": 1,
+      "locations": [
+        "components/parts/recurrence/RecurrenceConfigDialog.vue"
+      ]
+    },
+    {
+      "name": "RecurrenceEditDialog",
+      "count": 1,
+      "locations": [
+        "components/parts/recurrence/RecurrenceEditDialog.vue"
+      ]
+    },
+    {
+      "name": "TimeDurationPicker",
+      "count": 1,
+      "locations": [
+        "components/parts/TimeDurationPicker.vue"
+      ]
+    },
+    {
+      "name": "DoubleRowTimeline",
+      "count": 1,
+      "locations": [
+        "components/parts/timeline/DoubleRowTimeline.vue"
+      ]
+    },
+    {
+      "name": "TimelineCard",
+      "count": 1,
+      "locations": [
+        "components/parts/timeline/TimelineCard.vue"
+      ]
+    },
+    {
+      "name": "TimelineDayCell",
+      "count": 1,
+      "locations": [
+        "components/parts/timeline/TimelineDayCell.vue"
+      ]
+    },
+    {
+      "name": "TimelineDivider",
+      "count": 1,
+      "locations": [
+        "components/parts/timeline/TimelineDivider.vue"
+      ]
+    },
+    {
+      "name": "CuteCard",
+      "count": 1,
+      "locations": [
+        "components/templates/CuteCard.vue"
+      ]
+    },
+    {
+      "name": "TwoRowLayout",
+      "count": 1,
+      "locations": [
+        "components/templates/TwoRowLayout.vue"
+      ]
+    },
+    {
+      "name": "InteractDataPanel",
+      "count": 1,
+      "locations": [
+        "components/test/InteractDataPanel.vue"
+      ]
+    },
+    {
+      "name": "InteractKanbanColumn",
+      "count": 1,
+      "locations": [
+        "components/test/InteractKanbanColumn.vue"
+      ]
+    },
+    {
+      "name": "AIChatView",
+      "count": 1,
+      "locations": [
+        "views/AIChatView.vue"
+      ]
+    },
+    {
+      "name": "AreaTestView",
+      "count": 1,
+      "locations": [
+        "views/AreaTestView.vue"
+      ]
+    },
+    {
+      "name": "CalendarView",
+      "count": 1,
+      "locations": [
+        "views/CalendarView.vue"
+      ]
+    },
+    {
+      "name": "CheckboxTestView",
+      "count": 1,
+      "locations": [
+        "views/CheckboxTestView.vue"
+      ]
+    },
+    {
+      "name": "CPUDebugView",
+      "count": 1,
+      "locations": [
+        "views/CPUDebugView.vue"
+      ]
+    },
+    {
+      "name": "DailyPlanningView",
+      "count": 1,
+      "locations": [
+        "views/DailyPlanningView.vue"
+      ]
+    },
+    {
+      "name": "DailyShutdownView",
+      "count": 1,
+      "locations": [
+        "views/DailyShutdownView.vue"
+      ]
+    },
+    {
+      "name": "DebugView",
+      "count": 1,
+      "locations": [
+        "views/DebugView.vue"
+      ]
+    },
+    {
+      "name": "HomeView",
+      "count": 1,
+      "locations": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "name": "HomeViewLegacy",
+      "count": 1,
+      "locations": [
+        "views/HomeViewLegacy.vue"
+      ]
+    },
+    {
+      "name": "InteractTestView",
+      "count": 1,
+      "locations": [
+        "views/InteractTestView.vue"
+      ]
+    },
+    {
+      "name": "MainLayout",
+      "count": 1,
+      "locations": [
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "name": "SunsamaLegacyView",
+      "count": 1,
+      "locations": [
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "name": "TrashView",
+      "count": 1,
+      "locations": [
+        "views/TrashView.vue"
+      ]
+    }
+  ],
+  "fileAnalysis": [
+    {
+      "file": "App.vue",
+      "imports": [
+        {
+          "name": "ContextMenuHost",
+          "path": "@/components/functional/ContextMenuHost.vue",
+          "exists": true,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "main.ts"
+      ]
+    },
+    {
+      "file": "components/alias/CutePane.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/test/InteractKanbanColumn.vue",
+        "views/AIChatView.vue",
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/calender/CalendarDueDateEventContent.vue",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "components/parts/timeline/TimelineDayCell.vue",
+        "composables/calendar/useCalendarOptions.ts"
+      ]
+    },
+    {
+      "file": "components/assembles/calender/CalendarTaskEventContent.vue",
+      "imports": [
+        {
+          "name": "computed, ref, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CuteDualModeCheckbox",
+          "path": "@/components/parts/CuteDualModeCheckbox.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "components/parts/timeline/TimelineDayCell.vue",
+        "composables/calendar/useCalendarOptions.ts"
+      ]
+    },
+    {
+      "file": "components/assembles/calender/CalendarTimeBlockEventContent.vue",
+      "imports": [
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 2
+        }
+      ],
+      "referencedBy": [
+        "components/parts/timeline/TimelineDayCell.vue",
+        "composables/calendar/useCalendarOptions.ts"
+      ]
+    },
+    {
+      "file": "components/assembles/calender/CuteCalendar.vue",
+      "imports": [
+        {
+          "name": "FullCalendar",
+          "path": "@fullcalendar/vue3",
+          "exists": false,
+          "line": 54
+        },
+        {
+          "name": "computed, ref, nextTick, watch, onMounted, onBeforeUnmount",
+          "path": "vue",
+          "exists": false,
+          "line": 56
+        },
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 57
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 58
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 59
+        },
+        {
+          "name": "useAutoScroll",
+          "path": "@/composables/calendar/useAutoScroll",
+          "exists": true,
+          "line": 60
+        },
+        {
+          "name": "useTimePosition",
+          "path": "@/composables/calendar/useTimePosition",
+          "exists": true,
+          "line": 61
+        },
+        {
+          "name": "useDecorativeLine",
+          "path": "@/composables/calendar/useDecorativeLine",
+          "exists": true,
+          "line": 62
+        },
+        {
+          "name": "useCalendarEvents",
+          "path": "@/composables/calendar/useCalendarEvents",
+          "exists": true,
+          "line": 63
+        },
+        {
+          "name": "useCalendarHandlers",
+          "path": "@/composables/calendar/useCalendarHandlers",
+          "exists": true,
+          "line": 64
+        },
+        {
+          "name": "useCalendarOptions",
+          "path": "@/composables/calendar/useCalendarOptions",
+          "exists": true,
+          "line": 65
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 66
+        },
+        {
+          "name": "useCalendarInteractDrag",
+          "path": "@/composables/calendar/useCalendarInteractDrag",
+          "exists": true,
+          "line": 67
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 68
+        },
+        {
+          "name": "interactManager, dragPreviewState, previewMousePosition",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 69
+        },
+        {
+          "name": "TimeBlockDetailPanel",
+          "path": "@/components/organisms/TimeBlockDetailPanel.vue",
+          "exists": true,
+          "line": 70
+        }
+      ],
+      "referencedBy": [
+        "views/CalendarView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue",
+        "views/HomeView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/ContextMenu/CalendarEventMenu.vue",
+      "imports": [
+        {
+          "name": "defineProps, defineEmits",
+          "path": "vue",
+          "exists": false,
+          "line": 10
+        },
+        {
+          "name": "ContextMenu",
+          "path": "@/components/assembles/ContextMenu/shared/CuteContextMenu.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "MenuItem",
+          "path": "@/components/assembles/ContextMenu/shared/CuteMenuItem.vue",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 14
+        }
+      ],
+      "referencedBy": [
+        "components/parts/timeline/TimelineDayCell.vue",
+        "composables/calendar/useCalendarHandlers.ts"
+      ]
+    },
+    {
+      "file": "components/assembles/ContextMenu/shared/CuteContextMenu.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/ContextMenu/CalendarEventMenu.vue",
+        "components/assembles/ContextMenu/TemplateCardMenu.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/ContextMenu/shared/CuteMenuDivider.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/ContextMenu/TemplateCardMenu.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/ContextMenu/shared/CuteMenuItem.vue",
+      "imports": [
+        {
+          "name": "defineProps, defineEmits",
+          "path": "vue",
+          "exists": false,
+          "line": 17
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/ContextMenu/CalendarEventMenu.vue",
+        "components/assembles/ContextMenu/TemplateCardMenu.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/ContextMenu/shared/CuteMenuSection.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/ContextMenu/TemplateCardMenu.vue",
+      "imports": [
+        {
+          "name": "defineProps, defineEmits",
+          "path": "vue",
+          "exists": false,
+          "line": 10
+        },
+        {
+          "name": "ContextMenu",
+          "path": "@/components/assembles/ContextMenu/shared/CuteContextMenu.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "MenuItem",
+          "path": "@/components/assembles/ContextMenu/shared/CuteMenuItem.vue",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "MenuDivider",
+          "path": "@/components/assembles/ContextMenu/shared/CuteMenuDivider.vue",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 16
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateStrip.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/ArchiveColumn.vue",
+      "imports": [
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "./SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "views/CalendarView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "KanbanTaskCardMenu",
+          "path": "./KanbanTaskCardMenu.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "CuteCard",
+          "path": "@/components/templates/CuteCard.vue",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "CuteCheckbox",
+          "path": "@/components/parts/CuteCheckbox.vue",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "AreaTag",
+          "path": "@/components/parts/AreaTag.vue",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "TimeDurationPicker",
+          "path": "@/components/parts/TimeDurationPicker.vue",
+          "exists": true,
+          "line": 16
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 83
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/kanban/UpcomingColumn.vue",
+        "components/test/InteractKanbanColumn.vue",
+        "views/TrashView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+      "imports": [
+        {
+          "name": "defineProps, defineEmits, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 49
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 51
+        },
+        {
+          "name": "useRecurrenceOperations",
+          "path": "@/composables/useRecurrenceOperations",
+          "exists": true,
+          "line": 52
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 53
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 54
+        },
+        {
+          "name": "ContextMenu",
+          "path": "@/components/assembles/ContextMenu/shared/CuteContextMenu.vue",
+          "exists": true,
+          "line": 55
+        },
+        {
+          "name": "MenuItem",
+          "path": "@/components/assembles/ContextMenu/shared/CuteMenuItem.vue",
+          "exists": true,
+          "line": 56
+        },
+        {
+          "name": "MenuDivider",
+          "path": "@/components/assembles/ContextMenu/shared/CuteMenuDivider.vue",
+          "exists": true,
+          "line": 57
+        },
+        {
+          "name": "MenuSection",
+          "path": "@/components/assembles/ContextMenu/shared/CuteMenuSection.vue",
+          "exists": true,
+          "line": 58
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/parts/timeline/TimelineDayCell.vue",
+        "composables/calendar/useCalendarHandlers.ts"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+      "imports": [
+        {
+          "name": "computed, ref, watch, onMounted, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useRecurrenceStore",
+          "path": "@/stores/recurrence",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "RRule",
+          "path": "rrule",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "CuteCard",
+          "path": "@/components/templates/CuteCard.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "CuteCheckbox",
+          "path": "@/components/parts/CuteCheckbox.vue",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "AreaTag",
+          "path": "@/components/parts/AreaTag.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "RecurrenceConfigDialog",
+          "path": "@/components/parts/recurrence/RecurrenceConfigDialog.vue",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "getTodayDateString, parseDateString, toUtcIsoString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "draggable",
+          "path": "vuedraggable",
+          "exists": false,
+          "line": 16
+        },
+        {
+          "name": "useRecurrenceOperations",
+          "path": "@/composables/useRecurrenceOperations",
+          "exists": true,
+          "line": 17
+        }
+      ],
+      "referencedBy": [
+        "views/CalendarView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue",
+        "views/HomeView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+      "imports": [
+        {
+          "name": "ref, computed, watch, onMounted, onBeforeUnmount, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useViewTasks",
+          "path": "@/composables/useViewTasks",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "deriveViewMetadata",
+          "path": "@/services/viewAdapter",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "CutePane",
+          "path": "@/components/alias/CutePane.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "KanbanTaskCard",
+          "path": "./KanbanTaskCard.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "useInteractDrag",
+          "path": "@/composables/drag/useInteractDrag",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "dragPreviewState",
+          "path": "@/infra/drag-interact/preview-state",
+          "exists": true,
+          "line": 14
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/ArchiveColumn.vue",
+        "components/assembles/tasks/kanban/StagingColumn.vue",
+        "components/organisms/InfiniteAreaKanban.vue",
+        "components/organisms/InfiniteDailyKanban.vue",
+        "views/AreaTestView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/StagingColumn.vue",
+      "imports": [
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "./SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "views/CalendarView.vue",
+        "views/DailyPlanningView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/kanban/UpcomingColumn.vue",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "KanbanTaskCard",
+          "path": "./KanbanTaskCard.vue",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "views/HomeViewLegacy.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/list/StagingList.vue",
+      "imports": [
+        {
+          "name": "TaskList",
+          "path": "./TaskList.vue",
+          "exists": true,
+          "line": 15
+        }
+      ],
+      "referencedBy": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/list/TaskList.vue",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 75
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 77
+        },
+        {
+          "name": "TaskStrip",
+          "path": "./TaskStrip.vue",
+          "exists": true,
+          "line": 78
+        },
+        {
+          "name": "useViewTasks",
+          "path": "@/composables/useViewTasks",
+          "exists": true,
+          "line": 79
+        },
+        {
+          "name": "useInteractDrag",
+          "path": "@/composables/drag/useInteractDrag",
+          "exists": true,
+          "line": 80
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 81
+        },
+        {
+          "name": "dragPreviewState",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 82
+        },
+        {
+          "name": "deriveViewMetadata",
+          "path": "@/services/viewAdapter",
+          "exists": true,
+          "line": 83
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 84
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 85
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/list/StagingList.vue",
+        "components/organisms/RecentView.vue",
+        "components/organisms/StagingView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/list/TaskStrip.vue",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 135
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 137
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 138
+        },
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 139
+        },
+        {
+          "name": "useViewContext",
+          "path": "@/composables/useViewContext",
+          "exists": true,
+          "line": 140
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 141
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 142
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 143
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 144
+        },
+        {
+          "name": "CuteCheckbox",
+          "path": "@/components/parts/CuteCheckbox.vue",
+          "exists": true,
+          "line": 145
+        },
+        {
+          "name": "CuteDualModeCheckbox",
+          "path": "@/components/parts/CuteDualModeCheckbox.vue",
+          "exists": true,
+          "line": 146
+        },
+        {
+          "name": "AreaTag",
+          "path": "@/components/parts/AreaTag.vue",
+          "exists": true,
+          "line": 147
+        },
+        {
+          "name": "TimeDurationPicker",
+          "path": "@/components/parts/TimeDurationPicker.vue",
+          "exists": true,
+          "line": 148
+        },
+        {
+          "name": "KanbanTaskCardMenu",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+          "exists": true,
+          "line": 149
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/assembles/tasks/list/UpcomingList.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/tasks/list/UpcomingList.vue",
+      "imports": [
+        {
+          "name": "ref, computed, reactive",
+          "path": "vue",
+          "exists": false,
+          "line": 148
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 150
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 151
+        },
+        {
+          "name": "TaskStrip",
+          "path": "./TaskStrip.vue",
+          "exists": true,
+          "line": 152
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 153
+        }
+      ],
+      "referencedBy": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/template/TemplateCard.vue",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "CuteCard",
+          "path": "@/components/templates/CuteCard.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "CuteCheckbox",
+          "path": "@/components/parts/CuteCheckbox.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "AreaTag",
+          "path": "@/components/parts/AreaTag.vue",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "TimeDurationPicker",
+          "path": "@/components/parts/TimeDurationPicker.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "TemplateCardMenu",
+          "path": "@/components/assembles/ContextMenu/TemplateCardMenu.vue",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/template/TemplateKanbanColumn.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/template/TemplateEditorModal.vue",
+      "imports": [
+        {
+          "name": "computed, ref, watch, onMounted, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTemplateStore",
+          "path": "@/stores/template",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "CuteCard",
+          "path": "@/components/templates/CuteCard.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "CuteCheckbox",
+          "path": "@/components/parts/CuteCheckbox.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "AreaTag",
+          "path": "@/components/parts/AreaTag.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "draggable",
+          "path": "vuedraggable",
+          "exists": false,
+          "line": 10
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/assembles/template/TemplateList.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/template/TemplateKanbanColumn.vue",
+      "imports": [
+        {
+          "name": "computed, onMounted, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTemplateStore",
+          "path": "@/stores/template",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "CutePane",
+          "path": "@/components/alias/CutePane.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "TemplateCard",
+          "path": "./TemplateCard.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "TemplateEditorModal",
+          "path": "./TemplateEditorModal.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "useInteractDrag",
+          "path": "@/composables/drag/useInteractDrag",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "dragPreviewState",
+          "path": "@/infra/drag-interact/preview-state",
+          "exists": true,
+          "line": 14
+        }
+      ],
+      "referencedBy": [
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/template/TemplateList.vue",
+      "imports": [
+        {
+          "name": "computed, onMounted, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 45
+        },
+        {
+          "name": "useTemplateStore",
+          "path": "@/stores/template",
+          "exists": true,
+          "line": 46
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 47
+        },
+        {
+          "name": "TemplateStrip",
+          "path": "./TemplateStrip.vue",
+          "exists": true,
+          "line": 49
+        },
+        {
+          "name": "TemplateEditorModal",
+          "path": "./TemplateEditorModal.vue",
+          "exists": true,
+          "line": 50
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 51
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 52
+        },
+        {
+          "name": "useInteractDrag",
+          "path": "@/composables/drag/useInteractDrag",
+          "exists": true,
+          "line": 53
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 54
+        },
+        {
+          "name": "dragPreviewState",
+          "path": "@/infra/drag-interact/preview-state",
+          "exists": true,
+          "line": 55
+        }
+      ],
+      "referencedBy": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "file": "components/assembles/template/TemplateStrip.vue",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 61
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 63
+        },
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 64
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 65
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 66
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 67
+        },
+        {
+          "name": "CuteCheckbox",
+          "path": "@/components/parts/CuteCheckbox.vue",
+          "exists": true,
+          "line": 68
+        },
+        {
+          "name": "AreaTag",
+          "path": "@/components/parts/AreaTag.vue",
+          "exists": true,
+          "line": 69
+        },
+        {
+          "name": "TimeDurationPicker",
+          "path": "@/components/parts/TimeDurationPicker.vue",
+          "exists": true,
+          "line": 70
+        },
+        {
+          "name": "TemplateCardMenu",
+          "path": "@/components/assembles/ContextMenu/TemplateCardMenu.vue",
+          "exists": true,
+          "line": 71
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/template/TemplateList.vue"
+      ]
+    },
+    {
+      "file": "components/functional/ContextMenuHost.vue",
+      "imports": [
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 18
+        },
+        {
+          "name": "ref, watch, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 19
+        }
+      ],
+      "referencedBy": [
+        "App.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/InfiniteAreaKanban.vue",
+      "imports": [
+        {
+          "name": "onMounted, ref, computed, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "controllerDebugState",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": [
+        "views/StagingView.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/InfiniteDailyKanban.vue",
+      "imports": [
+        {
+          "name": "onMounted, onBeforeUnmount, ref, computed, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "controllerDebugState",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "getTodayDateString, toDateString, isSameDate",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 10
+        }
+      ],
+      "referencedBy": [
+        "views/HomeViewLegacy.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/InfiniteTimeline.vue",
+      "imports": [
+        {
+          "name": "onMounted, onBeforeUnmount, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "TimelineCard",
+          "path": "@/components/parts/timeline/TimelineCard.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "TimelineDivider",
+          "path": "@/components/parts/timeline/TimelineDivider.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "views/StagingView.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/QuickAddTaskDialog.vue",
+      "imports": [
+        {
+          "name": "ref, watch, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 34
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 35
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 36
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 37
+        }
+      ],
+      "referencedBy": [
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/RecentView.vue",
+      "imports": [
+        {
+          "name": "ref, computed, onMounted, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 60
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 61
+        },
+        {
+          "name": "TaskList",
+          "path": "@/components/assembles/tasks/list/TaskList.vue",
+          "exists": true,
+          "line": 62
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 63
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 64
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 65
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 66
+        }
+      ],
+      "referencedBy": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/SettingsModal.vue",
+      "imports": [
+        {
+          "name": "ref, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 145
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 146
+        },
+        {
+          "name": "useUserSettingsStore",
+          "path": "@/stores/user-settings",
+          "exists": true,
+          "line": 147
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 148
+        }
+      ],
+      "referencedBy": [
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/StagingView.vue",
+      "imports": [
+        {
+          "name": "computed, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 24
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 25
+        },
+        {
+          "name": "TaskList",
+          "path": "@/components/assembles/tasks/list/TaskList.vue",
+          "exists": true,
+          "line": 26
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 27
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 28
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 29
+        }
+      ],
+      "referencedBy": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/TimeBlockDetailPanel.vue",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "components/organisms/UnderConstruction.vue",
+      "imports": [],
+      "referencedBy": [
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/parts/ai/AiChatDialog.vue",
+      "imports": [
+        {
+          "name": "ref, nextTick, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useAiStore",
+          "path": "@/stores/ai",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/parts/AreaManager.vue",
+      "imports": [
+        {
+          "name": "ref, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "file": "components/parts/AreaTag.vue",
+      "imports": [
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 11
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateEditorModal.vue",
+        "components/assembles/template/TemplateStrip.vue"
+      ]
+    },
+    {
+      "file": "components/parts/CuteButton.vue",
+      "imports": [],
+      "referencedBy": [
+        "views/CPUDebugView.vue",
+        "views/DebugView.vue",
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "file": "components/parts/CuteCheckbox.vue",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateEditorModal.vue",
+        "components/assembles/template/TemplateStrip.vue"
+      ]
+    },
+    {
+      "file": "components/parts/CuteDualModeCheckbox.vue",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 12
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CalendarTaskEventContent.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "views/CheckboxTestView.vue"
+      ]
+    },
+    {
+      "file": "components/parts/CuteIcon.vue",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 4
+        },
+        {
+          "name": "icons",
+          "path": "lucide-vue-next",
+          "exists": false,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CalendarDueDateEventContent.vue",
+        "components/assembles/calender/CalendarTaskEventContent.vue",
+        "components/assembles/calender/CalendarTimeBlockEventContent.vue",
+        "components/assembles/ContextMenu/shared/CuteMenuItem.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/tasks/list/UpcomingList.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateStrip.vue",
+        "components/organisms/QuickAddTaskDialog.vue",
+        "components/organisms/RecentView.vue",
+        "components/organisms/SettingsModal.vue",
+        "components/organisms/StagingView.vue",
+        "components/organisms/TimeBlockDetailPanel.vue",
+        "components/parts/ai/AiChatDialog.vue",
+        "components/parts/AreaManager.vue",
+        "components/parts/AreaTag.vue",
+        "components/parts/timeline/TimelineCard.vue",
+        "views/CalendarView.vue",
+        "views/CPUDebugView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/MainLayout.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/parts/recurrence/GlobalRecurrenceEditDialog.vue",
+      "imports": [
+        {
+          "name": "computed, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useRecurrenceStore",
+          "path": "@/stores/recurrence",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "RecurrenceEditDialog",
+          "path": "./RecurrenceEditDialog.vue",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "views/CalendarView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/parts/recurrence/RecurrenceConfigDialog.vue",
+      "imports": [
+        {
+          "name": "ref, computed, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "RRule, Frequency",
+          "path": "rrule",
+          "exists": false,
+          "line": 3
+        },
+        {
+          "name": "useTemplateStore",
+          "path": "@/stores/template",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "useRecurrenceStore",
+          "path": "@/stores/recurrence",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue"
+      ]
+    },
+    {
+      "file": "components/parts/recurrence/RecurrenceEditDialog.vue",
+      "imports": [
+        {
+          "name": "ref, computed, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "RRule, Frequency",
+          "path": "rrule",
+          "exists": false,
+          "line": 3
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "components/parts/recurrence/GlobalRecurrenceEditDialog.vue"
+      ]
+    },
+    {
+      "file": "components/parts/TimeDurationPicker.vue",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 8
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateStrip.vue"
+      ]
+    },
+    {
+      "file": "components/parts/timeline/DoubleRowTimeline.vue",
+      "imports": [
+        {
+          "name": "ref, computed, watch, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "TimelineDayCell",
+          "path": "./TimelineDayCell.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 8
+        }
+      ],
+      "referencedBy": [
+        "views/HomeView.vue"
+      ]
+    },
+    {
+      "file": "components/parts/timeline/TimelineCard.vue",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "useTimelineCardDrag",
+          "path": "@/composables/drag/useTimelineCardDrag",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "components/organisms/InfiniteTimeline.vue"
+      ]
+    },
+    {
+      "file": "components/parts/timeline/TimelineDayCell.vue",
+      "imports": [
+        {
+          "name": "computed, onMounted, onBeforeUnmount, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CalendarTaskEventContent",
+          "path": "@/components/assembles/calender/CalendarTaskEventContent.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "CalendarDueDateEventContent",
+          "path": "@/components/assembles/calender/CalendarDueDateEventContent.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "CalendarTimeBlockEventContent",
+          "path": "@/components/assembles/calender/CalendarTimeBlockEventContent.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "KanbanTaskCardMenu",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "CalendarEventMenu",
+          "path": "@/components/assembles/ContextMenu/CalendarEventMenu.vue",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "interactManager",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 14
+        }
+      ],
+      "referencedBy": [
+        "components/parts/timeline/DoubleRowTimeline.vue"
+      ]
+    },
+    {
+      "file": "components/parts/timeline/TimelineDivider.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/organisms/InfiniteTimeline.vue"
+      ]
+    },
+    {
+      "file": "components/templates/CuteCard.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateEditorModal.vue"
+      ]
+    },
+    {
+      "file": "components/templates/TwoRowLayout.vue",
+      "imports": [],
+      "referencedBy": [
+        "components/organisms/RecentView.vue",
+        "components/organisms/StagingView.vue",
+        "views/CalendarView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue",
+        "views/HomeView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "components/test/InteractDataPanel.vue",
+      "imports": [
+        {
+          "name": "ref, computed, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 124
+        }
+      ],
+      "referencedBy": [
+        "views/InteractTestView.vue"
+      ]
+    },
+    {
+      "file": "components/test/InteractKanbanColumn.vue",
+      "imports": [
+        {
+          "name": "ref, computed, watch, onMounted, onBeforeUnmount, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 8
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useInteractDrag",
+          "path": "@/composables/drag/useInteractDrag",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "dragPreviewState",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "useViewTasks",
+          "path": "@/composables/useViewTasks",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "deriveViewMetadata",
+          "path": "@/services/viewAdapter",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "CutePane",
+          "path": "@/components/alias/CutePane.vue",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "KanbanTaskCard",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskCard.vue",
+          "exists": true,
+          "line": 16
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 17
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 18
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 61
+        }
+      ],
+      "referencedBy": [
+        "views/InteractTestView.vue"
+      ]
+    },
+    {
+      "file": "views/AIChatView.vue",
+      "imports": [
+        {
+          "name": "CutePane",
+          "path": "@/components/alias/CutePane.vue",
+          "exists": true,
+          "line": 10
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/AreaTestView.vue",
+      "imports": [
+        {
+          "name": "onMounted, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useViewOperations",
+          "path": "@/composables/useViewOperations",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/CalendarView.vue",
+      "imports": [
+        {
+          "name": "ref, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CuteCalendar",
+          "path": "@/components/assembles/calender/CuteCalendar.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "StagingColumn",
+          "path": "@/components/assembles/tasks/kanban/StagingColumn.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "ArchiveColumn",
+          "path": "@/components/assembles/tasks/kanban/ArchiveColumn.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "GlobalRecurrenceEditDialog",
+          "path": "@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 12
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/CheckboxTestView.vue",
+      "imports": [
+        {
+          "name": "ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CuteDualModeCheckbox",
+          "path": "@/components/parts/CuteDualModeCheckbox.vue",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/CPUDebugView.vue",
+      "imports": [
+        {
+          "name": "ref, computed, onMounted, onBeforeUnmount",
+          "path": "vue",
+          "exists": false,
+          "line": 246
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 247
+        },
+        {
+          "name": "cpuConsole, ConsoleLevel",
+          "path": "@/cpu/logging",
+          "exists": false,
+          "line": 248
+        },
+        {
+          "name": "CuteButton",
+          "path": "@/components/parts/CuteButton.vue",
+          "exists": true,
+          "line": 249
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 250
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 251
+        },
+        {
+          "name": "storeToRefs",
+          "path": "pinia",
+          "exists": false,
+          "line": 252
+        },
+        {
+          "name": "interruptHandler",
+          "path": "@/cpu/interrupt/InterruptHandler",
+          "exists": true,
+          "line": 253
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/DailyPlanningView.vue",
+      "imports": [
+        {
+          "name": "ref, computed, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "StagingColumn",
+          "path": "@/components/assembles/tasks/kanban/StagingColumn.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "CuteCalendar",
+          "path": "@/components/assembles/calender/CuteCalendar.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "DailyRitualPanel",
+          "path": "@/components/parts/DailyRitualPanel.vue",
+          "exists": false,
+          "line": 8
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/DailyShutdownView.vue",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "views/DebugView.vue",
+      "imports": [
+        {
+          "name": "onMounted, computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "SimpleKanbanColumn",
+          "path": "@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "CuteCalendar",
+          "path": "@/components/assembles/calender/CuteCalendar.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "CuteButton",
+          "path": "@/components/parts/CuteButton.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "useViewOperations",
+          "path": "@/composables/useViewOperations",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 14
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/HomeView.vue",
+      "imports": [
+        {
+          "name": "ref, onMounted, onBeforeUnmount, computed, nextTick, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 116
+        },
+        {
+          "name": "useRoute",
+          "path": "vue-router",
+          "exists": false,
+          "line": 117
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 118
+        },
+        {
+          "name": "RecentView",
+          "path": "@/components/organisms/RecentView.vue",
+          "exists": true,
+          "line": 119
+        },
+        {
+          "name": "StagingView",
+          "path": "@/components/organisms/StagingView.vue",
+          "exists": true,
+          "line": 120
+        },
+        {
+          "name": "StagingList",
+          "path": "@/components/assembles/tasks/list/StagingList.vue",
+          "exists": true,
+          "line": 121
+        },
+        {
+          "name": "UpcomingList",
+          "path": "@/components/assembles/tasks/list/UpcomingList.vue",
+          "exists": true,
+          "line": 122
+        },
+        {
+          "name": "TemplateList",
+          "path": "@/components/assembles/template/TemplateList.vue",
+          "exists": true,
+          "line": 123
+        },
+        {
+          "name": "CuteCalendar",
+          "path": "@/components/assembles/calender/CuteCalendar.vue",
+          "exists": true,
+          "line": 124
+        },
+        {
+          "name": "DoubleRowTimeline",
+          "path": "@/components/parts/timeline/DoubleRowTimeline.vue",
+          "exists": true,
+          "line": 125
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 126
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 127
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 128
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 129
+        },
+        {
+          "name": "getTodayDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 130
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/HomeViewLegacy.vue",
+      "imports": [
+        {
+          "name": "ref, onMounted, computed, watch, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "InfiniteDailyKanban",
+          "path": "@/components/organisms/InfiniteDailyKanban.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "CuteCalendar",
+          "path": "@/components/assembles/calender/CuteCalendar.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "GlobalRecurrenceEditDialog",
+          "path": "@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "StagingColumn",
+          "path": "@/components/assembles/tasks/kanban/StagingColumn.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "ArchiveColumn",
+          "path": "@/components/assembles/tasks/kanban/ArchiveColumn.vue",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "UpcomingColumn",
+          "path": "@/components/assembles/tasks/kanban/UpcomingColumn.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 16
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/InteractTestView.vue",
+      "imports": [
+        {
+          "name": "onMounted, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 52
+        },
+        {
+          "name": "InteractKanbanColumn",
+          "path": "@/components/test/InteractKanbanColumn.vue",
+          "exists": true,
+          "line": 53
+        },
+        {
+          "name": "InteractDataPanel",
+          "path": "@/components/test/InteractDataPanel.vue",
+          "exists": true,
+          "line": 54
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 55
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 56
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/MainLayout.vue",
+      "imports": [
+        {
+          "name": "onMounted, onBeforeUnmount, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 111
+        },
+        {
+          "name": "useRouter",
+          "path": "vue-router",
+          "exists": false,
+          "line": 112
+        },
+        {
+          "name": "getCurrentWindow",
+          "path": "@tauri-apps/api/window",
+          "exists": false,
+          "line": 113
+        },
+        {
+          "name": "CuteButton",
+          "path": "@/components/parts/CuteButton.vue",
+          "exists": true,
+          "line": 114
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 115
+        },
+        {
+          "name": "CutePane",
+          "path": "@/components/alias/CutePane.vue",
+          "exists": true,
+          "line": 116
+        },
+        {
+          "name": "AreaManager",
+          "path": "@/components/parts/AreaManager.vue",
+          "exists": true,
+          "line": 117
+        },
+        {
+          "name": "QuickAddTaskDialog",
+          "path": "@/components/organisms/QuickAddTaskDialog.vue",
+          "exists": true,
+          "line": 118
+        },
+        {
+          "name": "SettingsModal",
+          "path": "@/components/organisms/SettingsModal.vue",
+          "exists": true,
+          "line": 119
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 120
+        },
+        {
+          "name": "useMidnightRefresh",
+          "path": "@/composables/useMidnightRefresh",
+          "exists": true,
+          "line": 121
+        }
+      ],
+      "referencedBy": [
+        "router/index.ts"
+      ]
+    },
+    {
+      "file": "views/StagingView.vue",
+      "imports": [
+        {
+          "name": "ref, computed, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "InfiniteAreaKanban",
+          "path": "@/components/organisms/InfiniteAreaKanban.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "ArchiveColumn",
+          "path": "@/components/assembles/tasks/kanban/ArchiveColumn.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "InfiniteTimeline",
+          "path": "@/components/organisms/InfiniteTimeline.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "GlobalRecurrenceEditDialog",
+          "path": "@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/SunsamaLegacyView.vue",
+      "imports": [
+        {
+          "name": "ref, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "InfiniteDailyKanban",
+          "path": "@/components/organisms/InfiniteDailyKanban.vue",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "KanbanTaskEditorModal",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "GlobalRecurrenceEditDialog",
+          "path": "@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "CuteCalendar",
+          "path": "@/components/assembles/calender/CuteCalendar.vue",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "CuteIcon",
+          "path": "@/components/parts/CuteIcon.vue",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "TwoRowLayout",
+          "path": "@/components/templates/TwoRowLayout.vue",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "StagingColumn",
+          "path": "@/components/assembles/tasks/kanban/StagingColumn.vue",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "ArchiveColumn",
+          "path": "@/components/assembles/tasks/kanban/ArchiveColumn.vue",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "UpcomingColumn",
+          "path": "@/components/assembles/tasks/kanban/UpcomingColumn.vue",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "TemplateKanbanColumn",
+          "path": "@/components/assembles/template/TemplateKanbanColumn.vue",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "UnderConstruction",
+          "path": "@/components/organisms/UnderConstruction.vue",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "TrashView",
+          "path": "@/views/TrashView.vue",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "AiChatDialog",
+          "path": "@/components/parts/ai/AiChatDialog.vue",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 16
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 17
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 18
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 19
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 20
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "views/TrashView.vue",
+      "imports": [
+        {
+          "name": "computed, onMounted",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "useTrashStore",
+          "path": "@/stores/trash",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "KanbanTaskCard",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskCard.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "views/SunsamaLegacyView.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useAutoScroll.ts",
+      "imports": [
+        {
+          "name": "ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useCalendarDrag.ts",
+      "imports": [
+        {
+          "name": "ref, onMounted, onUnmounted, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "parseDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "useCrossViewDrag, useDragTransfer",
+          "path": "@/composables/drag",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "apiPost",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 11
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "composables/calendar/useCalendarEvents.ts",
+      "imports": [
+        {
+          "name": "computed, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 11
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useCalendarHandlers.ts",
+      "imports": [
+        {
+          "name": "type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "useContextMenu",
+          "path": "@/composables/useContextMenu",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "CalendarEventMenu",
+          "path": "@/components/assembles/ContextMenu/CalendarEventMenu.vue",
+          "exists": true,
+          "line": 16
+        },
+        {
+          "name": "KanbanTaskCardMenu",
+          "path": "@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+          "exists": true,
+          "line": 17
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 18
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 19
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 20
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useCalendarInteractDrag.ts",
+      "imports": [
+        {
+          "name": "ref, watch, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "useAreaStore",
+          "path": "@/stores/area",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "useDragStrategy",
+          "path": "@/composables/drag/useDragStrategy",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "dragPreviewState, previewMousePosition",
+          "path": "@/infra/drag-interact/preview-state",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "interactManager",
+          "path": "@/infra/drag-interact/drag-controller",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "isTaskCard, isTemplate",
+          "path": "@/types/dtos",
+          "exists": true,
+          "line": 16
+        },
+        {
+          "name": "apiPost",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 17
+        },
+        {
+          "name": "parseDateString",
+          "path": "@/infra/utils/dateUtils",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useCalendarOptions.ts",
+      "imports": [
+        {
+          "name": "reactive, type ComputedRef, createApp",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "interactionPlugin",
+          "path": "@fullcalendar/interaction",
+          "exists": false,
+          "line": 8
+        },
+        {
+          "name": "timeGridPlugin",
+          "path": "@fullcalendar/timegrid",
+          "exists": false,
+          "line": 9
+        },
+        {
+          "name": "dayGridPlugin",
+          "path": "@fullcalendar/daygrid",
+          "exists": false,
+          "line": 10
+        },
+        {
+          "name": "CalendarTaskEventContent",
+          "path": "@/components/assembles/calender/CalendarTaskEventContent.vue",
+          "exists": true,
+          "line": 20
+        },
+        {
+          "name": "CalendarTimeBlockEventContent",
+          "path": "@/components/assembles/calender/CalendarTimeBlockEventContent.vue",
+          "exists": true,
+          "line": 21
+        },
+        {
+          "name": "CalendarDueDateEventContent",
+          "path": "@/components/assembles/calender/CalendarDueDateEventContent.vue",
+          "exists": true,
+          "line": 22
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 23
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useDecorativeLine.ts",
+      "imports": [
+        {
+          "name": "ref, watch, nextTick, onMounted, onUnmounted, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/calendar/useTimePosition.ts",
+      "imports": [
+        {
+          "name": "ref, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue"
+      ]
+    },
+    {
+      "file": "composables/drag/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "composables/drag/useAutoScroll.ts",
+      "imports": [
+        {
+          "name": "ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "composables/drag/useDragStrategy.ts",
+      "imports": [
+        {
+          "name": "computed, ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "strategyExecutor, strategyRegistry",
+          "path": "@/infra/drag",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 10
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue",
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/assembles/template/TemplateList.vue",
+        "components/parts/timeline/TimelineDayCell.vue",
+        "components/test/InteractKanbanColumn.vue",
+        "composables/calendar/useCalendarInteractDrag.ts"
+      ]
+    },
+    {
+      "file": "composables/drag/useDragTransfer.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 8
+        }
+      ],
+      "referencedBy": [
+        "composables/drag/useTemplateDrop.ts"
+      ]
+    },
+    {
+      "file": "composables/drag/useInteractDrag.ts",
+      "imports": [
+        {
+          "name": "computed, onMounted, onBeforeUnmount, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 14
+        },
+        {
+          "name": "interactManager, dragPreviewState",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "makeDragDecision",
+          "path": "@/services/dragDecisionService",
+          "exists": true,
+          "line": 19
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/assembles/template/TemplateList.vue",
+        "components/test/InteractKanbanColumn.vue"
+      ]
+    },
+    {
+      "file": "composables/drag/useTemplateDrop.ts",
+      "imports": [
+        {
+          "name": "useDragTransfer",
+          "path": "./useDragTransfer",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "composables/drag/useThrottledDragOver.ts",
+      "imports": [
+        {
+          "name": "ref",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "composables/drag/useTimelineCardDrag.ts",
+      "imports": [
+        {
+          "name": "computed, onMounted, onBeforeUnmount, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 10
+        },
+        {
+          "name": "interactManager, dragPreviewState",
+          "path": "@/infra/drag-interact",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": [
+        "components/parts/timeline/TimelineCard.vue"
+      ]
+    },
+    {
+      "file": "composables/useApiConfig.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "invoke",
+          "path": "@tauri-apps/api/core",
+          "exists": false,
+          "line": 3
+        },
+        {
+          "name": "listen",
+          "path": "@tauri-apps/api/event",
+          "exists": false,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "infra/http/api-client.ts",
+        "main.ts",
+        "services/ai.ts"
+      ]
+    },
+    {
+      "file": "composables/useContextMenu.ts",
+      "imports": [
+        {
+          "name": "readonly, shallowRef, markRaw",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateStrip.vue",
+        "components/functional/ContextMenuHost.vue",
+        "components/parts/timeline/TimelineDayCell.vue",
+        "composables/calendar/useCalendarHandlers.ts"
+      ]
+    },
+    {
+      "file": "composables/useMidnightRefresh.ts",
+      "imports": [
+        {
+          "name": "onMounted, onBeforeUnmount",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useRegisterStore",
+          "path": "@/stores/register",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "views/MainLayout.vue"
+      ]
+    },
+    {
+      "file": "composables/useRecurrenceOperations.ts",
+      "imports": [
+        {
+          "name": "useRecurrenceStore",
+          "path": "@/stores/recurrence",
+          "exists": true,
+          "line": 1
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "useUIStore",
+          "path": "@/stores/ui",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue"
+      ]
+    },
+    {
+      "file": "composables/useViewContext.ts",
+      "imports": [
+        {
+          "name": "computed",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        },
+        {
+          "name": "useRoute",
+          "path": "vue-router",
+          "exists": false,
+          "line": 8
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/list/TaskStrip.vue"
+      ]
+    },
+    {
+      "file": "composables/useViewOperations.ts",
+      "imports": [
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "fetchView, type ViewContext",
+          "path": "@/services/viewAdapter",
+          "exists": true,
+          "line": 15
+        }
+      ],
+      "referencedBy": [
+        "views/AreaTestView.vue",
+        "views/DebugView.vue"
+      ]
+    },
+    {
+      "file": "composables/useViewTasks.ts",
+      "imports": [
+        {
+          "name": "computed, onMounted, onBeforeUnmount",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/test/InteractKanbanColumn.vue"
+      ]
+    },
+    {
+      "file": "cpu/index.ts",
+      "imports": [
+        {
+          "name": "httpAdapter",
+          "path": "@/cpu-adapters/httpAdapter",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "correlationIdAdapter",
+          "path": "@/cpu-adapters/correlationIdAdapter",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "createVueReactiveState",
+          "path": "@/cpu-adapters/vueAdapter",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "ISA",
+          "path": "./isa",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "cpu/interrupt/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "cpu/interrupt/InterruptConsole.ts",
+      "imports": [],
+      "referencedBy": [
+        "cpu/interrupt/InterruptHandler.ts"
+      ]
+    },
+    {
+      "file": "cpu/interrupt/InterruptHandler.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 17
+        },
+        {
+          "name": "interruptConsole, type InterruptHandlerResult",
+          "path": "./InterruptConsole",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": [
+        "views/CPUDebugView.vue"
+      ]
+    },
+    {
+      "file": "cpu/isa/debug-isa.ts",
+      "imports": [],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/index.ts",
+      "imports": [
+        {
+          "name": "DebugISA",
+          "path": "./debug-isa",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "TaskISA",
+          "path": "./task-isa",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "ScheduleISA",
+          "path": "./schedule-isa",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "TimeBlockISA",
+          "path": "./timeblock-isa",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "ViewPreferenceISA",
+          "path": "./viewpreference-isa",
+          "exists": true,
+          "line": 10
+        },
+        {
+          "name": "TemplateISA",
+          "path": "./template-isa",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "RecurrenceISA",
+          "path": "./recurrence-isa",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "UserSettingsISA",
+          "path": "./user-settings-isa",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "cpu/isa/recurrence-isa.ts",
+      "imports": [
+        {
+          "name": "useRecurrenceStore",
+          "path": "@/stores/recurrence",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 13
+        },
+        {
+          "name": "recurrenceCore",
+          "path": "@/stores/recurrence/core",
+          "exists": true,
+          "line": 14
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/schedule-isa.ts",
+      "imports": [
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 15
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/task-isa.ts",
+      "imports": [
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 12
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/template-isa.ts",
+      "imports": [
+        {
+          "name": "useTemplateStore",
+          "path": "@/stores/template",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/timeblock-isa.ts",
+      "imports": [
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 20
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 21
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/user-settings-isa.ts",
+      "imports": [
+        {
+          "name": "useUserSettingsStore",
+          "path": "@/stores/user-settings",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu/isa/viewpreference-isa.ts",
+      "imports": [
+        {
+          "name": "useViewStore",
+          "path": "@/stores/view",
+          "exists": true,
+          "line": 12
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/index.ts"
+      ]
+    },
+    {
+      "file": "cpu-adapters/correlationIdAdapter.ts",
+      "imports": [
+        {
+          "name": "generateCorrelationId",
+          "path": "@/infra/correlation/correlationId",
+          "exists": true,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "cpu/index.ts"
+      ]
+    },
+    {
+      "file": "cpu-adapters/httpAdapter.ts",
+      "imports": [
+        {
+          "name": "apiGet, apiPost, apiPatch, apiDelete, apiPut",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "cpu/index.ts"
+      ]
+    },
+    {
+      "file": "cpu-adapters/vueAdapter.ts",
+      "imports": [
+        {
+          "name": "ref, watch",
+          "path": "vue",
+          "exists": false,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "cpu/index.ts"
+      ]
+    },
+    {
+      "file": "i18n/index.ts",
+      "imports": [
+        {
+          "name": "createI18n",
+          "path": "vue-i18n",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "en",
+          "path": "../locales/en",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "zhCN",
+          "path": "../locales/zh-CN",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/correlation/correlationId.ts",
+      "imports": [
+        {
+          "name": "nanoid",
+          "path": "nanoid",
+          "exists": false,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "cpu-adapters/correlationIdAdapter.ts"
+      ]
+    },
+    {
+      "file": "infra/correlation/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/index.ts",
+      "imports": [
+        {
+          "name": "strategyRegistry",
+          "path": "./strategy-registry",
+          "exists": true,
+          "line": 34
+        },
+        {
+          "name": "allStrategies",
+          "path": "./strategies",
+          "exists": true,
+          "line": 35
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 36
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategies/calendar-scheduling.ts",
+      "imports": [
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 12
+        },
+        {
+          "name": "isTaskCard",
+          "path": "@/types/dtos",
+          "exists": true,
+          "line": 13
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategies/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategies/strategy-utils.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategies/task-scheduling.ts",
+      "imports": [
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 21
+        },
+        {
+          "name": "isTaskCard",
+          "path": "@/types/dtos",
+          "exists": true,
+          "line": 22
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategies/template-scheduling.ts",
+      "imports": [
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 18
+        },
+        {
+          "name": "isTemplate, isTaskCard",
+          "path": "@/types/dtos",
+          "exists": true,
+          "line": 19
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategy-executor.ts",
+      "imports": [
+        {
+          "name": "strategyRegistry",
+          "path": "./strategy-registry",
+          "exists": true,
+          "line": 9
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 10
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag/strategy-matcher.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 8
+        }
+      ],
+      "referencedBy": [
+        "infra/drag/strategy-registry.ts"
+      ]
+    },
+    {
+      "file": "infra/drag/strategy-registry.ts",
+      "imports": [
+        {
+          "name": "matchStrategy, calculateMatchScore",
+          "path": "./strategy-matcher",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": [
+        "infra/drag/index.ts",
+        "infra/drag/strategy-executor.ts"
+      ]
+    },
+    {
+      "file": "infra/drag/types.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag-interact/drag-controller.ts",
+      "imports": [
+        {
+          "name": "interact",
+          "path": "interactjs",
+          "exists": false,
+          "line": 12
+        },
+        {
+          "name": "shallowRef",
+          "path": "vue",
+          "exists": false,
+          "line": 14
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "dragPreviewActions",
+          "path": "./preview-state",
+          "exists": true,
+          "line": 16
+        },
+        {
+          "name": "calculateDropIndex, getDistance, showErrorMessage",
+          "path": "./utils",
+          "exists": true,
+          "line": 17
+        }
+      ],
+      "referencedBy": [
+        "composables/calendar/useCalendarInteractDrag.ts"
+      ]
+    },
+    {
+      "file": "infra/drag-interact/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag-interact/preview-state.ts",
+      "imports": [
+        {
+          "name": "ref, shallowRef, computed, readonly",
+          "path": "vue",
+          "exists": false,
+          "line": 11
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/assembles/template/TemplateList.vue",
+        "composables/calendar/useCalendarInteractDrag.ts",
+        "infra/drag-interact/drag-controller.ts"
+      ]
+    },
+    {
+      "file": "infra/drag-interact/types.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/drag-interact/utils.ts",
+      "imports": [],
+      "referencedBy": [
+        "infra/drag-interact/drag-controller.ts"
+      ]
+    },
+    {
+      "file": "infra/errors/errorHandler.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "../logging/logger",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/errors/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/events/events.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 7
+        }
+      ],
+      "referencedBy": [
+        "stores/timeblock.ts"
+      ]
+    },
+    {
+      "file": "infra/events/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/http/api-client.ts",
+      "imports": [
+        {
+          "name": "waitForApiReady",
+          "path": "@/composables/useApiConfig",
+          "exists": true,
+          "line": 1
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/http/error-handler.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 7
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/http/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/logging/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/logging/logger.ts",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/calender/CalendarTaskEventContent.vue",
+        "components/assembles/calender/CuteCalendar.vue",
+        "components/assembles/ContextMenu/TemplateCardMenu.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/kanban/UpcomingColumn.vue",
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/assembles/template/TemplateList.vue",
+        "components/assembles/template/TemplateStrip.vue",
+        "components/organisms/InfiniteAreaKanban.vue",
+        "components/organisms/InfiniteDailyKanban.vue",
+        "components/organisms/InfiniteTimeline.vue",
+        "components/organisms/QuickAddTaskDialog.vue",
+        "components/organisms/RecentView.vue",
+        "components/organisms/StagingView.vue",
+        "components/parts/timeline/TimelineDayCell.vue",
+        "components/test/InteractKanbanColumn.vue",
+        "views/CalendarView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue",
+        "views/HomeView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/InteractTestView.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue",
+        "views/TrashView.vue",
+        "composables/calendar/useCalendarDrag.ts",
+        "composables/calendar/useCalendarHandlers.ts",
+        "composables/calendar/useCalendarInteractDrag.ts",
+        "composables/calendar/useTimePosition.ts",
+        "composables/drag/useAutoScroll.ts",
+        "composables/drag/useDragStrategy.ts",
+        "composables/drag/useDragTransfer.ts",
+        "composables/drag/useTemplateDrop.ts",
+        "composables/drag/useTimelineCardDrag.ts",
+        "composables/useApiConfig.ts",
+        "composables/useMidnightRefresh.ts",
+        "composables/useRecurrenceOperations.ts",
+        "composables/useViewOperations.ts",
+        "composables/useViewTasks.ts",
+        "cpu/interrupt/InterruptHandler.ts",
+        "infra/drag/index.ts",
+        "infra/drag/strategies/calendar-scheduling.ts",
+        "infra/drag/strategy-executor.ts",
+        "infra/drag/strategy-matcher.ts",
+        "infra/drag/strategy-registry.ts",
+        "infra/drag-interact/drag-controller.ts",
+        "infra/errors/errorHandler.ts",
+        "infra/events/events.ts",
+        "infra/http/error-handler.ts",
+        "infra/logging/loggerConfig.ts",
+        "infra/logging/loggerSettings.ts",
+        "main.ts",
+        "services/viewAdapter.ts",
+        "stores/area.ts",
+        "stores/recurrence/core.ts",
+        "stores/register.ts",
+        "stores/shared/state-utils.ts",
+        "stores/task/core.ts",
+        "stores/task/event-handlers.ts",
+        "stores/task/loaders.ts",
+        "stores/task/mutations.ts",
+        "stores/template/event-handlers.ts",
+        "stores/timeblock.ts",
+        "stores/trash/event-handlers.ts",
+        "stores/ui.ts",
+        "stores/user-settings/core.ts",
+        "stores/user-settings/event-handlers.ts",
+        "stores/view.ts"
+      ]
+    },
+    {
+      "file": "infra/logging/loggerConfig.ts",
+      "imports": [
+        {
+          "name": "LogLevel, type SamplingConfig",
+          "path": "./logger",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/logging/loggerSettings.ts",
+      "imports": [
+        {
+          "name": "LogLevel",
+          "path": "./logger",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/transaction/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "infra/transaction/transactionProcessor.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging",
+          "exists": true,
+          "line": 20
+        },
+        {
+          "name": "useTaskStore",
+          "path": "@/stores/task",
+          "exists": true,
+          "line": 21
+        },
+        {
+          "name": "useTimeBlockStore",
+          "path": "@/stores/timeblock",
+          "exists": true,
+          "line": 22
+        }
+      ],
+      "referencedBy": [
+        "stores/task/event-handlers.ts"
+      ]
+    },
+    {
+      "file": "infra/utils/dateUtils.ts",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/tasks/list/UpcomingList.vue",
+        "components/organisms/InfiniteDailyKanban.vue",
+        "components/organisms/InfiniteTimeline.vue",
+        "components/organisms/RecentView.vue",
+        "components/parts/recurrence/RecurrenceConfigDialog.vue",
+        "components/parts/timeline/DoubleRowTimeline.vue",
+        "views/DailyPlanningView.vue",
+        "views/HomeView.vue",
+        "composables/calendar/useCalendarDrag.ts",
+        "composables/calendar/useCalendarInteractDrag.ts"
+      ]
+    },
+    {
+      "file": "locales/en.ts",
+      "imports": [],
+      "referencedBy": [
+        "i18n/index.ts"
+      ]
+    },
+    {
+      "file": "locales/zh-CN.ts",
+      "imports": [],
+      "referencedBy": [
+        "i18n/index.ts"
+      ]
+    },
+    {
+      "file": "main.ts",
+      "imports": [
+        {
+          "name": "createApp",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "createPinia, setActivePinia",
+          "path": "pinia",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "App",
+          "path": "./App.vue",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "router",
+          "path": "./router",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "i18n",
+          "path": "./i18n",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "initializeApiConfig",
+          "path": "@/composables/useApiConfig",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "logger, LogLevel, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "initializeDragStrategies",
+          "path": "@/infra/drag",
+          "exists": true,
+          "line": 14
+        },
+        {
+          "name": "cpuConsole, ConsoleLevel",
+          "path": "@/cpu/logging",
+          "exists": false,
+          "line": 107
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "router/index.ts",
+      "imports": [
+        {
+          "name": "createRouter, createWebHistory, type RouteRecordRaw",
+          "path": "vue-router",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "MainLayout",
+          "path": "../views/MainLayout.vue",
+          "exists": true,
+          "line": 2
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "services/ai.ts",
+      "imports": [
+        {
+          "name": "apiBaseUrl",
+          "path": "@/composables/useApiConfig",
+          "exists": true,
+          "line": 1
+        }
+      ],
+      "referencedBy": [
+        "stores/ai/actions.ts"
+      ]
+    },
+    {
+      "file": "services/dragDecisionService.ts",
+      "imports": [],
+      "referencedBy": [
+        "composables/drag/useInteractDrag.ts"
+      ]
+    },
+    {
+      "file": "services/viewAdapter.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 2
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/tasks/list/TaskList.vue",
+        "components/test/InteractKanbanColumn.vue",
+        "composables/useViewOperations.ts"
+      ]
+    },
+    {
+      "file": "stores/ai/actions.ts",
+      "imports": [
+        {
+          "name": "sendChatMessage",
+          "path": "@/services/ai",
+          "exists": true,
+          "line": 1
+        },
+        {
+          "name": "addMessage, setLoading, setError, resetError, allMessages",
+          "path": "./core",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "stores/ai/index.ts"
+      ]
+    },
+    {
+      "file": "stores/ai/core.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        }
+      ],
+      "referencedBy": [
+        "stores/ai/actions.ts",
+        "stores/ai/index.ts"
+      ]
+    },
+    {
+      "file": "stores/ai/index.ts",
+      "imports": [
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "core",
+          "path": "./core",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "actions",
+          "path": "./actions",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/area.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "apiGet, apiPost, apiPatch, apiDelete",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/assembles/template/TemplateCard.vue",
+        "components/assembles/template/TemplateEditorModal.vue",
+        "components/assembles/template/TemplateStrip.vue",
+        "components/organisms/InfiniteAreaKanban.vue",
+        "components/parts/AreaManager.vue",
+        "components/parts/timeline/DoubleRowTimeline.vue",
+        "views/AreaTestView.vue",
+        "views/StagingView.vue",
+        "composables/calendar/useCalendarDrag.ts",
+        "composables/calendar/useCalendarEvents.ts",
+        "composables/calendar/useCalendarInteractDrag.ts"
+      ]
+    },
+    {
+      "file": "stores/recurrence/core.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "cpu/isa/recurrence-isa.ts",
+        "stores/recurrence/index.ts"
+      ]
+    },
+    {
+      "file": "stores/recurrence/crud-operations.ts",
+      "imports": [
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 24
+        }
+      ],
+      "referencedBy": [
+        "stores/recurrence/index.ts"
+      ]
+    },
+    {
+      "file": "stores/recurrence/index.ts",
+      "imports": [
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "core",
+          "path": "./core",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "crud",
+          "path": "./crud-operations",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "view",
+          "path": "./view-operations",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/recurrence/view-operations.ts",
+      "imports": [
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 8
+        },
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": [
+        "stores/recurrence/index.ts"
+      ]
+    },
+    {
+      "file": "stores/register.ts",
+      "imports": [
+        {
+          "name": "ref",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue",
+        "components/organisms/InfiniteDailyKanban.vue",
+        "views/HomeView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/MainLayout.vue",
+        "views/SunsamaLegacyView.vue",
+        "composables/useMidnightRefresh.ts"
+      ]
+    },
+    {
+      "file": "stores/shared/index.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/shared/state-utils.ts",
+      "imports": [
+        {
+          "name": "ref, type Ref",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 2
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/task/core.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "updateMapItem, removeMapItem, createLoadingState",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "stores/task/index.ts"
+      ]
+    },
+    {
+      "file": "stores/task/event-handlers.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "transactionProcessor",
+          "path": "@/infra/transaction/transactionProcessor",
+          "exists": true,
+          "line": 16
+        }
+      ],
+      "referencedBy": [
+        "stores/task/index.ts"
+      ]
+    },
+    {
+      "file": "stores/task/index.ts",
+      "imports": [
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "createTaskCore",
+          "path": "./core",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "createLoaders",
+          "path": "./loaders",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "createMutations",
+          "path": "./mutations",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "createEventHandlers",
+          "path": "./event-handlers",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/task/loaders.ts",
+      "imports": [
+        {
+          "name": "apiGet",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 19
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 21
+        }
+      ],
+      "referencedBy": [
+        "stores/task/index.ts"
+      ]
+    },
+    {
+      "file": "stores/task/mutations.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 18
+        }
+      ],
+      "referencedBy": [
+        "stores/task/index.ts"
+      ]
+    },
+    {
+      "file": "stores/task/types.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/task.ts",
+      "imports": [],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskEditorModal.vue",
+        "components/assembles/tasks/kanban/UpcomingColumn.vue",
+        "components/assembles/tasks/list/UpcomingList.vue",
+        "components/organisms/InfiniteAreaKanban.vue",
+        "components/organisms/InfiniteDailyKanban.vue",
+        "components/organisms/InfiniteTimeline.vue",
+        "components/organisms/RecentView.vue",
+        "components/organisms/StagingView.vue",
+        "components/parts/timeline/DoubleRowTimeline.vue",
+        "views/CalendarView.vue",
+        "views/CPUDebugView.vue",
+        "views/DailyPlanningView.vue",
+        "views/DebugView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/InteractTestView.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue",
+        "composables/calendar/useCalendarDrag.ts",
+        "composables/calendar/useCalendarEvents.ts",
+        "composables/calendar/useCalendarHandlers.ts",
+        "composables/calendar/useCalendarOptions.ts",
+        "composables/useMidnightRefresh.ts",
+        "composables/useRecurrenceOperations.ts",
+        "composables/useViewOperations.ts",
+        "composables/useViewTasks.ts",
+        "cpu/isa/schedule-isa.ts",
+        "cpu/isa/task-isa.ts",
+        "cpu/isa/template-isa.ts",
+        "cpu/isa/timeblock-isa.ts",
+        "infra/transaction/transactionProcessor.ts"
+      ]
+    },
+    {
+      "file": "stores/template/core.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        }
+      ],
+      "referencedBy": [
+        "stores/template/event-handlers.ts",
+        "stores/template/index.ts",
+        "stores/template/view-operations.ts"
+      ]
+    },
+    {
+      "file": "stores/template/crud-operations.ts",
+      "imports": [
+        {
+          "name": "pipeline",
+          "path": "@/cpu",
+          "exists": true,
+          "line": 8
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/template/event-handlers.ts",
+      "imports": [
+        {
+          "name": "core",
+          "path": "./core",
+          "exists": true,
+          "line": 15
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 16
+        }
+      ],
+      "referencedBy": [
+        "stores/template/index.ts"
+      ]
+    },
+    {
+      "file": "stores/template/index.ts",
+      "imports": [
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "core",
+          "path": "./core",
+          "exists": true,
+          "line": 2
+        },
+        {
+          "name": "view",
+          "path": "./view-operations",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "events",
+          "path": "./event-handlers",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/template/types.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/template/view-operations.ts",
+      "imports": [
+        {
+          "name": "apiGet",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 1
+        },
+        {
+          "name": "addOrUpdateTemplate_mut, clearAllTemplates_mut",
+          "path": "./core",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "stores/template/index.ts"
+      ]
+    },
+    {
+      "file": "stores/timeblock.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "getEventSubscriber",
+          "path": "@/infra/events/events",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "apiGet, apiPost, apiPatch, apiDelete",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 6
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/calender/CuteCalendar.vue",
+        "components/organisms/TimeBlockDetailPanel.vue",
+        "components/parts/timeline/DoubleRowTimeline.vue",
+        "composables/calendar/useCalendarEvents.ts",
+        "composables/useMidnightRefresh.ts",
+        "cpu/isa/timeblock-isa.ts",
+        "infra/transaction/transactionProcessor.ts"
+      ]
+    },
+    {
+      "file": "stores/trash/core.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "stores/trash/crud-operations.ts",
+        "stores/trash/event-handlers.ts",
+        "stores/trash/index.ts",
+        "stores/trash/view-operations.ts"
+      ]
+    },
+    {
+      "file": "stores/trash/crud-operations.ts",
+      "imports": [
+        {
+          "name": "apiPatch, apiDelete",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "removeTrashedTask",
+          "path": "./core",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "stores/trash/index.ts"
+      ]
+    },
+    {
+      "file": "stores/trash/event-handlers.ts",
+      "imports": [
+        {
+          "name": "addOrUpdateTrashedTask, removeTrashedTask",
+          "path": "./core",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 8
+        }
+      ],
+      "referencedBy": [
+        "stores/trash/index.ts"
+      ]
+    },
+    {
+      "file": "stores/trash/index.ts",
+      "imports": [
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 4
+        },
+        {
+          "name": "core",
+          "path": "./core",
+          "exists": true,
+          "line": 5
+        },
+        {
+          "name": "crud",
+          "path": "./crud-operations",
+          "exists": true,
+          "line": 6
+        },
+        {
+          "name": "view",
+          "path": "./view-operations",
+          "exists": true,
+          "line": 7
+        },
+        {
+          "name": "events",
+          "path": "./event-handlers",
+          "exists": true,
+          "line": 8
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/trash/view-operations.ts",
+      "imports": [
+        {
+          "name": "apiGet, apiPost",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "setTrashedTasks",
+          "path": "./core",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "stores/trash/index.ts"
+      ]
+    },
+    {
+      "file": "stores/ui.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 3
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/KanbanTaskCard.vue",
+        "components/assembles/tasks/kanban/KanbanTaskCardMenu.vue",
+        "components/assembles/tasks/kanban/UpcomingColumn.vue",
+        "components/assembles/tasks/list/TaskStrip.vue",
+        "components/parts/recurrence/GlobalRecurrenceEditDialog.vue",
+        "components/parts/timeline/TimelineDayCell.vue",
+        "views/CalendarView.vue",
+        "views/DailyPlanningView.vue",
+        "views/HomeView.vue",
+        "views/HomeViewLegacy.vue",
+        "views/StagingView.vue",
+        "views/SunsamaLegacyView.vue",
+        "composables/useRecurrenceOperations.ts"
+      ]
+    },
+    {
+      "file": "stores/user-settings/core.ts",
+      "imports": [
+        {
+          "name": "ref, computed",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "createLoadingState",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 3
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 4
+        }
+      ],
+      "referencedBy": [
+        "stores/user-settings/index.ts"
+      ]
+    },
+    {
+      "file": "stores/user-settings/event-handlers.ts",
+      "imports": [
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 9
+        }
+      ],
+      "referencedBy": [
+        "stores/user-settings/index.ts"
+      ]
+    },
+    {
+      "file": "stores/user-settings/index.ts",
+      "imports": [
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 10
+        },
+        {
+          "name": "createUserSettingsCore",
+          "path": "./core",
+          "exists": true,
+          "line": 11
+        },
+        {
+          "name": "createEventHandlers",
+          "path": "./event-handlers",
+          "exists": true,
+          "line": 12
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "stores/view.ts",
+      "imports": [
+        {
+          "name": "ref, nextTick",
+          "path": "vue",
+          "exists": false,
+          "line": 1
+        },
+        {
+          "name": "defineStore",
+          "path": "pinia",
+          "exists": false,
+          "line": 2
+        },
+        {
+          "name": "logger, LogTags",
+          "path": "@/infra/logging/logger",
+          "exists": true,
+          "line": 4
+        },
+        {
+          "name": "apiGet",
+          "path": "@/stores/shared",
+          "exists": true,
+          "line": 5
+        }
+      ],
+      "referencedBy": [
+        "components/assembles/tasks/kanban/SimpleKanbanColumn.vue",
+        "components/assembles/template/TemplateKanbanColumn.vue",
+        "components/assembles/template/TemplateList.vue",
+        "components/organisms/InfiniteAreaKanban.vue",
+        "components/organisms/InfiniteDailyKanban.vue",
+        "components/parts/recurrence/RecurrenceConfigDialog.vue",
+        "components/test/InteractKanbanColumn.vue",
+        "views/DebugView.vue",
+        "composables/useViewTasks.ts",
+        "cpu/isa/recurrence-isa.ts",
+        "cpu/isa/viewpreference-isa.ts"
+      ]
+    },
+    {
+      "file": "types/ai.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "types/api.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "types/drag.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "types/dtos.ts",
+      "imports": [],
+      "referencedBy": [
+        "composables/calendar/useCalendarInteractDrag.ts",
+        "infra/drag/strategies/calendar-scheduling.ts",
+        "infra/drag/strategies/task-scheduling.ts",
+        "infra/drag/strategies/template-scheduling.ts"
+      ]
+    },
+    {
+      "file": "types/models.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "types/splitpanes.d.ts",
+      "imports": [
+        {
+          "name": "DefineComponent",
+          "path": "vue",
+          "exists": false,
+          "line": 2
+        }
+      ],
+      "referencedBy": []
+    },
+    {
+      "file": "types/user-settings.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "utils/taskStatusUtils.ts",
+      "imports": [],
+      "referencedBy": []
+    },
+    {
+      "file": "vite-env.d.ts",
+      "imports": [],
+      "referencedBy": []
+    }
+  ],
+  "suggestions": []
+}

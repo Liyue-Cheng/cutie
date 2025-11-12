@@ -111,14 +111,14 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. Import lifecycle hooks and ref
 import { useRouter } from 'vue-router'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import CuteButton from '../components/parts/CuteButton.vue'
-import CuteIcon from '../components/parts/CuteIcon.vue'
-import CutePane from '../components/alias/CutePane.vue'
-import AreaManager from '../components/parts/AreaManager.vue'
-import QuickAddTaskDialog from '../components/parts/QuickAddTaskDialog.vue'
-import SettingsModal from '../components/settings/SettingsModal.vue'
-import { useRegisterStore } from '../stores/register'
-import { useMidnightRefresh } from '../composables/useMidnightRefresh'
+import CuteButton from '@/components/parts/CuteButton.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CutePane from '@/components/alias/CutePane.vue'
+import AreaManager from '@/components/parts/AreaManager.vue'
+import QuickAddTaskDialog from '@/components/organisms/QuickAddTaskDialog.vue'
+import SettingsModal from '@/components/organisms/SettingsModal.vue'
+import { useRegisterStore } from '@/stores/register'
+import { useMidnightRefresh } from '@/composables/useMidnightRefresh'
 
 const appWindow = getCurrentWindow()
 const router = useRouter()

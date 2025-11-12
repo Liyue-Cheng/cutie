@@ -7,7 +7,7 @@
   </CutePane>
 </template>
 <script setup lang="ts">
-import CutePane from '../components/alias/CutePane.vue'
+import CutePane from '@/components/alias/CutePane.vue'
 </script>
 <style scoped>
 .content-wrapper {

@@ -13,8 +13,8 @@ import type {
   EventClickArg,
 } from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
-import CalendarEventMenu from '@/components/parts/CalendarEventMenu.vue'
-import KanbanTaskCardMenu from '@/components/parts/kanban/KanbanTaskCardMenu.vue'
+import CalendarEventMenu from '@/components/assembles/ContextMenu/CalendarEventMenu.vue'
+import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 import { useTaskStore } from '@/stores/task'

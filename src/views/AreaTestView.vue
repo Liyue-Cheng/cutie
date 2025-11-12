@@ -2,7 +2,7 @@
 import { onMounted, computed } from 'vue'
 import { useAreaStore } from '@/stores/area'
 import { useViewOperations } from '@/composables/useViewOperations'
-import SimpleKanbanColumn from '@/components/parts/kanban/SimpleKanbanColumn.vue'
+import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue'
 
 const areaStore = useAreaStore()
 const viewOps = useViewOperations()

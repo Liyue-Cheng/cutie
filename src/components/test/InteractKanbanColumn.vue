@@ -13,7 +13,7 @@ import { dragPreviewState } from '@/infra/drag-interact'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
-import KanbanTaskCard from '@/components/parts/kanban/KanbanTaskCard.vue'
+import KanbanTaskCard from '@/components/assembles/tasks/kanban/KanbanTaskCard.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 
