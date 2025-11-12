@@ -43,25 +43,25 @@
                     <span class="recurrence-title">{{ getTemplateTitle(recurrence.template_id) }}</span>
                     <span v-if="!recurrence.is_active" class="inactive-badge">已停用</span>
                   </div>
-                  <div class="recurrence-subtitle">
-                    <CuteIcon name="RefreshCw" :size="12" />
-                    <span>{{ formatRule(recurrence.rule) }}</span>
-                  </div>
                   <div class="recurrence-details">
+                    <span class="detail-item">
+                      <CuteIcon name="RefreshCw" :size="12" />
+                      {{ formatRule(recurrence.rule) }}
+                    </span>
                     <span v-if="recurrence.start_date" class="detail-item">
-                      <CuteIcon name="CalendarDays" :size="14" />
+                      <CuteIcon name="CalendarDays" :size="12" />
                       开始: {{ recurrence.start_date }}
                     </span>
                     <span v-if="recurrence.end_date" class="detail-item">
-                      <CuteIcon name="CalendarX" :size="14" />
+                      <CuteIcon name="CalendarX" :size="12" />
                       结束: {{ recurrence.end_date }}
                     </span>
                     <span class="detail-item">
-                      <CuteIcon name="Clock" :size="14" />
+                      <CuteIcon name="Clock" :size="12" />
                       {{ formatTimeType(recurrence.time_type) }}
                     </span>
                     <span class="detail-item">
-                      <CuteIcon name="Archive" :size="14" />
+                      <CuteIcon name="Archive" :size="12" />
                       过期: {{ formatExpiryBehavior(recurrence.expiry_behavior) }}
                     </span>
                   </div>
@@ -453,7 +453,7 @@ function handleClose() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.8rem;
 }
 
 .recurrence-header {
@@ -468,14 +468,6 @@ function handleClose() {
   color: var(--color-text-primary);
 }
 
-.recurrence-subtitle {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1.3rem;
-  color: var(--color-text-secondary);
-}
-
 .inactive-badge {
   padding: 0.2rem 0.8rem;
   font-size: 1.2rem;
@@ -488,7 +480,7 @@ function handleClose() {
 .recurrence-details {
   display: flex;
   align-items: center;
-  gap: 1.6rem;
+  gap: 1.2rem;
   flex-wrap: wrap;
 }
 
