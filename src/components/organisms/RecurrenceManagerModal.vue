@@ -40,7 +40,9 @@
                 <!-- 左侧：规则信息 -->
                 <div class="recurrence-info">
                   <div class="recurrence-header">
-                    <span class="recurrence-title">{{ getTemplateTitle(recurrence.template_id) }}</span>
+                    <span class="recurrence-title">{{
+                      getTemplateTitle(recurrence.template_id)
+                    }}</span>
                     <span v-if="!recurrence.is_active" class="inactive-badge">已停用</span>
                   </div>
                   <div class="recurrence-details">
@@ -264,10 +266,14 @@ async function toggleActive(recurrence: TaskRecurrence) {
   }
 
   try {
-    // 更新激活状态
+    const today = getTodayDateString()
+
+    // 更新激活状态和结束日期
     await pipeline.dispatch('recurrence.update', {
       id: recurrence.id,
       is_active: willBeActive,
+      // 暂停时设置结束日期为今天，启用时清除结束日期
+      end_date: willBeActive ? null : today,
     })
 
     // 如果是暂停，删除今天之后的未完成任务
@@ -278,9 +284,14 @@ async function toggleActive(recurrence: TaskRecurrence) {
     logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Toggled recurrence active state', {
       id: recurrence.id,
       is_active: willBeActive,
+      end_date: willBeActive ? null : today,
     })
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to toggle recurrence', error as Error)
+    logger.error(
+      LogTags.COMPONENT_RECURRENCE_MANAGER,
+      'Failed to toggle recurrence',
+      error as Error
+    )
   }
 }
 
@@ -345,7 +356,11 @@ async function handleSaveEdit(updates: Partial<TaskRecurrence>) {
     })
     editingRecurrence.value = null
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to update recurrence', error as Error)
+    logger.error(
+      LogTags.COMPONENT_RECURRENCE_MANAGER,
+      'Failed to update recurrence',
+      error as Error
+    )
   }
 }
 
@@ -360,7 +375,11 @@ async function deleteRecurrence(recurrence: TaskRecurrence) {
       id: recurrence.id,
     })
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to delete recurrence', error as Error)
+    logger.error(
+      LogTags.COMPONENT_RECURRENCE_MANAGER,
+      'Failed to delete recurrence',
+      error as Error
+    )
   }
 }
 
