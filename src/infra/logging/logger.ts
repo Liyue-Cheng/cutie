@@ -511,6 +511,7 @@ export const LogTags = {
   COMPONENT_CALENDAR: 'Component:CuteCalendar',
   COMPONENT_BUTTON: 'Component:CuteButton',
   COMPONENT_TASK_BAR: 'Component:TaskBar',
+  COMPONENT_RECURRENCE_MANAGER: 'Component:RecurrenceManager',
 
   // 拖拽相关
   DRAG_CROSS_VIEW: 'Drag:CrossView',

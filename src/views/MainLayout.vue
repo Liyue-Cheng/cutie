@@ -1,5 +1,6 @@
 <template>
   <AreaManager v-if="isAreaManagerOpen" @close="isAreaManagerOpen = false" />
+  <RecurrenceManagerModal :show="isRecurrenceManagerOpen" @close="isRecurrenceManagerOpen = false" />
   <SettingsModal :show="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
     <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
@@ -97,6 +98,10 @@
               <CuteIcon name="Tag" :size="16" />
               <span>Areas</span>
             </li>
+            <li @click="isRecurrenceManagerOpen = true">
+              <CuteIcon name="RefreshCw" :size="16" />
+              <span>循环任务</span>
+            </li>
             <li @click="isSettingsOpen = true">
               <CuteIcon name="Settings" :size="16" />
               <span>{{ $t('sidebar.settings') }}</span>
@@ -123,6 +128,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CutePane from '@/components/alias/CutePane.vue'
 import AreaManager from '@/components/parts/AreaManager.vue'
 import QuickAddTaskModal from '@/components/organisms/QuickAddTaskModal.vue'
+import RecurrenceManagerModal from '@/components/organisms/RecurrenceManagerModal.vue'
 import SettingsModal from '@/components/organisms/SettingsModal.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useMidnightRefresh } from '@/composables/useMidnightRefresh'
@@ -136,6 +142,7 @@ useMidnightRefresh()
 
 const isLegacyOpen = ref(false)
 const isAreaManagerOpen = ref(false)
+const isRecurrenceManagerOpen = ref(false)
 const isSettingsOpen = ref(false)
 const showQuickAddDialog = ref(false)
 
