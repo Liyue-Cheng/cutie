@@ -83,6 +83,7 @@ import { dragPreviewState } from '@/infra/drag-interact'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { useRecurrenceStore } from '@/stores/recurrence'
 
 interface Props {
   title: string
@@ -91,6 +92,7 @@ interface Props {
   showAddInput?: boolean // 是否显示添加任务输入框
   fillRemainingSpace?: boolean // 是否占满父容器剩余空间
   collapsible?: boolean // 是否可折叠
+  hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -98,6 +100,7 @@ const props = withDefaults(defineProps<Props>(), {
   showAddInput: true,
   fillRemainingSpace: false,
   collapsible: true,
+  hideDailyRecurringTasks: false,
 })
 
 // Emits
@@ -107,6 +110,35 @@ const emit = defineEmits<{
 
 // 🔥 使用 useViewTasks 获取任务数据
 const { tasks } = useViewTasks(props.viewKey)
+
+// 获取循环规则 store
+const recurrenceStore = useRecurrenceStore()
+
+// 过滤任务：如果启用了隐藏每日循环任务，则过滤掉 FREQ=DAILY 的任务
+const filteredTasks = computed(() => {
+  if (!props.hideDailyRecurringTasks) {
+    return tasks.value
+  }
+
+  return tasks.value.filter((task) => {
+    // 如果任务没有循环规则，保留
+    if (!task.recurrence_id) {
+      return true
+    }
+
+    // 获取循环规则
+    const recurrence = recurrenceStore.getRecurrenceById(task.recurrence_id)
+    if (!recurrence) {
+      return true // 如果找不到规则，保留任务（安全起见）
+    }
+
+    // 检查是否是每日循环（FREQ=DAILY）
+    const isDailyRecurrence = recurrence.rule.includes('FREQ=DAILY')
+
+    // 如果是每日循环，过滤掉（返回 false）；否则保留
+    return !isDailyRecurrence
+  })
+})
 
 // State
 const isCollapsed = ref(props.defaultCollapsed)
@@ -146,7 +178,7 @@ const normalizedViewKey = computed(() => props.viewKey.replace(/::/g, '--'))
 
 const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
-  items: tasks,
+  items: filteredTasks,
   containerRef: taskBarRef,
   draggableSelector: `.task-strip-wrapper-${normalizedViewKey.value}`,
   objectType: 'task',

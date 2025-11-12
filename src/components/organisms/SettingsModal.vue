@@ -127,7 +127,9 @@
                 <div class="setting-item">
                   <div class="setting-info">
                     <label class="setting-label">Model</label>
-                    <span class="setting-description">模型名称，例如 gpt-4o-mini、glm-4.5-flash 等</span>
+                    <span class="setting-description"
+                      >模型名称，例如 gpt-4o-mini、glm-4.5-flash 等</span
+                    >
                   </div>
                   <input
                     type="text"
@@ -339,7 +341,7 @@ function getCategoryName(categoryId: string): string {
 .settings-container {
   width: 90rem;
   max-width: 95vw;
-  max-height: 90vh;
+  height: 80vh; /* 固定高度 */
   background-color: var(--color-background-primary, #faf4ed);
   border-radius: 1.2rem;
   box-shadow:

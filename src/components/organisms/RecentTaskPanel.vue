@@ -3,40 +3,63 @@
     <TwoRowLayout>
       <template #top>
         <div class="recent-controls">
-          <!-- 左右导航按钮 -->
-          <button class="control-btn nav-btn" @click="navigatePrevious" title="上一天">
-            <CuteIcon name="ChevronLeft" :size="16" />
-          </button>
-          <button class="control-btn nav-btn" @click="navigateNext" title="下一天">
-            <CuteIcon name="ChevronRight" :size="16" />
-          </button>
+          <div class="controls-left">
+            <!-- 左右导航按钮 -->
+            <button class="control-btn nav-btn" @click="navigatePrevious" title="上一天">
+              <CuteIcon name="ChevronLeft" :size="16" />
+            </button>
+            <button class="control-btn nav-btn" @click="navigateNext" title="下一天">
+              <CuteIcon name="ChevronRight" :size="16" />
+            </button>
 
-          <!-- 今天/日历合并按钮 -->
-          <div class="combined-btn-wrapper">
-            <!-- 左半边：今天 -->
-            <button class="combined-btn-left" @click="goToToday" title="回到今天">
-              <span>今天</span>
-            </button>
-            <!-- 右半边：日历选择器 -->
-            <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
-              <CuteIcon name="CalendarDays" :size="16" />
-            </button>
-            <input
-              ref="dateInputRef"
-              type="date"
-              v-model="selectedDate"
-              class="date-input-hidden"
-              @change="onDateChange"
-            />
+            <!-- 今天/日历合并按钮 -->
+            <div class="combined-btn-wrapper">
+              <!-- 左半边：今天 -->
+              <button class="combined-btn-left" @click="goToToday" title="回到今天">
+                <span>今天</span>
+              </button>
+              <!-- 右半边：日历选择器 -->
+              <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
+                <CuteIcon name="CalendarDays" :size="16" />
+              </button>
+              <input
+                ref="dateInputRef"
+                type="date"
+                v-model="selectedDate"
+                class="date-input-hidden"
+                @change="onDateChange"
+              />
+            </div>
+
+            <!-- 天数选择器（下拉菜单） -->
+            <div class="day-count-selector">
+              <select v-model="dayCount" class="day-count-select" @change="onDayCountChange">
+                <option v-for="count in dayCountOptions" :key="count" :value="count">
+                  {{ count }}天
+                </option>
+              </select>
+            </div>
           </div>
 
-          <!-- 天数选择器（下拉菜单） -->
-          <div class="day-count-selector">
-            <select v-model="dayCount" class="day-count-select" @change="onDayCountChange">
-              <option v-for="count in dayCountOptions" :key="count" :value="count">
-                {{ count }}天
-              </option>
-            </select>
+          <!-- 右侧筛选菜单 -->
+          <div class="controls-right">
+            <div class="filter-dropdown">
+              <button class="filter-btn" @click="toggleFilterMenu" title="筛选选项">
+                <CuteIcon name="Filter" :size="16" />
+                <span>筛选</span>
+                <CuteIcon name="ChevronDown" :size="14" />
+              </button>
+              <div v-if="showFilterMenu" class="filter-menu">
+                <label class="filter-option">
+                  <input
+                    type="checkbox"
+                    v-model="showDailyRecurringTasks"
+                    @change="onFilterChange"
+                  />
+                  <span>显示每日循环任务</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -49,6 +72,7 @@
             :title="dateInfo.label"
             :view-key="dateInfo.viewKey"
             :fill-remaining-space="index === dateList.length - 1"
+            :hide-daily-recurring-tasks="!showDailyRecurringTasks"
           />
         </div>
       </template>
@@ -57,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -96,6 +120,10 @@ const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
 const dayCount = ref(props.modelValue) // 显示的天数
 const dayCountOptions = [1, 3, 5, 7] // 可选的天数选项
 const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
+
+// 筛选菜单状态
+const showFilterMenu = ref(false)
+const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
 
 // 监听 props 变化
 watch(
@@ -223,6 +251,27 @@ function onDayCountChange() {
   loadDateRangeTasks()
 }
 
+// 切换筛选菜单
+function toggleFilterMenu() {
+  showFilterMenu.value = !showFilterMenu.value
+}
+
+// 筛选选项变化
+function onFilterChange() {
+  logger.info(LogTags.COMPONENT_RECENT_TASK_PANEL, 'Filter changed', {
+    showDailyRecurringTasks: showDailyRecurringTasks.value,
+  })
+  // 筛选状态已通过 prop 传递给 TaskList 组件
+}
+
+// 点击外部关闭筛选菜单
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (showFilterMenu.value && !target.closest('.filter-dropdown')) {
+    showFilterMenu.value = false
+  }
+}
+
 // 预加载日期范围的任务
 async function loadDateRangeTasks() {
   for (const dateInfo of dateList.value) {
@@ -236,6 +285,14 @@ onMounted(async () => {
 
   // 加载日期范围的任务
   await loadDateRangeTasks()
+
+  // 添加全局点击事件监听
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  // 移除全局点击事件监听
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -252,9 +309,22 @@ onMounted(async () => {
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1.2rem;
   padding: 1.2rem 1.6rem;
   background-color: transparent;
+}
+
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
 }
 
 /* 今天按钮 */
@@ -377,6 +447,77 @@ onMounted(async () => {
 
 .day-count-select:focus {
   outline: none;
+}
+
+/* ==================== 筛选下拉菜单 ==================== */
+.filter-dropdown {
+  position: relative;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+}
+
+.filter-btn:active {
+  transform: scale(0.98);
+}
+
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 0.8rem);
+  right: 0;
+  min-width: 20rem;
+  padding: 0.8rem;
+  background-color: var(--color-background-primary, #faf4ed);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.8rem;
+  box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 10%);
+  z-index: 100;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1.2rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  border-radius: 0.6rem;
+  transition: background-color 0.2s ease;
+}
+
+.filter-option:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+}
+
+.filter-option input[type='checkbox'] {
+  width: 1.6rem;
+  height: 1.6rem;
+  cursor: pointer;
+}
+
+.filter-option span {
+  user-select: none;
 }
 
 /* 任务列表 */
