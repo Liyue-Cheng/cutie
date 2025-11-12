@@ -21,7 +21,7 @@ export const UserSettingsISA: ISADefinition = {
   'user_settings.fetch_all': {
     meta: {
       description: '获取所有用户设置',
-      category: 'user_settings',
+      category: 'system',
       resourceIdentifier: () => ['user_settings:all'],
       priority: 5,
       timeout: 5000,
@@ -43,7 +43,7 @@ export const UserSettingsISA: ISADefinition = {
   'user_settings.get': {
     meta: {
       description: '获取单个设置',
-      category: 'user_settings',
+      category: 'system',
       resourceIdentifier: (payload) => [`user_setting:${payload.key}`],
       priority: 5,
       timeout: 5000,
@@ -71,7 +71,7 @@ export const UserSettingsISA: ISADefinition = {
   'user_settings.update': {
     meta: {
       description: '更新单个设置',
-      category: 'user_settings',
+      category: 'system',
       resourceIdentifier: (payload) => [`user_setting:${payload.key}`],
       priority: 6,
       timeout: 5000,
@@ -96,10 +96,11 @@ export const UserSettingsISA: ISADefinition = {
     request: {
       method: 'PUT',
       url: (payload) => `/user-settings/${payload.key}`,
-      body: (payload) => ({
-        value: payload.value,
-        value_type: payload.value_type,
-      } as UpdateSettingRequest),
+      body: (payload) =>
+        ({
+          value: payload.value,
+          value_type: payload.value_type,
+        }) as UpdateSettingRequest,
     },
 
     commit: async (result: UserSettingDto) => {
@@ -111,7 +112,7 @@ export const UserSettingsISA: ISADefinition = {
   'user_settings.update_batch': {
     meta: {
       description: '批量更新设置',
-      category: 'user_settings',
+      category: 'system',
       resourceIdentifier: () => ['user_settings:batch'],
       priority: 6,
       timeout: 10000,
@@ -154,7 +155,7 @@ export const UserSettingsISA: ISADefinition = {
   'user_settings.reset': {
     meta: {
       description: '重置所有设置为默认值',
-      category: 'user_settings',
+      category: 'system',
       resourceIdentifier: () => ['user_settings:all'],
       priority: 7,
       timeout: 5000,
@@ -174,4 +175,3 @@ export const UserSettingsISA: ISADefinition = {
     },
   },
 }
-

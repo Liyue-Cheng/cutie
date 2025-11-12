@@ -72,6 +72,11 @@ const routes: Array<RouteRecordRaw> = [
 
   // 路由组 2: 全屏的、不使用 MainLayout 的页面
   {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('../views/SettingsView.vue'),
+  },
+  {
     path: '/ai-chat',
     name: 'ai-chat',
     component: () => import('../views/AIChatView.vue'),

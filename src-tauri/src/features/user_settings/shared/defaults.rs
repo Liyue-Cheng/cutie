@@ -12,75 +12,35 @@ pub struct DefaultSetting {
 /// 获取所有默认设置
 pub fn get_default_settings() -> Vec<DefaultSetting> {
     vec![
-        // Appearance 设置
+        // Debug 测试设置 - 用于测试各种数据类型和功能
         DefaultSetting {
-            key: "appearance.language",
-            value: "\"en\"",
+            key: "debug.test_string",
+            value: "\"Hello World\"",
             value_type: ValueType::String,
-            category: SettingCategory::Appearance,
+            category: SettingCategory::Debug,
         },
         DefaultSetting {
-            key: "appearance.display_scale",
-            value: "100",
+            key: "debug.test_number",
+            value: "42",
             value_type: ValueType::Number,
-            category: SettingCategory::Appearance,
+            category: SettingCategory::Debug,
         },
         DefaultSetting {
-            key: "appearance.theme",
-            value: "\"auto\"",
-            value_type: ValueType::String,
-            category: SettingCategory::Appearance,
-        },
-        // Behavior 设置
-        DefaultSetting {
-            key: "behavior.default_task_duration",
-            value: "30",
-            value_type: ValueType::Number,
-            category: SettingCategory::Behavior,
-        },
-        DefaultSetting {
-            key: "behavior.work_hours_start",
-            value: "\"09:00\"",
-            value_type: ValueType::String,
-            category: SettingCategory::Behavior,
-        },
-        DefaultSetting {
-            key: "behavior.work_hours_end",
-            value: "\"18:00\"",
-            value_type: ValueType::String,
-            category: SettingCategory::Behavior,
-        },
-        // Data 设置
-        DefaultSetting {
-            key: "data.auto_archive_days",
-            value: "30",
-            value_type: ValueType::Number,
-            category: SettingCategory::Data,
-        },
-        // Account 设置
-        DefaultSetting {
-            key: "account.user_name",
-            value: "\"\"",
-            value_type: ValueType::String,
-            category: SettingCategory::Account,
-        },
-        DefaultSetting {
-            key: "account.user_email",
-            value: "\"\"",
-            value_type: ValueType::String,
-            category: SettingCategory::Account,
-        },
-        // Debug 设置
-        DefaultSetting {
-            key: "debug.show_logs",
+            key: "debug.test_boolean",
             value: "false",
             value_type: ValueType::Boolean,
             category: SettingCategory::Debug,
         },
         DefaultSetting {
-            key: "debug.log_level",
-            value: "\"info\"",
-            value_type: ValueType::String,
+            key: "debug.test_float",
+            value: "3.14",
+            value_type: ValueType::Number,
+            category: SettingCategory::Debug,
+        },
+        DefaultSetting {
+            key: "debug.test_toggle",
+            value: "true",
+            value_type: ValueType::Boolean,
             category: SettingCategory::Debug,
         },
     ]

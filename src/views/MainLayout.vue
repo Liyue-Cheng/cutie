@@ -1,6 +1,6 @@
 <template>
-  <SettingsView v-if="isSettingsOpen" @close="isSettingsOpen = false" />
   <AreaManager v-if="isAreaManagerOpen" @close="isAreaManagerOpen = false" />
+  <SettingsModal :show="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
     <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
       <div class="window-controls" @mousedown.stop>
@@ -90,7 +90,7 @@
               <CuteIcon name="Tag" :size="16" />
               <span>Areas</span>
             </li>
-            <li @click="isSettingsOpen = !isSettingsOpen">
+            <li @click="isSettingsOpen = true">
               <CuteIcon name="Settings" :size="16" />
               <span>{{ $t('sidebar.settings') }}</span>
             </li>
@@ -114,9 +114,9 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import CuteButton from '../components/parts/CuteButton.vue'
 import CuteIcon from '../components/parts/CuteIcon.vue'
 import CutePane from '../components/alias/CutePane.vue'
-import SettingsView from '../components/temp/TempSetting.vue'
 import AreaManager from '../components/parts/AreaManager.vue'
 import QuickAddTaskDialog from '../components/parts/QuickAddTaskDialog.vue'
+import SettingsModal from '../components/settings/SettingsModal.vue'
 import { useRegisterStore } from '../stores/register'
 import { useMidnightRefresh } from '../composables/useMidnightRefresh'
 
@@ -128,8 +128,8 @@ const registerStore = useRegisterStore()
 useMidnightRefresh()
 
 const isLegacyOpen = ref(false)
-const isSettingsOpen = ref(false)
 const isAreaManagerOpen = ref(false)
+const isSettingsOpen = ref(false)
 const showQuickAddDialog = ref(false)
 
 // 导航到 Legacy Home 并设置模式

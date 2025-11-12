@@ -130,6 +130,12 @@ initializeApiConfig()
     const areaStore = useAreaStore()
     await areaStore.fetchAreas()
     logger.info('System:Init', 'All areas loaded')
+
+    // ✅ 初始化用户设置 Store 的事件订阅
+    const { useUserSettingsStore } = await import('@/stores/user-settings')
+    const userSettingsStore = useUserSettingsStore()
+    userSettingsStore.initEventSubscriptions()
+    logger.info('System:Init', 'User settings store initialized')
   })
   .catch((error) => {
     logger.error('System:Init', 'Failed to initialize API configuration', error)
