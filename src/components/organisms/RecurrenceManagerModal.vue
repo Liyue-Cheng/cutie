@@ -122,12 +122,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
-import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
+import RecurrenceEditDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useTemplateStore } from '@/stores/template'
 import { useTaskStore } from '@/stores/task'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 import type { TaskRecurrence } from '@/types/dtos'
 
 interface Props {
@@ -145,11 +146,6 @@ const templateStore = useTemplateStore()
 const taskStore = useTaskStore()
 const isLoading = ref(false)
 const editingRecurrence = ref<TaskRecurrence | null>(null)
-
-// 获取今天的日期字符串
-function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0]!
-}
 
 // 获取所有循环规则（按激活状态排序）
 const recurrences = computed(() => {
