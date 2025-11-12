@@ -11,8 +11,7 @@ use serde::Deserialize;
 use crate::{
     entities::{TimeBlock, TimeBlockViewDto},
     features::{
-        shared::assemblers::LinkedTaskAssembler,
-        shared::repositories::TimeBlockRepository,
+        shared::assemblers::LinkedTaskAssembler, shared::repositories::TimeBlockRepository,
     },
     infra::{core::AppResult, http::error_handler::success_response},
     startup::AppState,

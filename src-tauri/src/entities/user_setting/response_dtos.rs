@@ -8,19 +8,19 @@ use super::model::{SettingCategory, UserSetting, ValueType};
 pub struct UserSettingDto {
     /// 设置键
     pub setting_key: String,
-    
+
     /// 设置值 (JSON)
     pub setting_value: String,
-    
+
     /// 值的类型
     pub value_type: ValueType,
-    
+
     /// 设置分类
     pub category: SettingCategory,
-    
+
     /// 最后更新时间
     pub updated_at: DateTime<Utc>,
-    
+
     /// 创建时间
     pub created_at: DateTime<Utc>,
 }
@@ -43,7 +43,7 @@ impl From<UserSetting> for UserSettingDto {
 pub struct BatchUpdateResponse {
     /// 更新的设置数量
     pub updated_count: usize,
-    
+
     /// 更新后的设置列表
     pub settings: Vec<UserSettingDto>,
 }
@@ -53,8 +53,7 @@ pub struct BatchUpdateResponse {
 pub struct ResetResponse {
     /// 重置的设置数量
     pub reset_count: usize,
-    
+
     /// 默认设置列表
     pub settings: Vec<UserSettingDto>,
 }
-

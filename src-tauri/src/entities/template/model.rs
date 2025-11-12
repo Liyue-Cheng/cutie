@@ -1,7 +1,6 @@
 /// Template核心模型
 ///
 /// 从shared/core/models/template.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;

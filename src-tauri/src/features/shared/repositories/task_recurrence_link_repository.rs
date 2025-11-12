@@ -4,8 +4,8 @@ use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    infra::core::{AppError, AppResult, DbError},
     entities::{TaskRecurrenceLink, TaskRecurrenceLinkRow},
+    infra::core::{AppError, AppResult, DbError},
 };
 
 pub struct TaskRecurrenceLinkRepository;

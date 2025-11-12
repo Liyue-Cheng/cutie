@@ -24,13 +24,10 @@ const uiStore = useUIStore()
 onMounted(async () => {
   logger.info(LogTags.VIEW_STAGING, 'Initializing staging view, loading data...')
   // 加载必要的数据
-  await Promise.all([
-    areaStore.fetchAreas(),
-    taskStore.fetchAllIncompleteTasks_DMA()
-  ])
+  await Promise.all([areaStore.fetchAll(), taskStore.fetchAllIncompleteTasks_DMA()])
   logger.info(LogTags.VIEW_STAGING, 'Staging view data loaded', {
     areaCount: areaStore.allAreas.length,
-    taskCount: taskStore.incompleteTasks.length
+    taskCount: taskStore.incompleteTasks.length,
   })
 })
 
@@ -72,10 +69,7 @@ function handleKanbanCountChange(count: number) {
           </div>
         </template>
         <template #bottom>
-          <InfiniteAreaKanban
-            ref="kanbanRef"
-            @kanban-count-change="handleKanbanCountChange"
-          />
+          <InfiniteAreaKanban ref="kanbanRef" @kanban-count-change="handleKanbanCountChange" />
         </template>
       </TwoRowLayout>
     </div>

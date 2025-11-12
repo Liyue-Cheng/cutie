@@ -104,6 +104,13 @@ export function createUserSettingsCore() {
   })
 
   /**
+   * 获取 AI 设置
+   */
+  const aiSettings = computed(() => {
+    return settingsByCategory.value.get('ai') || []
+  })
+
+  /**
    * Mux: 根据 key 获取设置值（多路复用器）
    * 自动解析 JSON 并返回实际值
    */
@@ -116,7 +123,7 @@ export function createUserSettingsCore() {
     try {
       return JSON.parse(setting.setting_value) as T
     } catch (error) {
-      logger.warn(LogTags.STORE, 'Failed to parse setting value', {
+      logger.warn(LogTags.STORE_USER_SETTINGS, 'Failed to parse setting value', {
         key,
         value: setting.setting_value,
         error,
@@ -200,7 +207,7 @@ export function createUserSettingsCore() {
    */
   function addOrUpdateSetting_mut(setting: UserSettingDto) {
     settings.value.set(setting.setting_key, setting)
-    logger.debug(LogTags.STORE, 'Setting updated in store', {
+    logger.debug(LogTags.STORE_USER_SETTINGS, 'Setting updated in store', {
       key: setting.setting_key,
       value: setting.setting_value,
     })
@@ -213,7 +220,7 @@ export function createUserSettingsCore() {
     for (const setting of settingsList) {
       settings.value.set(setting.setting_key, setting)
     }
-    logger.debug(LogTags.STORE, 'Batch settings updated in store', {
+    logger.debug(LogTags.STORE_USER_SETTINGS, 'Batch settings updated in store', {
       count: settingsList.length,
     })
   }
@@ -223,7 +230,7 @@ export function createUserSettingsCore() {
    */
   function clearAll_mut() {
     settings.value.clear()
-    logger.debug(LogTags.STORE, 'All settings cleared from store')
+    logger.debug(LogTags.STORE_USER_SETTINGS, 'All settings cleared from store')
   }
 
   /**
@@ -232,7 +239,7 @@ export function createUserSettingsCore() {
    */
   function replaceAll_mut(newSettings: UserSettingDto[]) {
     settings.value = new Map(newSettings.map((s) => [s.setting_key, s]))
-    logger.info(LogTags.STORE, 'All settings replaced in store', {
+    logger.info(LogTags.STORE_USER_SETTINGS, 'All settings replaced in store', {
       count: newSettings.length,
     })
   }
@@ -253,6 +260,7 @@ export function createUserSettingsCore() {
     dataSettings,
     accountSettings,
     debugSettings,
+    aiSettings,
 
     // Mux
     getSettingValue,
@@ -278,4 +286,3 @@ export function createUserSettingsCore() {
     replaceAll_mut,
   }
 }
-

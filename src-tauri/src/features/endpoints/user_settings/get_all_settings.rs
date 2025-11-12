@@ -7,10 +7,7 @@ use axum::{
 use crate::{
     entities::user_setting::UserSettingDto,
     features::user_settings::shared::{create_all_default_entities, UserSettingRepository},
-    infra::{
-        core::AppResult,
-        http::error_handler::success_response,
-    },
+    infra::{core::AppResult, http::error_handler::success_response},
     startup::AppState,
 };
 

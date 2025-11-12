@@ -1,8 +1,8 @@
+use explore_lib::features::shared::repositories::TaskRepository;
 /// 单元测试：TaskRepository
 ///
 /// 测试 Repository 层的数据访问逻辑
 use explore_lib::features::shared::TransactionHelper;
-use explore_lib::features::shared::repositories::TaskRepository;
 
 mod infrastructure {
     pub use crate::infrastructure::*;
@@ -140,4 +140,3 @@ async fn test_list_non_deleted_tasks() {
     assert!(found2.is_none(), "Task 2 should be deleted");
     assert!(found3.is_some(), "Task 3 should exist");
 }
-

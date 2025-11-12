@@ -419,14 +419,15 @@ mod database {
 
         // 🔥 在代码中按本地日期过滤（与 TaskAssembler 相同的逻辑）
         for row in rows {
-            let time_block = TimeBlock::try_from(row).map_err(|e| {
-                AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
-            })?;
+            let time_block = TimeBlock::try_from(row)
+                .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))?;
 
             // 🔥 使用系统本地时区转换 UTC 时间到本地日期
             use chrono::Local;
             let local_start = time_block.start_time.with_timezone(&Local);
-            let formatted_date = crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
+            let formatted_date = crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(
+                &local_start.date_naive(),
+            );
 
             // 只保留匹配日期的时间片
             if formatted_date == scheduled_date {

@@ -114,4 +114,3 @@ async fn test_create_task_with_long_title_error() {
         "Title > 255 chars should fail"
     );
 }
-

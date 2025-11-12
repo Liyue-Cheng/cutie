@@ -288,17 +288,20 @@ mod logic {
         // 验证分时事件不能跨天
         if !final_is_all_day {
             // ✅ 根据时间类型选择不同的跨天检测方式
-            let crosses_day = if final_time_type == crate::entities::time_block::TimeType::Floating {
+            let crosses_day = if final_time_type == crate::entities::time_block::TimeType::Floating
+            {
                 // 浮动时间：检测本地时间部分是否跨天
-                let final_start_local = request.start_time_local
+                let final_start_local = request
+                    .start_time_local
                     .clone()
                     .flatten()
                     .or_else(|| existing_block.start_time_local.clone());
-                let final_end_local = request.end_time_local
+                let final_end_local = request
+                    .end_time_local
                     .clone()
                     .flatten()
                     .or_else(|| existing_block.end_time_local.clone());
-                
+
                 if let (Some(start_local), Some(end_local)) = (final_start_local, final_end_local) {
                     // 对于浮动时间，只要 end_local < start_local 就说明跨天了
                     // 例如：start_local = "23:00:00", end_local = "01:00:00" → 跨天
@@ -315,7 +318,7 @@ mod logic {
                 let local_end = final_end_time.with_timezone(&Local);
                 local_start.date_naive() != local_end.date_naive()
             };
-            
+
             if crosses_day {
                 return Err(AppError::validation_error(
                     "time_range",
@@ -358,7 +361,10 @@ mod logic {
         let now = app_state.clock().now_utc();
 
         // 9. 检测是否跨天移动，处理日程的创建和删除
-        let old_day = existing_block.start_time.with_timezone(&chrono::Local).date_naive();
+        let old_day = existing_block
+            .start_time
+            .with_timezone(&chrono::Local)
+            .date_naive();
         let new_day = final_start_time.with_timezone(&chrono::Local).date_naive();
         let day_changed = old_day != new_day;
 
@@ -368,7 +374,8 @@ mod logic {
             use crate::infra::core::utils::time_utils;
 
             // 获取该时间片关联的所有任务
-            let linked_task_ids = TaskTimeBlockLinkRepository::get_task_ids_for_block_in_tx(&mut tx, id).await?;
+            let linked_task_ids =
+                TaskTimeBlockLinkRepository::get_task_ids_for_block_in_tx(&mut tx, id).await?;
 
             for task_id in &linked_task_ids {
                 let old_day_str = time_utils::format_date_yyyy_mm_dd(&old_day);
@@ -378,8 +385,9 @@ mod logic {
                 let has_new_day_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
                     &mut tx,
                     *task_id,
-                    &new_day_str
-                ).await?;
+                    &new_day_str,
+                )
+                .await?;
 
                 if !has_new_day_schedule {
                     TaskScheduleRepository::create_in_tx(&mut tx, *task_id, &new_day_str).await?;
@@ -392,20 +400,23 @@ mod logic {
                 }
 
                 // 2. 检查原天是否还有其他时间片
-                let other_blocks_on_old_day = TimeBlockRepository::count_blocks_for_task_on_day_in_tx(
-                    &mut tx,
-                    *task_id,
-                    &old_day_str,
-                    Some(id) // 排除当前时间片
-                ).await?;
+                let other_blocks_on_old_day =
+                    TimeBlockRepository::count_blocks_for_task_on_day_in_tx(
+                        &mut tx,
+                        *task_id,
+                        &old_day_str,
+                        Some(id), // 排除当前时间片
+                    )
+                    .await?;
 
                 // 如果原天没有其他时间片了，删除该天的日程
                 if other_blocks_on_old_day == 0 {
                     TaskScheduleRepository::delete_schedule_for_day_in_tx(
                         &mut tx,
                         *task_id,
-                        &old_day_str
-                    ).await?;
+                        &old_day_str,
+                    )
+                    .await?;
                     tracing::info!(
                         "Deleted schedule for task {} on {} (no more time blocks)",
                         task_id,

@@ -20,4 +20,3 @@ pub fn create_routes() -> Router<AppState> {
         .route("/:key", get(get_setting::handle))
         .route("/:key", put(update_setting::handle))
 }
-

@@ -6,7 +6,6 @@
 /// - entities 层保持纯粹的数据结构定义
 /// - 业务逻辑集中在 features 层
 /// - 易于测试和维护
-
 use crate::entities::task::TaskScheduleDto;
 use crate::entities::{
     DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleStatus, SubtaskDto, Task,
@@ -98,10 +97,8 @@ impl TaskAssembler {
         pool: &sqlx::SqlitePool,
     ) -> AppResult<()> {
         // 收集所有需要查询的 recurrence_id
-        let recurrence_ids: Vec<Uuid> = cards
-            .iter()
-            .filter_map(|card| card.recurrence_id)
-            .collect();
+        let recurrence_ids: Vec<Uuid> =
+            cards.iter().filter_map(|card| card.recurrence_id).collect();
 
         if recurrence_ids.is_empty() {
             return Ok(());
@@ -123,20 +120,19 @@ impl TaskAssembler {
             q = q.bind(id.to_string());
         }
 
-        let results: Vec<(String, String)> = q
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                crate::infra::core::AppError::DatabaseError(
-                    crate::infra::core::DbError::ConnectionError(e),
-                )
-            })?;
+        let results: Vec<(String, String)> = q.fetch_all(pool).await.map_err(|e| {
+            crate::infra::core::AppError::DatabaseError(
+                crate::infra::core::DbError::ConnectionError(e),
+            )
+        })?;
 
         // 构建 id -> expiry_behavior 的映射
         let expiry_map: std::collections::HashMap<Uuid, String> = results
             .into_iter()
             .filter_map(|(id_str, expiry_behavior)| {
-                Uuid::parse_str(&id_str).ok().map(|id| (id, expiry_behavior))
+                Uuid::parse_str(&id_str)
+                    .ok()
+                    .map(|id| (id, expiry_behavior))
             })
             .collect();
 

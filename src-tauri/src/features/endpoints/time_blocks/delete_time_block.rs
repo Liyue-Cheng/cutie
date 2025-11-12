@@ -253,7 +253,7 @@ mod logic {
         {
             // ✅ 使用统一的响应结构作为事件载荷
             let payload = serde_json::to_value(&response)?;
-            
+
             let mut event = DomainEvent::new(
                 "time_blocks.deleted",
                 "TimeBlock",

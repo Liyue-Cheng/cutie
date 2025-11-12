@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import TimelineDayCell from './TimelineDayCell.vue'
 import { useTaskStore } from '@/stores/task'
 import { useTimeBlockStore } from '@/stores/timeblock'
-import { useAreaStore } from '@/stores/area'
 import type { TaskCard, TimeBlockView } from '@/types/dtos'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 import type { MonthViewFilters } from '@/composables/calendar/useCalendarEvents'
@@ -30,7 +29,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const taskStore = useTaskStore()
 const timeBlockStore = useTimeBlockStore()
-const areaStore = useAreaStore()
 
 interface DayData {
   date: string
@@ -46,7 +44,9 @@ const leftColumn = ref<DayData[]>([])
 const rightColumn = ref<DayData[]>([])
 
 function getDaysInMonth(yearMonth: string): number {
-  const [year, month] = yearMonth.split('-').map(Number)
+  const [yearStr, monthStr] = yearMonth.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
   return new Date(year, month, 0).getDate()
 }
 
@@ -57,8 +57,9 @@ function isWeekend(dateStr: string): boolean {
 }
 
 function buildTimelineData() {
-  const filters = props.monthViewFilters
-  const [year, month] = props.currentMonth.split('-').map(Number)
+  const [yearStr, monthStr] = props.currentMonth.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
   const daysInMonth = getDaysInMonth(props.currentMonth)
   const today = getTodayDateString()
 

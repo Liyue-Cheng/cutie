@@ -8,4 +8,3 @@ pub struct ViewPreferenceDto {
     pub sorted_task_ids: Vec<String>,
     pub updated_at: DateTime<Utc>,
 }
-

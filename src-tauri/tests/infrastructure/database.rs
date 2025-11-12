@@ -69,4 +69,3 @@ pub async fn create_test_db() -> Result<TestDb, Box<dyn std::error::Error>> {
 
     Ok(TestDb { pool, temp_dir })
 }
-

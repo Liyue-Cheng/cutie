@@ -7,7 +7,7 @@ use super::model::ValueType;
 pub struct UpdateSettingRequest {
     /// 设置值 (JSON 序列化的字符串)
     pub value: serde_json::Value,
-    
+
     /// 值的类型
     pub value_type: ValueType,
 }
@@ -24,11 +24,10 @@ pub struct UpdateBatchSettingsRequest {
 pub struct SettingUpdate {
     /// 设置键
     pub key: String,
-    
+
     /// 设置值
     pub value: serde_json::Value,
-    
+
     /// 值的类型
     pub value_type: ValueType,
 }
-

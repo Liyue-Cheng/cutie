@@ -233,7 +233,9 @@ mod logic {
 
         // 5. 创建循环规则
         let time_type = request.time_type.unwrap_or(TimeType::Floating);
-        let expiry_behavior = request.expiry_behavior.unwrap_or(ExpiryBehavior::CarryoverToStaging);
+        let expiry_behavior = request
+            .expiry_behavior
+            .unwrap_or(ExpiryBehavior::CarryoverToStaging);
         let recurrence = TaskRecurrence {
             id,
             template_id: request.template_id,

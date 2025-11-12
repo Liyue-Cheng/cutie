@@ -1,3 +1,4 @@
+pub mod enums;
 /// Task概念的所有数据结构
 ///
 /// 包含：
@@ -8,12 +9,11 @@
 pub mod model;
 pub mod request_dtos;
 pub mod response_dtos;
-pub mod enums;
 pub mod values;
 
 // 重新导出所有类型
+pub use enums::*;
 pub use model::*;
 pub use request_dtos::*;
 pub use response_dtos::*;
-pub use enums::*;
 pub use values::*;

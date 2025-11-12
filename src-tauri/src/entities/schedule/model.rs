@@ -1,7 +1,6 @@
 /// TaskSchedule核心模型
 ///
 /// 从shared/core/models/task_schedule.rs迁移而来
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -79,12 +78,7 @@ impl TryFrom<TaskScheduleRow> for TaskSchedule {
 
 impl TaskSchedule {
     /// 创建新的任务日程
-    pub fn new(
-        id: Uuid,
-        task_id: Uuid,
-        scheduled_date: String,
-        created_at: DateTime<Utc>,
-    ) -> Self {
+    pub fn new(id: Uuid, task_id: Uuid, scheduled_date: String, created_at: DateTime<Utc>) -> Self {
         Self {
             id,
             task_id,

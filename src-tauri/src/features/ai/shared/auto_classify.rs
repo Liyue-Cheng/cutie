@@ -4,7 +4,7 @@
 use crate::infra::core::error::AppResult;
 use uuid::Uuid;
 
-use super::client::OpenAIClient;
+use super::{client::OpenAIClient, settings::AiModelConfig};
 
 /// Area 摘要（用于 AI 分类）
 #[derive(Debug, Clone)]
@@ -19,8 +19,17 @@ pub struct AreaOption {
 pub async fn classify_task_area(
     task_title: &str,
     available_areas: &[AreaOption],
+    model_config: &AiModelConfig,
 ) -> AppResult<Option<Uuid>> {
     if available_areas.is_empty() {
+        return Ok(None);
+    }
+
+    if !model_config.is_complete() {
+        tracing::warn!(
+            target: "AI:CLASSIFY",
+            "Quick model configuration is incomplete, skipping classification"
+        );
         return Ok(None);
     }
 
@@ -49,7 +58,7 @@ pub async fn classify_task_area(
         task_title, areas_list
     );
 
-    let client = OpenAIClient::new();
+    let client = OpenAIClient::new(model_config.clone());
 
     // 构建消息
     let messages = vec![crate::entities::ai::ChatMessage {

@@ -32,6 +32,7 @@ export const useUserSettingsStore = defineStore('user-settings', () => {
     dataSettings: core.dataSettings,
     accountSettings: core.accountSettings,
     debugSettings: core.debugSettings,
+    aiSettings: core.aiSettings,
 
     // Mux
     getSettingValue: core.getSettingValue,

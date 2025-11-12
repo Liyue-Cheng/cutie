@@ -9,24 +9,28 @@ use async_openai::{
     Client,
 };
 
-use super::config::{
-    DEFAULT_MAX_TOKENS, DEFAULT_MODEL, OPENAI_API_KEY, OPENAI_BASE_URL, REQUEST_TIMEOUT_SECS,
+use super::{
+    config::{DEFAULT_MAX_TOKENS, REQUEST_TIMEOUT_SECS},
+    settings::AiModelConfig,
 };
 
 /// OpenAI 客户端封装
 pub struct OpenAIClient {
     client: Client<OpenAIConfig>,
+    config: AiModelConfig,
 }
 
 impl OpenAIClient {
     /// 创建新的 OpenAI 客户端
-    pub fn new() -> Self {
+    pub fn new(model_config: AiModelConfig) -> Self {
+        let base_for_client = format!("{}/", model_config.api_base_url);
         let config = OpenAIConfig::new()
-            .with_api_key(OPENAI_API_KEY)
-            .with_api_base(OPENAI_BASE_URL);
+            .with_api_key(model_config.api_key.clone())
+            .with_api_base(base_for_client);
 
         Self {
             client: Client::with_config(config),
+            config: model_config,
         }
     }
 
@@ -144,7 +148,7 @@ impl OpenAIClient {
         let response = if disable_thinking {
             // 构建请求体（包含 thinking.type: disabled）
             let request_body = serde_json::json!({
-                "model": DEFAULT_MODEL,
+                "model": self.config.model.clone(),
                 "messages": request_messages.iter().map(|msg| {
                     match msg {
                         ChatCompletionRequestMessage::System(m) => {
@@ -185,8 +189,11 @@ impl OpenAIClient {
             let api_response = tokio::time::timeout(
                 std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS),
                 client
-                    .post(format!("{}/chat/completions", OPENAI_BASE_URL))
-                    .header("Authorization", format!("Bearer {}", OPENAI_API_KEY))
+                    .post(self.chat_endpoint())
+                    .header(
+                        "Authorization",
+                        format!("Bearer {}", self.config.api_key.as_str()),
+                    )
                     .header("Content-Type", "application/json")
                     .json(&request_body)
                     .send(),
@@ -223,14 +230,14 @@ impl OpenAIClient {
                 },
                 model: response_json["model"]
                     .as_str()
-                    .unwrap_or(DEFAULT_MODEL)
+                    .unwrap_or(self.config.model.as_str())
                     .to_string(),
                 response_time_ms,
             });
         } else {
             // 使用标准的 async-openai 客户端
             let request = CreateChatCompletionRequestArgs::default()
-                .model(DEFAULT_MODEL)
+                .model(self.config.model.clone())
                 .messages(request_messages)
                 .max_tokens(max_tokens.unwrap_or(DEFAULT_MAX_TOKENS))
                 .build()
@@ -279,10 +286,8 @@ impl OpenAIClient {
             response_time_ms,
         })
     }
-}
 
-impl Default for OpenAIClient {
-    fn default() -> Self {
-        Self::new()
+    fn chat_endpoint(&self) -> String {
+        format!("{}/chat/completions", self.config.api_base_url)
     }
 }

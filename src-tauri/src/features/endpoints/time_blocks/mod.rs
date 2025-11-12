@@ -1,7 +1,6 @@
 /// Time Block endpoints
-/// 
+///
 /// 时间块相关的HTTP端点
-
 pub use create_from_task::handle as create_from_task;
 pub use create_time_block::handle as create_time_block;
 pub use delete_time_block::handle as delete_time_block;

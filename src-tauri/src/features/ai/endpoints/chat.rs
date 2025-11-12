@@ -4,7 +4,6 @@
 /// 1. 使用 async-openai SDK 调用 OpenAI API
 /// 2. 支持多模态输入（文本 + 图片）
 /// 3. 配置在 shared/config.rs 中写死（仅开发用）
-
 // ==================== CABC 文档 ====================
 /*
 CABC for `ai_chat`
@@ -82,7 +81,6 @@ POST /api/ai/chat
 ### 不变量:
 - 不修改任何持久化数据
 */
-
 // ==================== 依赖引入 ====================
 use axum::{extract::State, response::IntoResponse, Json};
 
@@ -95,11 +93,14 @@ use crate::{
     startup::AppState,
 };
 
-use super::super::shared::OpenAIClient;
+use super::super::shared::{load_conversation_model_config, OpenAIClient};
 
 // ==================== HTTP 处理器 ====================
-pub async fn handle(State(_app_state): State<AppState>, Json(request): Json<AiChatRequest>) -> impl IntoResponse {
-    match logic::execute(request).await {
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Json(request): Json<AiChatRequest>,
+) -> impl IntoResponse {
+    match logic::execute(&app_state, request).await {
         Ok(response) => success_response(response).into_response(),
         Err(err) => err.into_response(),
     }
@@ -144,14 +145,22 @@ mod validation {
 mod logic {
     use super::*;
 
-    pub async fn execute(request: AiChatRequest) -> AppResult<AiChatResponse> {
+    pub async fn execute(
+        app_state: &AppState,
+        request: AiChatRequest,
+    ) -> AppResult<AiChatResponse> {
         // 1. 验证
         validation::validate_request(&request)?;
 
-        // 2. 创建 OpenAI 客户端
-        let client = OpenAIClient::new();
+        // 2. 加载对话模型配置
+        let model_config = load_conversation_model_config(app_state.db_pool())
+            .await?
+            .require_complete("AI conversation model")?;
 
-        // 3. 调用 OpenAI API
+        // 3. 创建 OpenAI 客户端
+        let client = OpenAIClient::new(model_config);
+
+        // 4. 调用 OpenAI API
         let response = client
             .chat(request.messages, request.system, request.max_tokens)
             .await?;
@@ -159,4 +168,3 @@ mod logic {
         Ok(response)
     }
 }
-

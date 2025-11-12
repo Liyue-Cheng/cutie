@@ -61,6 +61,7 @@ impl UserSettingRepository {
             SettingCategory::Account => "account",
             SettingCategory::Debug => "debug",
             SettingCategory::System => "system",
+            SettingCategory::Ai => "ai",
         };
 
         let settings = sqlx::query_as::<_, UserSetting>(
@@ -93,6 +94,7 @@ impl UserSettingRepository {
             SettingCategory::Account => "account",
             SettingCategory::Debug => "debug",
             SettingCategory::System => "system",
+            SettingCategory::Ai => "ai",
         };
 
         let value_type_str = match setting.value_type {
@@ -158,6 +160,7 @@ impl UserSettingRepository {
                 SettingCategory::Account => "account",
                 SettingCategory::Debug => "debug",
                 SettingCategory::System => "system",
+                SettingCategory::Ai => "ai",
             };
 
             let value_type_str = match setting.value_type {

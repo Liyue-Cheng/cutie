@@ -20,4 +20,5 @@ pub fn create_routes() -> Router<AppState> {
         .route("/:id", get(endpoints::get_area))
         .route("/:id", patch(endpoints::update_area)) // ✅ 修正：PUT -> PATCH (部分更新)
         .route("/:id", delete(endpoints::delete_area))
+        .route("/suggest-color", post(endpoints::suggest_color)) // AI 自动染色
 }

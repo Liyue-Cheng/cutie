@@ -95,7 +95,7 @@ impl PaginationParams {
     /// 创建新的分页参数
     pub fn new(page: u32, page_size: u32) -> Self {
         Self {
-            page: page.max(1), // 确保页码至少为1
+            page: page.max(1),                    // 确保页码至少为1
             page_size: page_size.max(1).min(100), // 限制页面大小在1-100之间
         }
     }
@@ -195,7 +195,12 @@ impl PaginationQuery {
     }
 
     /// 添加过滤条件
-    pub fn filter(mut self, field: impl Into<String>, operator: FilterOperator, value: impl Into<String>) -> Self {
+    pub fn filter(
+        mut self,
+        field: impl Into<String>,
+        operator: FilterOperator,
+        value: impl Into<String>,
+    ) -> Self {
         self.filters.push(FilterCondition {
             field: field.into(),
             operator,
@@ -220,7 +225,11 @@ impl PaginationQuery {
 
     /// 构建SQL的LIMIT和OFFSET子句
     pub fn build_limit_offset(&self) -> String {
-        format!("LIMIT {} OFFSET {}", self.params.limit(), self.params.offset())
+        format!(
+            "LIMIT {} OFFSET {}",
+            self.params.limit(),
+            self.params.offset()
+        )
     }
 }
 
@@ -324,8 +333,7 @@ mod tests {
 
     #[test]
     fn test_pagination_query_sql_building() {
-        let query = PaginationQuery::new(2, 5)
-            .sort_by("name", SortOrder::Asc);
+        let query = PaginationQuery::new(2, 5).sort_by("name", SortOrder::Asc);
 
         assert_eq!(query.build_order_by(), "ORDER BY name ASC");
         assert_eq!(query.build_limit_offset(), "LIMIT 5 OFFSET 5");
@@ -337,4 +345,3 @@ mod tests {
         assert_eq!(query.build_order_by(), "");
     }
 }
-

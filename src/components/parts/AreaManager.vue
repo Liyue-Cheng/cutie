@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useAreaStore } from '@/stores/area'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import { pipeline } from '@/cpu'
 
 defineEmits(['close'])
 
@@ -10,21 +11,48 @@ const areaStore = useAreaStore()
 const newAreaName = ref('')
 const newAreaColor = ref('#4A90E2')
 const editingArea = ref<{ id: string; name: string; color: string } | null>(null)
+const isAiColorLoading = ref(false)
+const isEditAiColorLoading = ref(false)
 
 onMounted(async () => {
-  await areaStore.fetchAreas()
+  await areaStore.fetchAll()
 })
 
 async function handleCreate() {
   if (!newAreaName.value.trim()) return
 
-  await areaStore.createArea({
-    name: newAreaName.value.trim(),
-    color: newAreaColor.value,
-  })
+  try {
+    await pipeline.dispatch('area.create', {
+      name: newAreaName.value.trim(),
+      color: newAreaColor.value,
+    })
 
-  newAreaName.value = ''
-  newAreaColor.value = '#4A90E2'
+    newAreaName.value = ''
+    newAreaColor.value = '#4A90E2'
+  } catch (error) {
+    console.error('创建 Area 失败:', error)
+    alert(`创建失败: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+async function handleAiSuggestColor() {
+  if (!newAreaName.value.trim()) {
+    alert('请先输入 Area 名称')
+    return
+  }
+
+  isAiColorLoading.value = true
+  try {
+    const result = await pipeline.dispatch('area.suggest_color', {
+      area_name: newAreaName.value.trim(),
+    })
+    newAreaColor.value = result.suggested_color
+  } catch (error) {
+    console.error('AI 染色失败:', error)
+    alert(`AI 染色失败: ${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    isAiColorLoading.value = false
+  }
 }
 
 function startEdit(area: (typeof areaStore.allAreas)[0]) {
@@ -42,17 +70,48 @@ function cancelEdit() {
 async function saveEdit() {
   if (!editingArea.value) return
 
-  await areaStore.updateArea(editingArea.value.id, {
-    name: editingArea.value.name,
-    color: editingArea.value.color,
-  })
+  try {
+    await pipeline.dispatch('area.update', {
+      id: editingArea.value.id,
+      name: editingArea.value.name,
+      color: editingArea.value.color,
+    })
 
-  editingArea.value = null
+    editingArea.value = null
+  } catch (error) {
+    console.error('更新 Area 失败:', error)
+    alert(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+async function handleEditAiSuggestColor() {
+  if (!editingArea.value?.name.trim()) {
+    alert('请先输入 Area 名称')
+    return
+  }
+
+  isEditAiColorLoading.value = true
+  try {
+    const result = await pipeline.dispatch('area.suggest_color', {
+      area_name: editingArea.value.name.trim(),
+    })
+    editingArea.value.color = result.suggested_color
+  } catch (error) {
+    console.error('AI 染色失败:', error)
+    alert(`AI 染色失败: ${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    isEditAiColorLoading.value = false
+  }
 }
 
 async function handleDelete(id: string) {
   if (confirm('确定要删除这个 Area 吗？这将影响所有关联的任务。')) {
-    await areaStore.deleteArea(id)
+    try {
+      await pipeline.dispatch('area.delete', { id })
+    } catch (error) {
+      console.error('删除 Area 失败:', error)
+      alert(`删除失败: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 }
 </script>
@@ -83,6 +142,16 @@ async function handleDelete(id: string) {
             <input v-model="newAreaColor" type="color" class="color-input" title="选择颜色" />
             <div class="color-preview" :style="{ backgroundColor: newAreaColor }"></div>
           </div>
+          <button
+            class="ai-color-btn"
+            @click="handleAiSuggestColor"
+            :disabled="!newAreaName.trim() || isAiColorLoading"
+            title="AI 自动染色"
+          >
+            <CuteIcon name="Sparkles" :size="16" />
+            <span v-if="!isAiColorLoading">AI</span>
+            <span v-else>...</span>
+          </button>
           <button
             class="add-btn"
             @click="handleCreate"
@@ -136,6 +205,14 @@ async function handleDelete(id: string) {
                   />
                 </div>
                 <div class="edit-actions">
+                  <button
+                    class="edit-btn ai"
+                    @click="handleEditAiSuggestColor"
+                    :disabled="!editingArea.name.trim() || isEditAiColorLoading"
+                    title="AI 自动染色"
+                  >
+                    <CuteIcon name="Sparkles" :size="14" />
+                  </button>
                   <button class="edit-btn save" @click="saveEdit" title="保存">
                     <CuteIcon name="Check" :size="16" />
                   </button>
@@ -309,6 +386,48 @@ async function handleDelete(id: string) {
 .color-picker-wrapper:hover .color-preview {
   transform: scale(1.05);
   box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 10%);
+}
+
+.ai-color-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 4rem;
+  padding: 0 1.2rem;
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #575279);
+  background: linear-gradient(135deg, #f5a623 0%, #e94b8b 50%, #9b59b6 100%);
+  background-clip: text;
+  -webkit-background-clip: text; /* stylelint-disable-line property-no-vendor-prefix */
+  -webkit-text-fill-color: transparent;
+  border: 1.5px solid transparent;
+  background-origin: border-box;
+  background-image:
+    linear-gradient(
+      var(--color-background-secondary, #fffaf3),
+      var(--color-background-secondary, #fffaf3)
+    ),
+    linear-gradient(135deg, #f5a623 0%, #e94b8b 50%, #9b59b6 100%);
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.ai-color-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-color-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0.4rem 1.2rem rgb(233 75 139 / 20%);
+}
+
+.ai-color-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .add-btn {
@@ -556,6 +675,22 @@ async function handleDelete(id: string) {
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.edit-btn.ai {
+  background: linear-gradient(135deg, #f5a623 0%, #e94b8b 50%, #9b59b6 100%);
+  background-clip: text;
+  -webkit-background-clip: text; /* stylelint-disable-line property-no-vendor-prefix */
+  -webkit-text-fill-color: transparent;
+}
+
+.edit-btn.ai:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edit-btn.ai:hover:not(:disabled) {
+  background-color: rgb(233 75 139 / 10%);
 }
 
 .edit-btn.save {

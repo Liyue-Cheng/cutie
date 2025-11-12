@@ -46,4 +46,3 @@ impl TryFrom<ViewPreferenceRow> for ViewPreference {
         })
     }
 }
-

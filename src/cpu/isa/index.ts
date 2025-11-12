@@ -11,6 +11,7 @@ import { ViewPreferenceISA } from './viewpreference-isa'
 import { TemplateISA } from './template-isa'
 import { RecurrenceISA } from './recurrence-isa'
 import { UserSettingsISA } from './user-settings-isa'
+import { AreaISA } from './area-isa'
 
 /**
  * 完整的ISA定义
@@ -24,6 +25,7 @@ export const ISA: ISADefinition = {
   ...TemplateISA,
   ...RecurrenceISA,
   ...UserSettingsISA,
+  ...AreaISA,
 }
 
 // 导出类型

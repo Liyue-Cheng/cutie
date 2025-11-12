@@ -242,7 +242,7 @@ mod logic {
         {
             // ✅ 使用统一的事务结果作为事件载荷
             let payload = serde_json::to_value(&transaction_result)?;
-            
+
             let mut event =
                 DomainEvent::new("task.unarchived", "task", task_id.to_string(), payload)
                     .with_aggregate_version(now.timestamp_millis());

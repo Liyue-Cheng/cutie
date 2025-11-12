@@ -10,7 +10,14 @@ export type ValueType = 'string' | 'number' | 'boolean' | 'object' | 'array'
 /**
  * 设置分类
  */
-export type SettingCategory = 'appearance' | 'behavior' | 'data' | 'account' | 'debug' | 'system'
+export type SettingCategory =
+  | 'appearance'
+  | 'behavior'
+  | 'data'
+  | 'account'
+  | 'debug'
+  | 'system'
+  | 'ai'
 
 /**
  * 用户设置 DTO
@@ -58,4 +65,3 @@ export interface ResetResponse {
   reset_count: number
   settings: UserSettingDto[]
 }
-

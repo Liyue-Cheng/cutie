@@ -1,7 +1,6 @@
 /// TaskRecurrenceLink 核心模型
 ///
 /// 循环任务实例链接实体，用于记录某个循环规则在某一天生成的任务实例
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -63,4 +62,3 @@ impl TaskRecurrenceLink {
         }
     }
 }
-

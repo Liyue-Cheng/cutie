@@ -14,7 +14,9 @@ use uuid::Uuid;
 use serde::Serialize;
 
 use crate::{
-    entities::{task::request_dtos::CompleteTaskRequest, SideEffects, TaskTransactionResult, TimeBlock},
+    entities::{
+        task::request_dtos::CompleteTaskRequest, SideEffects, TaskTransactionResult, TimeBlock,
+    },
     features::shared::repositories::TimeBlockRepository,
     features::shared::{
         assemblers::TimeBlockAssembler,
@@ -23,7 +25,10 @@ use crate::{
     },
     infra::{
         core::{AppError, AppResult},
-        http::{error_handler::success_response, extractors::{extract_correlation_id, extract_client_time}},
+        http::{
+            error_handler::success_response,
+            extractors::{extract_client_time, extract_correlation_id},
+        },
     },
     startup::AppState,
 };
@@ -367,12 +372,9 @@ mod logic {
         }
 
         // 6. 处理日程：确保在 schedule_date 有已完成的日程，删除之后的日程
-        let has_schedule = TaskScheduleRepository::has_schedule_for_day_in_tx(
-            &mut tx,
-            task_id,
-            &schedule_date,
-        )
-        .await?;
+        let has_schedule =
+            TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &schedule_date)
+                .await?;
 
         if has_schedule {
             // 已有日程，更新为已完成

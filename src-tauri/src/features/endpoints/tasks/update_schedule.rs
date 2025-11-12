@@ -15,7 +15,10 @@ use crate::{
     entities::{Outcome, SideEffects, TaskTransactionResult, TimeBlock},
     features::shared::{
         assemblers::TimeBlockAssembler,
-        repositories::{TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository, TimeBlockRepository},
+        repositories::{
+            TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository,
+            TimeBlockRepository,
+        },
         TaskAssembler,
     },
     infra::{
@@ -337,7 +340,9 @@ mod logic {
 
                 // 🔥 改期到不同日期时的正确逻辑：删除原日程，创建新日程
                 // 1. 查找原日期的所有浮动时间片
-                let time_blocks = database::find_floating_time_blocks_for_day(&mut tx, task_id, &original_date).await?;
+                let time_blocks =
+                    database::find_floating_time_blocks_for_day(&mut tx, task_id, &original_date)
+                        .await?;
 
                 // 2. 删除时间片链接
                 let time_block_ids: Vec<Uuid> = time_blocks.iter().map(|b| b.id).collect();
@@ -348,7 +353,11 @@ mod logic {
                 // 3. 软删除孤儿浮动时间片
                 let mut deleted_time_block_ids = Vec::new();
                 for block in &time_blocks {
-                    let remaining_links = TaskTimeBlockLinkRepository::count_remaining_tasks_in_block_in_tx(&mut tx, block.id).await?;
+                    let remaining_links =
+                        TaskTimeBlockLinkRepository::count_remaining_tasks_in_block_in_tx(
+                            &mut tx, block.id,
+                        )
+                        .await?;
 
                     // 只有当时间片没有任何剩余任务链接时才删除（孤儿检查）
                     if remaining_links == 0 {
@@ -358,7 +367,9 @@ mod logic {
                 }
 
                 // 4. 查询被删除的时间片的完整数据（用于副作用）
-                deleted_time_blocks = TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids).await?;
+                deleted_time_blocks =
+                    TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids)
+                        .await?;
             }
 
             // 更新日期（直接更新现有日程记录）
@@ -503,14 +514,15 @@ mod database {
 
         // 🔥 在代码中按本地日期过滤（与 TaskAssembler 相同的逻辑）
         for row in rows {
-            let time_block = TimeBlock::try_from(row).map_err(|e| {
-                AppError::DatabaseError(crate::infra::core::DbError::QueryError(e))
-            })?;
+            let time_block = TimeBlock::try_from(row)
+                .map_err(|e| AppError::DatabaseError(crate::infra::core::DbError::QueryError(e)))?;
 
             // 🔥 使用系统本地时区转换 UTC 时间到本地日期
             use chrono::Local;
             let local_start = time_block.start_time.with_timezone(&Local);
-            let formatted_date = crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(&local_start.date_naive());
+            let formatted_date = crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(
+                &local_start.date_naive(),
+            );
 
             // 只保留匹配日期的时间片
             if formatted_date == scheduled_date {

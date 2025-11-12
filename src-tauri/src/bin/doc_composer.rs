@@ -66,14 +66,17 @@ fn main() {
 fn extract_all_docs(src_dir: &Path) -> Result<Vec<EndpointDoc>, String> {
     let features_dir = src_dir.join("features");
     if !features_dir.exists() {
-        return Err(format!("Features directory not found: {}", features_dir.display()));
+        return Err(format!(
+            "Features directory not found: {}",
+            features_dir.display()
+        ));
     }
 
     let mut docs = Vec::new();
 
     // 遍历所有feature目录
-    for feature_entry in fs::read_dir(&features_dir)
-        .map_err(|e| format!("Failed to read features dir: {}", e))?
+    for feature_entry in
+        fs::read_dir(&features_dir).map_err(|e| format!("Failed to read features dir: {}", e))?
     {
         let feature_entry = feature_entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let feature_path = feature_entry.path();
@@ -103,10 +106,13 @@ fn extract_all_docs(src_dir: &Path) -> Result<Vec<EndpointDoc>, String> {
         for endpoint_entry in fs::read_dir(&endpoints_dir)
             .map_err(|e| format!("Failed to read endpoints dir: {}", e))?
         {
-            let endpoint_entry = endpoint_entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+            let endpoint_entry =
+                endpoint_entry.map_err(|e| format!("Failed to read entry: {}", e))?;
             let endpoint_path = endpoint_entry.path();
 
-            if !endpoint_path.is_file() || endpoint_path.extension().and_then(|s| s.to_str()) != Some("rs") {
+            if !endpoint_path.is_file()
+                || endpoint_path.extension().and_then(|s| s.to_str()) != Some("rs")
+            {
                 continue;
             }
 
@@ -170,16 +176,19 @@ fn generate_markdown(docs: &[EndpointDoc], output_path: &Path) -> Result<(), Str
         .map_err(|e| format!("Failed to create output file: {}", e))?;
 
     // 写入文档头部
-    writeln!(file, "# Cutie API Reference")
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    writeln!(file)
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    writeln!(file, "> 本文档由 `doc-composer` 工具自动生成，请勿手动编辑。")
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    writeln!(file, "> 源文件位置：`src-tauri/src/features/*/endpoints/*.rs`")
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    writeln!(file)
-        .map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(file, "# Cutie API Reference").map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(
+        file,
+        "> 本文档由 `doc-composer` 工具自动生成，请勿手动编辑。"
+    )
+    .map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(
+        file,
+        "> 源文件位置：`src-tauri/src/features/*/endpoints/*.rs`"
+    )
+    .map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
 
     // 按feature分组
     let mut grouped: BTreeMap<String, Vec<&EndpointDoc>> = BTreeMap::new();
@@ -188,10 +197,8 @@ fn generate_markdown(docs: &[EndpointDoc], output_path: &Path) -> Result<(), Str
     }
 
     // 生成目录
-    writeln!(file, "## Table of Contents")
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    writeln!(file)
-        .map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(file, "## Table of Contents").map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
 
     for (feature, endpoints) in &grouped {
         let feature_title = feature_display_name(feature);
@@ -199,53 +206,55 @@ fn generate_markdown(docs: &[EndpointDoc], output_path: &Path) -> Result<(), Str
             .map_err(|e| format!("Failed to write: {}", e))?;
 
         for endpoint in endpoints {
-            let anchor = format!("{}-{}",
+            let anchor = format!(
+                "{}-{}",
                 endpoint.method.to_lowercase(),
-                endpoint.path.replace('/', "").replace('{', "").replace('}', "")
+                endpoint
+                    .path
+                    .replace('/', "")
+                    .replace('{', "")
+                    .replace('}', "")
             );
-            writeln!(file, "  - [{} {}](#{})", endpoint.method, endpoint.path, anchor)
-                .map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(
+                file,
+                "  - [{} {}](#{})",
+                endpoint.method, endpoint.path, anchor
+            )
+            .map_err(|e| format!("Failed to write: {}", e))?;
         }
     }
-    writeln!(file)
-        .map_err(|e| format!("Failed to write: {}", e))?;
+    writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
 
     // 按feature输出文档
     for (feature, endpoints) in grouped {
         let feature_title = feature_display_name(&feature);
-        writeln!(file, "---")
-            .map_err(|e| format!("Failed to write: {}", e))?;
-        writeln!(file)
-            .map_err(|e| format!("Failed to write: {}", e))?;
-        writeln!(file, "## {}", feature_title)
-            .map_err(|e| format!("Failed to write: {}", e))?;
-        writeln!(file)
-            .map_err(|e| format!("Failed to write: {}", e))?;
+        writeln!(file, "---").map_err(|e| format!("Failed to write: {}", e))?;
+        writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
+        writeln!(file, "## {}", feature_title).map_err(|e| format!("Failed to write: {}", e))?;
+        writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
 
         // 对endpoint按HTTP方法和路径排序
         let mut sorted_endpoints = endpoints;
-        sorted_endpoints.sort_by(|a, b| {
-            a.path.cmp(&b.path).then_with(|| a.method.cmp(&b.method))
-        });
+        sorted_endpoints.sort_by(|a, b| a.path.cmp(&b.path).then_with(|| a.method.cmp(&b.method)));
 
         for doc in sorted_endpoints {
             writeln!(file, "### {} {}", doc.method, doc.path)
                 .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file)
-                .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file, "<details>")
-                .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file, "<summary>源文件: <code>{}</code></summary>",
-                doc.file_path.strip_prefix("src-tauri/").unwrap_or(&doc.file_path).display())
-                .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file, "</details>")
-                .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file)
-                .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file, "{}", doc.content)
-                .map_err(|e| format!("Failed to write: {}", e))?;
-            writeln!(file)
-                .map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(file, "<details>").map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(
+                file,
+                "<summary>源文件: <code>{}</code></summary>",
+                doc.file_path
+                    .strip_prefix("src-tauri/")
+                    .unwrap_or(&doc.file_path)
+                    .display()
+            )
+            .map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(file, "</details>").map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(file, "{}", doc.content).map_err(|e| format!("Failed to write: {}", e))?;
+            writeln!(file).map_err(|e| format!("Failed to write: {}", e))?;
         }
     }
 

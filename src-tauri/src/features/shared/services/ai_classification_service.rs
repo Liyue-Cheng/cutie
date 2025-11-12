@@ -4,7 +4,7 @@
 use crate::{
     entities::ScheduleStatus,
     features::{
-        ai::shared::{classify_task_area, AreaOption},
+        ai::shared::{classify_task_area, load_quick_model_config, AreaOption},
         shared::TransactionHelper,
     },
     infra::{
@@ -57,10 +57,13 @@ impl AiClassificationService {
             "Fetched available areas"
         );
 
-        // 2. 调用 AI 分类（带超时）
-        let area_id = classify_task_area(task_title, &areas).await?;
+        // 2. 加载快速模型配置
+        let quick_model_config = load_quick_model_config(pool).await?;
 
-        // 3. 如果 AI 返回了 area_id，更新任务并发送 SSE 事件
+        // 3. 调用 AI 分类（带超时）
+        let area_id = classify_task_area(task_title, &areas, &quick_model_config).await?;
+
+        // 4. 如果 AI 返回了 area_id，更新任务并发送 SSE 事件
         if let Some(area_id) = area_id {
             tracing::info!(
                 target: "SERVICE:TASKS:auto_classify",
@@ -148,10 +151,10 @@ impl AiClassificationService {
         // 3. 组装 TaskCardDto
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
 
-        // 4. 在事务内填充 schedules 字段
+        // 5. 在事务内填充 schedules 字段
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
 
-        // 5. 根据 schedules 设置正确的 schedule_status
+        // 6. 根据 schedules 设置正确的 schedule_status
         let local_today = now.date_naive();
 
         let has_future_schedule = task_card
@@ -176,7 +179,7 @@ impl AiClassificationService {
             ScheduleStatus::Staging
         };
 
-        // 6. 写入领域事件到 outbox
+        // 7. 写入领域事件到 outbox
         let outbox_repo = SqlxEventOutboxRepository::new(pool.clone());
 
         let payload = serde_json::json!({
@@ -192,10 +195,9 @@ impl AiClassificationService {
 
         outbox_repo.append_in_tx(&mut tx, &event).await?;
 
-        // 7. 提交事务
+        // 8. 提交事务
         TransactionHelper::commit(tx).await?;
 
         Ok(())
     }
 }
-

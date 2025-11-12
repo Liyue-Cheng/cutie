@@ -12,6 +12,43 @@ pub struct DefaultSetting {
 /// 获取所有默认设置
 pub fn get_default_settings() -> Vec<DefaultSetting> {
     vec![
+        // AI 设置 - 会根据模型类型区分对话与快速模型
+        DefaultSetting {
+            key: "ai.conversation.api_base_url",
+            value: "\"\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Ai,
+        },
+        DefaultSetting {
+            key: "ai.conversation.api_key",
+            value: "\"\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Ai,
+        },
+        DefaultSetting {
+            key: "ai.conversation.model",
+            value: "\"\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Ai,
+        },
+        DefaultSetting {
+            key: "ai.quick.api_base_url",
+            value: "\"\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Ai,
+        },
+        DefaultSetting {
+            key: "ai.quick.api_key",
+            value: "\"\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Ai,
+        },
+        DefaultSetting {
+            key: "ai.quick.model",
+            value: "\"\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Ai,
+        },
         // Debug 测试设置 - 用于测试各种数据类型和功能
         DefaultSetting {
             key: "debug.test_string",

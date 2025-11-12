@@ -246,11 +246,8 @@ mod database {
             })?;
 
         // 直接返回结果，无需额外查询
-        ViewPreference::try_from(row).map_err(|e| AppError::validation_error(
-            "view_preference",
-            &e,
-            "PARSE_ERROR",
-        ))
+        ViewPreference::try_from(row)
+            .map_err(|e| AppError::validation_error("view_preference", &e, "PARSE_ERROR"))
     }
 
     pub async fn upsert(

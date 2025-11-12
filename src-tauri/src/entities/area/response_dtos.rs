@@ -23,4 +23,3 @@ pub struct AreaTreeDto {
     pub parent_area_id: Option<Uuid>,
     pub children: Vec<AreaTreeDto>,
 }
-

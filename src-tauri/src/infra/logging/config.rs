@@ -79,7 +79,8 @@ impl LogConfig {
 
         // 从 CUTIE_LOG_JSON 环境变量设置 JSON 格式
         if let Ok(json_enabled) = std::env::var("CUTIE_LOG_JSON") {
-            config.json_format_enabled = json_enabled.to_lowercase() == "true" || json_enabled == "1";
+            config.json_format_enabled =
+                json_enabled.to_lowercase() == "true" || json_enabled == "1";
         }
 
         config
@@ -182,4 +183,3 @@ mod tests {
         assert!(config.json_format_enabled);
     }
 }
-

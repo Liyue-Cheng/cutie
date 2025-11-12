@@ -50,7 +50,7 @@ const kanbans = computed(() => {
 
   logger.debug(LogTags.COMPONENT_KANBAN, 'Generated area kanbans', {
     count: areaKanbans.length,
-    areas: areaKanbans.map(k => ({ id: k.id, name: k.areaName }))
+    areas: areaKanbans.map((k) => ({ id: k.id, name: k.areaName })),
   })
 
   return areaKanbans
@@ -164,7 +164,7 @@ onMounted(async () => {
 
   // 确保 Areas 已加载
   if (areaStore.allAreas.length === 0) {
-    await areaStore.fetchAreas()
+    await areaStore.fetchAll()
   }
 
   // 确保任务已加载
@@ -182,7 +182,7 @@ onMounted(async () => {
   logger.info(LogTags.COMPONENT_KANBAN, 'Area kanbans initialized', {
     areaCount: areaStore.allAreas.length,
     kanbanCount: kanbans.value.length,
-    taskCount: taskStore.incompleteTasks.length
+    taskCount: taskStore.incompleteTasks.length,
   })
 })
 

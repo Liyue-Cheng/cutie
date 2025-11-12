@@ -531,6 +531,7 @@ export const LogTags = {
   STORE_TEMPLATE: 'Store:Template',
   STORE_RECURRENCE: 'Store:Recurrence',
   STORE_UI: 'Store:UI',
+  STORE_USER_SETTINGS: 'Store:UserSettings',
   COMPOSABLE_RECURRENCE: 'Composable:Recurrence',
 
   // 路由相关

@@ -47,6 +47,7 @@ pub enum SettingCategory {
     Account,
     Debug,
     System,
+    Ai,
 }
 
 impl UserSetting {

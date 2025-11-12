@@ -223,9 +223,15 @@ mod logic {
         if !is_all_day {
             // ✅ 根据时间类型选择不同的跨天检测方式
             let time_type = request.time_type;
-            let crosses_day = if matches!(time_type, Some(crate::entities::time_block::TimeType::Floating)) || time_type.is_none() {
+            let crosses_day = if matches!(
+                time_type,
+                Some(crate::entities::time_block::TimeType::Floating)
+            ) || time_type.is_none()
+            {
                 // 浮动时间：检测本地时间部分是否跨天
-                if let (Some(start_local), Some(end_local)) = (&request.start_time_local, &request.end_time_local) {
+                if let (Some(start_local), Some(end_local)) =
+                    (&request.start_time_local, &request.end_time_local)
+                {
                     // 对于浮动时间，只要 end_local < start_local 就说明跨天了
                     // 例如：start_local = "23:00:00", end_local = "01:00:00" → 跨天
                     end_local < start_local
@@ -241,7 +247,7 @@ mod logic {
                 let local_end = request.end_time.with_timezone(&Local);
                 local_start.date_naive() != local_end.date_naive()
             };
-            
+
             if crosses_day {
                 return Err(AppError::validation_error(
                     "time_range",

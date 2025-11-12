@@ -9,7 +9,7 @@ const viewOps = useViewOperations()
 
 onMounted(async () => {
   // ✅ 加载区域和任务数据
-  await Promise.all([areaStore.fetchAreas(), viewOps.loadAllTasks()])
+  await Promise.all([areaStore.fetchAll(), viewOps.loadAllTasks()])
 })
 
 // 🆕 为每个 Area 创建看板列（使用 viewKey 模式）

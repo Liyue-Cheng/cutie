@@ -1,7 +1,6 @@
 /// Template endpoints
-/// 
+///
 /// 模板相关的HTTP端点
-
 pub use create_task_from_template::handle as create_task_from_template;
 pub use create_template::handle as create_template;
 pub use delete_template::handle as delete_template;

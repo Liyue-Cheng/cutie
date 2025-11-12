@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    infra::core::{AppError, AppResult, DbError},
     entities::task::response_dtos::AreaSummary,
+    infra::core::{AppError, AppResult, DbError},
 };
 
 pub struct AreaRepository;

@@ -1,6 +1,6 @@
+use chrono::{Duration, Utc};
 /// TimeBlock 验证器单元测试
 use explore_lib::{features::shared::validators::TimeBlockValidator, infra::core::AppError};
-use chrono::{Duration, Utc};
 
 #[test]
 fn test_validate_time_range_valid() {
@@ -146,7 +146,7 @@ fn test_validate_not_past_time_past() {
 #[test]
 fn test_validate_not_past_time_exactly_5_minutes() {
     let time = Utc::now() - Duration::minutes(5) + Duration::seconds(1); // 4分59秒前
-    // 应该通过（在5分钟误差内）
+                                                                         // 应该通过（在5分钟误差内）
     assert!(TimeBlockValidator::validate_not_past_time(time).is_ok());
 }
 

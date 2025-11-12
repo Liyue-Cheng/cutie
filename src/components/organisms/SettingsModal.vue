@@ -28,8 +28,122 @@
 
         <!-- 右侧：设置内容 -->
         <div class="settings-content">
+          <!-- AI 分类 -->
+          <div v-if="activeCategory === 'ai'" class="settings-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">AI Settings</h3>
+              <p class="panel-description">配置对话模型与快速模型的接入信息</p>
+            </div>
+
+            <div class="settings-list">
+              <div class="settings-subsection">
+                <h4 class="subsection-title">对话模型（用于 AI 对话）</h4>
+                <p class="subsection-description">
+                  应用于 AI 助手聊天的模型配置，需填写可用的请求地址、密钥与模型名称。
+                </p>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">API Base URL</label>
+                    <span class="setting-description">例如：https://api.openai.com/v1</span>
+                  </div>
+                  <input
+                    type="text"
+                    :value="store.getSettingValue('ai.conversation.api_base_url', '')"
+                    @change="updateSetting('ai.conversation.api_base_url', $event, 'string')"
+                    class="setting-input"
+                    placeholder="https://..."
+                    autocomplete="off"
+                  />
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">API Key</label>
+                    <span class="setting-description">用于访问对话模型的密钥</span>
+                  </div>
+                  <input
+                    type="password"
+                    :value="store.getSettingValue('ai.conversation.api_key', '')"
+                    @change="updateSetting('ai.conversation.api_key', $event, 'string')"
+                    class="setting-input"
+                    placeholder="sk-..."
+                    autocomplete="off"
+                  />
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">Model</label>
+                    <span class="setting-description">模型名称，例如 gpt-4o、glm-4.5 等</span>
+                  </div>
+                  <input
+                    type="text"
+                    :value="store.getSettingValue('ai.conversation.model', '')"
+                    @change="updateSetting('ai.conversation.model', $event, 'string')"
+                    class="setting-input"
+                    placeholder="模型名称"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div class="settings-subsection">
+                <h4 class="subsection-title">快速模型（用于任务分类等快速调用）</h4>
+                <p class="subsection-description">
+                  用于自动分类等快速任务的轻量模型，推荐配置高性能、低延迟的模型。
+                </p>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">API Base URL</label>
+                    <span class="setting-description">例如：https://api.openai.com/v1</span>
+                  </div>
+                  <input
+                    type="text"
+                    :value="store.getSettingValue('ai.quick.api_base_url', '')"
+                    @change="updateSetting('ai.quick.api_base_url', $event, 'string')"
+                    class="setting-input"
+                    placeholder="https://..."
+                    autocomplete="off"
+                  />
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">API Key</label>
+                    <span class="setting-description">用于访问快速模型的密钥</span>
+                  </div>
+                  <input
+                    type="password"
+                    :value="store.getSettingValue('ai.quick.api_key', '')"
+                    @change="updateSetting('ai.quick.api_key', $event, 'string')"
+                    class="setting-input"
+                    placeholder="sk-..."
+                    autocomplete="off"
+                  />
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">Model</label>
+                    <span class="setting-description">模型名称，例如 gpt-4o-mini、glm-4.5-flash 等</span>
+                  </div>
+                  <input
+                    type="text"
+                    :value="store.getSettingValue('ai.quick.model', '')"
+                    @change="updateSetting('ai.quick.model', $event, 'string')"
+                    class="setting-input"
+                    placeholder="模型名称"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Debug 分类 -->
-          <div v-if="activeCategory === 'debug'" class="settings-panel">
+          <div v-else-if="activeCategory === 'debug'" class="settings-panel">
             <div class="panel-header">
               <h3 class="panel-title">Debug Settings</h3>
               <p class="panel-description">开发和调试相关的设置选项</p>
@@ -157,10 +271,11 @@ defineEmits(['close'])
 const store = useUserSettingsStore()
 
 // 当前激活的分类
-const activeCategory = ref<string>('debug')
+const activeCategory = ref<string>('ai')
 
 // 分类定义
 const categories = [
+  { id: 'ai', name: 'AI', icon: 'Sparkles' as const },
   { id: 'appearance', name: 'Appearance', icon: 'Palette' as const },
   { id: 'behavior', name: 'Behavior', icon: 'SlidersHorizontal' as const },
   { id: 'data', name: 'Data', icon: 'Database' as const },
@@ -356,6 +471,34 @@ function getCategoryName(categoryId: string): string {
   display: flex;
   flex-direction: column;
   gap: 1.6rem;
+}
+
+.settings-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  padding: 1.6rem;
+  background-color: var(--color-background-secondary, #fffaf3);
+  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 10%));
+  border-radius: 0.8rem;
+}
+
+.settings-subsection + .settings-subsection {
+  margin-top: 1.6rem;
+}
+
+.subsection-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #575279);
+}
+
+.subsection-description {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary, #9893a5);
+  line-height: 1.6;
 }
 
 /* ==================== 空状态 ==================== */

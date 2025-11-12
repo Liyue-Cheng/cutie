@@ -128,8 +128,9 @@ initializeApiConfig()
     // ✅ 在应用启动时加载所有 areas（解决 N+1 查询问题）
     const { useAreaStore } = await import('@/stores/area')
     const areaStore = useAreaStore()
-    await areaStore.fetchAreas()
-    logger.info('System:Init', 'All areas loaded')
+    await areaStore.fetchAll()
+    areaStore.initEventSubscriptions()
+    logger.info('System:Init', 'All areas loaded and event subscriptions initialized')
 
     // ✅ 初始化用户设置 Store 的事件订阅
     const { useUserSettingsStore } = await import('@/stores/user-settings')

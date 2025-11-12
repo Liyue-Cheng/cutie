@@ -94,9 +94,7 @@ mod tests {
             let mut h = HeaderMap::new();
             h.insert(
                 "X-Correlation-ID",
-                "550e8400-e29b-41d4-a716-446655440000"
-                    .parse()
-                    .unwrap(),
+                "550e8400-e29b-41d4-a716-446655440000".parse().unwrap(),
             );
             h
         };
@@ -128,10 +126,7 @@ mod tests {
     fn test_extract_client_time_valid() {
         let headers = {
             let mut h = HeaderMap::new();
-            h.insert(
-                "X-Client-Time",
-                "2025-11-11T13:45:32.123Z".parse().unwrap(),
-            );
+            h.insert("X-Client-Time", "2025-11-11T13:45:32.123Z".parse().unwrap());
             h
         };
 

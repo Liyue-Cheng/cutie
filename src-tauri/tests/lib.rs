@@ -1,3 +1,4 @@
+mod endpoint;
 /// Cutie 集成测试套件
 ///
 /// 组织结构：
@@ -5,9 +6,6 @@
 /// - unit/            单元测试（Repository、Assembler等）
 /// - endpoint/        端点测试（单个HTTP端点）
 /// - integration/     业务集成测试（多端点协同）
-
 mod infrastructure;
-mod unit;
-mod endpoint;
 mod integration;
-
+mod unit;
