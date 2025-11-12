@@ -71,7 +71,9 @@
 
                 <!-- 右侧：操作按钮 -->
                 <div class="recurrence-actions">
+                  <!-- 只有已开始的循环规则才显示暂停/启用按钮 -->
                   <button
+                    v-if="!isFutureRecurrence(recurrence)"
                     class="action-btn toggle-btn"
                     :title="recurrence.is_active ? '停用' : '启用'"
                     @click="toggleActive(recurrence)"
@@ -122,7 +124,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
-import RecurrenceEditDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
+import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useTemplateStore } from '@/stores/template'
 import { useTaskStore } from '@/stores/task'
@@ -199,6 +201,13 @@ async function refreshRecurrences() {
 function getTemplateTitle(templateId: string): string {
   const template = templateStore.getTemplateById(templateId)
   return template ? template.title : '未知任务'
+}
+
+// 判断是否是未来的循环规则（开始日期在今天之后）
+function isFutureRecurrence(recurrence: TaskRecurrence): boolean {
+  if (!recurrence.start_date) return false
+  const today = getTodayDateString()
+  return recurrence.start_date > today
 }
 
 // 格式化循环规则
