@@ -9,7 +9,6 @@
 
 import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type { TaskRecurrence } from '@/types/dtos'
-import { useRecurrenceStore } from '@/stores/recurrence'
 import { useViewStore } from '@/stores/view'
 import * as recurrenceCore from '@/stores/recurrence/core'
 
@@ -60,10 +59,9 @@ export const RecurrenceISA: ISADefinition = {
     },
 
     validate: async (payload) => {
-      const recurrenceStore = useRecurrenceStore()
-      const recurrence = recurrenceStore.getRecurrenceById(payload.id)
-      if (!recurrence) {
-        console.warn('❌ 循环规则不存在:', payload.id)
+      // ✅ 只验证参数完整性，不验证数据存在性（由后端验证）
+      if (!payload.id?.trim()) {
+        console.warn('❌ 循环规则ID不能为空')
         return false
       }
       return true
