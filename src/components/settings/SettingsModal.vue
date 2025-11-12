@@ -1,109 +1,148 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="emit('close')">
-    <div class="settings-modal">
+  <div v-if="show" class="modal-overlay" @click="$emit('close')">
+    <div class="settings-container" @click.stop>
       <!-- 头部 -->
-      <div class="modal-header">
-        <h2 class="modal-title">Debug Settings</h2>
-        <button class="close-button" @click="emit('close')">
+      <div class="settings-header">
+        <h2 class="settings-title">Settings</h2>
+        <button class="close-btn" @click="$emit('close')" title="关闭">
           <CuteIcon name="X" :size="20" />
         </button>
       </div>
 
-      <!-- 内容 -->
-      <div class="modal-content">
-        <div class="settings-list">
-          <!-- String 测试 -->
-          <div class="setting-item">
-            <div class="setting-info">
-              <label class="setting-label">Debug String</label>
-              <span class="setting-type">string</span>
+      <!-- 主体：左右两栏 -->
+      <div class="settings-body">
+        <!-- 左侧：分类导航 -->
+        <div class="settings-sidebar">
+          <nav class="category-nav">
+            <button
+              v-for="category in categories"
+              :key="category.id"
+              :class="['category-item', { active: activeCategory === category.id }]"
+              @click="activeCategory = category.id"
+            >
+              <CuteIcon :name="category.icon" :size="18" />
+              <span class="category-name">{{ category.name }}</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- 右侧：设置内容 -->
+        <div class="settings-content">
+          <!-- Debug 分类 -->
+          <div v-if="activeCategory === 'debug'" class="settings-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Debug Settings</h3>
+              <p class="panel-description">开发和调试相关的设置选项</p>
             </div>
-            <input
-              type="text"
-              :value="store.getSettingValue('debug.test_string', 'Hello World')"
-              @change="updateSetting('debug.test_string', $event, 'string')"
-              class="setting-input"
-            />
+
+            <div class="settings-list">
+              <!-- String 测试 -->
+              <div class="setting-item">
+                <div class="setting-info">
+                  <label class="setting-label">Test String</label>
+                  <span class="setting-description">字符串类型测试</span>
+                </div>
+                <input
+                  type="text"
+                  :value="store.getSettingValue('debug.test_string', 'Hello World')"
+                  @change="updateSetting('debug.test_string', $event, 'string')"
+                  class="setting-input"
+                  placeholder="Enter string..."
+                />
+              </div>
+
+              <!-- Number 测试 -->
+              <div class="setting-item">
+                <div class="setting-info">
+                  <label class="setting-label">Test Number</label>
+                  <span class="setting-description">整数类型测试</span>
+                </div>
+                <input
+                  type="number"
+                  :value="store.getSettingValue('debug.test_number', 42)"
+                  @change="updateSetting('debug.test_number', $event, 'number')"
+                  class="setting-input"
+                />
+              </div>
+
+              <!-- Boolean 测试 (Checkbox) -->
+              <div class="setting-item">
+                <div class="setting-info">
+                  <label class="setting-label">Test Boolean</label>
+                  <span class="setting-description">布尔类型测试（复选框）</span>
+                </div>
+                <label class="checkbox-wrapper">
+                  <input
+                    type="checkbox"
+                    :checked="store.getSettingValue('debug.test_boolean', false)"
+                    @change="updateSetting('debug.test_boolean', $event, 'boolean')"
+                    class="setting-checkbox"
+                  />
+                  <span class="checkbox-label">Enable</span>
+                </label>
+              </div>
+
+              <!-- Float 测试 -->
+              <div class="setting-item">
+                <div class="setting-info">
+                  <label class="setting-label">Test Float</label>
+                  <span class="setting-description">浮点数类型测试</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  :value="store.getSettingValue('debug.test_float', 3.14)"
+                  @change="updateSetting('debug.test_float', $event, 'number')"
+                  class="setting-input"
+                />
+              </div>
+
+              <!-- Toggle 测试 (Switch) -->
+              <div class="setting-item">
+                <div class="setting-info">
+                  <label class="setting-label">Test Toggle</label>
+                  <span class="setting-description">布尔类型测试（开关）</span>
+                </div>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    :checked="store.getSettingValue('debug.test_toggle', true)"
+                    @change="updateSetting('debug.test_toggle', $event, 'boolean')"
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <!-- Number 测试 -->
-          <div class="setting-item">
-            <div class="setting-info">
-              <label class="setting-label">Debug Number</label>
-              <span class="setting-type">number</span>
+          <!-- 其他分类的占位 -->
+          <div v-else class="settings-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">{{ getCategoryName(activeCategory) }}</h3>
+              <p class="panel-description">该分类的设置即将推出</p>
             </div>
-            <input
-              type="number"
-              :value="store.getSettingValue('debug.test_number', 42)"
-              @change="updateSetting('debug.test_number', $event, 'number')"
-              class="setting-input"
-            />
-          </div>
-
-          <!-- Boolean 测试 (Checkbox) -->
-          <div class="setting-item">
-            <div class="setting-info">
-              <label class="setting-label">Debug Boolean</label>
-              <span class="setting-type">boolean</span>
+            <div class="empty-state">
+              <CuteIcon name="Settings" :size="48" />
+              <p>暂无设置项</p>
             </div>
-            <label class="checkbox-wrapper">
-              <input
-                type="checkbox"
-                :checked="store.getSettingValue('debug.test_boolean', false)"
-                @change="updateSetting('debug.test_boolean', $event, 'boolean')"
-                class="setting-checkbox"
-              />
-              <span class="checkbox-label">Enable</span>
-            </label>
-          </div>
-
-          <!-- Float 测试 -->
-          <div class="setting-item">
-            <div class="setting-info">
-              <label class="setting-label">Debug Float</label>
-              <span class="setting-type">number (float)</span>
-            </div>
-            <input
-              type="number"
-              step="0.01"
-              :value="store.getSettingValue('debug.test_float', 3.14)"
-              @change="updateSetting('debug.test_float', $event, 'number')"
-              class="setting-input"
-            />
-          </div>
-
-          <!-- Toggle 测试 (Switch) -->
-          <div class="setting-item">
-            <div class="setting-info">
-              <label class="setting-label">Debug Toggle</label>
-              <span class="setting-type">boolean (toggle)</span>
-            </div>
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                :checked="store.getSettingValue('debug.test_toggle', true)"
-                @change="updateSetting('debug.test_toggle', $event, 'boolean')"
-              />
-              <span class="toggle-slider"></span>
-            </label>
           </div>
         </div>
       </div>
 
       <!-- 底部操作 -->
-      <div class="modal-footer">
-        <button @click="resetAllSettings" class="reset-button">
-          Reset All
+      <div class="settings-footer">
+        <button @click="resetAllSettings" class="reset-btn">
+          <CuteIcon name="RotateCcw" :size="16" />
+          <span>Reset All</span>
         </button>
-        <button @click="emit('close')" class="close-action-button">
-          Close
-        </button>
+        <button @click="$emit('close')" class="close-action-btn">Close</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { pipeline } from '@/cpu'
 import { useUserSettingsStore } from '@/stores/user-settings'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -113,11 +152,27 @@ defineProps<{
   show: boolean
 }>()
 
-const emit = defineEmits<{
-  close: []
-}>()
+defineEmits(['close'])
 
 const store = useUserSettingsStore()
+
+// 当前激活的分类
+const activeCategory = ref<string>('debug')
+
+// 分类定义
+const categories = [
+  { id: 'appearance', name: 'Appearance', icon: 'Palette' as const },
+  { id: 'behavior', name: 'Behavior', icon: 'SlidersHorizontal' as const },
+  { id: 'data', name: 'Data', icon: 'Database' as const },
+  { id: 'account', name: 'Account', icon: 'User' as const },
+  { id: 'debug', name: 'Debug', icon: 'Bug' as const },
+  { id: 'system', name: 'System', icon: 'Settings' as const },
+]
+
+onMounted(async () => {
+  // 加载所有设置
+  await pipeline.dispatch('user_settings.fetch_all', {})
+})
 
 function updateSetting(key: string, event: Event, valueType: ValueType) {
   const target = event.target as HTMLInputElement
@@ -143,152 +198,272 @@ async function resetAllSettings() {
     await pipeline.dispatch('user_settings.reset', {})
   }
 }
+
+function getCategoryName(categoryId: string): string {
+  return categories.find((c) => c.id === categoryId)?.name || categoryId
+}
 </script>
 
 <style scoped>
+/* ==================== 模态框遮罩 ==================== */
 .modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 50%);
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgb(0 0 0 / 50%);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
-.settings-modal {
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  background: var(--color-surface);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgb(0 0 0 / 20%);
+/* ==================== 设置容器 ==================== */
+.settings-container {
+  width: 90rem;
+  max-width: 95vw;
+  max-height: 90vh;
+  background-color: var(--color-background-primary, #faf4ed);
+  border-radius: 1.2rem;
+  box-shadow:
+    0 2rem 6rem rgb(0 0 0 / 15%),
+    0 0.8rem 1.6rem rgb(0 0 0 / 10%);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* 头部 */
-.modal-header {
+/* ==================== 头部 ==================== */
+.settings-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+  padding: 2rem 2.4rem;
+  background-color: var(--color-background-secondary, #fffaf3);
+  border-bottom: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
 }
 
-.modal-title {
-  font-size: 1.25rem;
+.settings-title {
+  font-size: 2.2rem;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text-primary, #575279);
   margin: 0;
 }
 
-.close-button {
+.close-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 3.2rem;
+  height: 3.2rem;
   padding: 0;
-  border: none;
   background: transparent;
-  border-radius: 6px;
-  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 0.6rem;
+  color: var(--color-text-secondary, #797593);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.close-button:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
+.close-btn:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  color: var(--color-text-primary, #575279);
 }
 
-/* 内容 */
-.modal-content {
+/* ==================== 主体：左右两栏 ==================== */
+.settings-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ==================== 左侧：分类导航 ==================== */
+.settings-sidebar {
+  width: 22rem;
+  background-color: var(--color-background-secondary, #fffaf3);
+  border-right: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  overflow-y: auto;
+}
+
+.category-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 1.2rem;
+  gap: 0.4rem;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.8rem;
+  color: var(--color-text-secondary, #797593);
+  font-size: 1.4rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.category-item:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  color: var(--color-text-primary, #575279);
+}
+
+.category-item.active {
+  background-color: var(--color-primary, #d7827e);
+  color: white;
+}
+
+.category-name {
+  flex: 1;
+}
+
+/* ==================== 右侧：设置内容 ==================== */
+.settings-content {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  background-color: var(--color-background-primary, #faf4ed);
+}
+
+.settings-panel {
+  padding: 2.4rem;
+}
+
+.panel-header {
+  margin-bottom: 2.4rem;
+}
+
+.panel-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #575279);
+  margin: 0 0 0.8rem;
+}
+
+.panel-description {
+  font-size: 1.4rem;
+  color: var(--color-text-secondary, #797593);
+  margin: 0;
 }
 
 .settings-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.6rem;
 }
 
+/* ==================== 空状态 ==================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: var(--color-text-tertiary, #9893a5);
+  gap: 1.2rem;
+}
+
+.empty-state p {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+/* ==================== 设置项 ==================== */
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 2rem;
+  padding: 1.4rem;
+  background-color: var(--color-background-secondary, #fffaf3);
+  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border-radius: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.setting-item:hover {
+  border-color: rgb(0 0 0 / 15%);
+  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 5%);
 }
 
 .setting-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.4rem;
 }
 
 .setting-label {
-  font-size: 0.9375rem;
+  font-size: 1.5rem;
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--color-text-primary, #575279);
 }
 
-.setting-type {
-  font-size: 0.75rem;
-  color: var(--color-text-tertiary);
-  font-family: monospace;
+.setting-description {
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary, #9893a5);
 }
 
+/* ==================== 输入框 ==================== */
 .setting-input {
-  width: 200px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.9375rem;
-  transition: border-color 0.2s ease;
+  width: 20rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border-radius: 0.8rem;
+  background: var(--color-background-primary, #faf4ed);
+  color: var(--color-text-primary, #575279);
+  font-size: 1.4rem;
+  transition: all 0.2s ease;
+}
+
+.setting-input::placeholder {
+  color: var(--color-text-tertiary, #9893a5);
 }
 
 .setting-input:hover {
-  border-color: var(--color-primary);
+  border-color: rgb(0 0 0 / 15%);
 }
 
 .setting-input:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+  border-color: var(--color-primary, #d7827e);
+  box-shadow: 0 0 0 3px rgb(215 130 126 / 10%);
 }
 
-/* Checkbox */
+/* ==================== Checkbox ==================== */
 .checkbox-wrapper {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.8rem;
   cursor: pointer;
 }
 
 .setting-checkbox {
-  width: 18px;
-  height: 18px;
+  width: 2rem;
+  height: 2rem;
   cursor: pointer;
+  accent-color: var(--color-primary, #d7827e);
 }
 
 .checkbox-label {
-  font-size: 0.9375rem;
-  color: var(--color-text);
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #575279);
+  font-weight: 500;
 }
 
-/* Toggle Switch */
+/* ==================== Toggle Switch ==================== */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 48px;
-  height: 26px;
+  width: 5.2rem;
+  height: 2.8rem;
 }
 
 .toggle-switch input {
@@ -301,71 +476,88 @@ async function resetAllSettings() {
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background-color: var(--color-border);
+  background-color: var(--color-border-default, rgb(0 0 0 / 15%));
   transition: 0.3s;
-  border-radius: 26px;
+  border-radius: 2.8rem;
 }
 
 .toggle-slider::before {
   position: absolute;
   content: '';
-  height: 18px;
-  width: 18px;
-  left: 4px;
-  bottom: 4px;
+  height: 2rem;
+  width: 2rem;
+  left: 0.4rem;
+  bottom: 0.4rem;
   background-color: white;
   transition: 0.3s;
   border-radius: 50%;
+  box-shadow: 0 0.2rem 0.4rem rgb(0 0 0 / 20%);
 }
 
 input:checked + .toggle-slider {
-  background-color: var(--color-primary);
+  background-color: var(--color-primary, #d7827e);
 }
 
 input:checked + .toggle-slider::before {
-  transform: translateX(22px);
+  transform: translateX(2.4rem);
 }
 
-/* 底部 */
-.modal-footer {
+/* ==================== 底部 ==================== */
+.settings-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-top: 1px solid var(--color-border);
+  padding: 2rem 2.4rem;
+  border-top: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #fffaf3);
   gap: 1rem;
 }
 
-.reset-button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #ef4444;
-  border-radius: 6px;
+.reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.4rem;
+  border: 1.5px solid #ef4444;
+  border-radius: 0.8rem;
   background: transparent;
   color: #ef4444;
-  font-size: 0.9375rem;
+  font-size: 1.4rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.reset-button:hover {
-  background: #fef2f2;
+.reset-btn:hover {
+  background: rgb(239 68 68 / 10%);
+  transform: translateY(-1px);
 }
 
-.close-action-button {
-  padding: 0.5rem 1.5rem;
+.reset-btn:active {
+  transform: translateY(0);
+}
+
+.close-action-btn {
+  height: 3.6rem;
+  padding: 0 2rem;
   border: none;
-  border-radius: 6px;
-  background: var(--color-primary);
+  border-radius: 0.8rem;
+  background: var(--color-primary, #d7827e);
   color: white;
-  font-size: 0.9375rem;
+  font-size: 1.4rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.close-action-button:hover {
-  opacity: 0.9;
+.close-action-btn:hover {
+  background-color: var(--rose-pine-rose, #d7827e);
+  transform: translateY(-1px);
+  box-shadow: 0 0.4rem 1.2rem rgb(215 130 126 / 30%);
+}
+
+.close-action-btn:active {
+  transform: translateY(0);
 }
 </style>
-

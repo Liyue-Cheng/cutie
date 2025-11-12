@@ -7,25 +7,26 @@ use sqlx::FromRow;
 pub struct UserSetting {
     /// 设置项的唯一标识符
     pub setting_key: String,
-    
+
     /// 设置值 (JSON 格式)
     pub setting_value: String,
-    
+
     /// 设置值的数据类型
     pub value_type: ValueType,
-    
+
     /// 设置项的分类
     pub category: SettingCategory,
-    
+
     /// 最后更新时间
     pub updated_at: DateTime<Utc>,
-    
+
     /// 创建时间
     pub created_at: DateTime<Utc>,
 }
 
 /// 设置值的数据类型
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub enum ValueType {
     String,
@@ -37,6 +38,7 @@ pub enum ValueType {
 
 /// 设置项的分类
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub enum SettingCategory {
     Appearance,
@@ -73,4 +75,3 @@ impl UserSetting {
         self.updated_at = Utc::now();
     }
 }
-
