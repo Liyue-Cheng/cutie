@@ -18,7 +18,7 @@
           <div class="modal-content">
             <!-- 加载状态 -->
             <div v-if="isLoading" class="loading-state">
-              <CuteIcon name="Loader2" :size="32" class="spinner" />
+              <CuteIcon name="Loader" :size="32" class="spinner" />
               <p>加载中...</p>
             </div>
 
@@ -123,6 +123,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { useTemplateStore } from '@/stores/template'
+import { useTaskStore } from '@/stores/task'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 import type { TaskRecurrence } from '@/types/dtos'
@@ -139,8 +140,14 @@ const emit = defineEmits<{
 
 const recurrenceStore = useRecurrenceStore()
 const templateStore = useTemplateStore()
+const taskStore = useTaskStore()
 const isLoading = ref(false)
 const editingRecurrence = ref<TaskRecurrence | null>(null)
+
+// 获取今天的日期字符串
+function getTodayDateString(): string {
+  return new Date().toISOString().split('T')[0]!
+}
 
 // 获取所有循环规则（按激活状态排序）
 const recurrences = computed(() => {
@@ -179,7 +186,7 @@ async function loadRecurrences() {
       templateCount: templateStore.allTemplates.length,
     })
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to load recurrences', { error })
+    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to load recurrences', error as Error)
   } finally {
     isLoading.value = false
   }
@@ -193,7 +200,7 @@ async function refreshRecurrences() {
 // 获取模板标题
 function getTemplateTitle(templateId: string): string {
   const template = templateStore.getTemplateById(templateId)
-  return template?.title || '未知任务'
+  return template ? template.title : '未知任务'
 }
 
 // 格式化循环规则
@@ -202,7 +209,7 @@ function formatRule(rule: string): string {
     return '每日循环'
   } else if (rule.includes('FREQ=WEEKLY')) {
     const match = rule.match(/BYDAY=([A-Z,]+)/)
-    if (match) {
+    if (match && match[1]) {
       const days = match[1].split(',').map((d) => {
         const dayMap: Record<string, string> = {
           MO: '周一',
@@ -246,17 +253,75 @@ function formatExpiryBehavior(behavior: string): string {
 
 // 切换激活状态
 async function toggleActive(recurrence: TaskRecurrence) {
+  const willBeActive = !recurrence.is_active
+
+  // 如果是暂停（设置为 false），需要确认并删除今天之后的未完成任务
+  if (!willBeActive) {
+    const confirmed = confirm(
+      `确定要暂停此循环任务吗？\n\n将会删除今天之后的所有未完成任务实例。\n今天及之前的任务不受影响。`
+    )
+    if (!confirmed) return
+  }
+
   try {
+    // 更新激活状态
     await pipeline.dispatch('recurrence.update', {
       id: recurrence.id,
-      is_active: !recurrence.is_active,
+      is_active: willBeActive,
     })
+
+    // 如果是暂停，删除今天之后的未完成任务
+    if (!willBeActive) {
+      await cleanupFutureTasks(recurrence.id)
+    }
+
     logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Toggled recurrence active state', {
       id: recurrence.id,
-      is_active: !recurrence.is_active,
+      is_active: willBeActive,
     })
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to toggle recurrence', { error })
+    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to toggle recurrence', error as Error)
+  }
+}
+
+// 清理今天之后的未完成任务
+async function cleanupFutureTasks(recurrenceId: string) {
+  const today = getTodayDateString()
+  const allTasks = taskStore.allTasks
+
+  // 找出所有属于该循环规则且在今天之后的未完成任务
+  const taskIdsToRemove = allTasks
+    .filter((task: any) => {
+      if (task.recurrence_id !== recurrenceId) return false
+      if (task.is_completed) return false
+
+      // 检查任务的原始日期是否在今天之后
+      const originalDate = task.recurrence_original_date
+      if (!originalDate) return false
+
+      return originalDate > today
+    })
+    .map((task: any) => task.id)
+
+  if (taskIdsToRemove.length > 0) {
+    // 从本地 store 中移除
+    taskStore.batchRemoveTasks_mut(taskIdsToRemove)
+
+    logger.info(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Removed future recurrence tasks', {
+      recurrenceId,
+      count: taskIdsToRemove.length,
+    })
+
+    // 重新获取任务数据以保持同步
+    try {
+      await taskStore.fetchAllIncompleteTasks_DMA()
+    } catch (error) {
+      logger.error(
+        LogTags.COMPONENT_RECURRENCE_MANAGER,
+        'Failed to refetch tasks after cleanup',
+        error as Error
+      )
+    }
   }
 }
 
@@ -280,7 +345,7 @@ async function handleSaveEdit(updates: Partial<TaskRecurrence>) {
     })
     editingRecurrence.value = null
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to update recurrence', { error })
+    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to update recurrence', error as Error)
   }
 }
 
@@ -295,7 +360,7 @@ async function deleteRecurrence(recurrence: TaskRecurrence) {
       id: recurrence.id,
     })
   } catch (error) {
-    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to delete recurrence', { error })
+    logger.error(LogTags.COMPONENT_RECURRENCE_MANAGER, 'Failed to delete recurrence', error as Error)
   }
 }
 
