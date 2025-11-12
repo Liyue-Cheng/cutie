@@ -105,10 +105,11 @@
       <div class="control-group">
         <label>登录结果：</label>
         <div class="toggle-switch">
-          <label class="switch">
-            <input type="checkbox" v-model="loginShouldSucceed" />
-            <span class="slider"></span>
-          </label>
+          <CuteCheckbox
+            :checked="loginShouldSucceed"
+            size="small"
+            @update:checked="(val) => (loginShouldSucceed = val)"
+          />
           <span class="toggle-label">{{ loginShouldSucceed ? '✅ 成功' : '❌ 失败' }}</span>
         </div>
       </div>
@@ -247,6 +248,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { pipeline } from '@/cpu'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import { useTaskStore } from '@/stores/task'
 import { storeToRefs } from 'pinia'
 import { interruptHandler } from '@/cpu/interrupt/InterruptHandler'

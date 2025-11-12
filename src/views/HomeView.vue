@@ -46,19 +46,35 @@
               </button>
               <div v-if="showFilterMenu" class="filter-menu">
                 <label class="filter-item">
-                  <input v-model="monthViewFilters.showRecurringTasks" type="checkbox" />
+                  <CuteCheckbox
+                    :checked="monthViewFilters.showRecurringTasks"
+                    size="small"
+                    @update:checked="(val) => (monthViewFilters.showRecurringTasks = val)"
+                  />
                   <span>循环任务</span>
                 </label>
                 <label class="filter-item">
-                  <input v-model="monthViewFilters.showScheduledTasks" type="checkbox" />
+                  <CuteCheckbox
+                    :checked="monthViewFilters.showScheduledTasks"
+                    size="small"
+                    @update:checked="(val) => (monthViewFilters.showScheduledTasks = val)"
+                  />
                   <span>已排期任务</span>
                 </label>
                 <label class="filter-item">
-                  <input v-model="monthViewFilters.showDueDates" type="checkbox" />
+                  <CuteCheckbox
+                    :checked="monthViewFilters.showDueDates"
+                    size="small"
+                    @update:checked="(val) => (monthViewFilters.showDueDates = val)"
+                  />
                   <span>截止日期</span>
                 </label>
                 <label class="filter-item">
-                  <input v-model="monthViewFilters.showAllDayEvents" type="checkbox" />
+                  <CuteCheckbox
+                    :checked="monthViewFilters.showAllDayEvents"
+                    size="small"
+                    @update:checked="(val) => (monthViewFilters.showAllDayEvents = val)"
+                  />
                   <span>全天事件</span>
                 </label>
               </div>
@@ -126,6 +142,7 @@ import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 

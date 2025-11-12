@@ -11,6 +11,7 @@ import { pipeline } from '@/cpu'
 import KanbanTaskCardMenu from './KanbanTaskCardMenu.vue'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
+import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import TimeDurationPicker from '@/components/parts/TimeDurationPicker.vue'
@@ -186,15 +187,21 @@ const isPresenceLogged = computed(() => {
   return currentScheduleOutcome.value === 'presence_logged'
 })
 
-// ✅ 按钮布局模式
-// 默认模式：完成按钮始终显示，在场按钮悬浮显示
-// 在场激活模式：在场按钮始终显示，完成按钮悬浮显示
-const buttonLayoutMode = computed(() => {
-  // 如果在场按钮被选中，切换到"在场激活模式"
-  if (isPresenceLogged.value && shouldShowPresenceButton.value) {
-    return 'presence-active'
+// ✅ 主按钮状态（双模式 checkbox）
+// 优先级：已完成 > 在场 > 未选中
+const mainCheckboxState = computed<'completed' | 'present' | null>(() => {
+  if (props.task.is_completed) {
+    return 'completed'
   }
-  return 'default'
+  if (isPresenceLogged.value && shouldShowPresenceButton.value) {
+    return 'present'
+  }
+  return null
+})
+
+// ✅ 是否显示主按钮
+const shouldShowMainCheckbox = computed(() => {
+  return shouldShowCompleteButton.value || shouldShowPresenceButton.value
 })
 
 function showContextMenu(event: MouseEvent) {
@@ -220,6 +227,63 @@ async function handleStatusChange(isChecked: boolean) {
   } else {
     // ✅ 重新打开任务 - 自动追踪！
     await pipeline.dispatch('task.reopen', { id: props.task.id })
+  }
+}
+
+// ✅ 处理主按钮状态变化（双模式）
+async function handleMainCheckboxChange(newState: 'completed' | 'present' | null) {
+  logger.debug(LogTags.COMPONENT_KANBAN, 'Main checkbox state changed', {
+    taskId: props.task.id,
+    oldState: mainCheckboxState.value,
+    newState,
+  })
+
+  // 完成状态变化
+  if (newState === 'completed') {
+    // 标记为完成
+    await pipeline.dispatch('task.complete', {
+      id: props.task.id,
+      view_context: viewContext.value,
+    })
+    emit('taskCompleted', props.task.id)
+  } else if (newState === 'present') {
+    // 标记在场（长按）
+    if (!isDateKanban.value || !props.viewMetadata?.config) return
+
+    const config = props.viewMetadata.config as DateViewConfig
+    const kanbanDate = config.date
+
+    // 如果任务已完成，先重新打开
+    if (props.task.is_completed) {
+      await pipeline.dispatch('task.reopen', { id: props.task.id })
+    }
+
+    // 更新 schedule outcome 为在场
+    await pipeline.dispatch('schedule.update', {
+      task_id: props.task.id,
+      scheduled_day: kanbanDate,
+      updates: { outcome: 'PRESENCE_LOGGED' },
+    })
+  } else {
+    // newState === null，取消选中
+    const currentState = mainCheckboxState.value
+
+    if (currentState === 'completed') {
+      // 从完成状态恢复：重新打开任务
+      await pipeline.dispatch('task.reopen', { id: props.task.id })
+    } else if (currentState === 'present') {
+      // 从在场状态恢复：设置为仅计划
+      if (!isDateKanban.value || !props.viewMetadata?.config) return
+
+      const config = props.viewMetadata.config as DateViewConfig
+      const kanbanDate = config.date
+
+      await pipeline.dispatch('schedule.update', {
+        task_id: props.task.id,
+        scheduled_day: kanbanDate,
+        updates: { outcome: 'PLANNED' },
+      })
+    }
   }
 }
 
@@ -498,62 +562,23 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
         </div>
       </div>
 
-      <!-- 第二行：完成/在场按钮 + Area标签 -->
+      <!-- 第二行：双模式按钮 + Area标签 -->
       <div class="card-footer">
-        <div
-          class="main-checkbox-wrapper"
-          :class="{ 'presence-active-mode': buttonLayoutMode === 'presence-active' }"
-        >
-          <!-- 默认模式：完成按钮在左，在场按钮在右（悬浮） -->
-          <template v-if="buttonLayoutMode === 'default'">
-            <!-- 完成按钮：始终显示（左边） -->
-            <CuteCheckbox
-              v-if="shouldShowCompleteButton"
-              class="main-checkbox always-visible"
-              :checked="task.is_completed"
-              size="large"
-              @update:checked="handleStatusChange"
-              @click.stop
-            ></CuteCheckbox>
-
-            <!-- 占位符：过去日期且后续有记录时保留空间 -->
-            <div v-else-if="kanbanDateType === 'past'" class="main-checkbox-placeholder"></div>
-
-            <!-- 在场按钮：悬浮显示（右边） -->
-            <CuteCheckbox
-              v-if="shouldShowPresenceButton"
-              class="star-checkbox hover-visible"
-              variant="star"
-              size="large"
-              :checked="isPresenceLogged"
-              @update:checked="handlePresenceToggle"
-              @click.stop
-            ></CuteCheckbox>
-          </template>
-
-          <!-- 在场激活模式：在场按钮在左，完成按钮在右（悬浮） -->
-          <template v-else-if="buttonLayoutMode === 'presence-active'">
-            <!-- 在场按钮：始终显示（左边） -->
-            <CuteCheckbox
-              v-if="shouldShowPresenceButton"
-              class="star-checkbox always-visible"
-              variant="star"
-              size="large"
-              :checked="isPresenceLogged"
-              @update:checked="handlePresenceToggle"
-              @click.stop
-            ></CuteCheckbox>
-
-            <!-- 完成按钮：悬浮显示（右边），但刚点击在场按钮后暂时不显示 -->
-            <CuteCheckbox
-              v-if="shouldShowCompleteButton && !justToggledPresence"
-              class="main-checkbox hover-visible"
-              :checked="task.is_completed"
-              size="large"
-              @update:checked="handleStatusChange"
-              @click.stop
-            ></CuteCheckbox>
-          </template>
+        <div class="main-checkbox-wrapper">
+          <!-- 双模式按钮：单击完成，长按在场 -->
+          <CuteDualModeCheckbox
+            v-if="shouldShowMainCheckbox"
+            class="main-checkbox"
+            :state="mainCheckboxState"
+            size="large"
+            @update:state="handleMainCheckboxChange"
+            @click.stop
+          />
+          <!-- 占位符：过去日期且后续有记录时保留空间 -->
+          <div
+            v-else-if="kanbanDateType === 'past' && !shouldShowCompleteButton"
+            class="main-checkbox-placeholder"
+          ></div>
         </div>
 
         <AreaTag v-if="area" :name="area.name" :color="area.color" size="normal" />

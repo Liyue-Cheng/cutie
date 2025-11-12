@@ -8,6 +8,7 @@ import { RRule } from 'rrule'
 import type { TaskDetail } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
+import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
@@ -57,18 +58,15 @@ const task = computed(() => {
 })
 
 // 🔥 监听任务是否存在，如果任务被删除则自动关闭编辑框
-watch(
-  task,
-  (newTask) => {
-    // 如果有 taskId 但任务不存在（被删除了），则自动关闭
-    if (props.taskId && !newTask) {
-      logger.info(LogTags.COMPONENT_KANBAN, 'Task no longer exists, closing editor', {
-        taskId: props.taskId,
-      })
-      emit('close')
-    }
+watch(task, (newTask) => {
+  // 如果有 taskId 但任务不存在（被删除了），则自动关闭
+  if (props.taskId && !newTask) {
+    logger.info(LogTags.COMPONENT_KANBAN, 'Task no longer exists, closing editor', {
+      taskId: props.taskId,
+    })
+    emit('close')
   }
-)
+})
 
 // 使用 ref 而不是 computed，以便 vuedraggable 可以修改
 const subtasks = ref<Subtask[]>([])
@@ -104,6 +102,17 @@ const currentScheduleOutcome = computed(() => {
 // 今天是否已记录在场
 const isPresenceLogged = computed(() => {
   return currentScheduleOutcome.value === 'presence_logged'
+})
+
+// 主按钮状态（双模式）
+const mainCheckboxState = computed<'completed' | 'present' | null>(() => {
+  if (task.value?.is_completed) {
+    return 'completed'
+  }
+  if (isPresenceLogged.value) {
+    return 'present'
+  }
+  return null
 })
 
 // 循环规则的人类可读描述
@@ -223,27 +232,46 @@ watch(
   }
 )
 
-async function handleCompleteChange(isChecked: boolean) {
+// 处理主按钮状态变化（双模式）
+async function handleMainCheckboxChange(newState: 'completed' | 'present' | null) {
   if (!props.taskId) return
 
-  if (isChecked) {
+  if (newState === 'completed') {
+    // 标记为完成
     await pipeline.dispatch('task.complete', { id: props.taskId })
+  } else if (newState === 'present') {
+    // 标记在场（长按）
+    if (!todayDate.value) return
+
+    // 如果任务已完成，先重新打开
+    if (task.value?.is_completed) {
+      await pipeline.dispatch('task.reopen', { id: props.taskId })
+    }
+
+    // 更新 schedule outcome 为在场
+    await pipeline.dispatch('schedule.update', {
+      task_id: props.taskId,
+      scheduled_day: todayDate.value,
+      updates: { outcome: 'PRESENCE_LOGGED' },
+    })
   } else {
-    await pipeline.dispatch('task.reopen', { id: props.taskId })
+    // newState === null，取消选中
+    const currentState = mainCheckboxState.value
+
+    if (currentState === 'completed') {
+      // 从完成状态恢复：重新打开任务
+      await pipeline.dispatch('task.reopen', { id: props.taskId })
+    } else if (currentState === 'present') {
+      // 从在场状态恢复：设置为仅计划
+      if (!todayDate.value) return
+
+      await pipeline.dispatch('schedule.update', {
+        task_id: props.taskId,
+        scheduled_day: todayDate.value,
+        updates: { outcome: 'PLANNED' },
+      })
+    }
   }
-}
-
-async function handlePresenceToggle(isChecked: boolean) {
-  if (!props.taskId || !todayDate.value) return
-
-  // 使用新的勾选状态来决定 outcome（后端API使用大写格式）
-  const newOutcome = isChecked ? 'PRESENCE_LOGGED' : 'PLANNED'
-
-  await pipeline.dispatch('schedule.update', {
-    task_id: props.taskId,
-    scheduled_day: todayDate.value,
-    updates: { outcome: newOutcome },
-  })
 }
 
 async function updateTitle() {
@@ -633,17 +661,10 @@ async function handleDeleteRecurrence() {
 
         <!-- 第二栏：任务标题栏 -->
         <div class="title-row">
-          <CuteCheckbox
-            :checked="task.is_completed"
+          <CuteDualModeCheckbox
+            :state="mainCheckboxState"
             size="large"
-            variant="check"
-            @update:checked="handleCompleteChange"
-          />
-          <CuteCheckbox
-            :checked="isPresenceLogged"
-            size="large"
-            variant="star"
-            @update:checked="handlePresenceToggle"
+            @update:state="handleMainCheckboxChange"
           />
           <input
             v-model="titleInput"

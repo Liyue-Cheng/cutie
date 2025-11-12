@@ -132,6 +132,13 @@ initializeApiConfig()
     areaStore.initEventSubscriptions()
     logger.info('System:Init', 'All areas loaded and event subscriptions initialized')
 
+    // ✅ 在应用启动时加载所有循环规则（解决过滤器查询问题）
+    const { useRecurrenceStore } = await import('@/stores/recurrence')
+    const recurrenceStore = useRecurrenceStore()
+    await recurrenceStore.fetchAllRecurrences()
+    recurrenceStore.initEventSubscriptions()
+    logger.info('System:Init', 'All recurrence rules loaded and event subscriptions initialized')
+
     // ✅ 初始化用户设置 Store 的事件订阅
     const { useUserSettingsStore } = await import('@/stores/user-settings')
     const userSettingsStore = useUserSettingsStore()

@@ -17,12 +17,14 @@ interface Props {
   state?: CheckboxState
   size?: 'small' | 'large' | string
   longPressDelay?: number // 长按触发时间（毫秒）
+  disableLongPress?: boolean // 禁用长按功能（用于单模式场景）
 }
 
 const props = withDefaults(defineProps<Props>(), {
   state: null,
   size: 'small',
   longPressDelay: 500,
+  disableLongPress: false,
 })
 
 const emit = defineEmits<{
@@ -48,6 +50,9 @@ const customSizeStyle = computed(() => {
 const handlePressStart = (event: MouseEvent | TouchEvent) => {
   event.preventDefault()
   isLongPress.value = false
+
+  // 如果禁用长按，直接返回
+  if (props.disableLongPress) return
 
   // 设置长按定时器
   pressTimer.value = window.setTimeout(() => {

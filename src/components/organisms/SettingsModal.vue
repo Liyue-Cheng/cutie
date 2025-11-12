@@ -188,11 +188,17 @@
                   <span class="setting-description">布尔类型测试（复选框）</span>
                 </div>
                 <label class="checkbox-wrapper">
-                  <input
-                    type="checkbox"
+                  <CuteCheckbox
                     :checked="store.getSettingValue('debug.test_boolean', false)"
-                    @change="updateSetting('debug.test_boolean', $event, 'boolean')"
-                    class="setting-checkbox"
+                    size="small"
+                    @update:checked="
+                      (val) =>
+                        pipeline.dispatch('user_settings.update', {
+                          key: 'debug.test_boolean',
+                          value: val,
+                          value_type: 'boolean',
+                        })
+                    "
                   />
                   <span class="checkbox-label">Enable</span>
                 </label>
@@ -219,14 +225,18 @@
                   <label class="setting-label">Test Toggle</label>
                   <span class="setting-description">布尔类型测试（开关）</span>
                 </div>
-                <label class="toggle-switch">
-                  <input
-                    type="checkbox"
-                    :checked="store.getSettingValue('debug.test_toggle', true)"
-                    @change="updateSetting('debug.test_toggle', $event, 'boolean')"
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
+                <CuteCheckbox
+                  :checked="store.getSettingValue('debug.test_toggle', true)"
+                  size="small"
+                  @update:checked="
+                    (val) =>
+                      pipeline.dispatch('user_settings.update', {
+                        key: 'debug.test_toggle',
+                        value: val,
+                        value_type: 'boolean',
+                      })
+                  "
+                />
               </div>
             </div>
           </div>
@@ -262,6 +272,7 @@ import { ref, onMounted } from 'vue'
 import { pipeline } from '@/cpu'
 import { useUserSettingsStore } from '@/stores/user-settings'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import type { ValueType } from '@/types/user-settings'
 
 defineProps<{

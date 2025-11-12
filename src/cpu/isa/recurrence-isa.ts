@@ -10,6 +10,8 @@
 import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type { TaskRecurrence } from '@/types/dtos'
 import { useViewStore } from '@/stores/view'
+import { useTaskStore } from '@/stores/task'
+import { useTimeBlockStore } from '@/stores/timeblock'
 import * as recurrenceCore from '@/stores/recurrence/core'
 
 export const RecurrenceISA: ISADefinition = {
@@ -110,8 +112,70 @@ export const RecurrenceISA: ISADefinition = {
     },
 
     commit: async (_result, payload) => {
+      // 1. 清理前端的时间片（workaround：后端删除的时间片需要在前端也删除）
+      const taskStore = useTaskStore()
+      const timeBlockStore = useTimeBlockStore()
+
+      // 1.1 找到所有属于该循环规则的未完成任务
+      const recurrenceTasks = taskStore.allTasks.filter(
+        (task) => task.recurrence_id === payload.id && !task.is_completed && !task.is_deleted
+      )
+
+      console.log(
+        `🔄 [RECURRENCE_DELETE] Found ${recurrenceTasks.length} uncompleted tasks to clean up time blocks`
+      )
+
+      // 1.2 收集这些任务关联的时间片
+      const taskIdsToClean = new Set(recurrenceTasks.map((t) => t.id))
+      const timeBlocksToCheck = new Set<string>()
+
+      // 收集所有可能受影响的时间片ID
+      for (const task of recurrenceTasks) {
+        if (task.schedules) {
+          for (const schedule of task.schedules) {
+            if (schedule.time_blocks) {
+              for (const timeBlock of schedule.time_blocks) {
+                timeBlocksToCheck.add(timeBlock.id)
+              }
+            }
+          }
+        }
+      }
+
+      console.log(`🔄 [RECURRENCE_DELETE] Found ${timeBlocksToCheck.size} time blocks to check`)
+
+      // 1.3 检查每个时间片，如果它只关联被删除的任务，就删除它
+      const timeBlocksToDelete: string[] = []
+
+      for (const timeBlockId of timeBlocksToCheck) {
+        const timeBlock = timeBlockStore.getTimeBlockById(timeBlockId)
+        if (!timeBlock) continue
+
+        // 检查这个时间片是否只关联了被删除的任务
+        const linkedTasks = timeBlock.linked_tasks || []
+        const hasOtherTasks = linkedTasks.some((task) => !taskIdsToClean.has(task.id))
+
+        // 如果没有其他任务关联，就删除它（workaround：简化判断，信任后端已经做了来源检查）
+        if (!hasOtherTasks) {
+          timeBlocksToDelete.push(timeBlockId)
+          console.log(
+            `🔄 [RECURRENCE_DELETE] Will delete orphan time block ${timeBlockId} (only linked to deleted tasks)`
+          )
+        }
+      }
+
+      // 1.4 删除孤儿时间片
+      if (timeBlocksToDelete.length > 0) {
+        timeBlockStore.batchRemoveTimeBlocks_mut(timeBlocksToDelete)
+        console.log(
+          `🔄 [RECURRENCE_DELETE] Deleted ${timeBlocksToDelete.length} orphan time blocks`
+        )
+      }
+
+      // 2. 从 store 中删除循环规则
       recurrenceCore.removeRecurrence(payload.id)
-      // 🔥 删除循环规则后，立即刷新所有日历视图
+
+      // 3. 刷新所有日历视图
       const viewStore = useViewStore()
       await viewStore.refreshAllMountedDailyViewsImmediately()
     },

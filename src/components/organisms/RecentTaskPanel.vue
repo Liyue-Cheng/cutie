@@ -51,10 +51,15 @@
               </button>
               <div v-if="showFilterMenu" class="filter-menu">
                 <label class="filter-option">
-                  <input
-                    type="checkbox"
-                    v-model="showDailyRecurringTasks"
-                    @change="onFilterChange"
+                  <CuteCheckbox
+                    :checked="showDailyRecurringTasks"
+                    size="small"
+                    @update:checked="
+                      (val) => {
+                        showDailyRecurringTasks = val
+                        onFilterChange()
+                      }
+                    "
                   />
                   <span>显示每日循环任务</span>
                 </label>
@@ -85,6 +90,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
