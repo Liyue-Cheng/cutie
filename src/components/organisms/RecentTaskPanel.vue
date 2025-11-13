@@ -31,25 +31,32 @@
               />
             </div>
 
-            <!-- 天数选择器（下拉菜单） -->
-            <div class="day-count-selector">
-              <select v-model="dayCount" class="day-count-select" @change="onDayCountChange">
-                <option v-for="count in dayCountOptions" :key="count" :value="count">
-                  {{ count }}天
-                </option>
-              </select>
-            </div>
+            <!-- 天数选择器（CuteDropdown） -->
+            <CuteDropdown
+              v-model="dayCount"
+              :options="dayCountOptions.map(c => ({ value: c, label: `${c}天` }))"
+              @change="onDayCountChange"
+            >
+              <template #trigger>
+                <button class="day-count-trigger">
+                  <span>{{ dayCount }}天</span>
+                  <CuteIcon name="ChevronDown" :size="14" />
+                </button>
+              </template>
+            </CuteDropdown>
           </div>
 
           <!-- 右侧筛选菜单 -->
           <div class="controls-right">
-            <div class="filter-dropdown">
-              <button class="filter-btn" @click="toggleFilterMenu" title="筛选选项">
-                <CuteIcon name="Filter" :size="16" />
-                <span>筛选</span>
-                <CuteIcon name="ChevronDown" :size="14" />
-              </button>
-              <div v-if="showFilterMenu" class="filter-menu">
+            <CuteDropdown :close-on-select="false">
+              <template #trigger>
+                <button class="filter-btn">
+                  <CuteIcon name="Filter" :size="16" />
+                  <span>筛选</span>
+                  <CuteIcon name="ChevronDown" :size="14" />
+                </button>
+              </template>
+              <CuteDropdownItem @click.prevent>
                 <label class="filter-option">
                   <CuteCheckbox
                     :checked="showDailyRecurringTasks"
@@ -63,8 +70,8 @@
                   />
                   <span>显示每日循环任务</span>
                 </label>
-              </div>
-            </div>
+              </CuteDropdownItem>
+            </CuteDropdown>
           </div>
         </div>
       </template>
@@ -91,6 +98,8 @@ import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
+import CuteDropdown from '@/components/parts/CuteDropdown.vue'
+import CuteDropdownItem from '@/components/parts/CuteDropdownItem.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
@@ -128,7 +137,6 @@ const dayCountOptions = [1, 3, 5, 7] // 可选的天数选项
 const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
 
 // 筛选菜单状态
-const showFilterMenu = ref(false)
 const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
 
 // 监听 props 变化
@@ -257,25 +265,12 @@ function onDayCountChange() {
   loadDateRangeTasks()
 }
 
-// 切换筛选菜单
-function toggleFilterMenu() {
-  showFilterMenu.value = !showFilterMenu.value
-}
-
 // 筛选选项变化
 function onFilterChange() {
   logger.info(LogTags.COMPONENT_RECENT_TASK_PANEL, 'Filter changed', {
     showDailyRecurringTasks: showDailyRecurringTasks.value,
   })
   // 筛选状态已通过 prop 传递给 TaskList 组件
-}
-
-// 点击外部关闭筛选菜单
-function handleClickOutside(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  if (showFilterMenu.value && !target.closest('.filter-dropdown')) {
-    showFilterMenu.value = false
-  }
 }
 
 // 预加载日期范围的任务
@@ -291,14 +286,6 @@ onMounted(async () => {
 
   // 加载日期范围的任务
   await loadDateRangeTasks()
-
-  // 添加全局点击事件监听
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  // 移除全局点击事件监听
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -425,15 +412,14 @@ onUnmounted(() => {
   padding: 0;
 }
 
-/* 天数选择器 */
-.day-count-selector {
+/* 天数选择器触发器 */
+.day-count-trigger {
   display: flex;
   align-items: center;
-}
-
-.day-count-select {
+  justify-content: space-between;
+  gap: 0.6rem;
   height: 3.6rem;
-  padding: 0 1rem;
+  padding: 0 1.2rem;
   font-size: 1.3rem;
   font-weight: 500;
   color: var(--color-text-primary);
@@ -444,26 +430,19 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   outline: none;
   min-width: 8rem;
+  white-space: nowrap;
 }
 
-.day-count-select:hover {
+.day-count-trigger:hover {
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
   border-color: var(--color-border-hover, var(--color-border-default));
 }
 
-.day-count-select:focus {
-  outline: none;
-}
-
 /* ==================== 筛选下拉菜单 ==================== */
-.filter-dropdown {
-  position: relative;
-}
-
 .filter-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 0.6rem;
   height: 3.6rem;
   padding: 0 1.2rem;
@@ -476,6 +455,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  min-width: 10rem;
 }
 
 .filter-btn:hover {
@@ -487,39 +467,15 @@ onUnmounted(() => {
   transform: scale(0.98);
 }
 
-.filter-menu {
-  position: absolute;
-  top: calc(100% + 0.8rem);
-  right: 0;
-  min-width: 20rem;
-  padding: 0.8rem;
-  background-color: var(--color-background-primary, #faf4ed);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
-  box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 10%);
-  z-index: 100;
-}
-
 .filter-option {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.8rem 1.2rem;
+  width: 100%;
   font-size: 1.4rem;
   color: var(--color-text-primary);
   cursor: pointer;
-  border-radius: 0.6rem;
-  transition: background-color 0.2s ease;
-}
-
-.filter-option:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-}
-
-.filter-option input[type='checkbox'] {
-  width: 1.6rem;
-  height: 1.6rem;
-  cursor: pointer;
+  user-select: none;
 }
 
 .filter-option span {
