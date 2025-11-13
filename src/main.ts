@@ -144,6 +144,11 @@ initializeApiConfig()
     const userSettingsStore = useUserSettingsStore()
     userSettingsStore.initEventSubscriptions()
     logger.info('System:Init', 'User settings store initialized')
+
+    // ✅ 初始化主题系统
+    const { initializeTheme } = await import('@/composables/useTheme')
+    initializeTheme()
+    logger.info('System:Init', 'Theme system initialized')
   })
   .catch((error) => {
     logger.error('System:Init', 'Failed to initialize API configuration', error)

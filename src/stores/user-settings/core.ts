@@ -156,7 +156,7 @@ export function createUserSettingsCore() {
   /**
    * 主题
    */
-  const theme = computed(() => getSettingValue('appearance.theme', 'auto'))
+  const theme = computed(() => getSettingValue('appearance.theme', 'business'))
 
   /**
    * 默认任务时长（分钟）

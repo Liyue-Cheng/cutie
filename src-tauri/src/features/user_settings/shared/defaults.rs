@@ -12,6 +12,13 @@ pub struct DefaultSetting {
 /// 获取所有默认设置
 pub fn get_default_settings() -> Vec<DefaultSetting> {
     vec![
+        // Appearance 设置
+        DefaultSetting {
+            key: "appearance.theme",
+            value: "\"business\"",
+            value_type: ValueType::String,
+            category: SettingCategory::Appearance,
+        },
         // AI 设置 - 会根据模型类型区分对话与快速模型
         DefaultSetting {
             key: "ai.conversation.api_base_url",
