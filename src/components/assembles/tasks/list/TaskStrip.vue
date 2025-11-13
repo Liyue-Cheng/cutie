@@ -36,7 +36,7 @@
             v-if="task.due_date.type === 'HARD'"
             name="Flag"
             size="1.4rem"
-            :color="task.due_date.is_overdue ? '#f44336' : '#999'"
+            :color="task.due_date.is_overdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'"
           />
           <!-- 软截止：使用波浪号 -->
           <span v-else class="soft-deadline-icon">~</span>
@@ -72,7 +72,7 @@
       <!-- 非即将到期列表：时间块显示（如果有） -->
       <div v-if="!isInUpcomingList && todayTimeBlocks.length > 0" class="time-blocks-inline">
         <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
-          <span class="time-tag-dot" :style="{ backgroundColor: area?.color || '#999' }"></span>
+          <span class="time-tag-dot" :style="{ backgroundColor: area?.color || 'var(--color-tag-background)' }"></span>
           {{ formatTimeBlockStart(block) }}
         </span>
         <span v-if="todayTimeBlocks.length > 3" class="time-tag-more"
@@ -97,7 +97,7 @@
           v-if="task.due_date.type === 'HARD'"
           name="Flag"
           size="1.4rem"
-          :color="task.due_date.is_overdue ? '#f44336' : '#999'"
+          :color="task.due_date.is_overdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'"
         />
         <!-- 软截止：使用波浪号 -->
         <span v-else class="soft-deadline-icon">~</span>
@@ -422,7 +422,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .task-strip:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
+  background-color: var(--color-background-hover);
 }
 
 .task-strip.completed {
@@ -475,8 +475,8 @@ function onMouseDown(event: MouseEvent) {
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-secondary);
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border: 1.5px solid rgb(0 0 0 / 15%);
+  background-color: var(--color-background-hover);
+  border: 1.5px solid var(--color-border-default);
   border-radius: 1.2rem;
   line-height: 1.4;
   cursor: pointer;
@@ -484,9 +484,9 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .estimated-duration:hover {
-  border-color: var(--color-primary, #4a90e2);
-  background-color: var(--color-primary-bg, rgb(74 144 226 / 12%));
-  color: var(--color-primary, #4a90e2);
+  border-color: var(--color-button-primary-bg);
+  background-color: var(--color-button-primary-hover);
+  color: var(--color-button-primary-bg);
 }
 
 .time-picker-popup {
@@ -513,8 +513,8 @@ function onMouseDown(event: MouseEvent) {
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-secondary);
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border: 1.5px solid rgb(0 0 0 / 15%);
+  background-color: var(--color-background-hover);
+  border: 1.5px solid var(--color-border-default);
   white-space: nowrap;
   border-radius: 1.2rem;
   line-height: 1.4;
@@ -533,8 +533,8 @@ function onMouseDown(event: MouseEvent) {
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-tertiary);
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border: 1.5px solid rgb(0 0 0 / 15%);
+  background-color: var(--color-background-hover);
+  border: 1.5px solid var(--color-border-default);
   white-space: nowrap;
   border-radius: 1.2rem;
   line-height: 1.4;
@@ -576,7 +576,7 @@ function onMouseDown(event: MouseEvent) {
 
 .soft-deadline-icon {
   font-size: 1.6rem;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-weight: 600;
 }
 
@@ -590,7 +590,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .due-date-text.overdue {
-  color: #f44336;
+  color: var(--color-danger);
   font-weight: 600;
 }
 
@@ -642,7 +642,7 @@ function onMouseDown(event: MouseEvent) {
 
 .due-date-inline .soft-deadline-icon {
   font-size: 1.4rem;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-weight: 400;
   line-height: 1;
   display: flex;
@@ -652,7 +652,7 @@ function onMouseDown(event: MouseEvent) {
 
 .due-date-inline .due-date-text {
   font-size: 1.3rem;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -662,7 +662,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .due-date-inline .due-date-text.overdue {
-  color: #f44336;
+  color: var(--color-danger);
   font-weight: 600;
 }
 </style>

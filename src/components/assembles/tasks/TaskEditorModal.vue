@@ -604,56 +604,46 @@ async function handleDeleteRecurrence() {
 
         <!-- 循环规则展示区 -->
         <div v-if="currentRecurrence" class="recurrence-info-section">
-          <div class="recurrence-header">
-            <div class="recurrence-icon-wrapper">
-              <CuteIcon name="RefreshCw" :size="16" />
+          <div class="recurrence-row">
+            <div class="recurrence-indicator">
+              <CuteIcon name="RefreshCw" :size="14" />
             </div>
-            <div class="recurrence-content">
-              <div class="recurrence-title">
-                循环任务规则
+            <div class="recurrence-main">
+              <div class="recurrence-top">
+                <span class="recurrence-label">循环规则</span>
+                <span class="recurrence-text">{{ recurrenceDescription }}</span>
                 <span class="status-badge" :class="{ active: currentRecurrence.is_active }">
-                  {{ currentRecurrence.is_active ? '激活中' : '已暂停' }}
+                  {{ currentRecurrence.is_active ? '激活' : '暂停' }}
                 </span>
               </div>
-              <div class="recurrence-description">{{ recurrenceDescription }}</div>
               <div
                 v-if="currentRecurrence.start_date || currentRecurrence.end_date"
                 class="recurrence-dates"
               >
-                <span v-if="currentRecurrence.start_date"
-                  >开始: {{ currentRecurrence.start_date }}</span
-                >
-                <span v-if="currentRecurrence.end_date" class="date-separator">-</span>
-                <span v-if="currentRecurrence.end_date"
-                  >结束: {{ currentRecurrence.end_date }}</span
-                >
+                <span v-if="currentRecurrence.start_date">{{ currentRecurrence.start_date }}</span>
+                <span v-if="currentRecurrence.start_date && currentRecurrence.end_date">至</span>
+                <span v-if="currentRecurrence.end_date">{{ currentRecurrence.end_date }}</span>
               </div>
             </div>
             <div class="recurrence-actions">
-              <!-- Stop Repeating / Extend -->
               <button
                 v-if="(task as any)?.recurrence_original_date && !currentRecurrence.end_date"
-                class="action-icon-btn stop"
+                class="action-btn"
                 @click="handleStopRepeating"
-                title="停止重复（从此日期之后不再生成）"
+                title="停止重复"
               >
-                <CuteIcon name="X" :size="14" />
+                <CuteIcon name="X" :size="16" />
               </button>
               <button
                 v-if="currentRecurrence.end_date"
-                class="action-icon-btn extend"
+                class="action-btn"
                 @click="handleExtendRecurrence"
-                title="继续循环（清除结束日期）"
+                title="继续循环"
               >
-                <CuteIcon name="Check" :size="14" />
+                <CuteIcon name="Check" :size="16" />
               </button>
-              <!-- 删除 -->
-              <button
-                class="action-icon-btn danger"
-                @click="handleDeleteRecurrence"
-                title="删除规则"
-              >
-                <CuteIcon name="Trash2" :size="14" />
+              <button class="action-btn danger" @click="handleDeleteRecurrence" title="删除规则">
+                <CuteIcon name="Trash2" :size="16" />
               </button>
             </div>
           </div>
@@ -773,7 +763,7 @@ async function handleDeleteRecurrence() {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgb(0 0 0 / 50%);
+  background-color: var(--color-overlay-heavy);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -843,7 +833,7 @@ async function handleDeleteRecurrence() {
 }
 
 .area-option:hover {
-  background-color: var(--color-background-soft, #f9f9f9);
+  background-color: var(--color-background-hover);
 }
 
 .no-area-text {
@@ -886,8 +876,8 @@ async function handleDeleteRecurrence() {
 }
 
 .due-date-button:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-bg);
 }
 
 .due-date-button .placeholder {
@@ -949,14 +939,14 @@ async function handleDeleteRecurrence() {
 }
 
 .type-button:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-bg);
 }
 
 .type-button.active {
-  background-color: var(--color-primary, #1976d2);
+  background-color: var(--color-button-primary-bg);
   color: white;
-  border-color: var(--color-primary, #1976d2);
+  border-color: var(--color-button-primary-bg);
 }
 
 .picker-actions {
@@ -976,7 +966,7 @@ async function handleDeleteRecurrence() {
 }
 
 .save-button {
-  background-color: var(--color-primary, #1976d2);
+  background-color: var(--color-button-primary-bg);
   color: white;
 }
 
@@ -985,21 +975,22 @@ async function handleDeleteRecurrence() {
 }
 
 .clear-button {
-  background-color: #f44336;
-  color: white;
+  background-color: var(--color-danger);
+  color: var(--color-text-on-accent);
 }
 
 .clear-button:hover {
-  background-color: #d32f2f;
+  background-color: var(--c-red-500);
+  filter: brightness(0.9);
 }
 
 .cancel-button {
-  background-color: #e0e0e0;
+  background-color: var(--color-background-secondary);
   color: var(--color-text-primary);
 }
 
 .cancel-button:hover {
-  background-color: #bdbdbd;
+  background-color: var(--color-background-hover);
 }
 
 .recurrence-button {
@@ -1018,104 +1009,106 @@ async function handleDeleteRecurrence() {
 }
 
 .recurrence-button:hover {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary);
+  border-color: var(--color-button-primary-bg);
+  background-color: var(--color-button-primary-bg);
   color: white;
 }
 
 .recurrence-button.active {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background-color: rgb(25 118 210 / 10%);
+  border-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-bg);
+  background-color: var(--color-button-primary-hover);
 }
 
 .recurrence-button.active:hover {
-  background-color: var(--color-primary);
+  background-color: var(--color-button-primary-bg);
   color: white;
 }
 
 /* 循环规则展示区 */
 .recurrence-info-section {
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-  border-radius: 0.8rem;
-  border: 1px solid #bbdefb;
-  margin-top: -0.5rem;
+  padding: 1.2rem 1.5rem;
+  background: var(--color-background-hover);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
 }
 
-.recurrence-header {
+.recurrence-row {
   display: flex;
-  align-items: flex-start;
-  gap: 1.2rem;
+  align-items: center;
+  gap: 1rem;
 }
 
-.recurrence-icon-wrapper {
+.recurrence-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3.2rem;
-  height: 3.2rem;
-  background: var(--color-primary, #1976d2);
-  color: white;
-  border-radius: 0.6rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--color-text-accent);
   flex-shrink: 0;
 }
 
-.recurrence-content {
+.recurrence-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.4rem;
 }
 
-.recurrence-title {
+.recurrence-top {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.recurrence-label {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.recurrence-text {
   font-size: 1.4rem;
-  font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .status-badge {
-  padding: 0.2rem 0.8rem;
-  border-radius: 1rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.3rem;
   font-size: 1.1rem;
   font-weight: 500;
-  background: #e0e0e0;
-  color: #666;
+  background: var(--color-background-soft, #e0e0e0);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-default);
 }
 
 .status-badge.active {
-  background: #4caf50;
-  color: white;
-}
-
-.recurrence-description {
-  font-size: 1.3rem;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
+  background: var(--color-success-bg, #e8f5e9);
+  color: var(--color-success, #4caf50);
+  border-color: var(--color-success, #4caf50);
 }
 
 .recurrence-dates {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   font-size: 1.2rem;
-  color: var(--color-text-tertiary);
-}
-
-.date-separator {
   color: var(--color-text-tertiary);
 }
 
 .recurrence-actions {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.4rem;
   flex-shrink: 0;
 }
 
-.action-icon-btn {
+.recurrence-actions .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1124,34 +1117,21 @@ async function handleDeleteRecurrence() {
   padding: 0;
   border: 1px solid var(--color-border-default);
   border-radius: 0.4rem;
-  background: white;
+  background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.action-icon-btn:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: rgb(25 118 210 / 10%);
+.recurrence-actions .action-btn:hover {
+  border-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-bg);
+  background: var(--color-background-hover);
 }
 
-.action-icon-btn.danger:hover {
-  border-color: #f44336;
-  color: #f44336;
-  background: rgb(244 67 54 / 10%);
-}
-
-.action-icon-btn.stop:hover {
-  border-color: #ff9800;
-  color: #ff9800;
-  background: rgb(255 152 0 / 10%);
-}
-
-.action-icon-btn.extend:hover {
-  border-color: #4caf50;
-  color: #4caf50;
-  background: rgb(76 175 80 / 10%);
+.recurrence-actions .action-btn.danger:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .close-button {
@@ -1195,7 +1175,7 @@ async function handleDeleteRecurrence() {
 }
 
 .title-input:focus {
-  border-bottom-color: var(--color-primary);
+  border-bottom-color: var(--color-button-primary-bg);
 }
 
 .title-input.completed {
@@ -1284,7 +1264,7 @@ async function handleDeleteRecurrence() {
 }
 
 .subtask-item:hover {
-  background-color: var(--color-background-soft, #f9f9f9);
+  background-color: var(--color-background-hover);
 }
 
 .drag-handle {
@@ -1330,7 +1310,7 @@ async function handleDeleteRecurrence() {
 }
 
 .delete-button:hover {
-  color: var(--color-danger, #ff4d4f);
+  color: var(--color-danger);
 }
 
 .subtask-item:hover .delete-button {
@@ -1355,8 +1335,8 @@ async function handleDeleteRecurrence() {
 .add-subtask-input:focus {
   outline: none;
   border-style: solid;
-  border-color: var(--color-primary);
-  background-color: var(--color-background-soft, #f9f9f9);
+  border-color: var(--color-button-primary-bg);
+  background-color: var(--color-background-hover);
 }
 
 .add-subtask-input::placeholder {

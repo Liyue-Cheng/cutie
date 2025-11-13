@@ -471,7 +471,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             v-for="block in todayTimeBlocks.slice(0, 2)"
             :key="block.id"
             class="time-tag"
-            :style="{ backgroundColor: area?.color || '#ccc' }"
+            :style="{ backgroundColor: area?.color || 'var(--color-tag-background)' }"
           >
             {{ formatTimeBlockStart(block) }}
           </span>
@@ -529,7 +529,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             v-if="task.due_date.type === 'HARD'"
             name="Flag"
             size="1.4rem"
-            :color="task.due_date.is_overdue ? '#f44336' : '#999'"
+            :color="task.due_date.is_overdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'"
           />
           <!-- 软截止：使用波浪号 -->
           <span v-else class="soft-deadline-icon">~</span>
@@ -604,7 +604,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
 .task-card:hover {
   border-color: var(--color-border-hover);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  box-shadow: var(--shadow-md);
 }
 
 .main-content {
@@ -634,7 +634,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   padding: 0.18rem 0.54rem;
   font-size: 1.08rem;
   font-weight: 500;
-  color: #fff;
+  color: var(--color-text-on-accent);
   white-space: nowrap;
   border-radius: 0.36rem;
   text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
@@ -647,10 +647,10 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   padding: 0.18rem 0.54rem;
   font-size: 1.08rem;
   font-weight: 500;
-  color: #666;
+  color: var(--color-text-secondary);
   white-space: nowrap;
   border-radius: 0.27rem;
-  background-color: #f0f0f0;
+  background-color: var(--color-background-secondary);
   line-height: 1.4;
 }
 
@@ -711,7 +711,7 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
 .soft-deadline-icon {
   font-size: 1.4rem;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-weight: 400;
   line-height: 1;
   display: flex;
@@ -721,14 +721,14 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
 .due-date-text {
   font-size: 1.3rem;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-weight: 500;
   line-height: 1.4;
 }
 
 /* 只有硬截止且逾期时才显示红色 */
 .due-date-text.overdue.hard-deadline {
-  color: #f44336;
+  color: var(--color-danger);
   font-weight: 600;
 }
 
@@ -767,12 +767,12 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 
 .estimated-duration {
   padding: 0.18rem 0.54rem;
-  background-color: #f0f0f0;
+  background-color: var(--color-background-secondary);
   border: none;
   border-radius: 0.36rem;
   font-size: 1.08rem;
   font-weight: 500;
-  color: #444;
+  color: var(--color-text-primary);
   cursor: pointer;
   transition: all 0.15s;
   line-height: 1.4;
@@ -781,15 +781,15 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
 /* 禁用状态：不可点击，光标不变 */
 .estimated-duration:disabled {
   cursor: default;
-  background-color: #f0f0f0;
-  color: #444;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-primary);
   opacity: 1;
 }
 
 /* 可点击状态：hover时变暗 */
 .estimated-duration:not(:disabled):hover {
-  background-color: #e8e8e8;
-  color: #222;
+  background-color: var(--color-background-hover);
+  color: var(--color-text-primary);
 }
 
 .time-picker-popup {
