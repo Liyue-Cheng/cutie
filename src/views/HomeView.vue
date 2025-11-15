@@ -221,9 +221,9 @@ onBeforeUnmount(() => {
 
 /* 分割线 */
 .divider {
-  width: 1px;
+  width: 3px;
   height: 100%;
-  background-color: var(--color-border-default);
+  background-color: var(--color-border-light);
   cursor: col-resize;
   flex-shrink: 0;
   transition: background-color 0.2s;
@@ -239,7 +239,30 @@ onBeforeUnmount(() => {
   cursor: col-resize;
 }
 
+/* 中间的小手柄 */
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.4rem;
+  height: 3.2rem;
+  background-color: var(--color-border-default);
+  border-radius: 0.2rem;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+  pointer-events: none;
+}
+
 .divider:hover {
-  background-color: var(--color-border-hover, var(--color-border-default));
+  background-color: var(--color-border-default);
+}
+
+.divider:hover::after {
+  opacity: 1;
+  background-color: var(--color-text-secondary);
 }
 </style>

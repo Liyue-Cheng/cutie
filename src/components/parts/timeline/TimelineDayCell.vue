@@ -1,17 +1,49 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+/**
+ * TimelineDayCell - 时间线日期单元格组件
+ *
+ * 🎯 设计理念：
+ * 采用上中下三栏结构：
+ * - 上栏：标题（日期数字、月日、星期、今天徽章）
+ * - 中栏：虚线分隔（与 TaskList 一致的视觉效果）
+ * - 下栏：内容区（任务、截止日期、全天事件）
+ *
+ * 🔑 VIEW_CONTEXT_KEY 规范支持：
+ * 完整支持 VIEW_CONTEXT_KEY_SPEC.md 中定义的所有视图类型：
+ * - misc::all, misc::staging, misc::planned, etc.
+ * - daily::{YYYY-MM-DD}
+ * - area::{area_uuid}
+ * - project::{project_uuid}
+ *
+ * 默认行为：当不传 viewKey 时，自动使用 `daily::${date}`
+ *
+ * 📦 功能：
+ * - 使用 CuteDualModeCheckbox 进行任务状态切换
+ * - 支持拖放操作（接收任务拖放到此日期）
+ * - 右键菜单支持
+ * - 点击打开任务编辑器
+ * - 字体大小与 TaskStrip 保持一致（1.5rem）
+ */
+import { computed, ref } from 'vue'
 import type { TaskCard, TimeBlockView } from '@/types/dtos'
-import CalendarTaskEventContent from '@/components/assembles/calender/CalendarTaskEventContent.vue'
-import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
-import CalendarTimeBlockEventContent from '@/components/assembles/calender/CalendarTimeBlockEventContent.vue'
+import type { ViewMetadata } from '@/types/drag'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CellItemTask from './CellItemTask.vue'
+import CellItemDeadline from './CellItemDeadline.vue'
+
+// Checkbox状态类型
+type CheckboxState = null | 'completed' | 'present'
 import { useUIStore } from '@/stores/ui'
 import { useContextMenu } from '@/composables/useContextMenu'
 import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue'
 import CalendarEventMenu from '@/components/assembles/ContextMenu/CalendarEventMenu.vue'
-import { interactManager } from '@/infra/drag-interact'
+import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
-import type { DragSession } from '@/infra/drag-interact/types'
+import { dragPreviewState } from '@/infra/drag-interact'
+import { deriveViewMetadata } from '@/services/viewAdapter'
+import { useViewTasks } from '@/composables/useViewTasks'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { pipeline } from '@/cpu'
 
 interface Props {
   date: string // YYYY-MM-DD
@@ -21,11 +53,25 @@ interface Props {
   allDayEvents: TimeBlockView[]
   isToday: boolean
   isWeekend: boolean
+  viewKey?: string // 🔥 支持完整的 VIEW_CONTEXT_KEY 规范，默认为 daily::date
 }
 
 const props = defineProps<Props>()
 
+// 计算有效的 viewKey
+const effectiveViewKey = computed(() => {
+  return props.viewKey || `daily::${props.date}`
+})
+
 const uiStore = useUIStore()
+// 🔥 使用 useViewTasks 获取带排序的任务，保证与 TaskList 一致的持久化顺序
+const { tasks: sortedViewTasks } = useViewTasks(effectiveViewKey.value)
+
+// 如果 viewTasks 还未加载完成，则退回到 props.tasks
+const resolvedTasks = computed(() => {
+  return sortedViewTasks.value.length > 0 ? sortedViewTasks.value : props.tasks
+})
+
 const contextMenu = useContextMenu()
 const dragStrategy = useDragStrategy()
 
@@ -35,18 +81,149 @@ const hasContent = computed(() => {
   return props.tasks.length > 0 || props.dueDates.length > 0 || props.allDayEvents.length > 0
 })
 
+// 格式化星期显示
+const weekdayText = computed(() => {
+  const date = new Date(props.date)
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return weekdays[date.getDay()]
+})
+
+// 格式化月日显示
+const monthDayText = computed(() => {
+  const date = new Date(props.date)
+  const month = date.getMonth() + 1
+  return `${month}月${props.dayNumber}日`
+})
+
+// ==================== ViewMetadata 推导 ====================
+const effectiveViewMetadata = computed<ViewMetadata>(() => {
+  const derived = deriveViewMetadata(effectiveViewKey.value)
+  if (derived) {
+    return derived
+  }
+
+  // 兜底：提供最小可用元数据
+  return {
+    id: effectiveViewKey.value,
+    type: 'custom',
+    label: `${monthDayText.value} ${weekdayText.value}`,
+    config: {},
+  } as ViewMetadata
+})
+
+// ==================== 拖放系统集成 ====================
+// 标准化 viewKey 作为 CSS class（:: 替换为 --）
+const normalizedViewKey = computed(() => effectiveViewKey.value.replace(/::/g, '--'))
+
+const { displayItems } = useInteractDrag({
+  viewMetadata: effectiveViewMetadata,
+  items: resolvedTasks,
+  containerRef: cellRef,
+  draggableSelector: `.cell-task-wrapper-${normalizedViewKey.value}`,
+  objectType: 'task',
+  getObjectId: (task) => task.id,
+  onDrop: async (session) => {
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Timeline cell drop event', {
+      session,
+      targetViewKey: effectiveViewKey.value,
+      displayItems: displayItems.value.length,
+      dropIndex: dragPreviewState.value?.computed.dropIndex,
+    })
+
+    // 🎯 执行拖放策略
+    const result = await dragStrategy.executeDrop(session, effectiveViewKey.value, {
+      sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
+      targetContext: {
+        taskIds: displayItems.value.map((t) => t.id),
+        displayTasks: displayItems.value,
+        dropIndex: dragPreviewState.value?.computed.dropIndex,
+        viewKey: effectiveViewKey.value,
+      },
+    })
+
+    if (!result.success) {
+      const errorMessage = result.message || result.error || 'Unknown error'
+      logger.error(
+        LogTags.COMPONENT_CALENDAR,
+        'Timeline cell drop failed',
+        new Error(errorMessage),
+        {
+          result,
+          session,
+        }
+      )
+    } else {
+      logger.info(LogTags.COMPONENT_CALENDAR, 'Timeline cell drop succeeded', {
+        taskId: session.object.id,
+        targetViewKey: effectiveViewKey.value,
+      })
+    }
+  },
+})
+
+// 计算任务的checkbox状态
+function getTaskCheckboxState(task: TaskCard): CheckboxState {
+  if (task.is_completed) {
+    return 'completed'
+  }
+
+  // 检查当前日期的outcome
+  if (task.schedules) {
+    const schedule = task.schedules.find((s) => s.scheduled_day === props.date)
+    if (schedule && schedule.outcome === 'presence_logged') {
+      return 'present'
+    }
+  }
+
+  return null
+}
+
+// 处理checkbox状态变化
+async function handleCheckboxStateChange(task: TaskCard, newState: CheckboxState) {
+  try {
+    if (newState === 'completed') {
+      // 完成任务
+      await pipeline.dispatch('task.complete', { id: task.id })
+    } else if (newState === 'present') {
+      // 记录presence
+      await pipeline.dispatch('task.log_presence', {
+        id: task.id,
+        scheduled_day: props.date,
+      })
+    } else if (newState === null) {
+      // 重新打开任务或取消presence
+      const currentState = getTaskCheckboxState(task)
+      if (currentState === 'completed') {
+        await pipeline.dispatch('task.reopen', { id: task.id })
+      } else if (currentState === 'present') {
+        await pipeline.dispatch('task.cancel_presence', {
+          id: task.id,
+          scheduled_day: props.date,
+        })
+      }
+    }
+  } catch (error) {
+    logger.error(
+      LogTags.COMPONENT_CALENDAR,
+      'Failed to update task checkbox state',
+      error instanceof Error ? error : new Error(String(error)),
+      { taskId: task.id, newState }
+    )
+  }
+}
+
 function handleTaskClick(taskId: string) {
-  uiStore.openEditor(taskId, `daily::${props.date}`)
+  uiStore.openEditor(taskId, effectiveViewKey.value)
 }
 
 function handleTaskContextMenu(event: MouseEvent, task: TaskCard) {
   event.preventDefault()
   event.stopPropagation()
-  contextMenu.show(KanbanTaskCardMenu, { task, viewKey: `daily::${props.date}` }, event)
+  contextMenu.show(KanbanTaskCardMenu, { task, viewKey: effectiveViewKey.value }, event)
 }
 
 function handleDueDateClick(taskId: string) {
-  uiStore.openEditor(taskId, `daily::${props.date}`)
+  uiStore.openEditor(taskId, effectiveViewKey.value)
 }
 
 function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
@@ -54,59 +231,6 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
   event.stopPropagation()
   contextMenu.show(CalendarEventMenu, { event: { id: timeBlock.id } }, event)
 }
-
-// 拖放支持
-onMounted(() => {
-  if (!cellRef.value) return
-
-  const zoneId = `timeline::${props.date}`
-  cellRef.value.setAttribute('data-zone-id', zoneId)
-
-  interactManager.registerDropzone(cellRef.value, {
-    zoneId,
-    type: 'kanban',
-    computePreview: () => ({
-      dropIndex: 0, // 总是放在最前面
-    }),
-    onDrop: async (session: DragSession) => {
-      logger.info(LogTags.COMPONENT_CALENDAR, 'Drop task on timeline cell', {
-        taskId: (session.object.data as any)?.id,
-        targetDate: props.date,
-      })
-
-      // 构造日期视图的 viewKey
-      const viewKey = `daily::${props.date}`
-
-      // 执行拖放策略
-      const result = await dragStrategy.executeDrop(session, viewKey, {
-        sourceContext: session.metadata?.sourceContext || {},
-        targetContext: {
-          taskIds: [], // 空列表表示放在最前面
-          displayTasks: [],
-        },
-      })
-
-      if (!result.success) {
-        logger.error(
-          LogTags.COMPONENT_CALENDAR,
-          'Failed to drop task on timeline cell',
-          new Error(result.error || 'Unknown error')
-        )
-      }
-    },
-  })
-
-  logger.debug(LogTags.COMPONENT_CALENDAR, 'Timeline cell dropzone registered', {
-    date: props.date,
-    zoneId,
-  })
-})
-
-onBeforeUnmount(() => {
-  if (cellRef.value) {
-    interactManager.unregisterDropzone(cellRef.value)
-  }
-})
 </script>
 
 <template>
@@ -120,62 +244,78 @@ onBeforeUnmount(() => {
     }"
     :data-date="date"
   >
-    <div class="day-header">
-      <span class="day-number">{{ dayNumber }}</span>
-    </div>
-
-    <div class="day-content">
-      <!-- 任务列表 -->
-      <div v-if="tasks.length > 0" class="content-section tasks-section">
-        <div
-          v-for="task in tasks"
-          :key="`task-${task.id}-${date}`"
-          class="timeline-item task-item"
-          @click="handleTaskClick(task.id)"
-          @contextmenu="handleTaskContextMenu($event, task)"
-        >
-          <CalendarTaskEventContent
-            :task-id="task.id"
-            :title="task.title"
-            :schedule-day="date"
-            :schedule-outcome="
-              task.schedules?.find((s) => s.scheduled_day === date)?.outcome ?? null
-            "
-            :is-completed="task.is_completed"
-            :is-recurring="!!task.recurrence_id"
-            :has-due-flag="task.due_date?.date?.slice(0, 10) === date"
-            :is-due-overdue="task.due_date?.is_overdue ?? false"
-          />
+    <!-- 上栏：标题 -->
+    <div class="cell-header">
+      <div class="header-content">
+        <span class="day-number">{{ dayNumber }}</span>
+        <div class="date-info">
+          <span class="month-day">{{ monthDayText }}</span>
+          <span class="weekday">{{ weekdayText }}</span>
         </div>
       </div>
+      <div v-if="isToday" class="today-badge">今天</div>
+    </div>
 
-      <!-- 截止日期列表 -->
-      <div v-if="dueDates.length > 0" class="content-section due-dates-section">
-        <div
+    <!-- 中栏：虚线分隔 -->
+    <div class="cell-divider"></div>
+
+    <!-- 下栏：内容区 -->
+    <div class="cell-content">
+      <!-- 上部：截止日期区 -->
+      <div v-if="dueDates.length > 0" class="deadline-area">
+        <CellItemDeadline
           v-for="dueTask in dueDates"
           :key="`due-${dueTask.id}`"
-          class="timeline-item due-item"
+          :task="dueTask"
           @click="handleDueDateClick(dueTask.id)"
+        />
+      </div>
+
+      <!-- 下部：任务区（支持拖放排序） -->
+      <div class="task-area">
+        <div
+          v-for="task in displayItems"
+          :key="`task-${task.id}-${date}`"
+          :class="[
+            'task-card-wrapper',
+            'cell-task-wrapper',
+            `cell-task-wrapper-${normalizedViewKey}`,
+            {
+              'is-preview': (task as any)._isPreview === true,
+              'drag-compact': (task as any)._dragCompact === true,
+            },
+          ]"
+          :data-task-id="task.id"
         >
-          <CalendarDueDateEventContent
-            :title="dueTask.title"
-            :is-overdue="dueTask.due_date?.is_overdue ?? false"
+          <CellItemTask
+            :task="task"
+            :schedule-day="date"
+            @click="handleTaskClick(task.id)"
+            @contextmenu="handleTaskContextMenu($event, task)"
+            @checkbox-change="(newState) => handleCheckboxStateChange(task, newState)"
           />
+        </div>
+
+        <!-- 空状态 -->
+        <div v-if="displayItems.length === 0 && dueDates.length === 0" class="empty-state">
+          <span>暂无内容</span>
         </div>
       </div>
 
       <!-- 全天事件列表 -->
-      <div v-if="allDayEvents.length > 0" class="content-section events-section">
+      <div v-if="allDayEvents.length > 0" class="events-area">
         <div
           v-for="event in allDayEvents"
           :key="`event-${event.id}`"
-          class="timeline-item event-item"
+          class="timeline-event"
           @contextmenu="handleEventContextMenu($event, event)"
         >
-          <CalendarTimeBlockEventContent
-            :title="event.title || 'Time Block'"
-            :area-color="event.area_id ? '#9ca3af' : '#9ca3af'"
-          />
+          <div class="event-icon">
+            <CuteIcon name="Clock" :size="16" />
+          </div>
+          <div class="event-content">
+            <div class="event-title">{{ event.title || 'Time Block' }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -186,79 +326,179 @@ onBeforeUnmount(() => {
 .timeline-day-cell {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  background: var(--color-background-primary);
-  overflow: hidden;
+  background: transparent;
   transition: all 0.15s ease;
-  min-height: 80px;
 }
 
-.timeline-day-cell:hover {
-  border-color: var(--color-border-hover);
-  box-shadow: 0 2px 4px rgb(0 0 0 / 5%);
-}
-
-.timeline-day-cell.is-today {
-  background: var(--color-primary-bg, #e3f2fd);
-  border-color: var(--color-primary, #4a90e2);
-}
-
-.timeline-day-cell.is-weekend {
-  background: var(--color-background-secondary);
-}
-
-.day-header {
+/* ==================== 上栏：标题 ==================== */
+.cell-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.6rem;
-  border-bottom: 1px solid var(--color-border-default);
-  background: var(--color-background-secondary);
+  justify-content: space-between;
+  padding: 1rem 1.6rem;
+  background: transparent;
 }
 
-.timeline-day-cell.is-today .day-header {
-  background: var(--color-primary, #4a90e2);
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .day-number {
-  font-size: 1.4rem;
-  font-weight: 600;
+  font-size: 2.4rem;
+  font-weight: 700;
   color: var(--color-text-primary);
+  line-height: 1;
+  min-width: 3rem;
 }
 
 .timeline-day-cell.is-today .day-number {
-  color: var(--color-text-on-accent);
+  color: var(--color-primary);
 }
 
-.day-content {
+.date-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.month-day {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.weekday {
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  line-height: 1.2;
+}
+
+.today-badge {
+  background-color: var(--color-primary);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+/* ==================== 中栏：虚线分隔 ==================== */
+.cell-divider {
+  height: 0;
+  border-bottom: 2px dashed rgb(0 0 0 / 15%);
+  margin: 0;
+}
+
+/* ==================== 下栏：内容区 ==================== */
+.cell-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.2rem 1.6rem;
+  flex: 1;
+  min-height: 8rem;
+}
+
+/* 截止日期区 */
+.deadline-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+/* 任务区（支持拖放） */
+.task-area {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 0.6rem;
-  overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
-.content-section {
+.cell-task-wrapper {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: paint;
+}
+
+/* 拖放预览样式 */
+.cell-task-wrapper.is-preview {
+  opacity: 0.6;
+}
+
+.cell-task-wrapper.drag-compact {
+  opacity: 0.3;
+  transform: scale(0.95);
+}
+
+/* 全天事件区 */
+.events-area {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.8rem;
 }
 
-.timeline-item {
-  cursor: pointer;
-  border-radius: 4px;
+.timeline-event {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  border-radius: 0.6rem;
   transition: background-color 0.15s ease;
+  cursor: pointer;
+  background: var(--color-background-secondary);
 }
 
-.timeline-item:hover {
+.timeline-event:hover {
   background: var(--color-background-hover);
 }
 
-.task-item,
-.due-item,
-.event-item {
-  font-size: 1.2rem;
+.event-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.event-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--color-text-tertiary);
+  font-size: 1.3rem;
+}
+
+/* 特殊状态 */
+.timeline-day-cell.is-today {
+  background: transparent;
+}
+
+/* 拖放接收状态 */
+.timeline-day-cell[data-zone-receiving='true'] {
+  background: var(--color-primary-bg, rgb(74 144 226 / 10%));
+}
+
+.timeline-day-cell[data-zone-receiving='true'] .cell-divider {
+  border-color: var(--color-primary);
 }
 </style>
