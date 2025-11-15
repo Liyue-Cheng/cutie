@@ -1263,6 +1263,10 @@ defineExpose({
  * =============================================== */
 
 /* TimeGrid 视图中的时间块事件 - 使用自定义组件完全控制样式 */
+.fc {
+  --fc-event-selected-overlay-color: transparent;
+}
+
 .fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event) {
   background: transparent !important;
   border: none !important;
@@ -1299,6 +1303,13 @@ defineExpose({
   background: transparent !important;
   outline: none !important;
   box-shadow: none !important;
+}
+
+.fc-event.fc-event-selected::before,
+.fc-event.fc-event-selected::after,
+.fc-event:focus::before,
+.fc-event:focus::after {
+  display: none !important;
 }
 
 /* 确保 TimeGrid 拖拽 mirror 也使用透明背景和无边框 */
