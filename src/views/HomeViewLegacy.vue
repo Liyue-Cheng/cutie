@@ -4,7 +4,7 @@ import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import InfiniteDailyKanban from '@/components/organisms/InfiniteDailyKanban.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
 import StagingColumn from '@/components/assembles/tasks/kanban/StagingColumn.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
@@ -334,7 +334,7 @@ async function handleAddTask(title: string, date: string) {
     </div>
 
     <!-- 对话框 -->
-    <KanbanTaskEditorModal
+    <TaskEditorModal
       v-if="uiStore.isEditorOpen"
       :task-id="uiStore.editorTaskId"
       :view-key="uiStore.editorViewKey ?? undefined"

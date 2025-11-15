@@ -628,7 +628,7 @@ function testArchiveTask() {
 }
 
 .status-value.error {
-  color: #f44336;
+  color: var(--color-danger);
 }
 
 .status-arrow {
@@ -656,8 +656,8 @@ function testArchiveTask() {
 .chain-actions {
   margin-bottom: 32px;
   padding: 20px;
-  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-  border: 2px solid #667eea30;
+  background: var(--color-background-secondary);
+  border: 2px solid var(--color-border-default);
   border-radius: 12px;
 }
 
@@ -691,7 +691,7 @@ function testArchiveTask() {
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background-color: #ef4444;
+  background-color: var(--color-danger);
   transition: 0.3s;
   border-radius: 24px;
 }
@@ -709,7 +709,7 @@ function testArchiveTask() {
 }
 
 input:checked + .slider {
-  background-color: #10b981;
+  background-color: var(--color-success);
 }
 
 input:checked + .slider::before {
@@ -727,7 +727,7 @@ input:checked + .slider::before {
   padding: 16px;
   background: var(--color-background);
   border-radius: 8px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--color-info);
 }
 
 .chain-info p {
@@ -739,11 +739,11 @@ input:checked + .slider::before {
 
 .chain-info code {
   padding: 2px 6px;
-  background: #667eea15;
+  background: var(--color-background-secondary);
   border-radius: 4px;
   font-family: 'Fira Code', monospace;
   font-size: 12px;
-  color: #667eea;
+  color: var(--color-info);
 }
 
 .control-group {
@@ -1073,24 +1073,24 @@ input:checked + .slider::before {
 
 .status-badge.pending,
 .status-badge.issued {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--color-background-accent-light);
+  color: var(--color-info);
 }
 
 .status-badge.executing,
 .status-badge.responded {
-  background: #fff3e0;
-  color: #f57c00;
+  background: var(--color-background-secondary);
+  color: var(--color-warning);
 }
 
 .status-badge.committed {
-  background: #e8f5e9;
-  color: #388e3c;
+  background: var(--color-background-secondary);
+  color: var(--color-success);
 }
 
 .status-badge.failed {
-  background: #ffebee;
-  color: #d32f2f;
+  background: var(--color-background-secondary);
+  color: var(--color-danger);
 }
 
 .total-duration {
@@ -1106,12 +1106,12 @@ input:checked + .slider::before {
 }
 
 .error-message {
-  color: #f44336;
+  color: var(--color-danger);
   font-size: 12px;
 }
 
 .success-result {
-  color: #4caf50;
+  color: var(--color-success);
   font-size: 16px;
 }
 

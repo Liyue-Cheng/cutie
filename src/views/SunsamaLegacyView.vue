@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import InfiniteDailyKanban from '@/components/organisms/InfiniteDailyKanban.vue'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -421,7 +421,7 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
         </button>
       </div>
     </div>
-    <KanbanTaskEditorModal
+    <TaskEditorModal
       v-if="uiStore.isEditorOpen"
       :task-id="uiStore.editorTaskId"
       :view-key="uiStore.editorViewKey ?? undefined"

@@ -214,8 +214,8 @@ function handleOpenEditor() {
   padding: 0.6rem 1.2rem;
   font-size: 1.2rem;
   font-weight: 500;
-  color: #fff;
-  background-color: #ef4444;
+  color: var(--color-text-on-accent);
+  background-color: var(--color-danger);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -223,7 +223,8 @@ function handleOpenEditor() {
 }
 
 .empty-trash-btn:hover {
-  background-color: #dc2626;
+  background-color: var(--color-danger);
+  filter: brightness(0.9);
 }
 
 .column-content {
@@ -313,21 +314,23 @@ function handleOpenEditor() {
 }
 
 .restore-btn {
-  color: #fff;
-  background-color: #10b981;
+  color: var(--color-text-on-accent);
+  background-color: var(--color-success);
 }
 
 .restore-btn:hover {
-  background-color: #059669;
+  background-color: var(--color-success);
+  filter: brightness(0.9);
 }
 
 .delete-btn {
-  color: #fff;
-  background-color: #ef4444;
+  color: var(--color-text-on-accent);
+  background-color: var(--color-danger);
 }
 
 .delete-btn:hover {
-  background-color: #dc2626;
+  background-color: var(--color-danger);
+  filter: brightness(0.9);
 }
 
 .action-btn:active {

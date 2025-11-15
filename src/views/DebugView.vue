@@ -2,7 +2,7 @@
 import { onMounted, computed, ref } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteButton from '@/components/parts/CuteButton.vue'
@@ -156,11 +156,7 @@ onMounted(async () => {
         </template>
       </TwoRowLayout>
     </div>
-    <KanbanTaskEditorModal
-      v-if="isEditorOpen"
-      :task-id="selectedTaskId"
-      @close="isEditorOpen = false"
-    />
+    <TaskEditorModal v-if="isEditorOpen" :task-id="selectedTaskId" @close="isEditorOpen = false" />
   </div>
 </template>
 
@@ -208,12 +204,13 @@ onMounted(async () => {
 }
 
 :deep(.top-row .cute-button) {
-  background-color: #4a90e2; /* A nice blue */
-  color: #fff; /* White text */
+  background-color: var(--color-background-accent);
+  color: var(--color-text-on-accent);
   border-color: transparent;
 }
 
 :deep(.top-row .cute-button:hover) {
-  background-color: #357abd; /* A darker blue for hover */
+  background-color: var(--color-background-accent);
+  filter: brightness(0.9);
 }
 </style>

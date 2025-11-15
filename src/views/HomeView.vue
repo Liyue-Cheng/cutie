@@ -119,7 +119,7 @@
     </div>
 
     <!-- 任务编辑器模态框挂载点 -->
-    <KanbanTaskEditorModal
+    <TaskEditorModal
       v-if="uiStore.isEditorOpen"
       :task-id="uiStore.editorTaskId"
       :view-key="uiStore.editorViewKey ?? undefined"
@@ -141,7 +141,7 @@ import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'

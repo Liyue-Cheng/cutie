@@ -5,7 +5,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingColumn from '@/components/assembles/tasks/kanban/StagingColumn.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
@@ -173,7 +173,7 @@ function goToToday() {
     </div>
 
     <!-- 任务编辑器模态框 -->
-    <KanbanTaskEditorModal
+    <TaskEditorModal
       v-if="uiStore.isEditorOpen"
       :task-id="uiStore.editorTaskId"
       :view-key="uiStore.editorViewKey ?? undefined"

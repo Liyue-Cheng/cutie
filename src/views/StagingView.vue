@@ -5,7 +5,7 @@ import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import InfiniteAreaKanban from '@/components/organisms/InfiniteAreaKanban.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
 import InfiniteTimeline from '@/components/organisms/InfiniteTimeline.vue'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
@@ -108,7 +108,7 @@ function handleKanbanCountChange(count: number) {
     </div>
 
     <!-- 全局模态框 -->
-    <KanbanTaskEditorModal
+    <TaskEditorModal
       v-if="uiStore.isEditorOpen"
       :task-id="uiStore.editorTaskId"
       :view-key="uiStore.editorViewKey ?? undefined"

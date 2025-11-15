@@ -5,7 +5,7 @@ import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanban
 import StagingColumn from '@/components/assembles/tasks/kanban/StagingColumn.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
-import KanbanTaskEditorModal from '@/components/assembles/tasks/kanban/KanbanTaskEditorModal.vue'
+import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -175,7 +175,7 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   </div>
 
   <!-- 任务编辑器弹窗 -->
-  <KanbanTaskEditorModal
+  <TaskEditorModal
     v-if="uiStore.isEditorOpen"
     :task-id="uiStore.editorTaskId"
     @close="handleCloseTaskEditor"
