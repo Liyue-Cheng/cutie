@@ -474,8 +474,8 @@ watch(
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background-color: #fee;
-  color: #c33;
+  background-color: var(--color-background-secondary);
+  color: var(--color-danger);
   border-radius: 0.8rem;
   font-size: 1.3rem;
 }
@@ -485,7 +485,7 @@ watch(
   background: none;
   border: none;
   cursor: pointer;
-  color: #c33;
+  color: var(--color-danger);
 }
 
 /* ==================== 图片预览 ==================== */
@@ -519,8 +519,8 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f44;
-  color: white;
+  background-color: var(--color-danger);
+  color: var(--color-text-on-accent);
   border: none;
   border-radius: 50%;
   cursor: pointer;

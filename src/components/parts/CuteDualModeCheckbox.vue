@@ -131,7 +131,7 @@ const handlePressCancel = () => {
   justify-content: center;
   width: 1.6rem;
   height: 1.6rem;
-  border: 0.2rem solid #d9d9d9;
+  border: 0.2rem solid var(--color-status-pending-checkbox);
   border-radius: 0.4rem; /* 圆角方形 */
   background-color: transparent;
   transition: all 0.2s ease-in-out;

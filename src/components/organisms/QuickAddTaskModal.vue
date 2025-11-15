@@ -97,7 +97,7 @@ async function handleAdd() {
 .quick-add-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgb(0 0 0 / 40%);
+  background-color: var(--color-overlay-medium);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -109,9 +109,7 @@ async function handleAdd() {
   background-color: var(--color-background-content, #faf4ed);
   border: 1px solid var(--color-border-default, #dfdad9);
   border-radius: 1.2rem;
-  box-shadow:
-    0 0.8rem 1.6rem rgb(0 0 0 / 12%),
-    0 0.4rem 0.8rem rgb(0 0 0 / 8%);
+  box-shadow: var(--shadow-lg);
   width: 90%;
   max-width: 50rem;
   padding: 0;
@@ -169,8 +167,8 @@ async function handleAdd() {
 
 .task-input:focus {
   outline: none;
-  border-color: var(--color-primary, #286983);
-  box-shadow: 0 0 0 3px var(--color-primary-bg, rgb(40 105 131 / 10%));
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
 }
 
 .task-input::placeholder {
@@ -208,7 +206,7 @@ async function handleAdd() {
 }
 
 .add-button {
-  background-color: var(--color-primary, #286983);
+  background-color: var(--color-button-primary-bg);
   color: #fff;
 }
 
@@ -218,7 +216,7 @@ async function handleAdd() {
 }
 
 .add-button:hover:not(:disabled) {
-  background-color: var(--color-primary-hover, #1f5366);
+  background-color: var(--color-button-primary-hover);
 }
 </style>
 

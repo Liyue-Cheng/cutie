@@ -101,10 +101,10 @@ function clearDuration() {
   flex-direction: column;
   width: 16rem;
   max-height: 40rem;
-  background: white;
+  background: var(--color-background-content);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -146,12 +146,12 @@ function clearDuration() {
 }
 
 .time-option:hover {
-  background-color: var(--color-bg-hover, #f5f5f5);
+  background-color: var(--color-background-hover);
 }
 
 .time-option.active {
-  background-color: var(--color-primary-light, #e3f2fd);
-  color: var(--color-primary, #1976d2);
+  background-color: var(--color-background-selected);
+  color: var(--color-text-accent);
   font-weight: 500;
 }
 
@@ -160,15 +160,15 @@ function clearDuration() {
   padding: 1.2rem 1.4rem;
   border: none;
   border-top: 1px solid var(--color-border-default);
-  background: white;
+  background: var(--color-background-content);
   text-align: left;
   font-size: 1.3rem;
-  color: var(--color-primary, #1976d2);
+  color: var(--color-text-accent);
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .clear-button:hover {
-  background-color: var(--color-bg-hover, #f5f5f5);
+  background-color: var(--color-background-hover);
 }
 </style>

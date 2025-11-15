@@ -235,7 +235,7 @@ function formatTimeRange(timeBlock: any) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border-light);
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -258,13 +258,13 @@ function formatTimeRange(timeBlock: any) {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 4px;
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: var(--color-background-accent-light);
+  color: var(--color-info);
 }
 
 .task-status.completed {
-  background-color: #e8f5e8;
-  color: #2e7d32;
+  background-color: var(--color-background-secondary);
+  color: var(--color-success);
 }
 
 .time-type-badge {
@@ -276,12 +276,12 @@ function formatTimeRange(timeBlock: any) {
 }
 
 .time-type-badge.floating {
-  background-color: #e0f2fe;
-  color: #0277bd;
+  background-color: var(--color-background-accent-light);
+  color: var(--color-info);
 }
 
 .time-type-badge.fixed {
-  background-color: #fff3e0;
-  color: #f57c00;
+  background-color: var(--color-background-secondary);
+  color: var(--color-warning);
 }
 </style>

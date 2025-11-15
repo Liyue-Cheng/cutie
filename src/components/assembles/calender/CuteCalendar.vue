@@ -784,9 +784,9 @@ defineExpose({
 
 /* 创建中事件样式 */
 .fc-event.creating-event {
-  background-color: #bceaee !important;
+  background-color: var(--color-background-accent-light) !important;
   color: var(--color-text-primary, #575279) !important;
-  border-color: #357abd !important;
+  border-color: var(--color-info) !important;
   opacity: 0.8;
   animation: pulse 1s infinite;
 }
@@ -804,7 +804,7 @@ defineExpose({
 
 /* 当前时间指示器样式 */
 .fc-timegrid-now-indicator-line {
-  border-color: #ff6b6b !important;
+  border-color: var(--color-danger) !important;
   border-width: 2px !important;
   z-index: 10 !important;
 }
@@ -865,8 +865,14 @@ defineExpose({
 
 /* 滚动条滑块样式 */
 .fc .fc-scroller::-webkit-scrollbar-thumb {
-  background-color: var(--color-border-hover);
+  background-color: var(--color-border-default);
   border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+/* 滚动条滑块悬停样式 */
+.fc .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-border-strong);
 }
 
 /* ===============================================
@@ -905,7 +911,7 @@ defineExpose({
 /* 事件边框和视觉效果 */
 .fc-event,
 .fc-timegrid-event {
-  border-color: #ddd !important; /* 设置事件边框为灰色 */
+  border-color: var(--color-border-default) !important; /* 设置事件边框为灰色 */
   box-shadow: none !important; /* 移除默认阴影效果 */
 }
 
@@ -951,7 +957,7 @@ defineExpose({
 .decorative-line {
   position: fixed; /* 脱离内层 padding 影响，参照 viewport */
   width: 0.8px;
-  background: #d1d1d1;
+  background: var(--color-border-default);
   pointer-events: none;
   z-index: 5;
 }
@@ -1094,7 +1100,7 @@ defineExpose({
 
 /* 月视图今天的日期数字高亮 */
 .fc .fc-day-today .fc-daygrid-day-number {
-  color: #fff;
+  color: var(--color-text-on-accent);
   background-color: var(--color-primary, #4a90e2);
   font-weight: 700;
   padding: 0.2rem 0.6rem;
@@ -1248,7 +1254,7 @@ defineExpose({
 
 /* 逾期的截止日期事件 - 文字颜色更醒目 */
 .fc-event.due-date-event.overdue .fc-event-main {
-  color: #ef4444 !important;
+  color: var(--color-danger) !important;
   font-weight: 700;
 }
 

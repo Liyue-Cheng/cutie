@@ -12,7 +12,7 @@ const props = withDefaults(defineProps<Props>(), {
   isOverdue: false,
 })
 
-const iconColor = computed(() => (props.isOverdue ? '#ef4444' : '#9ca3af'))
+const iconColor = computed(() => (props.isOverdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'))
 const titleClass = computed(() => ({ overdue: props.isOverdue }))
 </script>
 
@@ -45,11 +45,11 @@ const titleClass = computed(() => ({ overdue: props.isOverdue }))
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary);
 }
 
 .due-date-title.overdue {
-  color: #ef4444;
+  color: var(--color-danger);
   font-weight: 600;
 }
 </style>

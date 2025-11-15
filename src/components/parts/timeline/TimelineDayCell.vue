@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
 }
 
 .timeline-day-cell.is-today .day-number {
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 
 .day-content {
