@@ -22,6 +22,7 @@ import CalendarTimeBlockEventContent from '@/components/assembles/calender/Calen
 import CalendarTimeGridEventContent from '@/components/assembles/calender/CalendarTimeGridEventContent.vue'
 import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
 import { useTaskStore } from '@/stores/task'
+import { toLocalISOString } from '@/infra/utils/dateUtils'
 
 export function useCalendarOptions(
   calendarEvents: ComputedRef<EventInput[]>,
@@ -129,19 +130,20 @@ export function useCalendarOptions(
         [key: string]: any
       }
 
-      // TimeGrid 视图的时间块事件自定义渲染（周视图、天视图）
-      if (
-        extended?.type === 'timeblock' &&
-        !arg.event.allDay &&
-        arg.view.type.startsWith('timeGrid')
-      ) {
+      const isTimeGridView = arg.view.type.startsWith('timeGrid')
+      const isPreviewEvent = Boolean(extended?.isPreview)
+      const isTimeBlockEvent = extended?.type === 'timeblock'
+
+      // TimeGrid 视图的时间块事件（以及拖拽预览）自定义渲染
+      if (!arg.event.allDay && isTimeGridView && (isTimeBlockEvent || isPreviewEvent)) {
         const container = document.createElement('div')
         container.style.width = '100%'
         container.style.height = '100%'
 
-        const areaColor = extended.areaColor || '#9ca3af'
-        const startTime = arg.event.start?.toISOString() || ''
-        const endTime = arg.event.end?.toISOString() || ''
+        const areaColor =
+          extended.areaColor || extended.previewColor || arg.event.backgroundColor || '#9ca3af'
+        const startTime = arg.event.start ? toLocalISOString(arg.event.start) : ''
+        const endTime = arg.event.end ? toLocalISOString(arg.event.end) : ''
         const taskId = extended.taskId as string | undefined
         const isCompleted = extended.isCompleted as boolean | undefined
         const scheduleOutcome = extended.scheduleOutcome as string | null | undefined

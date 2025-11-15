@@ -18,13 +18,23 @@ interface Props {
   size?: 'small' | 'large' | string
   longPressDelay?: number // 长按触发时间（毫秒）
   disableLongPress?: boolean // 禁用长按功能（用于单模式场景）
+  interactionKey?: string // 用于跨组件重建时共享长按状态的唯一键
 }
+
+const LONG_PRESS_GUARD_WINDOW_MS = 800
+const globalWithGuards = globalThis as typeof globalThis & {
+  __CuteDualModeCheckboxGuards?: Map<string, number>
+}
+const longPressGuards =
+  globalWithGuards.__CuteDualModeCheckboxGuards ||
+  (globalWithGuards.__CuteDualModeCheckboxGuards = new Map<string, number>())
 
 const props = withDefaults(defineProps<Props>(), {
   state: null,
   size: 'small',
   longPressDelay: 500,
   disableLongPress: false,
+  interactionKey: undefined,
 })
 
 const emit = defineEmits<{
@@ -34,6 +44,29 @@ const emit = defineEmits<{
 // 长按相关状态
 const pressTimer = ref<number | null>(null)
 const isLongPress = ref(false)
+
+const recordGlobalLongPress = () => {
+  if (!props.interactionKey) return
+  longPressGuards.set(props.interactionKey, Date.now())
+}
+
+const hasRecentGlobalLongPress = () => {
+  if (!props.interactionKey) return false
+  const timestamp = longPressGuards.get(props.interactionKey)
+  if (!timestamp) {
+    return false
+  }
+  if (Date.now() - timestamp <= LONG_PRESS_GUARD_WINDOW_MS) {
+    return true
+  }
+  longPressGuards.delete(props.interactionKey)
+  return false
+}
+
+const clearGlobalLongPress = () => {
+  if (!props.interactionKey) return
+  longPressGuards.delete(props.interactionKey)
+}
 
 // 判断是否使用预设尺寸
 const isPresetSize = computed(() => props.size === 'small' || props.size === 'large')
@@ -57,6 +90,7 @@ const handlePressStart = (event: MouseEvent | TouchEvent) => {
   // 设置长按定时器
   pressTimer.value = window.setTimeout(() => {
     isLongPress.value = true
+    recordGlobalLongPress()
     // 长按触发：标记在场
     emit('update:state', 'present')
   }, props.longPressDelay)
@@ -69,8 +103,11 @@ const handlePressEnd = () => {
     pressTimer.value = null
   }
 
+  const longPressTriggered = isLongPress.value || hasRecentGlobalLongPress()
+  clearGlobalLongPress()
+
   // 如果不是长按，执行单击逻辑
-  if (!isLongPress.value) {
+  if (!longPressTriggered) {
     if (props.state) {
       // 任何选中状态 -> 未选中
       emit('update:state', null)
@@ -87,6 +124,7 @@ const handlePressCancel = () => {
     clearTimeout(pressTimer.value)
     pressTimer.value = null
   }
+  clearGlobalLongPress()
 }
 </script>
 

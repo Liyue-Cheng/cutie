@@ -228,26 +228,28 @@ export function useCalendarInteractDrag(
       return
     }
 
+    const taskId = (task as any)?.id
     previewEvent.value = {
       id: 'preview-event',
       title: ((task as any)?.title ?? (task as any)?.name ?? '任务') as string,
       start: startTimeForPreview.toISOString(),
       end: endTime.toISOString(),
       allDay: false,
-      color: previewColor,
-      backgroundColor: previewColor,
-      borderColor: previewColor,
+      color: 'transparent',
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
       classNames: ['preview-event'],
       display: 'block',
       extendedProps: {
         type: 'task',
-        taskId: (task as any)?.id,
+        taskId,
         scheduleDay: undefined,
         isRecurring: Boolean(task && (task as any).recurrence_id),
         isPreview: true,
         scheduleOutcome: null,
         isCompleted: Boolean(task && (task as any).is_completed),
         previewColor,
+        areaColor: previewColor,
       },
     }
     lastPreviewKey = previewKey

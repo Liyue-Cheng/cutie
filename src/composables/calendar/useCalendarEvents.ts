@@ -9,6 +9,7 @@ import type { EventInput } from '@fullcalendar/core'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
+import { toLocalISOString, parseLocalISOString, toDateString } from '@/infra/utils/dateUtils'
 
 export interface MonthViewFilters {
   showRecurringTasks: boolean
@@ -111,19 +112,20 @@ export function useCalendarEvents(
           return
         }
 
-        displayStartTime = displayStart.toISOString()
-        displayEndTime = displayEnd.toISOString()
+        displayStartTime = toLocalISOString(displayStart)
+        displayEndTime = toLocalISOString(displayEnd)
       } else {
         // 固定时间：直接使用UTC时间
-        displayStartTime = timeBlock.start_time
-        displayEndTime = timeBlock.end_time
+        const startDate = new Date(timeBlock.start_time)
+        const endDate = new Date(timeBlock.end_time)
 
         // 验证时间字符串是否有效
-        const startDate = new Date(displayStartTime)
-        const endDate = new Date(displayEndTime)
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           return
         }
+
+        displayStartTime = toLocalISOString(startDate)
+        displayEndTime = toLocalISOString(endDate)
       }
 
       // 🔁 关联的任务信息（用于 timeGrid 交互）
@@ -132,15 +134,17 @@ export function useCalendarEvents(
       let scheduleOutcome: string | null = null
       let scheduleDay: string | undefined
 
-      if (timeBlock.linked_tasks && timeBlock.linked_tasks.length > 0) {
-        const linkedTask = timeBlock.linked_tasks[0]
+      const linkedTask = timeBlock.linked_tasks?.[0]
+      if (linkedTask) {
         taskId = linkedTask.id
         isCompleted = linkedTask.is_completed
 
         const task = taskStore.getTaskById_Mux(linkedTask.id)
         if (task) {
           isCompleted = task.is_completed
-          const eventDate = displayStartTime?.slice(0, 10)
+          const eventDate = displayStartTime
+            ? toDateString(parseLocalISOString(displayStartTime))
+            : undefined
           if (eventDate) {
             scheduleDay = eventDate
             const schedule = task.schedules?.find((s) => s.scheduled_day === eventDate)
@@ -149,7 +153,9 @@ export function useCalendarEvents(
             }
           }
         } else {
-          scheduleDay = displayStartTime?.slice(0, 10)
+          scheduleDay = displayStartTime
+            ? toDateString(parseLocalISOString(displayStartTime))
+            : undefined
         }
       }
 

@@ -50,6 +50,11 @@ watch(
 )
 
 const isInteractive = computed(() => !props.isPreview && !!props.taskId && !!props.scheduleDay)
+const checkboxInteractionKey = computed(() => {
+  if (!props.taskId) return undefined
+  const scheduleDay = props.scheduleDay
+  return scheduleDay ? `month-task::${props.taskId}::${scheduleDay}` : `month-task::${props.taskId}`
+})
 
 const titleClass = computed(() => ({
   completed: localState.value === 'completed',
@@ -120,6 +125,7 @@ async function handleStateChange(nextState: CheckboxState) {
       class="calendar-task-checkbox"
       size="1.6rem"
       :state="localState"
+      :interaction-key="checkboxInteractionKey"
       @update:state="handleStateChange"
       @click.stop
     />

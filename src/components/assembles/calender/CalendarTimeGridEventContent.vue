@@ -19,13 +19,18 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// 格式化时间为 "10 AM" 或 "1 PM" 格式
+// 格式化时间为 "09:30 AM" 格式
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
+  if (Number.isNaN(date.getTime())) {
+    return '--:--'
+  }
   let hours = date.getHours()
+  const minutes = date.getMinutes()
   const period = hours >= 12 ? 'PM' : 'AM'
   hours = hours % 12 || 12 // 转换为 12 小时制，0 点显示为 12
-  return `${hours} ${period}`
+  const paddedMinutes = minutes.toString().padStart(2, '0')
+  return `${hours}:${paddedMinutes} ${period}`
 }
 
 // 将 Area 颜色调浅作为背景色
@@ -90,6 +95,12 @@ const checkboxState = computed<CheckboxState>(() => {
     return 'present'
   }
   return null
+})
+
+const checkboxInteractionKey = computed(() => {
+  if (!props.taskId) return undefined
+  const scheduleDay = effectiveScheduleDay.value
+  return scheduleDay ? `timegrid::${props.taskId}::${scheduleDay}` : `timegrid::${props.taskId}`
 })
 
 // 处理复选框状态变化
@@ -164,6 +175,7 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
           class="event-checkbox"
           :state="checkboxState"
           size="1.6rem"
+          :interaction-key="checkboxInteractionKey"
           @update:state="handleCheckboxStateChange"
           @click.stop
         />
@@ -187,10 +199,10 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
 /* 左侧强调条 */
 .accent-bar {
   width: 0.4rem;
-  height: 85%;
   flex-shrink: 0;
   border-radius: 0.2rem;
-  align-self: center;
+  align-self: stretch;
+  margin: 0.5rem 0;
 }
 
 /* 内容区域 */

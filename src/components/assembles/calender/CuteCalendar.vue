@@ -765,11 +765,11 @@ defineExpose({
   overflow: visible !important;
 }
 
-/* 预览事件样式 */
+/* 预览事件样式 - 使用自定义组件渲染，因此保持透明 */
 .fc-event.preview-event {
-  background-color: var(--preview-bg, #bceaee) !important;
-  color: var(--color-text-primary, #575279) !important;
-  border-color: var(--preview-border, #357abd) !important;
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
   pointer-events: none !important; /* 允许命中检测到下方的真实事件，避免阻挡 */
 }
 

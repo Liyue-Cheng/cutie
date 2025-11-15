@@ -34,7 +34,7 @@
             <!-- 天数选择器（CuteDropdown） -->
             <CuteDropdown
               v-model="dayCount"
-              :options="dayCountOptions.map(c => ({ value: c, label: `${c}天` }))"
+              :options="dayCountOptions.map((c) => ({ value: c, label: `${c}天` }))"
               @change="onDayCountChange"
             >
               <template #trigger>
@@ -51,7 +51,7 @@
             <CuteDropdown :close-on-select="false">
               <template #trigger>
                 <button class="filter-btn">
-                  <CuteIcon name="Filter" :size="16" />
+                  <CuteIcon :name="'Filter' as any" :size="16" />
                   <span>筛选</span>
                   <CuteIcon name="ChevronDown" :size="14" />
                 </button>
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -102,7 +102,7 @@ import CuteDropdown from '@/components/parts/CuteDropdown.vue'
 import CuteDropdownItem from '@/components/parts/CuteDropdownItem.vue'
 import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { getTodayDateString, parseDateString, toDateString } from '@/infra/utils/dateUtils'
 
 // Props
 interface Props {
@@ -127,8 +127,7 @@ const getValidDateString = (): string => {
   const dateStr = getTodayDateString()
   if (dateStr) return dateStr
   // 兜底：使用当前日期（ISO 8601 格式）
-  const fallback = new Date().toISOString().split('T')[0]
-  return fallback as string
+  return toDateString(new Date())
 }
 
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
@@ -165,10 +164,7 @@ const dateList = computed<DateInfo[]>(() => {
   const startDate = selectedDate.value
 
   for (let i = 0; i < dayCount.value; i++) {
-    const date = new Date(startDate)
-    date.setDate(date.getDate() + i)
-    const isoString = date.toISOString()
-    const dateString = isoString.split('T')[0] as string // ISO 8601 格式总是 YYYY-MM-DDTHH:mm:ss.sssZ
+    const dateString = shiftDate(startDate, i)
 
     // 生成友好的日期标签
     const label = formatDateLabel(dateString, today)
@@ -185,7 +181,7 @@ const dateList = computed<DateInfo[]>(() => {
 
 // 格式化日期标签
 function formatDateLabel(dateString: string, today: string): string {
-  const date = new Date(dateString)
+  const date = parseDateString(dateString)
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   const weekday = weekdays[date.getDay()]
 
@@ -195,17 +191,13 @@ function formatDateLabel(dateString: string, today: string): string {
   }
 
   // 检查是否是昨天
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayString = yesterday.toISOString().split('T')[0]
+  const yesterdayString = shiftDate(today, -1)
   if (dateString === yesterdayString) {
     return `昨天 ${weekday}`
   }
 
   // 检查是否是明天
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowString = tomorrow.toISOString().split('T')[0]
+  const tomorrowString = shiftDate(today, 1)
   if (dateString === tomorrowString) {
     return `明天 ${weekday}`
   }
@@ -224,18 +216,14 @@ function goToToday() {
 
 // 导航到上一天
 function navigatePrevious() {
-  const currentDate = new Date(selectedDate.value)
-  currentDate.setDate(currentDate.getDate() - dayCount.value)
-  selectedDate.value = currentDate.toISOString().split('T')[0] as string
+  selectedDate.value = shiftDate(selectedDate.value, -dayCount.value)
   logger.info(LogTags.VIEW_HOME, 'Navigate previous', { date: selectedDate.value })
   loadDateRangeTasks()
 }
 
 // 导航到下一天
 function navigateNext() {
-  const currentDate = new Date(selectedDate.value)
-  currentDate.setDate(currentDate.getDate() + dayCount.value)
-  selectedDate.value = currentDate.toISOString().split('T')[0] as string
+  selectedDate.value = shiftDate(selectedDate.value, dayCount.value)
   logger.info(LogTags.VIEW_HOME, 'Navigate next', { date: selectedDate.value })
   loadDateRangeTasks()
 }
@@ -267,7 +255,7 @@ function onDayCountChange() {
 
 // 筛选选项变化
 function onFilterChange() {
-  logger.info(LogTags.COMPONENT_RECENT_TASK_PANEL, 'Filter changed', {
+  logger.info(LogTags.VIEW_HOME, 'Filter changed', {
     showDailyRecurringTasks: showDailyRecurringTasks.value,
   })
   // 筛选状态已通过 prop 传递给 TaskList 组件
@@ -278,6 +266,13 @@ async function loadDateRangeTasks() {
   for (const dateInfo of dateList.value) {
     await taskStore.fetchDailyTasks_DMA(dateInfo.date)
   }
+}
+
+// 工具函数：在日期字符串基础上偏移指定天数
+function shiftDate(baseDate: string, offsetDays: number): string {
+  const date = parseDateString(baseDate)
+  date.setDate(date.getDate() + offsetDays)
+  return toDateString(date)
 }
 
 // 初始化
