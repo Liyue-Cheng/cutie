@@ -249,25 +249,21 @@ function setWeekdays() {
           <label class="section-label">过期后的处理方式</label>
           <div class="radio-group">
             <label class="radio-item">
-              <input
-                type="radio"
-                value="CARRYOVER_TO_STAGING"
-                v-model="expiryBehavior"
-              />
+              <input type="radio" value="CARRYOVER_TO_STAGING" v-model="expiryBehavior" />
               <span>
                 <strong>结转到暂存区</strong>
-                <div class="radio-description">如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）</div>
+                <div class="radio-description">
+                  如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）
+                </div>
               </span>
             </label>
             <label class="radio-item">
-              <input
-                type="radio"
-                value="EXPIRE"
-                v-model="expiryBehavior"
-              />
+              <input type="radio" value="EXPIRE" v-model="expiryBehavior" />
               <span>
                 <strong>自动过期</strong>
-                <div class="radio-description">如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）</div>
+                <div class="radio-description">
+                  如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）
+                </div>
               </span>
             </label>
           </div>
@@ -318,7 +314,7 @@ h3 {
 }
 
 .task-info {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 0.9em;
   margin-bottom: 20px;
 }
@@ -331,7 +327,7 @@ h3 {
   display: block;
   font-weight: 600;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .radio-group {
@@ -350,7 +346,7 @@ h3 {
 }
 
 .radio-item:hover {
-  background: #f5f5f5;
+  background: var(--color-background-hover);
 }
 
 .radio-item input[type='radio'] {
@@ -366,7 +362,7 @@ h3 {
 
 .radio-description {
   font-size: 0.85em;
-  color: #888;
+  color: var(--color-text-tertiary);
   font-weight: normal;
   line-height: 1.4;
 }
@@ -387,13 +383,13 @@ h3 {
 }
 
 .weekday-btn:hover {
-  border-color: #999;
+  border-color: var(--color-border-hover);
 }
 
 .weekday-btn.active {
-  background: #007aff;
-  color: white;
-  border-color: #007aff;
+  background: var(--color-background-accent);
+  color: var(--color-text-on-accent);
+  border-color: var(--color-background-accent);
 }
 
 .interval-control {
@@ -436,40 +432,40 @@ h3 {
 .advanced-options {
   margin: 20px 0;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--color-background-secondary);
   border-radius: 8px;
 }
 
 .advanced-options summary {
   cursor: pointer;
   font-weight: 600;
-  color: #007aff;
+  color: var(--color-text-accent);
 }
 
 .rule-preview {
   margin: 20px 0;
   padding: 16px;
-  background: #e8f4f8;
+  background: var(--color-background-secondary);
   border-radius: 8px;
 }
 
 .preview-label {
   font-weight: 600;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .preview-content {
   margin-bottom: 8px;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .preview-code {
   font-family: 'Courier New', monospace;
   font-size: 0.85em;
-  color: #666;
+  color: var(--color-text-secondary);
   padding: 8px;
-  background: white;
+  background: var(--color-background-primary);
   border-radius: 4px;
   word-break: break-all;
 }
@@ -491,22 +487,23 @@ h3 {
 }
 
 .btn-cancel {
-  background: white;
-  border: 1px solid #ddd;
-  color: #666;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
 }
 
 .btn-cancel:hover {
-  background: #f5f5f5;
+  background: var(--color-background-hover);
 }
 
 .btn-primary {
-  background: #007aff;
+  background: var(--color-background-accent);
   border: none;
-  color: white;
+  color: var(--color-text-on-accent);
 }
 
 .btn-primary:hover {
-  background: #0056cc;
+  background: var(--color-background-accent);
+  filter: brightness(0.9);
 }
 </style>

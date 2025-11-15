@@ -241,6 +241,35 @@
             </div>
           </div>
 
+          <!-- Appearance 分类 -->
+          <div v-else-if="activeCategory === 'appearance'" class="settings-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Appearance Settings</h3>
+              <p class="panel-description">外观和主题相关的设置选项</p>
+            </div>
+
+            <div class="settings-list">
+              <!-- 主题选择 -->
+              <div class="setting-item">
+                <div class="setting-info">
+                  <label class="setting-label">主题</label>
+                  <span class="setting-description">选择应用程序的外观主题</span>
+                </div>
+                <select
+                  :value="store.getSettingValue('appearance.theme', 'business')"
+                  @change="updateSetting('appearance.theme', $event, 'string')"
+                  class="setting-select"
+                >
+                  <option value="rose-pine">暮色庭院</option>
+                  <option value="rose-pine-dawn">晨光花园</option>
+                  <option value="rose-pine-moon">月夜花园</option>
+                  <option value="cutie">甜心梦境</option>
+                  <option value="business">简约办公</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           <!-- 其他分类的占位 -->
           <div v-else class="settings-panel">
             <div class="panel-header">
@@ -340,7 +369,7 @@ function getCategoryName(categoryId: string): string {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgb(0 0 0 / 50%);
+  background-color: var(--color-overlay-heavy);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -355,9 +384,7 @@ function getCategoryName(categoryId: string): string {
   height: 80vh; /* 固定高度 */
   background-color: var(--color-background-primary, #faf4ed);
   border-radius: 1.2rem;
-  box-shadow:
-    0 2rem 6rem rgb(0 0 0 / 15%),
-    0 0.8rem 1.6rem rgb(0 0 0 / 10%);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -396,7 +423,7 @@ function getCategoryName(categoryId: string): string {
 }
 
 .close-btn:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover);
   color: var(--color-text-primary, #575279);
 }
 
@@ -439,12 +466,12 @@ function getCategoryName(categoryId: string): string {
 }
 
 .category-item:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover);
   color: var(--color-text-primary, #575279);
 }
 
 .category-item.active {
-  background-color: var(--color-primary, #d7827e);
+  background-color: var(--color-button-primary-bg);
   color: white;
 }
 
@@ -545,7 +572,7 @@ function getCategoryName(categoryId: string): string {
 
 .setting-item:hover {
   border-color: rgb(0 0 0 / 15%);
-  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 5%);
+  box-shadow: var(--shadow-sm);
 }
 
 .setting-info {
@@ -589,8 +616,32 @@ function getCategoryName(categoryId: string): string {
 
 .setting-input:focus {
   outline: none;
-  border-color: var(--color-primary, #d7827e);
-  box-shadow: 0 0 0 3px rgb(215 130 126 / 10%);
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+/* ==================== 下拉选择框 ==================== */
+.setting-select {
+  width: 20rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border-radius: 0.8rem;
+  background: var(--color-background-primary, #faf4ed);
+  color: var(--color-text-primary, #575279);
+  font-size: 1.4rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.setting-select:hover {
+  border-color: rgb(0 0 0 / 15%);
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
 }
 
 /* ==================== Checkbox ==================== */
@@ -605,7 +656,7 @@ function getCategoryName(categoryId: string): string {
   width: 2rem;
   height: 2rem;
   cursor: pointer;
-  accent-color: var(--color-primary, #d7827e);
+  accent-color: var(--color-button-primary-bg);
 }
 
 .checkbox-label {
@@ -647,11 +698,11 @@ function getCategoryName(categoryId: string): string {
   background-color: white;
   transition: 0.3s;
   border-radius: 50%;
-  box-shadow: 0 0.2rem 0.4rem rgb(0 0 0 / 20%);
+  box-shadow: var(--shadow-sm);
 }
 
 input:checked + .toggle-slider {
-  background-color: var(--color-primary, #d7827e);
+  background-color: var(--color-button-primary-bg);
 }
 
 input:checked + .toggle-slider::before {
@@ -675,10 +726,10 @@ input:checked + .toggle-slider::before {
   gap: 0.6rem;
   height: 3.6rem;
   padding: 0 1.4rem;
-  border: 1.5px solid #ef4444;
+  border: 1.5px solid var(--color-danger);
   border-radius: 0.8rem;
   background: transparent;
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 1.4rem;
   font-weight: 500;
   cursor: pointer;
@@ -686,7 +737,7 @@ input:checked + .toggle-slider::before {
 }
 
 .reset-btn:hover {
-  background: rgb(239 68 68 / 10%);
+  background-color: var(--color-danger-light);
   transform: translateY(-1px);
 }
 
@@ -699,7 +750,7 @@ input:checked + .toggle-slider::before {
   padding: 0 2rem;
   border: none;
   border-radius: 0.8rem;
-  background: var(--color-primary, #d7827e);
+  background-color: var(--color-button-primary-bg);
   color: white;
   font-size: 1.4rem;
   font-weight: 500;
@@ -708,9 +759,9 @@ input:checked + .toggle-slider::before {
 }
 
 .close-action-btn:hover {
-  background-color: var(--rose-pine-rose, #d7827e);
+  background-color: var(--color-status-completed);
   transform: translateY(-1px);
-  box-shadow: 0 0.4rem 1.2rem rgb(215 130 126 / 30%);
+  box-shadow: var(--shadow-md);
 }
 
 .close-action-btn:active {

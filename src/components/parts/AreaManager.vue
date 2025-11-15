@@ -253,7 +253,7 @@ async function handleDelete(id: string) {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgb(0 0 0 / 50%);
+  background-color: var(--color-overlay-heavy);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -268,9 +268,7 @@ async function handleDelete(id: string) {
   max-height: 85vh;
   background-color: var(--color-background-primary, #faf4ed);
   border-radius: 1.2rem;
-  box-shadow:
-    0 2rem 6rem rgb(0 0 0 / 15%),
-    0 0.8rem 1.6rem rgb(0 0 0 / 10%);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -309,7 +307,7 @@ async function handleDelete(id: string) {
 }
 
 .close-btn:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover);
   color: var(--color-text-primary, #575279);
 }
 
@@ -353,8 +351,8 @@ async function handleDelete(id: string) {
 }
 
 .name-input:focus {
-  border-color: var(--color-primary, #d7827e);
-  box-shadow: 0 0 0 3px rgb(215 130 126 / 10%);
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
 }
 
 .color-picker-wrapper {
@@ -423,7 +421,7 @@ async function handleDelete(id: string) {
 
 .ai-color-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 0.4rem 1.2rem rgb(233 75 139 / 20%);
+  box-shadow: var(--shadow-md);
 }
 
 .ai-color-btn:active:not(:disabled) {
@@ -440,7 +438,7 @@ async function handleDelete(id: string) {
   font-size: 1.4rem;
   font-weight: 500;
   color: white;
-  background-color: var(--color-primary, #d7827e);
+  background-color: var(--color-button-primary-bg);
   border: none;
   border-radius: 0.8rem;
   cursor: pointer;
@@ -454,9 +452,9 @@ async function handleDelete(id: string) {
 }
 
 .add-btn:hover:not(:disabled) {
-  background-color: var(--rose-pine-rose, #d7827e);
+  background-color: var(--color-status-completed);
   transform: translateY(-1px);
-  box-shadow: 0 0.4rem 1.2rem rgb(215 130 126 / 30%);
+  box-shadow: var(--shadow-md);
 }
 
 .add-btn:active:not(:disabled) {
@@ -534,12 +532,12 @@ async function handleDelete(id: string) {
 
 .area-card:hover {
   border-color: rgb(0 0 0 / 15%);
-  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 5%);
+  box-shadow: var(--shadow-sm);
 }
 
 .area-card.editing {
-  border-color: var(--color-primary, #d7827e);
-  box-shadow: 0 0 0 3px rgb(215 130 126 / 10%);
+  border-color: var(--color-button-primary-bg);
+  box-shadow: var(--shadow-focus);
 }
 
 /* ==================== 查看模式 ==================== */
@@ -560,8 +558,7 @@ async function handleDelete(id: string) {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  border: 2px solid rgb(255 255 255 / 50%);
-  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
 
@@ -592,13 +589,13 @@ async function handleDelete(id: string) {
 }
 
 .action-btn:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover);
   color: var(--color-text-primary, #575279);
 }
 
 .action-btn.delete:hover {
-  background-color: rgb(239 68 68 / 10%);
-  color: #ef4444;
+  background-color: var(--color-danger-light);
+  color: var(--color-danger);
 }
 
 /* ==================== 编辑模式 ==================== */
@@ -694,7 +691,7 @@ async function handleDelete(id: string) {
 }
 
 .edit-btn.save {
-  color: #22c55e;
+  color: var(--color-success);
 }
 
 .edit-btn.save:hover {
