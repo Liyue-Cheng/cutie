@@ -9,6 +9,8 @@ import { computed } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
+import AreaTag from '@/components/parts/AreaTag.vue'
+import { useAreaStore } from '@/stores/area'
 
 // Checkbox状态类型
 type CheckboxState = null | 'completed' | 'present'
@@ -20,11 +22,17 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const areaStore = useAreaStore()
+
 const emit = defineEmits<{
   click: []
   contextmenu: [event: MouseEvent]
   'checkbox-change': [newState: CheckboxState]
 }>()
+
+const area = computed(() => {
+  return props.task.area_id ? areaStore.getAreaById(props.task.area_id) : null
+})
 
 // 计算任务的checkbox状态
 const checkboxState = computed<CheckboxState>(() => {
@@ -60,6 +68,7 @@ function handleCheckboxChange(newState: CheckboxState) {
   <div
     class="cell-item-task"
     :class="{ 'is-completed': task.is_completed }"
+    @click="handleClick"
     @contextmenu="handleContextMenu"
   >
     <CuteDualModeCheckbox
@@ -69,16 +78,25 @@ function handleCheckboxChange(newState: CheckboxState) {
       @update:state="handleCheckboxChange"
       @click.stop
     />
-    <div class="task-content" @click="handleClick">
-      <div class="task-title" :class="{ completed: task.is_completed }">
-        {{ task.title }}
+    <div class="task-content">
+      <div class="task-text">
+        <div class="task-title" :class="{ completed: task.is_completed }">
+          {{ task.title }}
+        </div>
+        <div v-if="task.recurrence_id" class="task-meta">
+          <span class="meta-badge">
+            <CuteIcon name="Repeat" :size="12" />
+            <span>循环</span>
+          </span>
+        </div>
       </div>
-      <div v-if="task.recurrence_id" class="task-meta">
-        <span class="meta-badge">
-          <CuteIcon name="Repeat" :size="12" />
-          <span>循环</span>
-        </span>
-      </div>
+      <AreaTag
+        v-if="area"
+        class="task-area-tag"
+        :name="area.name"
+        :color="area.color"
+        size="normal"
+      />
     </div>
   </div>
 </template>
@@ -107,8 +125,17 @@ function handleCheckboxChange(newState: CheckboxState) {
   flex: 1;
   min-width: 0;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.task-text {
+  display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .task-title {
@@ -140,5 +167,9 @@ function handleCheckboxChange(newState: CheckboxState) {
   color: var(--color-text-secondary);
   background: var(--color-background-secondary);
   border-radius: 0.4rem;
+}
+
+.task-area-tag {
+  flex-shrink: 0;
 }
 </style>

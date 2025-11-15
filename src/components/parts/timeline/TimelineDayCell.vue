@@ -396,7 +396,7 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
 .cell-content {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 0.4rem;
   padding: 1.2rem 1.6rem;
   flex: 1;
   min-height: 8rem;
@@ -406,7 +406,7 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
 .deadline-area {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.4rem;
 }
 
 /* 任务区（支持拖放） */
@@ -440,7 +440,7 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
 .events-area {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.4rem;
 }
 
 .timeline-event {

@@ -2,7 +2,7 @@
 /**
  * CellItemDeadline - 时间线单元格截止日期项
  *
- * 用于在 TimelineDayCell 中显示截止日期
+ * 简约设计：只显示旗子图标和任务标题，通过图标颜色区分状态
  */
 import type { TaskCard } from '@/types/dtos'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -28,13 +28,10 @@ function handleClick() {
     :class="{ 'is-overdue': task.due_date?.is_overdue }"
     @click="handleClick"
   >
-    <div class="due-icon">
-      <CuteIcon name="Flag" :size="16" />
+    <div class="deadline-icon">
+      <CuteIcon name="Flag" :size="21" />
     </div>
-    <div class="due-content">
-      <div class="due-title">{{ task.title }}</div>
-      <div class="due-label">截止</div>
-    </div>
+    <div class="deadline-title">{{ task.title }}</div>
   </div>
 </template>
 
@@ -47,52 +44,35 @@ function handleClick() {
   border-radius: 0.6rem;
   transition: background-color 0.15s ease;
   cursor: pointer;
-  border-left: 3px solid var(--color-warning, #f59e0b);
-  background: rgb(245 158 11 / 5%);
 }
 
 .cell-item-deadline:hover {
-  background: rgb(245 158 11 / 10%);
+  background: var(--color-background-hover, rgb(0 0 0 / 3%));
 }
 
-.cell-item-deadline.is-overdue {
-  border-left-color: var(--color-error, #ef4444);
-  background: rgb(239 68 68 / 5%);
-}
-
-.cell-item-deadline.is-overdue:hover {
-  background: rgb(239 68 68 / 10%);
-}
-
-.due-icon {
+.deadline-icon {
   flex-shrink: 0;
-  color: var(--color-warning);
+  color: var(--color-warning, #f59e0b);
   display: flex;
   align-items: center;
+  margin-top: 0.1rem;
 }
 
-.cell-item-deadline.is-overdue .due-icon {
-  color: var(--color-error);
+.cell-item-deadline.is-overdue .deadline-icon {
+  color: var(--color-error, #ef4444);
 }
 
-.due-content {
+.deadline-title {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.due-title {
   font-size: 1.5rem;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   line-height: 1.4;
   overflow-wrap: break-word;
 }
 
-.due-label {
-  font-size: 1.2rem;
-  color: var(--color-text-secondary);
+.cell-item-deadline.is-overdue .deadline-title {
+  color: var(--color-text-primary);
 }
 </style>
