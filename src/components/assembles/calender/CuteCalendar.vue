@@ -1273,10 +1273,38 @@ defineExpose({
   padding: 0 !important;
 }
 
-/* 拖拽中的事件保留占位但隐藏内容，避免“残影” */
-.fc-event.fc-event-dragging .timegrid-event-content,
-.fc-event.fc-event-dragging .calendar-task-event-content {
-  opacity: 0;
+/* 禁用所有事件的 hover、active、focus 状态样式（TimeGrid 和月视图） */
+.fc-event:not(.fc-event-mirror, .preview-event):hover,
+.fc-event:not(.fc-event-mirror, .preview-event):active,
+.fc-event:not(.fc-event-mirror, .preview-event):focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* TimeGrid 事件额外禁用背景色 */
+.fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event):hover,
+.fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event):active,
+.fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event):focus {
+  background: transparent !important;
+}
+
+/* 禁用 FullCalendar 的事件选中状态（右键后的灰色背景和 ESC 后的黑色边框） */
+.fc-event.fc-event-selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* TimeGrid 事件选中状态额外禁用背景色 */
+.fc-timegrid-event.fc-event.fc-event-selected {
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* 确保 TimeGrid 拖拽 mirror 也使用透明背景和无边框 */
+.fc-timegrid-event.fc-event-mirror {
+  background: transparent !important;
+  border: none !important;
 }
 
 /* ===============================================

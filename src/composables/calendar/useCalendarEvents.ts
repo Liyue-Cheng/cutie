@@ -159,7 +159,8 @@ export function useCalendarEvents(
         start: displayStartTime,
         end: displayEndTime,
         allDay: timeBlock.is_all_day,
-        color: color,
+        // TimeGrid 非全天事件使用透明色，避免拖拽 mirror 显示底层色块
+        color: viewType.value !== 'month' && !timeBlock.is_all_day ? 'transparent' : color,
         display: viewType.value === 'month' && timeBlock.is_all_day ? 'block' : undefined,
         classNames:
           viewType.value === 'month' && timeBlock.is_all_day
