@@ -371,7 +371,7 @@ defineExpose({
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  min-width: 12rem;
+  min-width: 10rem;
 }
 
 .view-selector-btn:hover {

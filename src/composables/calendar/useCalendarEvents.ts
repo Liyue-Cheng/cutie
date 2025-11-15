@@ -126,6 +126,33 @@ export function useCalendarEvents(
         }
       }
 
+      // 🔁 关联的任务信息（用于 timeGrid 交互）
+      let taskId: string | undefined
+      let isCompleted = false
+      let scheduleOutcome: string | null = null
+      let scheduleDay: string | undefined
+
+      if (timeBlock.linked_tasks && timeBlock.linked_tasks.length > 0) {
+        const linkedTask = timeBlock.linked_tasks[0]
+        taskId = linkedTask.id
+        isCompleted = linkedTask.is_completed
+
+        const task = taskStore.getTaskById_Mux(linkedTask.id)
+        if (task) {
+          isCompleted = task.is_completed
+          const eventDate = displayStartTime?.slice(0, 10)
+          if (eventDate) {
+            scheduleDay = eventDate
+            const schedule = task.schedules?.find((s) => s.scheduled_day === eventDate)
+            if (schedule) {
+              scheduleOutcome = schedule.outcome ?? null
+            }
+          }
+        } else {
+          scheduleDay = displayStartTime?.slice(0, 10)
+        }
+      }
+
       events.push({
         id: timeBlock.id, // ✅ 直接使用真实的 UUID，简化设计
         title: timeBlock.title ?? 'Time Block',
@@ -141,6 +168,11 @@ export function useCalendarEvents(
         extendedProps: {
           type: 'timeblock',
           areaColor: color,
+          linkedTasks: timeBlock.linked_tasks, // 传递关联的任务信息
+          taskId,
+          isCompleted,
+          scheduleOutcome,
+          scheduleDay,
         },
       })
     })

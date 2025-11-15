@@ -125,7 +125,6 @@ const handlePressCancel = () => {
 }
 
 .checkbox-box {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -134,7 +133,11 @@ const handlePressCancel = () => {
   border: 0.2rem solid var(--color-status-pending-checkbox);
   border-radius: 0.4rem; /* 圆角方形 */
   background-color: transparent;
-  transition: all 0.2s ease-in-out;
+
+  /* 只对边框颜色和背景色应用过渡，避免拖拽时的残影 */
+  transition:
+    border-color 0.2s ease-in-out,
+    background-color 0.2s ease-in-out;
 }
 
 /* Large size variant */
@@ -177,22 +180,18 @@ const handlePressCancel = () => {
 
 /* 完成状态的对钩 */
 .icon-check {
-  position: absolute;
-  left: 50%;
-  top: 47%;
-  transform: translate(-50%, -50%) rotate(45deg);
+  display: block;
+  transform: rotate(45deg);
   width: 0.4rem;
   height: 0.75rem;
   border: solid var(--color-status-completed);
   border-width: 0 0.2rem 0.2rem 0;
+  margin-top: -0.15rem; /* 微调视觉居中 */
 }
 
 /* 在场状态的圆点 */
 .icon-dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  display: block;
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
@@ -203,6 +202,7 @@ const handlePressCancel = () => {
   width: 0.5rem;
   height: 0.95rem;
   border-width: 0 0.25rem 0.25rem 0;
+  margin-top: -0.2rem; /* 大尺寸的视觉居中调整 */
 }
 
 .cute-dual-mode-checkbox.size-large .icon-dot {
@@ -214,6 +214,7 @@ const handlePressCancel = () => {
   width: calc(var(--checkbox-size) * 0.25);
   height: calc(var(--checkbox-size) * 0.47);
   border-width: 0 calc(var(--checkbox-size) * 0.125) calc(var(--checkbox-size) * 0.125) 0;
+  margin-top: calc(var(--checkbox-size) * -0.09); /* 自定义尺寸的视觉居中调整 */
 }
 
 .cute-dual-mode-checkbox.size-custom .icon-dot {

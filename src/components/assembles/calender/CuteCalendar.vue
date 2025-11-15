@@ -1259,7 +1259,28 @@ defineExpose({
 }
 
 /* ===============================================
- * 14. 自定义日期头部样式
+ * 15. TimeGrid 视图时间块事件自定义样式
+ * =============================================== */
+
+/* TimeGrid 视图中的时间块事件 - 使用自定义组件完全控制样式 */
+.fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event) {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event) .fc-event-main {
+  padding: 0 !important;
+}
+
+/* 拖拽中的事件保留占位但隐藏内容，避免“残影” */
+.fc-event.fc-event-dragging .timegrid-event-content,
+.fc-event.fc-event-dragging .calendar-task-event-content {
+  opacity: 0;
+}
+
+/* ===============================================
+ * 16. 自定义日期头部样式
  * =============================================== */
 
 .custom-day-headers {

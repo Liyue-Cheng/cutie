@@ -19,6 +19,7 @@ import type {
 } from '@fullcalendar/core'
 import CalendarTaskEventContent from '@/components/assembles/calender/CalendarTaskEventContent.vue'
 import CalendarTimeBlockEventContent from '@/components/assembles/calender/CalendarTimeBlockEventContent.vue'
+import CalendarTimeGridEventContent from '@/components/assembles/calender/CalendarTimeGridEventContent.vue'
 import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
 import { useTaskStore } from '@/stores/task'
 
@@ -126,6 +127,42 @@ export function useCalendarOptions(
         isPreview?: boolean
         areaColor?: string
         [key: string]: any
+      }
+
+      // TimeGrid 视图的时间块事件自定义渲染（周视图、天视图）
+      if (
+        extended?.type === 'timeblock' &&
+        !arg.event.allDay &&
+        arg.view.type.startsWith('timeGrid')
+      ) {
+        const container = document.createElement('div')
+        container.style.width = '100%'
+        container.style.height = '100%'
+
+        const areaColor = extended.areaColor || '#9ca3af'
+        const startTime = arg.event.start?.toISOString() || ''
+        const endTime = arg.event.end?.toISOString() || ''
+        const taskId = extended.taskId as string | undefined
+        const isCompleted = extended.isCompleted as boolean | undefined
+        const scheduleOutcome = extended.scheduleOutcome as string | null | undefined
+        const scheduleDay = extended.scheduleDay as string | undefined
+
+        // 使用 Vue 组件渲染
+        const app = createApp(CalendarTimeGridEventContent, {
+          title: arg.event.title || 'Time Block',
+          areaColor,
+          startTime,
+          endTime,
+          taskId,
+          isCompleted,
+          scheduleOutcome,
+          scheduleDay,
+        })
+
+        app.mount(container)
+
+        // 返回自定义内容
+        return { domNodes: [container] }
       }
 
       // 月视图的任务事件自定义渲染
