@@ -30,6 +30,7 @@ import type { ViewMetadata } from '@/types/drag'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CellItemTask from './CellItemTask.vue'
 import CellItemDeadline from './CellItemDeadline.vue'
+import QuickAddTaskModal from '@/components/organisms/QuickAddTaskModal.vue'
 
 // Checkbox状态类型
 type CheckboxState = null | 'completed' | 'present'
@@ -44,6 +45,7 @@ import { deriveViewMetadata } from '@/services/viewAdapter'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 interface Props {
   date: string // YYYY-MM-DD
@@ -76,6 +78,7 @@ const contextMenu = useContextMenu()
 const dragStrategy = useDragStrategy()
 
 const cellRef = ref<HTMLElement | null>(null)
+const showQuickAddDialog = ref(false)
 
 const hasContent = computed(() => {
   return props.tasks.length > 0 || props.dueDates.length > 0 || props.allDayEvents.length > 0
@@ -93,6 +96,12 @@ const monthDayText = computed(() => {
   const date = new Date(props.date)
   const month = date.getMonth() + 1
   return `${month}月${props.dayNumber}日`
+})
+
+// 判断日期是否已过期（使用本地时间）
+const isPastDate = computed(() => {
+  const today = getTodayDateString()
+  return props.date < today
 })
 
 // ==================== ViewMetadata 推导 ====================
@@ -241,6 +250,7 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
       'is-today': isToday,
       'is-weekend': isWeekend,
       'has-content': hasContent,
+      'is-past': isPastDate,
     }"
     :data-date="date"
   >
@@ -253,7 +263,12 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
           <span class="weekday">{{ weekdayText }}</span>
         </div>
       </div>
-      <div v-if="isToday" class="today-badge">今天</div>
+      <div class="header-actions">
+        <div v-if="isToday" class="today-badge">今天</div>
+        <button class="quick-add-button" @click.stop="showQuickAddDialog = true" title="添加任务">
+          <CuteIcon name="Plus" :size="16" />
+        </button>
+      </div>
     </div>
 
     <!-- 中栏：虚线分隔 -->
@@ -319,6 +334,13 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
         </div>
       </div>
     </div>
+
+    <!-- 快速添加任务对话框 -->
+    <QuickAddTaskModal
+      :show="showQuickAddDialog"
+      :view-key="effectiveViewKey"
+      @close="showQuickAddDialog = false"
+    />
   </div>
 </template>
 
@@ -376,13 +398,65 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
   line-height: 1.2;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.quick-add-button {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+  transition: all 0.15s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.quick-add-button:hover {
+  background: var(--color-background-hover);
+  color: var(--color-text-primary);
+}
+
+.timeline-day-cell:hover .quick-add-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .today-badge {
-  background-color: var(--color-primary);
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-primary, #6366f1);
+  color: var(--color-button-primary-text, #fff);
   padding: 0.4rem 0.8rem;
   border-radius: 1rem;
   font-size: 1.2rem;
   font-weight: 500;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ==================== 过期日期遮罩 ==================== */
+.timeline-day-cell.is-past {
+  position: relative;
+}
+
+.timeline-day-cell.is-past::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 60%);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
 }
 
 /* ==================== 中栏：虚线分隔 ==================== */

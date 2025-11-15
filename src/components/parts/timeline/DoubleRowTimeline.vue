@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import TimelineDayCell from './TimelineDayCell.vue'
 import { useTaskStore } from '@/stores/task'
 import { useTimeBlockStore } from '@/stores/timeblock'
@@ -40,8 +40,9 @@ interface DayData {
   isWeekend: boolean
 }
 
-const leftColumn = ref<DayData[]>([])
-const rightColumn = ref<DayData[]>([])
+const dayCells = ref<DayData[]>([])
+const timelineContainerRef = ref<HTMLElement | null>(null)
+const hasAutoScrolledToToday = ref(false)
 
 function getDaysInMonth(yearMonth: string): number {
   const [yearStr, monthStr] = yearMonth.split('-')
@@ -63,23 +64,15 @@ function buildTimelineData() {
   const daysInMonth = getDaysInMonth(props.currentMonth)
   const today = getTodayDateString()
 
-  const leftDays: DayData[] = []
-  const rightDays: DayData[] = []
+  const days: DayData[] = []
 
-  // 构建左列（1-15日）
-  for (let day = 1; day <= 15; day++) {
+  for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    leftDays.push(buildDayData(dateStr, day, today))
+    days.push(buildDayData(dateStr, day, today))
   }
 
-  // 构建右列（16-月末）
-  for (let day = 16; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    rightDays.push(buildDayData(dateStr, day, today))
-  }
-
-  leftColumn.value = leftDays
-  rightColumn.value = rightDays
+  dayCells.value = days
+  scrollTodayIntoView()
 }
 
 function buildDayData(dateStr: string, dayNumber: number, today: string): DayData {
@@ -156,38 +149,45 @@ watch(() => [taskStore.allTasks, timeBlockStore.allTimeBlocks], buildTimelineDat
 onMounted(() => {
   buildTimelineData()
 })
+
+async function scrollTodayIntoView(force = false) {
+  if (!force && hasAutoScrolledToToday.value) return
+
+  await nextTick()
+  const container = timelineContainerRef.value
+  if (!container) return
+
+  const todayDay = dayCells.value.find((day) => day.isToday)
+  if (!todayDay) return
+
+  const target = container.querySelector<HTMLElement>(
+    `.timeline-day-cell[data-date="${todayDay.date}"]`
+  )
+  if (!target) return
+
+  const containerRect = container.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const nextTop = container.scrollTop + (targetRect.top - containerRect.top)
+
+  container.scrollTo({ top: Math.max(nextTop, 0), behavior: 'auto' })
+  hasAutoScrolledToToday.value = true
+}
 </script>
 
 <template>
-  <div class="double-row-timeline">
-    <div class="timeline-container">
-      <div class="timeline-column left-column">
-        <TimelineDayCell
-          v-for="day in leftColumn"
-          :key="day.date"
-          :date="day.date"
-          :day-number="day.dayNumber"
-          :tasks="day.tasks"
-          :due-dates="day.dueDates"
-          :all-day-events="day.allDayEvents"
-          :is-today="day.isToday"
-          :is-weekend="day.isWeekend"
-        />
-      </div>
-
-      <div class="timeline-column right-column">
-        <TimelineDayCell
-          v-for="day in rightColumn"
-          :key="day.date"
-          :date="day.date"
-          :day-number="day.dayNumber"
-          :tasks="day.tasks"
-          :due-dates="day.dueDates"
-          :all-day-events="day.allDayEvents"
-          :is-today="day.isToday"
-          :is-weekend="day.isWeekend"
-        />
-      </div>
+  <div ref="timelineContainerRef" class="double-row-timeline">
+    <div class="timeline-grid">
+      <TimelineDayCell
+        v-for="day in dayCells"
+        :key="day.date"
+        :date="day.date"
+        :day-number="day.dayNumber"
+        :tasks="day.tasks"
+        :due-dates="day.dueDates"
+        :all-day-events="day.allDayEvents"
+        :is-today="day.isToday"
+        :is-weekend="day.isWeekend"
+      />
     </div>
   </div>
 </template>
@@ -199,18 +199,19 @@ onMounted(() => {
   overflow: auto;
   padding: 1rem;
   background: var(--color-background-tertiary);
+  container-type: inline-size;
 }
 
-.timeline-container {
+.timeline-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   height: 100%;
 }
 
-.timeline-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
+@container (width <= 50rem) {
+  .timeline-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

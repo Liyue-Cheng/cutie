@@ -22,7 +22,7 @@
         <div class="dialog-footer">
           <button class="cancel-button" @click="close">取消</button>
           <button class="add-button" :disabled="!taskTitle.trim()" @click="handleAdd">
-            添加到 Staging
+            {{ buttonText }}
           </button>
         </div>
       </div>
@@ -31,13 +31,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { deriveViewMetadata } from '@/services/viewAdapter'
 
 const props = defineProps<{
   show: boolean
+  viewKey?: string // 🔥 支持 VIEW_CONTEXT_KEY 规范，默认为 misc::staging
 }>()
 
 const emit = defineEmits<{
@@ -46,6 +48,27 @@ const emit = defineEmits<{
 
 const taskTitle = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
+
+// 计算有效的 viewKey
+const effectiveViewKey = computed(() => {
+  return props.viewKey || 'misc::staging'
+})
+
+// 推导 ViewMetadata
+const viewMetadata = computed(() => {
+  return deriveViewMetadata(effectiveViewKey.value)
+})
+
+// 根据 viewKey 生成按钮文本
+const buttonText = computed(() => {
+  const metadata = viewMetadata.value
+  if (metadata && metadata.type === 'date') {
+    const dateConfig = metadata.config as import('@/types/drag').DateViewConfig
+    return `添加到 ${dateConfig.date}`
+  }
+  // 其他视图使用通用文本
+  return '添加任务'
+})
 
 // 当对话框显示时，自动聚焦到输入框
 watch(
@@ -72,13 +95,76 @@ async function handleAdd() {
   if (!title) return
 
   try {
-    // 创建 staging 任务
-    await pipeline.dispatch('task.create', {
-      title,
-      estimated_duration: 60, // 默认 60 分钟
-    })
+    const metadata = viewMetadata.value
+    if (!metadata) {
+      logger.error(
+        LogTags.COMPONENT_KANBAN,
+        'Failed to derive view metadata',
+        new Error('Metadata is undefined')
+      )
+      return
+    }
 
-    logger.info(LogTags.COMPONENT_KANBAN, 'Quick add task to staging', { title })
+    const isDateView = metadata.type === 'date'
+
+    if (isDateView) {
+      // 日期视图：使用合并端点一次性创建任务并添加日程
+      const dateConfig = metadata.config as import('@/types/drag').DateViewConfig
+      const date = dateConfig.date // YYYY-MM-DD
+
+      await pipeline.dispatch('task.create_with_schedule', {
+        title,
+        estimated_duration: 60, // 默认 60 分钟
+        scheduled_day: date,
+      })
+
+      logger.info(LogTags.COMPONENT_KANBAN, 'Quick add task with schedule', {
+        title,
+        date,
+        viewKey: effectiveViewKey.value,
+      })
+    } else {
+      // 非日期视图：只创建任务，需要根据 viewKey 提取上下文信息
+      const taskData: any = {
+        title,
+        estimated_duration: 60, // 默认 60 分钟
+      }
+
+      // 根据 viewKey 提取上下文信息
+      const parts = effectiveViewKey.value.split('::')
+      const [type, subtype, identifier] = parts
+
+      if (type === 'misc' && subtype === 'staging' && identifier) {
+        // misc::staging::${areaId} - 指定 area 的 staging 任务
+        taskData.area_id = identifier
+        logger.debug(LogTags.COMPONENT_KANBAN, 'Creating task with area context', {
+          areaId: identifier,
+          viewKey: effectiveViewKey.value,
+        })
+      } else if (type === 'area' && subtype) {
+        // area::${areaId} - 指定 area 的所有任务
+        taskData.area_id = subtype
+        logger.debug(LogTags.COMPONENT_KANBAN, 'Creating task with area context', {
+          areaId: subtype,
+          viewKey: effectiveViewKey.value,
+        })
+      } else if (type === 'project' && subtype) {
+        // project::${projectId} - 指定项目的任务
+        taskData.project_id = subtype
+        logger.debug(LogTags.COMPONENT_KANBAN, 'Creating task with project context', {
+          projectId: subtype,
+          viewKey: effectiveViewKey.value,
+        })
+      }
+
+      await pipeline.dispatch('task.create', taskData)
+
+      logger.info(LogTags.COMPONENT_KANBAN, 'Quick add task', {
+        title,
+        viewKey: effectiveViewKey.value,
+        taskData,
+      })
+    }
 
     // 清空输入框并关闭对话框
     taskTitle.value = ''
@@ -219,4 +305,3 @@ async function handleAdd() {
   background-color: var(--color-button-primary-hover);
 }
 </style>
-
