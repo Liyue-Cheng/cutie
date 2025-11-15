@@ -13,7 +13,7 @@
 <style scoped>
 .cute-menu-divider {
   height: 1px;
-  background-color: var(--color-border-soft, rgb(87 82 121 / 8%));
+  background-color: var(--color-border-light);
   
   /* 不使用 margin，依赖父容器的 gap */
   margin: 0;

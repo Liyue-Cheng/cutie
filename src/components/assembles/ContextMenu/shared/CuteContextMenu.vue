@@ -35,9 +35,7 @@
   background-color: var(--color-background-content, #faf4ed);
   border: 1px solid var(--color-border-default, #dfdad9);
   border-radius: 0.8rem;
-  box-shadow: 
-    0 0.4rem 0.8rem rgb(0 0 0 / 8%),
-    0 0.2rem 0.4rem rgb(0 0 0 / 6%);
+  box-shadow: var(--shadow-md);
   
   /* 防止内容溢出 */
   overflow: hidden;
