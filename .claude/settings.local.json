@@ -48,7 +48,9 @@
       "WebFetch(domain:github.com)",
       "Bash(git rev-list:*)",
       "Bash(git ls-files:*)",
-      "Bash(cloc:*)"
+      "Bash(cloc:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
