@@ -95,7 +95,94 @@ sorted_task_ids: '["uuid-1", "uuid-2"]'
 
 ---
 
-### **5. 复合筛选（未来扩展）**
+### **5. Upcoming 视图（二维矩阵）**
+
+按时间范围和任务类型组织的矩阵视图
+
+| 视图名称      | Context Key 格式                      | 说明                     |
+| ------------- | ------------------------------------- | ------------------------ |
+| Upcoming 单元格 | `upcoming::{timeRange}::{taskType}` | 指定时间范围和任务类型的任务 |
+
+**时间范围（Time Range）**：
+
+- `overdue` - 逾期
+- `today` - 今日
+- `thisWeek` - 本周
+- `nextWeek` - 下周
+- `thisMonth` - 本月
+- `later` - 更远
+
+**任务类型（Task Type）**：
+
+- `dueDate` - 带截止日期的任务
+- `recurrence` - 循环任务
+- `scheduled` - 一般排期任务
+
+**示例**：
+
+```javascript
+// 逾期的截止任务
+context_key: 'upcoming::overdue::dueDate'
+sorted_task_ids: '["uuid-1", "uuid-2"]'
+
+// 今日的循环任务
+context_key: 'upcoming::today::recurrence'
+sorted_task_ids: '["uuid-3"]'
+
+// 本周的排期任务
+context_key: 'upcoming::thisWeek::scheduled'
+sorted_task_ids: '["uuid-4", "uuid-5"]'
+
+// 下周的截止任务
+context_key: 'upcoming::nextWeek::dueDate'
+sorted_task_ids: '["uuid-6"]'
+
+// 本月的循环任务
+context_key: 'upcoming::thisMonth::recurrence'
+sorted_task_ids: '["uuid-7"]'
+
+// 更远的排期任务
+context_key: 'upcoming::later::scheduled'
+sorted_task_ids: '["uuid-8"]'
+```
+
+**完整的 18 个单元格 Context Key**（6 时间范围 × 3 任务类型）：
+
+```javascript
+// 逾期
+'upcoming::overdue::dueDate'
+'upcoming::overdue::recurrence'
+'upcoming::overdue::scheduled'
+
+// 今日
+'upcoming::today::dueDate'
+'upcoming::today::recurrence'
+'upcoming::today::scheduled'
+
+// 本周
+'upcoming::thisWeek::dueDate'
+'upcoming::thisWeek::recurrence'
+'upcoming::thisWeek::scheduled'
+
+// 下周
+'upcoming::nextWeek::dueDate'
+'upcoming::nextWeek::recurrence'
+'upcoming::nextWeek::scheduled'
+
+// 本月
+'upcoming::thisMonth::dueDate'
+'upcoming::thisMonth::recurrence'
+'upcoming::thisMonth::scheduled'
+
+// 更远
+'upcoming::later::dueDate'
+'upcoming::later::recurrence'
+'upcoming::later::scheduled'
+```
+
+---
+
+### **6. 复合筛选（未来扩展）**
 
 多个筛选条件组合
 
@@ -247,6 +334,14 @@ GET /view-preferences/area::a1b2c3d4-1234-5678-90ab-cdef12345678
 'project::proj-uuid-1234-5678-90ab'
 'project::proj-uuid-5678-90ab-cdef'
 
+// Upcoming 视图
+'upcoming::overdue::dueDate'
+'upcoming::today::recurrence'
+'upcoming::thisWeek::scheduled'
+'upcoming::nextWeek::dueDate'
+'upcoming::thisMonth::recurrence'
+'upcoming::later::scheduled'
+
 // 复合筛选（未来）
 'daily::2025-10-01::area::a1b2c3d4'
 'project::proj-uuid::area::a1b2c3d4'
@@ -272,7 +367,12 @@ function validateContextKey(key: string): boolean {
   if (parts.length < 2) return false
 
   const type = parts[0]
-  if (!['misc', 'daily', 'area', 'project'].includes(type)) {
+  if (!['misc', 'daily', 'area', 'project', 'upcoming'].includes(type)) {
+    return false
+  }
+
+  // upcoming 类型需要 3 个部分
+  if (type === 'upcoming' && parts.length !== 3) {
     return false
   }
 

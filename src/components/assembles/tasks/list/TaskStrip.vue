@@ -57,8 +57,8 @@
         </span>
       </div>
 
-      <!-- 非即将到期列表：显示预期时间 -->
-      <div v-if="!isInUpcomingList" class="estimated-duration-wrapper">
+      <!-- Daily view：显示预期时间 -->
+      <div v-if="isInDailyView" class="estimated-duration-wrapper">
         <button class="estimated-duration" @click.stop="toggleTimePicker">
           {{ formattedDuration }}
         </button>
@@ -73,8 +73,8 @@
         </div>
       </div>
 
-      <!-- 非即将到期列表：时间块显示（如果有） -->
-      <div v-if="!isInUpcomingList && todayTimeBlocks.length > 0" class="time-blocks-inline">
+      <!-- Daily view：时间块显示（如果有） -->
+      <div v-if="isInDailyView && todayTimeBlocks.length > 0" class="time-blocks-inline">
         <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
           <span
             class="time-tag-dot"
@@ -199,7 +199,12 @@ const area = computed(() => {
 
 // 判断是否在即将到期列表中
 const isInUpcomingList = computed(() => {
-  return props.viewKey === 'misc::upcoming'
+  return props.viewKey === 'misc::upcoming' || props.viewKey?.startsWith('upcoming::')
+})
+
+// 判断是否在 daily view 中
+const isInDailyView = computed(() => {
+  return props.viewKey?.startsWith('daily::')
 })
 
 // 获取当前视图的日期 (YYYY-MM-DD)
