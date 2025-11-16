@@ -395,6 +395,7 @@
 import { computed, ref } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
+import { useRecurrenceStore } from '@/stores/recurrence'
 import TaskStrip from '@/components/assembles/tasks/list/TaskStrip.vue'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
@@ -402,6 +403,7 @@ import type { TaskCard } from '@/types/dtos'
 
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
+const recurrenceStore = useRecurrenceStore()
 
 // ==================== 拖动滚动状态 ====================
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -457,15 +459,62 @@ function isDateInRange(dateStr: string, timeRange: TimeRange): boolean {
     case 'today':
       return dateStr === today
     case 'thisWeek':
+      // 本周：今天之后到本周末
       return dateStr > today && dateStr <= endOfWeek
     case 'nextWeek':
+      // 下周：本周末之后到下周末
       return dateStr > endOfWeek && dateStr <= endOfNextWeek
     case 'thisMonth':
-      return dateStr > endOfNextWeek && dateStr <= endOfMonth
+      // 本月：今天之后到本月末（排除本周和下周）
+      // 如果下周末已经超过本月末，则本月栏应该为空或只包含下周末后到本月末的部分
+      if (endOfNextWeek > endOfMonth) {
+        // 下周已经跨月了，本月栏显示本周末之后到本月末之间的任务
+        return dateStr > endOfWeek && dateStr <= endOfMonth
+      } else {
+        // 下周还在本月内，本月栏显示下周末之后到本月末之间的任务
+        return dateStr > endOfNextWeek && dateStr <= endOfMonth
+      }
     case 'later':
       return dateStr > endOfMonth
     default:
       return false
+  }
+}
+
+// 判断循环任务的频率是否匹配时间范围
+// 规则：短期可以容纳长期
+function isRecurrenceFrequencyMatch(task: TaskCard, timeRange: TimeRange): boolean {
+  // 逾期和更远的栏：显示所有循环任务
+  if (timeRange === 'overdue' || timeRange === 'later') {
+    return true
+  }
+
+  // 获取循环规则
+  if (!task.recurrence_id) return false
+  const recurrence = recurrenceStore.getRecurrenceById(task.recurrence_id)
+  if (!recurrence) return false
+
+  // 解析 RRULE 的 FREQ 字段
+  const rule = recurrence.rule.toUpperCase()
+  const freqMatch = rule.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)
+  if (!freqMatch) return true // 无法解析时默认显示
+
+  const freq = freqMatch[1]
+
+  // 根据时间范围匹配循环频率（短期容纳长期）
+  switch (timeRange) {
+    case 'today':
+      // 今日栏：显示每日、每周、每月循环
+      return freq === 'DAILY' || freq === 'WEEKLY' || freq === 'MONTHLY'
+    case 'thisWeek':
+    case 'nextWeek':
+      // 本周/下周栏：显示每周、每月循环
+      return freq === 'WEEKLY' || freq === 'MONTHLY'
+    case 'thisMonth':
+      // 本月栏：只显示每月循环
+      return freq === 'MONTHLY'
+    default:
+      return true
   }
 }
 
@@ -488,6 +537,10 @@ function getTasksForCell(timeRange: TimeRange, taskType: TaskType): TaskCard[] {
       case 'recurrence':
         // 循环任务（排除已经有截止日期的）
         if (task.recurrence_id && task.recurrence_original_date && !task.due_date) {
+          // 检查循环频率是否匹配时间范围
+          if (!isRecurrenceFrequencyMatch(task, timeRange)) {
+            return false
+          }
           matchesType = true
           dateToCheck = task.recurrence_original_date
         }
