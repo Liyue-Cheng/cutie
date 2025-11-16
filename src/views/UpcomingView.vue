@@ -484,8 +484,8 @@ function isDateInRange(dateStr: string, timeRange: TimeRange): boolean {
 // 判断循环任务的频率是否匹配时间范围
 // 规则：短期可以容纳长期
 function isRecurrenceFrequencyMatch(task: TaskCard, timeRange: TimeRange): boolean {
-  // 逾期和更远的栏：显示所有循环任务
-  if (timeRange === 'overdue' || timeRange === 'later') {
+  // 逾期栏：显示所有循环任务
+  if (timeRange === 'overdue') {
     return true
   }
 
@@ -513,6 +513,9 @@ function isRecurrenceFrequencyMatch(task: TaskCard, timeRange: TimeRange): boole
     case 'thisMonth':
       // 本月栏：只显示每月循环
       return freq === 'MONTHLY'
+    case 'later':
+      // 更远栏：只显示每年循环
+      return freq === 'YEARLY'
     default:
       return true
   }
