@@ -198,9 +198,9 @@ pub struct CreateTaskWithScheduleRequest {
     /// 区域ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub area_id: Option<uuid::Uuid>,
-    /// 截止日期
+    /// 截止日期（YYYY-MM-DD 格式）
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub due_date: Option<chrono::DateTime<chrono::Utc>>,
+    pub due_date: Option<chrono::NaiveDate>,
     /// 截止日期类型
     #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date_type: Option<crate::entities::DueDateType>,

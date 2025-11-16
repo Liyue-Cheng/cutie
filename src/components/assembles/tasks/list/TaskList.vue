@@ -464,9 +464,9 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .task-input {
   width: 100%;
-  padding: 1.2rem 1.6rem;
+  padding: 0.8rem 1.6rem;
   padding-right: 4rem;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   color: var(--color-text-primary);
   background-color: transparent;
   border: none;

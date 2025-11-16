@@ -61,7 +61,7 @@ CREATE TABLE tasks (
     subtasks TEXT, -- JSON: [{"id": UUID, "title": String, "is_completed": Boolean, "sort_order": String}]
     project_id TEXT,
     area_id TEXT,
-    due_date TEXT, -- UTC timestamp in RFC 3339 format
+    due_date TEXT, -- YYYY-MM-DD format (NaiveDate, 符合用户意图时间模型)
     due_date_type TEXT CHECK (due_date_type IN ('SOFT', 'HARD')),
     completed_at TEXT, -- UTC timestamp in RFC 3339 format
     archived_at TEXT, -- UTC timestamp in RFC 3339 format
@@ -457,7 +457,8 @@ CREATE TABLE user_settings (
     -- 'account' - 账号设置
     -- 'debug' - 调试设置
     -- 'system' - 系统设置
-    category TEXT NOT NULL CHECK (category IN ('appearance', 'behavior', 'data', 'account', 'debug', 'system')),
+    -- 'ai' - AI设置
+    category TEXT NOT NULL CHECK (category IN ('appearance', 'behavior', 'data', 'account', 'debug', 'system', 'ai')),
     
     -- 最后更新时间 (UTC timestamp in RFC 3339 format)
     updated_at TEXT NOT NULL,

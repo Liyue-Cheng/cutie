@@ -13,7 +13,7 @@ import AreaTag from '@/components/parts/AreaTag.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { getTodayDateString, parseDateString, toUtcIsoString } from '@/infra/utils/dateUtils'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 import draggable from 'vuedraggable'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
 
@@ -182,8 +182,8 @@ onMounted(async () => {
 
       // 初始化截止日期
       if (detail.due_date) {
-        const datePart = detail.due_date.date.split('T')[0]
-        dueDateInput.value = datePart || ''
+        // ✅ due_date.date 现在是 YYYY-MM-DD 格式，直接使用
+        dueDateInput.value = detail.due_date.date
         dueDateType.value = detail.due_date.type
       } else {
         dueDateInput.value = ''
@@ -213,8 +213,8 @@ watch(
 
         // 初始化截止日期
         if (detail.due_date) {
-          const datePart = detail.due_date.date.split('T')[0]
-          dueDateInput.value = datePart || ''
+          // ✅ due_date.date 现在是 YYYY-MM-DD 格式，直接使用
+          dueDateInput.value = detail.due_date.date
           dueDateType.value = detail.due_date.type
         } else {
           dueDateInput.value = ''
@@ -313,16 +313,11 @@ async function updateArea(areaId: string | null) {
 async function saveDueDate() {
   if (!props.taskId || !task.value || !dueDateInput.value) return
 
-  // 将日期字符串转为 UTC 当天零点（ISO 格式）
-  const dateObj = parseDateString(dueDateInput.value) // 本地时区的当天零点
-  const utcDate = new Date(
-    Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0)
-  )
-
+  // ✅ 直接发送 YYYY-MM-DD 格式，符合后端 NaiveDate 类型
   await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: {
-      due_date: toUtcIsoString(utcDate),
+      due_date: dueDateInput.value, // YYYY-MM-DD format
       due_date_type: dueDateType.value,
     },
   })
@@ -538,9 +533,9 @@ async function handleDeleteRecurrence() {
             <!-- 截止日期选择器 -->
             <div class="due-date-wrapper">
               <button class="due-date-button" @click="showDueDatePicker = !showDueDatePicker">
-                <span v-if="task.due_date">{{
-                  new Date(task.due_date.date).toLocaleDateString()
-                }}</span>
+                <span v-if="task.due_date">
+                  {{ task.due_date.date }}
+                </span>
                 <span v-else class="placeholder">设置截止日期</span>
               </button>
 

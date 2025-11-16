@@ -1,7 +1,7 @@
 /// Task核心模型
 ///
 /// 从shared/core/models/task.rs迁移而来
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use ts_rs::TS;
@@ -65,10 +65,11 @@ pub struct Task {
     /// **前置条件:** 如果非NULL，必须指向一个存在的Area.id
     pub area_id: Option<Uuid>,
 
-    /// 截止日期 (可选)
+    /// 截止日期 (可选，本地日期，无时区)
     ///
     /// **前置条件:** 如果非NULL，due_date_type也必须非NULL
-    pub due_date: Option<DateTime<Utc>>,
+    /// **时间处理规范:** 使用 NaiveDate（YYYY-MM-DD 格式），符合用户意图时间模型
+    pub due_date: Option<NaiveDate>,
 
     /// 截止日期类型 (可选)
     ///
@@ -202,7 +203,7 @@ impl Task {
 /// TaskRow - 数据库行映射结构
 ///
 /// 用于直接从数据库查询结果映射
-/// SQLx会自动将数据库的TEXT时间字段转换为DateTime<Utc>
+/// SQLx会自动将数据库的TEXT时间字段转换为DateTime<Utc>或NaiveDate
 #[derive(Debug, FromRow)]
 pub struct TaskRow {
     pub id: String,
@@ -213,14 +214,14 @@ pub struct TaskRow {
     pub subtasks: Option<String>, // JSON
     pub project_id: Option<String>,
     pub area_id: Option<String>,
-    pub due_date: Option<DateTime<Utc>>,     // SQLx自动转换
-    pub due_date_type: Option<String>,       // JSON
+    pub due_date: Option<NaiveDate>, // SQLx自动转换（YYYY-MM-DD格式）
+    pub due_date_type: Option<String>, // JSON
     pub completed_at: Option<DateTime<Utc>>, // SQLx自动转换
-    pub archived_at: Option<DateTime<Utc>>,  // SQLx自动转换
-    pub created_at: DateTime<Utc>,           // SQLx自动转换
-    pub updated_at: DateTime<Utc>,           // SQLx自动转换
-    pub deleted_at: Option<DateTime<Utc>>,   // SQLx自动转换
-    pub source_info: Option<String>,         // JSON
+    pub archived_at: Option<DateTime<Utc>>, // SQLx自动转换
+    pub created_at: DateTime<Utc>,   // SQLx自动转换
+    pub updated_at: DateTime<Utc>,   // SQLx自动转换
+    pub deleted_at: Option<DateTime<Utc>>, // SQLx自动转换
+    pub source_info: Option<String>, // JSON
     pub external_source_id: Option<String>,
     pub external_source_provider: Option<String>,
     pub external_source_metadata: Option<String>, // JSON

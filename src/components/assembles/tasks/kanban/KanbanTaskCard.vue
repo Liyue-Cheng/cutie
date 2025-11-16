@@ -383,10 +383,9 @@ function formatTimeBlockStart(timeBlock: any): string {
 }
 
 // ✅ 格式化截止日期
-function formatDueDate(isoString: string): string {
-  const date = new Date(isoString)
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
+// ✅ due_date.date 现在是 YYYY-MM-DD 格式
+function formatDueDate(dateString: string): string {
+  const [year, month, day] = dateString.split('-')
   return `${month}/${day}`
 }
 
@@ -529,7 +528,11 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
             v-if="task.due_date.type === 'HARD'"
             name="Flag"
             size="1.4rem"
-            :color="task.due_date.is_overdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'"
+            :color="
+              task.due_date.is_overdue
+                ? 'var(--color-deadline-overdue)'
+                : 'var(--color-text-tertiary)'
+            "
           />
           <!-- 软截止：使用波浪号 -->
           <span v-else class="soft-deadline-icon">~</span>

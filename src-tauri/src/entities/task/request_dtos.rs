@@ -1,13 +1,15 @@
 /// Task 请求 DTOs
 ///
 /// 只包含 API 请求相关的数据传输对象
-use chrono::{DateTime, Utc};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{DueDateType, Subtask};
 
 /// 创建任务的请求载荷
+///
+/// **时间处理规范:** due_date 使用 NaiveDate（YYYY-MM-DD 格式），符合用户意图时间模型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateTaskRequest {
     pub title: String,
@@ -16,12 +18,14 @@ pub struct CreateTaskRequest {
     pub estimated_duration: Option<i32>,
     pub subtasks: Option<Vec<Subtask>>,
     pub area_id: Option<Uuid>,
-    pub due_date: Option<DateTime<Utc>>,
+    pub due_date: Option<NaiveDate>,
     pub due_date_type: Option<DueDateType>,
     pub project_id: Option<Uuid>,
 }
 
 /// 更新任务的请求载荷
+///
+/// **时间处理规范:** due_date 使用 NaiveDate（YYYY-MM-DD 格式），符合用户意图时间模型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateTaskRequest {
     pub title: Option<String>,
@@ -38,7 +42,7 @@ pub struct UpdateTaskRequest {
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub area_id: Option<Option<Uuid>>,
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
-    pub due_date: Option<Option<DateTime<Utc>>>,
+    pub due_date: Option<Option<NaiveDate>>,
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub due_date_type: Option<Option<DueDateType>>,
 }

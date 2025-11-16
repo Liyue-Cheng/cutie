@@ -200,8 +200,11 @@ const groupedTasks = computed(() => {
   for (const task of allTasks.value) {
     if (!task.due_date) continue
 
-    const dueDate = new Date(task.due_date.date)
-    const dueDateStr = task.due_date.date.split('T')[0] // YYYY-MM-DD
+    // ✅ due_date.date 现在是 YYYY-MM-DD 格式，直接使用字符串比较
+    const dueDateStr = task.due_date.date
+
+    // 为了与 Date 对象比较，需要创建一个 Date 对象
+    const dueDate = new Date(dueDateStr + 'T00:00:00')
 
     // 逾期（截止日期 < 今天）
     if (dueDateStr < today) {

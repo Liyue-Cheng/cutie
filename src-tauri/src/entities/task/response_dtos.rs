@@ -1,7 +1,7 @@
 /// Task 响应 DTOs - 对应前端的视图模型
 ///
 /// 这些 DTOs 与前端的 dtos.ts 中定义的类型一一对应
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -156,9 +156,11 @@ pub enum DailyOutcome {
 }
 
 /// 截止日期信息
+///
+/// **时间处理规范:** date 字段使用 NaiveDate（YYYY-MM-DD 格式），符合用户意图时间模型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DueDateInfo {
-    pub date: DateTime<Utc>,
+    pub date: NaiveDate,
     #[serde(rename = "type")]
     pub due_date_type: DueDateType,
     pub is_overdue: bool,

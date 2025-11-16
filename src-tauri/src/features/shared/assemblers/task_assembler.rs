@@ -48,12 +48,11 @@ impl TaskAssembler {
                 // 使用本地时区进行逾期判断
                 use chrono::Local;
                 let now_local = Local::now().date_naive();
-                let due_date_local = date.with_timezone(&Local).date_naive();
 
                 DueDateInfo {
                     date,
                     due_date_type: task.due_date_type.clone().unwrap_or(DueDateType::Soft),
-                    is_overdue: now_local > due_date_local,
+                    is_overdue: now_local > date,
                 }
             }),
             schedules: None, // 需要后续填充（调用 assemble_schedules）

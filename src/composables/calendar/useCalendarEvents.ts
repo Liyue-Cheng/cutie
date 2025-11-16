@@ -209,8 +209,8 @@ export function useCalendarEvents(
           if (filters?.showScheduledTasks === false) return
         }
 
-        const dueDateIso = task.due_date?.date ?? null
-        const dueDateDay = dueDateIso ? dueDateIso.slice(0, 10) : null
+        // ✅ due_date.date 现在是 YYYY-MM-DD 格式，直接使用
+        const dueDateDay = task.due_date?.date ?? null
         const dueIsOverdue = task.due_date?.is_overdue ?? false
 
         // 遍历该任务的所有日程
@@ -268,10 +268,9 @@ export function useCalendarEvents(
         // 只显示有截止日期的任务
         if (!task.due_date) return
 
-        const dueDateIso = task.due_date.date
-        if (!dueDateIso) return
-
-        const dueDateDay = dueDateIso.slice(0, 10)
+        // ✅ due_date.date 现在是 YYYY-MM-DD 格式，直接使用
+        const dueDateDay = task.due_date.date
+        if (!dueDateDay) return
 
         // 如果同一天已有排期，交由排期事件显示旗标，不再单独显示截止日期
         const hasScheduleSameDay = task.schedules?.some(
@@ -285,26 +284,11 @@ export function useCalendarEvents(
         const color = task.due_date.is_overdue ? '#ef4444' : '#f59e0b'
 
         // 截止日期显示为全日事件
-        // ✅ due_date.date 是完整的 ISO 8601 字符串（DateTime<Utc>），提取日期部分
-        const dueDateTime = new Date(task.due_date.date)
-
-        // 验证日期有效性
-        if (isNaN(dueDateTime.getTime())) {
-          return
-        }
-
-        // 创建当天 00:00:00 的日期（全日事件）
-        const startDate = new Date(dueDateTime)
-        startDate.setHours(0, 0, 0, 0)
-
-        const endDate = new Date(startDate)
-        endDate.setDate(endDate.getDate() + 1)
-
+        // ✅ due_date.date 是 YYYY-MM-DD 格式，FullCalendar 原生支持此格式
         events.push({
           id: `due-${task.id}`,
           title: task.title,
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
+          start: dueDateDay,
           allDay: true,
           display: 'block',
           color: color,

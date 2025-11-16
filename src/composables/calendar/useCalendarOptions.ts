@@ -191,7 +191,8 @@ export function useCalendarOptions(
             }
 
             if (task.due_date && extended.scheduleDay) {
-              const dueDateDay = task.due_date.date?.slice(0, 10)
+              // ✅ due_date.date 现在是 YYYY-MM-DD 格式，直接使用
+              const dueDateDay = task.due_date.date
               if (dueDateDay && dueDateDay === extended.scheduleDay) {
                 hasDueFlag = true
                 isDueOverdue = task.due_date.is_overdue

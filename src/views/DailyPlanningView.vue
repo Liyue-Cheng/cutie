@@ -9,7 +9,7 @@ import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
@@ -41,16 +41,18 @@ const tomorrowTasks = computed(() => {
 
 // 即将到期的任务（未来7天内有截止日期的未完成任务）
 const upcomingTasks = computed(() => {
-  const now = new Date()
-  const sevenDaysLater = new Date(now)
-  sevenDaysLater.setDate(now.getDate() + 7)
+  const todayStr = getTodayDateString()
+  const sevenDaysLater = new Date()
+  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
+  const sevenDaysLaterStr = toDateString(sevenDaysLater)
 
   return Array.from(taskStore.tasks.values()).filter((task) => {
     if (task.is_completed || task.is_archived || task.is_deleted) return false
     if (!task.due_date) return false
 
-    const dueDate = new Date(task.due_date.date)
-    return dueDate >= now && dueDate <= sevenDaysLater
+    // ✅ 使用本地日期字符串比较（YYYY-MM-DD格式）
+    const dueDateStr = task.due_date.date
+    return dueDateStr >= todayStr && dueDateStr <= sevenDaysLaterStr
   })
 })
 

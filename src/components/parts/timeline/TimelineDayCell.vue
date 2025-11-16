@@ -264,10 +264,10 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
         </div>
       </div>
       <div class="header-actions">
-        <div v-if="isToday" class="today-badge">今天</div>
         <button class="quick-add-button" @click.stop="showQuickAddDialog = true" title="添加任务">
           <CuteIcon name="Plus" :size="16" />
         </button>
+        <div v-if="isToday" class="today-badge">今天</div>
       </div>
     </div>
 

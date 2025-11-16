@@ -104,7 +104,8 @@ function buildDayData(dateStr: string, dayNumber: number, today: string): DayDat
 
     // 截止日期
     if (filters.showDueDates && task.due_date) {
-      const dueDateDay = task.due_date.date?.slice(0, 10)
+      // ✅ due_date.date 现在是 YYYY-MM-DD 格式的字符串，直接使用
+      const dueDateDay = task.due_date.date
       if (dueDateDay === dateStr && !task.is_completed && !task.is_archived) {
         // 如果当天已有排期，不重复显示截止日期
         if (!taskIdsWithSchedule.has(task.id)) {

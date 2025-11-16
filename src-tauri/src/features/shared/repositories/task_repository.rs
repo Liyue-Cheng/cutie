@@ -95,7 +95,7 @@ impl TaskRepository {
             )
             .bind(task.project_id.map(|id| id.to_string()))
             .bind(task.area_id.map(|id| id.to_string()))
-            .bind(task.due_date.map(|d| d.to_rfc3339()))
+            .bind(task.due_date.map(|d| d.to_string())) // ✅ NaiveDate 使用 to_string()
             .bind(
                 task.due_date_type
                     .as_ref()
@@ -201,7 +201,7 @@ impl TaskRepository {
             q = q.bind(bind_val);
         }
         if let Some(due_date) = &request.due_date {
-            let bind_val: Option<String> = due_date.as_ref().map(|d| d.to_rfc3339());
+            let bind_val: Option<String> = due_date.as_ref().map(|d| d.to_string()); // ✅ NaiveDate 使用 to_string()
             q = q.bind(bind_val);
         }
         if let Some(due_date_type) = &request.due_date_type {

@@ -36,7 +36,11 @@
             v-if="task.due_date.type === 'HARD'"
             name="Flag"
             size="1.4rem"
-            :color="task.due_date.is_overdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'"
+            :color="
+              task.due_date.is_overdue
+                ? 'var(--color-deadline-overdue)'
+                : 'var(--color-text-tertiary)'
+            "
           />
           <!-- 软截止：使用波浪号 -->
           <span v-else class="soft-deadline-icon">~</span>
@@ -72,7 +76,10 @@
       <!-- 非即将到期列表：时间块显示（如果有） -->
       <div v-if="!isInUpcomingList && todayTimeBlocks.length > 0" class="time-blocks-inline">
         <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
-          <span class="time-tag-dot" :style="{ backgroundColor: area?.color || 'var(--color-tag-background)' }"></span>
+          <span
+            class="time-tag-dot"
+            :style="{ backgroundColor: area?.color || 'var(--color-tag-background)' }"
+          ></span>
           {{ formatTimeBlockStart(block) }}
         </span>
         <span v-if="todayTimeBlocks.length > 3" class="time-tag-more"
@@ -97,7 +104,11 @@
           v-if="task.due_date.type === 'HARD'"
           name="Flag"
           size="1.4rem"
-          :color="task.due_date.is_overdue ? 'var(--color-deadline-overdue)' : 'var(--color-text-tertiary)'"
+          :color="
+            task.due_date.is_overdue
+              ? 'var(--color-deadline-overdue)'
+              : 'var(--color-text-tertiary)'
+          "
         />
         <!-- 软截止：使用波浪号 -->
         <span v-else class="soft-deadline-icon">~</span>
@@ -296,10 +307,9 @@ function formatTimeBlockStart(timeBlock: any): string {
 }
 
 // 格式化截止日期
-function formatDueDate(isoString: string): string {
-  const date = new Date(isoString)
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
+// ✅ due_date.date 现在是 YYYY-MM-DD 格式
+function formatDueDate(dateString: string): string {
+  const [year, month, day] = dateString.split('-')
   return `${month}/${day}`
 }
 
