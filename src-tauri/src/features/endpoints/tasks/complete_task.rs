@@ -71,7 +71,7 @@ POST /api/tasks/{id}/completion
 - 规则：
   - 过去日期视图 (`daily::2025-10-01` < today) → 记录在那天（补记录历史）
   - 今天/未来日期视图 (`daily::2025-10-05` >= today) → 记录在今天（正常/提前完成）
-  - 通用视图 (`misc::*`, `area::*`, `project::*`) → 记录在今天
+  - 通用视图 (`misc::*`, `area::*`, `project::*`, `upcoming::*`) → 记录在今天
 - 如果 `schedule_date` 已有日程：设置为已完成（`outcome = 'COMPLETED_ON_DAY'`）
 - 如果 `schedule_date` 没有日程：创建一条新日程并设置为已完成
 - 删除 `> schedule_date` 的所有日程
@@ -98,7 +98,7 @@ POST /api/tasks/{id}/completion
 
 **Body Schema:**
 - `view_context` (String, required): 视图上下文，格式 `{type}::{identifier}`
-  - 例如：`"daily::2025-10-01"`, `"misc::staging"`, `"area::{uuid}"`
+  - 例如：`"daily::2025-10-01"`, `"misc::staging"`, `"area::{uuid}"`, `"upcoming::today::scheduled"`
 
 **请求头 (Request Headers):**
 - `X-Correlation-ID` (optional): 用于前端去重和请求追踪
@@ -178,7 +178,7 @@ POST /api/tasks/{id}/completion
     - 违反时返回 `400 VALIDATION_ERROR`
 - `view_context`:
     - **必须**是有效的上下文格式 `{type}::{identifier}`。
-    - `type` 必须是 `daily`, `misc`, `area`, 或 `project`。
+    - `type` 必须是 `daily`, `misc`, `area`, `project`, 或 `upcoming`。
     - 对于 `daily` 类型，必须包含日期 `YYYY-MM-DD`。
     - 违反时返回 `400 VALIDATION_ERROR`
 - **业务规则验证:**
@@ -551,6 +551,7 @@ mod logic {
     /// - 过去日期视图 (daily::2025-10-01 < today): 记录在那天（补记录历史）
     /// - 今天/未来日期视图 (daily::2025-10-05 >= today): 记录在今天（正常完成/提前完成）
     /// - 通用视图 (misc::*, area::*, project::*): 记录在今天
+    /// - Upcoming 视图 (upcoming::*): 记录在今天
     fn determine_schedule_date(view_context: &str) -> AppResult<String> {
         let parts: Vec<&str> = view_context.split("::").collect();
 
@@ -598,7 +599,7 @@ mod logic {
                     Ok(today_str)
                 }
             }
-            "misc" | "area" | "project" => {
+            "misc" | "area" | "project" | "upcoming" => {
                 // 通用视图：总是今天
                 Ok(today_str)
             }
