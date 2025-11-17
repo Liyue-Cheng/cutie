@@ -34,7 +34,7 @@ const overdueCount = computed(() => {
 })
 
 function handleOpenEditor(task: TaskCard) {
-  uiStore.openEditor(task.id, 'misc::upcoming')
+  uiStore.openEditor(task.id, 'misc::deadline')
 }
 
 // 拖动相关：允许拖动但不保存状态
@@ -83,7 +83,7 @@ function handleDrop(event: DragEvent) {
         >
           <KanbanTaskCard
             :task="task"
-            :view-metadata="{ type: 'misc', id: 'upcoming' }"
+            :view-metadata="{ type: 'misc', id: 'deadline' }"
             @open-editor="handleOpenEditor(task)"
           />
         </div>

@@ -117,7 +117,7 @@
         <!-- Staging 视图 -->
         <StagingList v-else-if="currentRightPaneView === 'staging'" />
         <!-- Upcoming 视图 -->
-        <UpcomingList v-else-if="currentRightPaneView === 'upcoming'" />
+        <UpcomingPanel v-else-if="currentRightPaneView === 'upcoming'" />
         <!-- Templates 视图 -->
         <TemplateList v-else-if="currentRightPaneView === 'templates'" />
       </template>
@@ -131,7 +131,7 @@ import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
 import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
-import UpcomingList from '@/components/assembles/tasks/list/UpcomingList.vue'
+import UpcomingPanel from '@/components/assembles/tasks/list/UpcomingPanel.vue'
 import TemplateList from '@/components/assembles/template/TemplateList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
@@ -221,7 +221,7 @@ function cycleZoom() {
   } else {
     calendarZoom.value = 1
   }
-  logger.debug(LogTags.COMPONENT_HOME_CALENDAR_PANEL, 'Calendar zoom cycled', {
+  logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Calendar zoom cycled', {
     zoom: calendarZoom.value,
   })
 }

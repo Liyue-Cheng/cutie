@@ -77,6 +77,7 @@ export function deriveViewMetadata(viewKey?: string): ViewMetadata | undefined {
           planned: '已安排',
           incomplete: '未完成',
           completed: '已完成',
+          deadline: '即将到期',
           archive: '归档', // 🆕 添加归档支持
           template: '模板', // 🆕 添加模板支持
         }
@@ -138,6 +139,7 @@ export function validateViewKey(viewKey: string): boolean {
         'planned',
         'incomplete',
         'completed',
+        'deadline',
         'archive',
         'template',
       ]

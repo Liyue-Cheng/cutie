@@ -18,19 +18,27 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 
 无需额外标识符的固定视图
 
-| 视图名称   | Context Key        | 说明                   |
-| ---------- | ------------------ | ---------------------- |
-| All 任务   | `misc::all`        | 所有任务（包括已完成） |
-| Staging 区 | `misc::staging`    | 未安排的任务           |
-| Planned    | `misc::planned`    | 已安排的任务           |
-| Incomplete | `misc::incomplete` | 所有未完成任务         |
-| Completed  | `misc::completed`  | 已完成任务             |
+| 视图名称   | Context Key        | 说明                    |
+| ---------- | ------------------ | ----------------------- |
+| All 任务   | `misc::all`        | 所有任务（包括已完成）  |
+| Staging 区 | `misc::staging`    | 未安排的任务            |
+| Planned    | `misc::planned`    | 已安排的任务            |
+| Incomplete | `misc::incomplete` | 所有未完成任务          |
+| Completed  | `misc::completed`  | 已完成任务              |
+| Deadline   | `misc::deadline`   | 即将到期的任务（7天内） |
+| Template   | `misc::template`   | 模板列表                |
 
 **示例**：
 
 ```javascript
 context_key: 'misc::staging'
 sorted_task_ids: '["uuid-1", "uuid-2", "uuid-3"]'
+
+context_key: 'misc::deadline'
+sorted_task_ids: '["uuid-4", "uuid-5"]'
+
+context_key: 'misc::template'
+sorted_task_ids: '["template-uuid-1", "template-uuid-2"]'
 ```
 
 ---
@@ -97,11 +105,16 @@ sorted_task_ids: '["uuid-1", "uuid-2"]'
 
 ### **5. Upcoming 视图（二维矩阵）**
 
-按时间范围和任务类型组织的矩阵视图
+按时间范围和任务类型组织的矩阵视图，用于 `/upcoming` 路由和右栏 Upcoming Panel
 
-| 视图名称      | Context Key 格式                      | 说明                     |
-| ------------- | ------------------------------------- | ------------------------ |
+| 视图名称        | Context Key 格式                    | 说明                         |
+| --------------- | ----------------------------------- | ---------------------------- |
 | Upcoming 单元格 | `upcoming::{timeRange}::{taskType}` | 指定时间范围和任务类型的任务 |
+
+**使用场景**：
+
+- UpcomingView 页面（独立路由）
+- UpcomingPanel 组件（右栏面板）
 
 **时间范围（Time Range）**：
 
@@ -182,7 +195,30 @@ sorted_task_ids: '["uuid-8"]'
 
 ---
 
-### **6. 复合筛选（未来扩展）**
+### **6. 模板视图（Template View）**
+
+模板列表和拖放策略
+
+| 视图名称 | Context Key      | 说明                           |
+| -------- | ---------------- | ------------------------------ |
+| 模板列表 | `misc::template` | 通用模板列表（支持拖放到日历） |
+
+**使用场景**：
+
+- TemplateList 组件（右栏面板）
+- TemplateKanbanColumn 组件
+- 拖放策略：template-to-daily, daily-to-template, template-reorder
+
+**示例**：
+
+```javascript
+context_key: 'misc::template'
+sorted_task_ids: '["template-uuid-1", "template-uuid-2", "template-uuid-3"]'
+```
+
+---
+
+### **7. 复合筛选（未来扩展）**
 
 多个筛选条件组合
 
@@ -207,10 +243,18 @@ sorted_task_ids: '["uuid-1"]'
 ```typescript
 // src/services/viewAdapter.ts
 export type ViewContext =
-  | { type: 'misc'; id: 'all' | 'staging' | 'planned' | 'incomplete' | 'completed' }
+  | {
+      type: 'misc'
+      id: 'all' | 'staging' | 'planned' | 'incomplete' | 'completed' | 'deadline' | 'template'
+    }
   | { type: 'daily'; date: string } // YYYY-MM-DD
   | { type: 'area'; areaId: string }
   | { type: 'project'; projectId: string }
+  | {
+      type: 'upcoming'
+      timeRange: 'overdue' | 'today' | 'thisWeek' | 'nextWeek' | 'thisMonth' | 'later'
+      taskType: 'dueDate' | 'recurrence' | 'scheduled'
+    }
 ```
 
 ### **Context Key 生成函数**
@@ -227,6 +271,8 @@ function getContextKey(context: ViewContext): string {
       return `area::${context.areaId}`
     case 'project':
       return `project::${context.projectId}`
+    case 'upcoming':
+      return `upcoming::${context.timeRange}::${context.taskType}`
     default:
       throw new Error(`Unknown context type`)
   }
@@ -320,6 +366,9 @@ GET /view-preferences/area::a1b2c3d4-1234-5678-90ab-cdef12345678
 'misc::staging'
 'misc::planned'
 'misc::incomplete'
+'misc::completed'
+'misc::deadline'
+'misc::template'
 
 // 日期看板
 'daily::2025-10-01'
@@ -334,12 +383,24 @@ GET /view-preferences/area::a1b2c3d4-1234-5678-90ab-cdef12345678
 'project::proj-uuid-1234-5678-90ab'
 'project::proj-uuid-5678-90ab-cdef'
 
-// Upcoming 视图
+// Upcoming 视图（18个单元格）
 'upcoming::overdue::dueDate'
+'upcoming::overdue::recurrence'
+'upcoming::overdue::scheduled'
+'upcoming::today::dueDate'
 'upcoming::today::recurrence'
+'upcoming::today::scheduled'
+'upcoming::thisWeek::dueDate'
+'upcoming::thisWeek::recurrence'
 'upcoming::thisWeek::scheduled'
 'upcoming::nextWeek::dueDate'
+'upcoming::nextWeek::recurrence'
+'upcoming::nextWeek::scheduled'
+'upcoming::thisMonth::dueDate'
 'upcoming::thisMonth::recurrence'
+'upcoming::thisMonth::scheduled'
+'upcoming::later::dueDate'
+'upcoming::later::recurrence'
 'upcoming::later::scheduled'
 
 // 复合筛选（未来）
@@ -372,8 +433,34 @@ function validateContextKey(key: string): boolean {
   }
 
   // upcoming 类型需要 3 个部分
-  if (type === 'upcoming' && parts.length !== 3) {
-    return false
+  if (type === 'upcoming') {
+    if (parts.length !== 3) return false
+
+    const timeRange = parts[1]
+    const taskType = parts[2]
+
+    const validTimeRanges = ['overdue', 'today', 'thisWeek', 'nextWeek', 'thisMonth', 'later']
+    const validTaskTypes = ['dueDate', 'recurrence', 'scheduled']
+
+    if (!validTimeRanges.includes(timeRange) || !validTaskTypes.includes(taskType)) {
+      return false
+    }
+  }
+
+  // misc 类型验证
+  if (type === 'misc') {
+    const validIds = [
+      'all',
+      'staging',
+      'planned',
+      'incomplete',
+      'completed',
+      'deadline',
+      'template',
+    ]
+    if (!validIds.includes(parts[1])) {
+      return false
+    }
   }
 
   return true

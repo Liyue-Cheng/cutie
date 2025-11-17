@@ -26,7 +26,7 @@
             v-for="task in groupedTasks.overdue"
             :key="task.id"
             :task="task"
-            view-key="misc::upcoming"
+            view-key="misc::deadline"
           />
         </div>
       </div>
@@ -47,7 +47,7 @@
             v-for="task in groupedTasks.today"
             :key="task.id"
             :task="task"
-            view-key="misc::upcoming"
+            view-key="misc::deadline"
           />
         </div>
       </div>
@@ -68,7 +68,7 @@
             v-for="task in groupedTasks.threeDays"
             :key="task.id"
             :task="task"
-            view-key="misc::upcoming"
+            view-key="misc::deadline"
           />
         </div>
       </div>
@@ -89,7 +89,7 @@
             v-for="task in groupedTasks.thisWeek"
             :key="task.id"
             :task="task"
-            view-key="misc::upcoming"
+            view-key="misc::deadline"
           />
         </div>
       </div>
@@ -110,7 +110,7 @@
             v-for="task in groupedTasks.thisMonth"
             :key="task.id"
             :task="task"
-            view-key="misc::upcoming"
+            view-key="misc::deadline"
           />
         </div>
       </div>
@@ -131,7 +131,7 @@
             v-for="task in groupedTasks.later"
             :key="task.id"
             :task="task"
-            view-key="misc::upcoming"
+            view-key="misc::deadline"
           />
         </div>
       </div>

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, nextTick } from 'vue'
-import { useTemplateStore } from '@/stores/template'
+import { ref, nextTick, onMounted } from 'vue'
 import { useAreaStore } from '@/stores/area'
-import type { Template } from '@/types/dtos'
 import CuteCard from '@/components/templates/CuteCard.vue'
-import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import { pipeline } from '@/cpu'
 import draggable from 'vuedraggable'
+import { logger, LogTags } from '@/infra/logging/logger'
+import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 
 interface Subtask {
   id: string
@@ -16,13 +15,8 @@ interface Subtask {
   sort_order: string
 }
 
-const props = defineProps<{
-  templateId: string | null
-}>()
-
 const emit = defineEmits(['close'])
 
-const templateStore = useTemplateStore()
 const areaStore = useAreaStore()
 
 // 本地编辑状态
@@ -35,30 +29,12 @@ const showAreaSelector = ref(false)
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const mouseDownOnOverlay = ref(false)
-
-const template = computed(() => {
-  return props.templateId ? templateStore.getTemplateById(props.templateId) : null
-})
+const titleInputRef = ref<HTMLInputElement | null>(null)
 
 // 使用 ref 而不是 computed，以便 vuedraggable 可以修改
 const subtasks = ref<Subtask[]>([])
 
-// 监听 template 变化，同步 subtasks
-watch(
-  () => template.value?.subtasks_template,
-  (newSubtasks) => {
-    if (newSubtasks) {
-      subtasks.value = [...newSubtasks]
-    } else {
-      subtasks.value = []
-    }
-  },
-  { immediate: true }
-)
-
-const selectedArea = computed(() => {
-  return selectedAreaId.value ? areaStore.getAreaById(selectedAreaId.value) : null
-})
+const selectedArea = ref(selectedAreaId.value ? areaStore.getAreaById(selectedAreaId.value) : null)
 
 // 自动调整 textarea 高度
 function autoResizeTextarea(textarea: HTMLTextAreaElement) {
@@ -76,72 +52,20 @@ function initTextareaHeights() {
   }
 }
 
-// 当弹窗打开时，加载模板数据
+// 当弹窗打开时，聚焦到标题输入框
 onMounted(async () => {
-  if (props.templateId && template.value) {
-    titleInput.value = template.value.title
-    glanceNoteTemplate.value = template.value.glance_note_template || ''
-    detailNoteTemplate.value = template.value.detail_note_template || ''
-    selectedAreaId.value = template.value.area_id || null
-
-    // 等待 DOM 更新后调整 textarea 高度
-    await nextTick()
-    initTextareaHeights()
-  }
+  await nextTick()
+  titleInputRef.value?.focus()
 })
 
-watch(
-  () => props.templateId,
-  async (newTemplateId) => {
-    if (newTemplateId && template.value) {
-      titleInput.value = template.value.title
-      glanceNoteTemplate.value = template.value.glance_note_template || ''
-      detailNoteTemplate.value = template.value.detail_note_template || ''
-      selectedAreaId.value = template.value.area_id || null
-
-      // 等待 DOM 更新后调整 textarea 高度
-      await nextTick()
-      initTextareaHeights()
-    }
-  }
-)
-
-async function updateTitle() {
-  if (!props.templateId || !template.value || titleInput.value === template.value.title) return
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    title: titleInput.value,
-  })
-}
-
-async function updateGlanceNoteTemplate() {
-  if (!props.templateId || !template.value) return
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    glance_note_template: glanceNoteTemplate.value || undefined,
-  })
-}
-
-async function updateDetailNoteTemplate() {
-  if (!props.templateId || !template.value) return
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    detail_note_template: detailNoteTemplate.value || undefined,
-  })
-}
-
-async function updateArea(areaId: string | null) {
-  if (!props.templateId || !template.value) return
+function updateArea(areaId: string | null) {
   selectedAreaId.value = areaId
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    area_id: areaId || undefined,
-  })
+  selectedArea.value = areaId ? areaStore.getAreaById(areaId) : null
   showAreaSelector.value = false
 }
 
-async function handleAddSubtask() {
-  if (!props.templateId || !newSubtaskTitle.value.trim()) return
+function handleAddSubtask() {
+  if (!newSubtaskTitle.value.trim()) return
 
   const newSubtask: Subtask = {
     id: crypto.randomUUID(),
@@ -150,53 +74,26 @@ async function handleAddSubtask() {
     sort_order: `subtask_${Date.now()}`,
   }
 
-  const updatedSubtasks = [...subtasks.value, newSubtask]
-
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    subtasks_template: updatedSubtasks,
-  })
-
+  subtasks.value = [...subtasks.value, newSubtask]
   newSubtaskTitle.value = ''
 }
 
-async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean) {
-  if (!props.templateId) return
-
-  const updatedSubtasks = subtasks.value.map((subtask) =>
+function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean) {
+  subtasks.value = subtasks.value.map((subtask) =>
     subtask.id === subtaskId ? { ...subtask, is_completed: isCompleted } : subtask
   )
-
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    subtasks_template: updatedSubtasks,
-  })
 }
 
-async function handleDeleteSubtask(subtaskId: string) {
-  if (!props.templateId) return
-
-  const updatedSubtasks = subtasks.value.filter((subtask) => subtask.id !== subtaskId)
-
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    subtasks_template: updatedSubtasks,
-  })
+function handleDeleteSubtask(subtaskId: string) {
+  subtasks.value = subtasks.value.filter((subtask) => subtask.id !== subtaskId)
 }
 
-async function handleSubtaskReorder() {
-  if (!props.templateId) return
-
+function handleSubtaskReorder() {
   // 更新 sort_order
-  const updatedSubtasks = subtasks.value.map((subtask, index) => ({
+  subtasks.value = subtasks.value.map((subtask, index) => ({
     ...subtask,
     sort_order: `subtask_${Date.now()}_${index}`,
   }))
-
-  await pipeline.dispatch('template.update', {
-    id: props.templateId,
-    subtasks_template: updatedSubtasks,
-  })
 }
 
 function handleOverlayMouseDown() {
@@ -218,6 +115,34 @@ function handleCardMouseDown() {
 function handleClose() {
   emit('close')
 }
+
+async function handleCreate() {
+  const title = titleInput.value.trim()
+  if (!title) {
+    alert('请输入模板标题')
+    return
+  }
+
+  try {
+    await pipeline.dispatch('template.create', {
+      title,
+      glance_note_template: glanceNoteTemplate.value || undefined,
+      detail_note_template: detailNoteTemplate.value || undefined,
+      area_id: selectedAreaId.value || undefined,
+      subtasks_template: subtasks.value.length > 0 ? subtasks.value : undefined,
+    })
+
+    logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Template created successfully', { title })
+    emit('close')
+  } catch (error) {
+    logger.error(
+      LogTags.COMPONENT_KANBAN_COLUMN,
+      'Failed to create template',
+      error instanceof Error ? error : new Error(String(error))
+    )
+    alert('创建模板失败')
+  }
+}
 </script>
 
 <template>
@@ -227,7 +152,7 @@ function handleClose() {
     @click.self="handleOverlayClick"
   >
     <CuteCard class="editor-card" @mousedown="handleCardMouseDown" @click.stop>
-      <div v-if="template" class="content-wrapper">
+      <div class="content-wrapper">
         <!-- 第一栏：卡片标题栏 -->
         <div class="card-header-row">
           <div class="left-section">
@@ -270,11 +195,11 @@ function handleClose() {
         <!-- 第二栏：标题输入栏 -->
         <div class="title-row">
           <input
+            ref="titleInputRef"
             v-model="titleInput"
             class="title-input"
             placeholder="模板标题"
-            @blur="updateTitle"
-            @keydown.enter="updateTitle"
+            @keydown.enter="handleCreate"
           />
         </div>
 
@@ -288,7 +213,6 @@ function handleClose() {
             placeholder="快速概览笔记模板..."
             rows="1"
             @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
-            @blur="updateGlanceNoteTemplate"
           ></textarea>
         </div>
 
@@ -345,8 +269,13 @@ function handleClose() {
             placeholder="详细笔记模板..."
             rows="1"
             @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
-            @blur="updateDetailNoteTemplate"
           ></textarea>
+        </div>
+
+        <!-- 第六栏：操作按钮 -->
+        <div class="action-buttons">
+          <button class="cancel-button" @click="handleClose">取消</button>
+          <button class="create-button" @click="handleCreate">创建</button>
         </div>
       </div>
     </CuteCard>
@@ -358,45 +287,44 @@ function handleClose() {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-color: rgb(0 0 0 / 50%);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 10000;
 }
 
 .editor-card {
-  width: 70rem;
-  max-width: 90vw;
+  width: min(90%, 80rem);
   max-height: 90vh;
-  padding: 2.5rem;
-  border: 1px solid var(--color-border-default);
-  background-color: var(--color-card-available);
-  border-radius: 0.8rem;
   overflow-y: auto;
+  background-color: var(--color-background-content);
+  border-radius: 1.2rem;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 16%);
 }
 
 .content-wrapper {
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.6rem;
 }
 
 /* 第一栏：卡片标题栏 */
 .card-header-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid var(--color-separator);
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .left-section {
+  position: relative;
   display: flex;
   align-items: center;
-  position: relative;
+  gap: 1rem;
 }
 
 .area-tag-wrapper {
@@ -408,19 +336,35 @@ function handleClose() {
   opacity: 0.7;
 }
 
+.no-area-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-tertiary);
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+
+.hash-symbol {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
 .area-selector-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 0.5rem;
-  background: var(--color-card-available);
+  margin-top: 0.4rem;
+  background-color: var(--color-background-content);
   border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
-  z-index: 100;
-  min-width: 20rem;
-  max-height: 30rem;
-  overflow-y: auto;
+  border-radius: 0.8rem;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  overflow: hidden;
+  z-index: 1000;
+  min-width: 16rem;
 }
 
 .area-option {
@@ -430,7 +374,7 @@ function handleClose() {
 }
 
 .area-option:hover {
-  background-color: var(--color-background-soft, #f9f9f9);
+  background-color: var(--color-background-hover);
 }
 
 .no-area-text {
@@ -438,45 +382,31 @@ function handleClose() {
   color: var(--color-text-tertiary);
 }
 
-.no-area-placeholder {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 1.2rem;
-  color: var(--color-text-tertiary);
-  padding: 0.4rem 0.8rem;
-  border: 1px dashed var(--color-border-default);
-  border-radius: 0.4rem;
-}
-
-.no-area-placeholder .hash-symbol {
-  font-size: 1.4rem;
-  font-weight: 500;
-}
-
 .right-section {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.8rem;
 }
 
 .close-button {
-  font-size: 3rem;
-  line-height: 1;
-  color: var(--color-text-tertiary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  width: 3rem;
-  height: 3rem;
+  width: 3.2rem;
+  height: 3.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
+  background-color: transparent;
+  border: none;
+  border-radius: 0.4rem;
+  font-size: 2.4rem;
+  font-weight: 300;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
 }
 
 .close-button:hover {
+  background-color: var(--color-background-hover);
   color: var(--color-text-primary);
 }
 
@@ -491,19 +421,17 @@ function handleClose() {
   font-size: 2rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  background: transparent;
+  background-color: transparent;
   border: none;
   outline: none;
-  padding: 0.5rem 0;
-  border-bottom: 2px solid transparent;
-  transition: border-color 0.2s;
+  padding: 0.6rem 0;
 }
 
-.title-input:focus {
-  border-bottom-color: var(--color-primary);
+.title-input::placeholder {
+  color: var(--color-text-tertiary);
 }
 
-/* 笔记区域 */
+/* 第三栏：Glance Note 区域 */
 .note-area {
   position: relative;
   min-height: 4rem;
@@ -511,58 +439,46 @@ function handleClose() {
 
 .note-placeholder {
   position: absolute;
-  top: 0;
+  top: 0.8rem;
   left: 0;
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   color: var(--color-text-tertiary);
-  cursor: text;
   pointer-events: none;
 }
 
 .note-textarea {
   width: 100%;
-  font-family: inherit;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   color: var(--color-text-primary);
-  background: transparent;
+  background-color: transparent;
   border: none;
   outline: none;
   resize: none;
-  padding: 1rem;
-  border-radius: 0.4rem;
   overflow: hidden;
-  min-height: 2rem;
-}
-
-.note-textarea:hover {
-  background: transparent;
-}
-
-.note-textarea:focus {
-  background: transparent;
+  padding: 0.8rem 0;
+  line-height: 1.6;
 }
 
 .note-textarea::placeholder {
-  color: transparent;
+  color: var(--color-text-tertiary);
 }
 
 /* 分割线 */
 .separator {
   height: 1px;
-  background-color: var(--color-separator);
+  background-color: var(--color-border-default);
+  margin: 0.8rem 0;
 }
 
-/* 第四栏：子任务区 */
+/* 第四栏：子任务模板编辑区 */
 .subtasks-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .subtasks-header {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 600;
   color: var(--color-text-secondary);
 }
@@ -570,28 +486,27 @@ function handleClose() {
 .subtasks-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.8rem;
 }
 
 .subtask-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 0.4rem;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  background-color: var(--color-background-secondary);
+  border-radius: 0.6rem;
   transition: background-color 0.2s;
-  cursor: move;
 }
 
 .subtask-item:hover {
-  background-color: var(--color-background-soft, #f9f9f9);
+  background-color: var(--color-background-hover);
 }
 
 .drag-handle {
   cursor: grab;
   color: var(--color-text-tertiary);
   font-size: 1.4rem;
-  line-height: 1;
   user-select: none;
 }
 
@@ -601,65 +516,100 @@ function handleClose() {
 
 .subtask-title {
   flex: 1;
-  font-size: 1.6rem;
-  color: var(--color-text-primary);
-}
-
-.subtask-title.completed {
-  text-decoration: line-through;
-  color: var(--color-text-tertiary);
-}
-
-.delete-button {
-  font-size: 2rem;
-  line-height: 1;
-  color: var(--color-text-tertiary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition:
-    opacity 0.2s,
-    color 0.2s;
-}
-
-.delete-button:hover {
-  color: var(--color-danger, #ff4d4f);
-}
-
-.subtask-item:hover .delete-button {
-  opacity: 1;
-}
-
-.add-subtask-form {
-  margin-top: 0.5rem;
-}
-
-.add-subtask-input {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.5rem;
-  border: 1px dashed var(--color-border-default);
-  border-radius: 0.4rem;
-  background-color: transparent;
+  font-size: 1.4rem;
   color: var(--color-text-primary);
   transition: all 0.2s;
 }
 
-.add-subtask-input:focus {
+.subtask-title.completed {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.delete-button {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 0.4rem;
+  font-size: 2rem;
+  font-weight: 300;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.delete-button:hover {
+  background-color: var(--color-background-content);
+  color: var(--color-danger, #e74c3c);
+}
+
+.add-subtask-form {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.add-subtask-input {
+  flex: 1;
+  padding: 0.8rem 1.2rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
   outline: none;
-  border-style: solid;
-  border-color: var(--color-primary);
-  background-color: var(--color-background-soft, #f9f9f9);
+  transition: all 0.2s;
+}
+
+.add-subtask-input:focus {
+  border-color: var(--color-primary, #4a90e2);
+  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
 }
 
 .add-subtask-input::placeholder {
   color: var(--color-text-tertiary);
+}
+
+/* 第六栏：操作按钮 */
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.cancel-button,
+.create-button {
+  padding: 0.8rem 2rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.cancel-button {
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+}
+
+.cancel-button:hover {
+  background-color: var(--color-background-hover);
+  color: var(--color-text-primary);
+}
+
+.create-button {
+  background-color: var(--color-primary, #4a90e2);
+  color: white;
+}
+
+.create-button:hover {
+  opacity: 0.9;
 }
 </style>

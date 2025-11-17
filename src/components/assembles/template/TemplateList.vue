@@ -5,17 +5,10 @@
         <h3>模板</h3>
         <span class="template-count">{{ displayItems.length }}</span>
       </div>
-    </div>
-
-    <!-- 创建模板表单 -->
-    <div class="add-template-wrapper">
-      <input
-        v-model="newTemplateName"
-        type="text"
-        placeholder="输入模板名称，按回车创建..."
-        class="add-template-input"
-        @keyup.enter="handleCreateTemplate"
-      />
+      <button class="add-template-button" @click="isCreateModalOpen = true">
+        <span class="plus-icon">＋</span>
+        <span>新建模板</span>
+      </button>
     </div>
 
     <!-- 模板列表 -->
@@ -23,7 +16,7 @@
       <div
         v-for="template in displayItems"
         :key="template.id"
-        :class="`template-strip-wrapper template-strip-wrapper-${VIEW_KEY.replace(/::/g, '--')}`"
+        :class="`template-card-wrapper template-card-wrapper-${VIEW_KEY_CLASS} template-strip-wrapper template-strip-wrapper-${VIEW_KEY_CLASS}`"
         :data-object-id="template.id"
       >
         <TemplateStrip :template="template" @open-editor="handleOpenEditor(template.id)" />
@@ -38,6 +31,8 @@
       :template-id="selectedTemplateId"
       @close="isEditorOpen = false"
     />
+    <!-- 模板创建弹窗 -->
+    <TemplateCreateModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
   </div>
 </template>
 
@@ -48,8 +43,8 @@ import { useViewStore } from '@/stores/view'
 import type { ViewMetadata } from '@/types/drag'
 import TemplateStrip from './TemplateStrip.vue'
 import TemplateEditorModal from './TemplateEditorModal.vue'
+import TemplateCreateModal from './TemplateCreateModal.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { pipeline } from '@/cpu'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 import { dragPreviewState } from '@/infra/drag-interact/preview-state'
@@ -59,10 +54,11 @@ const viewStore = useViewStore()
 
 const selectedTemplateId = ref<string | null>(null)
 const isEditorOpen = ref(false)
-const newTemplateName = ref('')
+const isCreateModalOpen = ref(false)
 
 // 模板看板的 viewKey 和 metadata
 const VIEW_KEY = 'misc::template'
+const VIEW_KEY_CLASS = VIEW_KEY.replace(/::/g, '--')
 const viewMetadata = computed<ViewMetadata>(
   () =>
     ({
@@ -124,7 +120,7 @@ const { displayItems } = useInteractDrag({
   viewMetadata,
   items: originalTemplates,
   containerRef: templateContainerRef,
-  draggableSelector: `.template-strip-wrapper-${VIEW_KEY.replace(/::/g, '--')}`,
+  draggableSelector: `.template-card-wrapper-${VIEW_KEY_CLASS}`,
   objectType: 'template',
   getObjectId: (template) => template.id,
   onDrop: async (session) => {
@@ -161,29 +157,6 @@ function handleOpenEditor(templateId: string) {
   isEditorOpen.value = true
   logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Opening template editor', { templateId })
 }
-
-async function handleCreateTemplate() {
-  const title = newTemplateName.value.trim()
-  if (!title) return
-
-  try {
-    // 先重置表单，给用户即时反馈
-    newTemplateName.value = ''
-
-    await pipeline.dispatch('template.create', {
-      title: title,
-    })
-
-    logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Template created successfully', { title })
-  } catch (error) {
-    logger.error(
-      LogTags.COMPONENT_KANBAN_COLUMN,
-      'Failed to create template',
-      error instanceof Error ? error : new Error(String(error))
-    )
-    alert('创建模板失败')
-  }
-}
 </script>
 
 <style scoped>
@@ -200,6 +173,10 @@ async function handleCreateTemplate() {
   border-bottom: 1px solid var(--color-border-default);
   background-color: var(--color-background-content);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .header-title {
@@ -229,30 +206,29 @@ async function handleCreateTemplate() {
   border-radius: 1.2rem;
 }
 
-.add-template-wrapper {
-  padding: 1rem 1.6rem 0.5rem;
-  flex-shrink: 0;
-}
-
-.add-template-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border-default);
+.add-template-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 0.8rem;
-  background-color: var(--color-card-available);
+  border: 1px solid var(--color-border-default);
+  background-color: var(--color-background-secondary);
   color: var(--color-text-primary);
-  font-size: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.add-template-input:focus {
-  outline: none;
+.add-template-button:hover {
   border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
+  color: var(--color-primary, #4a90e2);
 }
 
-.add-template-input::placeholder {
-  color: var(--color-text-secondary);
+.plus-icon {
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .template-list-scroll-area {

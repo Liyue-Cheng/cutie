@@ -146,7 +146,7 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
               title="Upcoming"
               subtitle="Due in 7 days"
               :tasks="upcomingTasks"
-              view-key="misc::upcoming"
+              view-key="misc::deadline"
               drop-mode="none"
               @open-task-editor="handleOpenTaskEditor"
             />

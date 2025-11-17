@@ -170,7 +170,7 @@ const props = defineProps<Props>()
 // Emits
 const emit = defineEmits<{
   'toggle-subtask': [subtaskId: string]
-  'completing': [taskId: string]
+  completing: [taskId: string]
 }>()
 
 // Stores
@@ -203,7 +203,7 @@ const area = computed(() => {
 
 // 判断是否在即将到期列表中
 const isInUpcomingList = computed(() => {
-  return props.viewKey === 'misc::upcoming' || props.viewKey?.startsWith('upcoming::')
+  return props.viewKey === 'misc::deadline' || props.viewKey?.startsWith('upcoming::')
 })
 
 // 判断是否在 daily view 中
