@@ -38,7 +38,7 @@
         </div>
 
         <!-- 选项列表 -->
-        <div class="dropdown-body" :style="{ maxHeight: maxHeight }">
+        <div class="dropdown-body" :style="{ maxHeight: maxHeight }" @click="handleSlotClick">
           <slot>
             <!-- 默认选项渲染 -->
             <div v-if="filteredOptions.length === 0" class="dropdown-empty">
@@ -308,6 +308,24 @@ function handleSelect(option: any) {
     if (props.closeOnSelect) {
       closeDropdown()
     }
+  }
+}
+
+// 处理 slot 内容的点击（用于 CuteDropdownItem）
+function handleSlotClick(event: MouseEvent) {
+  // 如果点击的是带有 .prevent 修饰符的元素，不关闭
+  const target = event.target as HTMLElement
+  
+  // 检查是否点击了 CuteDropdownItem 按钮
+  const dropdownItem = target.closest('.cute-dropdown-item')
+  if (!dropdownItem) return
+  
+  // 检查事件是否被阻止默认行为（@click.prevent）
+  if (event.defaultPrevented) return
+  
+  // 如果 closeOnSelect 为 true，关闭下拉菜单
+  if (props.closeOnSelect) {
+    closeDropdown()
   }
 }
 
