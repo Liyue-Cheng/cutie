@@ -170,6 +170,7 @@ const props = defineProps<Props>()
 // Emits
 const emit = defineEmits<{
   'toggle-subtask': [subtaskId: string]
+  'completing': [taskId: string]
 }>()
 
 // Stores
@@ -191,6 +192,9 @@ const CLICK_SUPPRESS_DISTANCE = 4 // px
 
 // 时间选择器状态
 const showTimePicker = ref(false)
+
+// 乐观更新：正在完成中的状态
+const isCompleting = ref(false)
 
 // 通过 area_id 从 store 获取完整 area 信息
 const area = computed(() => {
@@ -257,7 +261,12 @@ const checkboxState = computed<CheckboxState>(() => {
     return 'completed'
   }
 
-  // 优先级2：检查当前日期的outcome是否为presence_logged
+  // 优先级2：正在完成中（乐观更新），但任务实际未完成时才显示
+  if (isCompleting.value && !props.task.is_completed) {
+    return 'completed'
+  }
+
+  // 优先级3：检查当前日期的outcome是否为presence_logged
   // 从schedules数组中查找当前日期的schedule
   if (props.task.schedules) {
     const currentSchedule = props.task.schedules.find((s) => s.scheduled_day === currentDate.value)
@@ -326,11 +335,22 @@ function toggleSubtask(subtaskId: string) {
 // 处理双模式复选框状态变化
 async function handleCheckboxStateChange(newState: CheckboxState) {
   if (newState === 'completed') {
-    // 完成任务 - 传递视图上下文
-    await pipeline.dispatch('task.complete', {
-      id: props.task.id,
-      view_context: viewContext.value,
-    })
+    // 立即设置为完成中状态（乐观更新）
+    isCompleting.value = true
+
+    // 通知父组件，让它暂时保留此任务的可见性
+    emit('completing', props.task.id)
+
+    try {
+      // 执行真实的完成操作
+      await pipeline.dispatch('task.complete', {
+        id: props.task.id,
+        view_context: viewContext.value,
+      })
+    } finally {
+      // 无论成功失败，都重置 isCompleting 状态
+      isCompleting.value = false
+    }
   } else if (newState === 'present') {
     // 标记在场 - 更新当前日期的schedule outcome（后端API使用大写）
     await pipeline.dispatch('schedule.update', {
@@ -339,7 +359,9 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
       updates: { outcome: 'PRESENCE_LOGGED' },
     })
   } else {
-    // 取消状态
+    // 取消状态时，重置 isCompleting
+    isCompleting.value = false
+
     if (props.task.is_completed) {
       // 重新打开任务
       await pipeline.dispatch('task.reopen', { id: props.task.id })

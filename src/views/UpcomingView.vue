@@ -33,14 +33,15 @@
               <span>截止日期</span>
               <span class="group-count">{{ getTasksForCell('overdue', 'dueDate').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('overdue', 'dueDate')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::overdue::dueDate`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <!-- 循环任务组 -->
@@ -49,14 +50,15 @@
               <span>循环任务</span>
               <span class="group-count">{{ getTasksForCell('overdue', 'recurrence').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('overdue', 'recurrence')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::overdue::recurrence`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <!-- 排期任务组 -->
@@ -65,14 +67,15 @@
               <span>排期任务</span>
               <span class="group-count">{{ getTasksForCell('overdue', 'scheduled').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('overdue', 'scheduled')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::overdue::scheduled`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <!-- 空状态 -->
@@ -94,14 +97,15 @@
               <span>截止日期</span>
               <span class="group-count">{{ getTasksForCell('today', 'dueDate').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('today', 'dueDate')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::today::dueDate`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('today', 'recurrence').length > 0" class="task-group">
@@ -109,14 +113,15 @@
               <span>循环任务</span>
               <span class="group-count">{{ getTasksForCell('today', 'recurrence').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('today', 'recurrence')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::today::recurrence`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('today', 'scheduled').length > 0" class="task-group">
@@ -124,14 +129,15 @@
               <span>排期任务</span>
               <span class="group-count">{{ getTasksForCell('today', 'scheduled').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('today', 'scheduled')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::today::scheduled`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getColumnTotalCount('today') === 0" class="empty-state">
@@ -152,14 +158,15 @@
               <span>截止日期</span>
               <span class="group-count">{{ getTasksForCell('thisWeek', 'dueDate').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('thisWeek', 'dueDate')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::thisWeek::dueDate`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('thisWeek', 'recurrence').length > 0" class="task-group">
@@ -169,14 +176,15 @@
                 getTasksForCell('thisWeek', 'recurrence').length
               }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('thisWeek', 'recurrence')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::thisWeek::recurrence`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('thisWeek', 'scheduled').length > 0" class="task-group">
@@ -184,14 +192,15 @@
               <span>排期任务</span>
               <span class="group-count">{{ getTasksForCell('thisWeek', 'scheduled').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('thisWeek', 'scheduled')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::thisWeek::scheduled`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getColumnTotalCount('thisWeek') === 0" class="empty-state">
@@ -212,14 +221,15 @@
               <span>截止日期</span>
               <span class="group-count">{{ getTasksForCell('nextWeek', 'dueDate').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('nextWeek', 'dueDate')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::nextWeek::dueDate`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('nextWeek', 'recurrence').length > 0" class="task-group">
@@ -229,14 +239,15 @@
                 getTasksForCell('nextWeek', 'recurrence').length
               }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('nextWeek', 'recurrence')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::nextWeek::recurrence`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('nextWeek', 'scheduled').length > 0" class="task-group">
@@ -244,14 +255,15 @@
               <span>排期任务</span>
               <span class="group-count">{{ getTasksForCell('nextWeek', 'scheduled').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('nextWeek', 'scheduled')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::nextWeek::scheduled`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getColumnTotalCount('nextWeek') === 0" class="empty-state">
@@ -272,14 +284,15 @@
               <span>截止日期</span>
               <span class="group-count">{{ getTasksForCell('thisMonth', 'dueDate').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('thisMonth', 'dueDate')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::thisMonth::dueDate`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('thisMonth', 'recurrence').length > 0" class="task-group">
@@ -289,14 +302,15 @@
                 getTasksForCell('thisMonth', 'recurrence').length
               }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('thisMonth', 'recurrence')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::thisMonth::recurrence`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('thisMonth', 'scheduled').length > 0" class="task-group">
@@ -306,14 +320,15 @@
                 getTasksForCell('thisMonth', 'scheduled').length
               }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('thisMonth', 'scheduled')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::thisMonth::scheduled`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getColumnTotalCount('thisMonth') === 0" class="empty-state">
@@ -334,14 +349,15 @@
               <span>截止日期</span>
               <span class="group-count">{{ getTasksForCell('later', 'dueDate').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('later', 'dueDate')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::later::dueDate`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('later', 'recurrence').length > 0" class="task-group">
@@ -349,14 +365,15 @@
               <span>循环任务</span>
               <span class="group-count">{{ getTasksForCell('later', 'recurrence').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('later', 'recurrence')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::later::recurrence`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getTasksForCell('later', 'scheduled').length > 0" class="task-group">
@@ -364,14 +381,15 @@
               <span>排期任务</span>
               <span class="group-count">{{ getTasksForCell('later', 'scheduled').length }}</span>
             </div>
-            <div class="group-tasks">
+            <TransitionGroup name="task-list" tag="div" class="group-tasks">
               <TaskStrip
                 v-for="task in getTasksForCell('later', 'scheduled')"
                 :key="task.id"
                 :task="task"
                 :view-key="`upcoming::later::scheduled`"
+                @completing="handleTaskCompleting"
               />
-            </div>
+            </TransitionGroup>
           </div>
 
           <div v-if="getColumnTotalCount('later') === 0" class="empty-state">
@@ -393,6 +411,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { TransitionGroup } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import { useRecurrenceStore } from '@/stores/recurrence'
@@ -410,6 +429,19 @@ const scrollContainer = ref<HTMLElement | null>(null)
 const isDragging = ref(false)
 const dragStartX = ref(0)
 const dragStartScrollLeft = ref(0)
+
+// ==================== 乐观更新：正在完成的任务ID集合 ====================
+const completingTaskIds = ref<Set<string>>(new Set())
+
+// 处理任务开始完成
+function handleTaskCompleting(taskId: string) {
+  completingTaskIds.value.add(taskId)
+
+  // 300ms 后允许任务消失
+  setTimeout(() => {
+    completingTaskIds.value.delete(taskId)
+  }, 300)
+}
 
 // 时间范围定义
 const timeRanges = ['overdue', 'today', 'thisWeek', 'nextWeek', 'thisMonth', 'later'] as const
@@ -444,9 +476,16 @@ const timeRangeBoundaries = computed(() => {
   }
 })
 
-// 获取所有未完成且未删除的任务
+// 获取所有未完成且未删除的任务（包括正在完成中的任务）
 const activeTasks = computed(() => {
-  return taskStore.allTasks.filter((task) => !task.is_completed && !task.is_deleted)
+  return taskStore.allTasks.filter((task) => {
+    // 如果任务正在完成中，强制保留
+    if (completingTaskIds.value.has(task.id)) {
+      return true
+    }
+    // 否则按原逻辑：未完成且未删除
+    return !task.is_completed && !task.is_deleted
+  })
 })
 
 // 判断日期字符串是否在指定时间范围内
@@ -824,6 +863,31 @@ function handleMouseLeave() {
 
 .empty-state p {
   margin: 0;
+}
+
+/* 任务列表动画 */
+/* 进入和退出的过渡，以及移动动画 */
+.task-list-move,
+.task-list-enter-active,
+.task-list-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 进入动画：从右侧淡入 */
+.task-list-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+/* 退出动画：向右淡出 + 缩小 + 高度压缩 */
+.task-list-leave-to {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  overflow: hidden;
 }
 
 /* 滚动条样式 */
