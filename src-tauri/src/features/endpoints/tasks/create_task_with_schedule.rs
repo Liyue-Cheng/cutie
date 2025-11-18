@@ -210,6 +210,9 @@ pub struct CreateTaskWithScheduleRequest {
     /// 项目ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<uuid::Uuid>,
+    /// 项目章节ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section_id: Option<uuid::Uuid>,
 }
 
 // ==================== HTTP 处理器 ====================
@@ -332,6 +335,7 @@ mod logic {
             estimated_duration: request.estimated_duration,
             subtasks: request.subtasks.clone(),
             project_id: request.project_id,
+            section_id: request.section_id,
             area_id: request.area_id,
             due_date: request.due_date,
             due_date_type: request.due_date_type.clone(),

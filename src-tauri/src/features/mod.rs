@@ -16,6 +16,7 @@ pub mod shared;
 
 pub mod ai;
 pub mod areas;
+pub mod projects;
 pub mod recurrences;
 pub mod tasks;
 pub mod templates;
@@ -40,6 +41,7 @@ pub fn create_api_router() -> Router<AppState> {
     Router::new()
         .nest("/ai", ai::create_routes())
         .nest("/areas", areas::create_routes())
+        .nest("/projects", projects::create_routes())
         .nest("/recurrences", recurrences::create_routes())
         .nest("/tasks", tasks::create_routes())
         .nest("/templates", templates::create_routes())

@@ -8,6 +8,7 @@
         @date-change="onRecentDateChange"
       />
       <StagingTaskPanel v-else-if="currentView === 'staging'" />
+      <ProjectsPanel v-else-if="currentView === 'projects'" />
     </div>
 
     <!-- 可拖动的分割线 -->
@@ -19,7 +20,7 @@
         ref="calendarPanelRef"
         :current-calendar-date="currentCalendarDate"
         :calendar-days="calendarDays"
-        :left-view-type="currentView"
+        :left-view-type="currentView === 'projects' ? 'recent' : currentView"
         @calendar-size-update="updateCalendarSize"
       />
     </div>
@@ -39,6 +40,7 @@ import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
+import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
@@ -51,7 +53,7 @@ const registerStore = useRegisterStore()
 const uiStore = useUIStore()
 
 // ==================== 视图切换状态 ====================
-const currentView = ref<'recent' | 'staging'>('recent') // 当前视图
+const currentView = ref<'recent' | 'staging' | 'projects'>('recent') // 当前视图
 
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentTaskPanel 联动
@@ -64,6 +66,9 @@ watch(
     if (newView === 'staging') {
       currentView.value = 'staging'
       logger.info(LogTags.VIEW_HOME, 'Switched to Staging view')
+    } else if (newView === 'projects') {
+      currentView.value = 'projects'
+      logger.info(LogTags.VIEW_HOME, 'Switched to Projects view')
     } else {
       currentView.value = 'recent'
       // 切换回 Recent 视图时，确保日历跳转到今天

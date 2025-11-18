@@ -60,6 +60,11 @@ pub struct Task {
     /// **前置条件:** 如果非NULL，必须指向一个存在的Project.id
     pub project_id: Option<Uuid>,
 
+    /// 项目章节ID (外键, 可选)
+    ///
+    /// **前置条件:** 如果非NULL，必须指向一个存在的ProjectSection.id，且project_id也必须非NULL
+    pub section_id: Option<Uuid>,
+
     /// 领域ID (外键, 可选)
     ///
     /// **前置条件:** 如果非NULL，必须指向一个存在的Area.id
@@ -131,6 +136,7 @@ impl Task {
             estimated_duration: None,
             subtasks: None,
             project_id: None,
+            section_id: None,
             area_id: None,
             due_date: None,
             due_date_type: None,
@@ -213,6 +219,7 @@ pub struct TaskRow {
     pub estimated_duration: Option<i32>,
     pub subtasks: Option<String>, // JSON
     pub project_id: Option<String>,
+    pub section_id: Option<String>,
     pub area_id: Option<String>,
     pub due_date: Option<NaiveDate>, // SQLx自动转换（YYYY-MM-DD格式）
     pub due_date_type: Option<String>, // JSON
@@ -245,6 +252,10 @@ impl TryFrom<TaskRow> for Task {
                 .and_then(|s| serde_json::from_str(s).ok()),
             project_id: row
                 .project_id
+                .as_ref()
+                .and_then(|s| Uuid::parse_str(s).ok()),
+            section_id: row
+                .section_id
                 .as_ref()
                 .and_then(|s| Uuid::parse_str(s).ok()),
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),

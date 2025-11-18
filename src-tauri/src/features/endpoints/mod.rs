@@ -3,6 +3,7 @@
 /// 包含所有功能的HTTP端点实现
 /// 按功能分组组织
 pub mod area;
+pub mod projects;
 pub mod recurrences;
 pub mod tasks;
 pub mod templates;

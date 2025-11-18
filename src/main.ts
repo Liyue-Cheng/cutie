@@ -145,6 +145,12 @@ initializeApiConfig()
     userSettingsStore.initEventSubscriptions()
     logger.info('System:Init', 'User settings store initialized')
 
+    // ✅ 初始化项目 Store 的事件订阅
+    const { useProjectStore } = await import('@/stores/project')
+    const projectStore = useProjectStore()
+    projectStore.initEventSubscriptions()
+    logger.info('System:Init', 'Project store event subscriptions initialized')
+
     // ✅ 初始化主题系统
     const { initializeTheme } = await import('@/composables/useTheme')
     initializeTheme()

@@ -26,21 +26,26 @@ CREATE INDEX idx_areas_updated_at ON areas(updated_at);
 CREATE INDEX idx_areas_is_deleted ON areas(is_deleted);
 CREATE INDEX idx_areas_parent_area_id ON areas(parent_area_id);
 
--- 创建 projects 表 (项目表) - V1.0仅建表，不提供API
+-- 创建 projects 表 (项目表)
 CREATE TABLE projects (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED')),
-    type TEXT NOT NULL DEFAULT 'PROJECT' CHECK (type IN ('PROJECT', 'EXPERIENCE')),
-    resources TEXT, -- JSON
+    description TEXT,
+    
+    -- 状态管理（仅 ACTIVE 和 COMPLETED）
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETED')),
+    
+    -- 时间信息
+    due_date TEXT, -- 截止日期 (YYYY-MM-DD)
+    completed_at TEXT, -- 完成时间 (UTC RFC 3339)
+    
+    -- 关联（颜色从 area 继承）
     area_id TEXT,
-    completed_at TEXT, -- UTC timestamp in RFC 3339 format
-    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
-    updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    
+    -- 元数据
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    external_source_id TEXT,
-    external_source_provider TEXT,
-    external_source_metadata TEXT, -- JSON
     
     FOREIGN KEY (area_id) REFERENCES areas(id)
 );
@@ -49,7 +54,27 @@ CREATE TABLE projects (
 CREATE INDEX idx_projects_updated_at ON projects(updated_at);
 CREATE INDEX idx_projects_is_deleted ON projects(is_deleted);
 CREATE INDEX idx_projects_area_id ON projects(area_id);
-CREATE INDEX idx_projects_external_source_id ON projects(external_source_id);
+CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX idx_projects_due_date ON projects(due_date);
+
+-- 创建 project_sections 表 (项目章节表)
+CREATE TABLE project_sections (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    sort_order TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+-- 为 project_sections 表创建索引
+CREATE INDEX idx_project_sections_project_id ON project_sections(project_id);
+CREATE INDEX idx_project_sections_is_deleted ON project_sections(is_deleted);
+CREATE INDEX idx_project_sections_updated_at ON project_sections(updated_at);
 
 -- 创建 tasks 表 (任务表)
 CREATE TABLE tasks (
@@ -60,6 +85,7 @@ CREATE TABLE tasks (
     estimated_duration INTEGER,
     subtasks TEXT, -- JSON: [{"id": UUID, "title": String, "is_completed": Boolean, "sort_order": String}]
     project_id TEXT,
+    section_id TEXT, -- 项目章节ID
     area_id TEXT,
     due_date TEXT, -- YYYY-MM-DD format (NaiveDate, 符合用户意图时间模型)
     due_date_type TEXT CHECK (due_date_type IN ('SOFT', 'HARD')),
@@ -76,19 +102,23 @@ CREATE TABLE tasks (
     recurrence_id TEXT, -- 关联循环规则表
     
     FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (section_id) REFERENCES project_sections(id),
     FOREIGN KEY (area_id) REFERENCES areas(id),
     
     -- 确保due_date和due_date_type的一致性
     CHECK (
         (due_date IS NULL AND due_date_type IS NULL) OR 
         (due_date IS NOT NULL AND due_date_type IS NOT NULL)
-    )
+    ),
+    -- 业务约束：如果有 section_id，必须有 project_id
+    CHECK (section_id IS NULL OR project_id IS NOT NULL)
 );
 
 -- 为 tasks 表创建索引
 CREATE INDEX idx_tasks_updated_at ON tasks(updated_at);
 CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at);
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX idx_tasks_section_id ON tasks(section_id);
 CREATE INDEX idx_tasks_area_id ON tasks(area_id);
 CREATE INDEX idx_tasks_external_source_id ON tasks(external_source_id);
 CREATE INDEX idx_tasks_completed_at ON tasks(completed_at);

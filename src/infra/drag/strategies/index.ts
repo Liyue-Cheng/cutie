@@ -23,6 +23,15 @@ export {
   templateReorderStrategy,
 } from './template-scheduling'
 
+// 项目调度策略
+export {
+  dailyToProjectStrategy,
+  dailyToSectionStrategy,
+  noProjectToProjectStrategy,
+  projectReorderStrategy,
+  sectionToSectionStrategy,
+} from './project-scheduling'
+
 // 未来可以添加更多策略模块：
 // export * from './task-status'
 // export * from './task-ordering'

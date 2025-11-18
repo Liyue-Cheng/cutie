@@ -6,13 +6,29 @@ import { logger, LogTags } from '@/infra/logging/logger'
  * @param viewKey 视图上下文键，格式：{type}::{identifier}
  * @returns 解析结果 { type, id }
  */
-export function parseViewKey(viewKey: string): { type: string; id: string } {
+export function parseViewKey(viewKey: string): {
+  type: string
+  id: string
+  extra?: Record<string, string>
+} {
   const parts = viewKey.split('::')
   if (parts.length < 2) {
     throw new Error(`Invalid viewKey format: ${viewKey}. Expected format: {type}::{identifier}`)
   }
 
   const [type, ...idParts] = parts
+
+  // 处理project的特殊格式：project::{project_id}::section::{section_id|all}
+  if (type === 'project' && parts.length >= 4 && parts[2] === 'section' && parts[3] && parts[1]) {
+    return {
+      type: 'project_section',
+      id: parts[1], // project_id
+      extra: {
+        sectionId: parts[3], // section_id 或 'all'
+      },
+    }
+  }
+
   const id = idParts.join('::') // 支持复合标识符（未来扩展）
 
   if (!type || !id) {
@@ -69,6 +85,17 @@ export function deriveViewMetadata(viewKey?: string): ViewMetadata | undefined {
         } as ViewMetadata
       }
 
+      case 'project_section': {
+        // 项目章节看板：基础元数据
+        const { extra } = parseViewKey(viewKey)
+        const sectionLabel = extra?.sectionId === 'all' ? '未分类任务' : `章节 ${extra?.sectionId}`
+        return {
+          id: viewKey,
+          type: 'project',
+          label: `${sectionLabel}`,
+        } as ViewMetadata
+      }
+
       case 'misc': {
         // 杂项看板：根据 id 提供友好标签
         const labels: Record<string, string> = {
@@ -121,7 +148,7 @@ export function validateViewKey(viewKey: string): boolean {
     const { type, id } = parseViewKey(viewKey)
 
     // 检查类型是否支持
-    const supportedTypes = ['misc', 'daily', 'area', 'project']
+    const supportedTypes = ['misc', 'daily', 'area', 'project', 'project_section']
     if (!supportedTypes.includes(type)) {
       return false
     }

@@ -181,7 +181,7 @@ mod database {
         let query = r#"
             SELECT
                 id, title, glance_note, detail_note, estimated_duration,
-                subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_id, recurrence_original_date

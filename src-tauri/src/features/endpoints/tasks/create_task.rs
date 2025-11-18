@@ -50,6 +50,8 @@ POST /api/tasks
   "detail_note": "string | null (optional)",
   "estimated_duration": "number | null (optional, 分钟数，0-10080)",
   "area_id": "string (UUID) | null (optional)",
+  "project_id": "string (UUID) | null (optional)",
+  "section_id": "string (UUID) | null (optional)",
   "due_date": "string (YYYY-MM-DD) | null (optional)",
   "due_date_type": "'soft' | 'hard' | null (optional)",
   "subtasks": "array | null (optional, 最多50个)"
@@ -159,6 +161,8 @@ pub async fn handle(
         target: "ENDPOINT:TASKS:create_task",
         title = %request.title,
         area_id = ?request.area_id,
+        project_id = ?request.project_id,
+        section_id = ?request.section_id,
         has_subtasks = request.subtasks.is_some(),
         "Creating task"
     );
@@ -230,7 +234,8 @@ mod logic {
             detail_note: request.detail_note.clone(),
             estimated_duration: request.estimated_duration,
             subtasks: request.subtasks.clone(),
-            project_id: None,
+            project_id: request.project_id,
+            section_id: request.section_id,
             area_id: request.area_id,
             due_date: request.due_date,
             due_date_type: request.due_date_type,

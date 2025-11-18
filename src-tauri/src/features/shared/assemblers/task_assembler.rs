@@ -43,6 +43,7 @@ impl TaskAssembler {
             estimated_duration: task.estimated_duration,
             area_id: task.area_id, // ✅ 直接传递 area_id，前端从 area store 获取完整信息
             project_id: task.project_id,
+            section_id: task.section_id,
             schedule_info: None, // 需要后续填充
             due_date: task.due_date.map(|date| {
                 // 使用本地时区进行逾期判断

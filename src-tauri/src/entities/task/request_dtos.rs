@@ -21,6 +21,7 @@ pub struct CreateTaskRequest {
     pub due_date: Option<NaiveDate>,
     pub due_date_type: Option<DueDateType>,
     pub project_id: Option<Uuid>,
+    pub section_id: Option<Uuid>,
 }
 
 /// 更新任务的请求载荷
@@ -39,6 +40,8 @@ pub struct UpdateTaskRequest {
     pub subtasks: Option<Option<Vec<Subtask>>>,
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub project_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_nullable_field")]
+    pub section_id: Option<Option<Uuid>>,
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
     pub area_id: Option<Option<Uuid>>,
     #[serde(default, deserialize_with = "deserialize_nullable_field")]
@@ -69,6 +72,7 @@ impl UpdateTaskRequest {
             && self.estimated_duration.is_none()
             && self.subtasks.is_none()
             && self.project_id.is_none()
+            && self.section_id.is_none()
             && self.area_id.is_none()
             && self.due_date.is_none()
             && self.due_date_type.is_none()

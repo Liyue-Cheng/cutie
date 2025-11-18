@@ -12,28 +12,39 @@
 import { useViewStore } from '@/stores/view'
 import type { ISADefinition } from '@cutie/cpu-pipeline'
 
+function resolveViewKey(payload: { view_key?: string; context_key?: string }) {
+  return payload.view_key || payload.context_key
+}
+
 export const ViewPreferenceISA: ISADefinition = {
   'viewpreference.update_sorting': {
     meta: {
       description: '更新视图任务排序',
       category: 'system',
-      resourceIdentifier: (payload) => [`viewpreference:${payload.view_key}`],
+      resourceIdentifier: (payload) => {
+        const viewKey = resolveViewKey(payload)
+        return viewKey ? [`viewpreference:${viewKey}`] : []
+      },
       priority: 5,
       timeout: 2000, // 🔥 优化：从 5000ms 降低到 2000ms，因为后端已优化
     },
     optimistic: {
       enabled: true,
       apply: (payload) => {
+        const viewKey = resolveViewKey(payload)
+        if (!viewKey) {
+          throw new Error('view_key/context_key 未提供')
+        }
         const viewStore = useViewStore()
 
         // 保存原始排序（用于回滚）
         const snapshot = {
-          view_key: payload.view_key,
+          view_key: viewKey,
           original_sorted_task_ids: payload.original_sorted_task_ids || null,
         }
 
         // 🔥 立即更新排序
-        viewStore.updateSortingOptimistic_mut(payload.view_key, payload.sorted_task_ids)
+        viewStore.updateSortingOptimistic_mut(viewKey, payload.sorted_task_ids)
 
         return snapshot
       },
@@ -54,7 +65,13 @@ export const ViewPreferenceISA: ISADefinition = {
     },
     request: {
       method: 'PUT',
-      url: (payload) => `/view-preferences/${encodeURIComponent(payload.view_key)}`,
+      url: (payload) => {
+        const viewKey = resolveViewKey(payload)
+        if (!viewKey) {
+          throw new Error('view_key/context_key 未提供')
+        }
+        return `/view-preferences/${encodeURIComponent(viewKey)}`
+      },
       body: (payload) => ({
         sorted_task_ids: payload.sorted_task_ids,
       }),

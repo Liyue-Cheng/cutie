@@ -34,6 +34,7 @@ pub struct TaskCardDto {
     // --- 上下文与聚合信息 ---
     pub area_id: Option<Uuid>, // ✅ 前端通过 area_id 从 area store 获取完整信息
     pub project_id: Option<Uuid>,
+    pub section_id: Option<Uuid>, // 项目章节ID
     pub schedule_info: Option<ScheduleInfo>,
     pub due_date: Option<DueDateInfo>,
 

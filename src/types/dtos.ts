@@ -72,6 +72,7 @@ export interface TaskCard {
   area_id: string | null // ✅ 前端通过 area_id 从 area store 获取完整信息
 
   project_id: string | null
+  section_id: string | null // 项目章节ID
 
   schedule_info: {
     outcome_for_today: DailyOutcome | null
@@ -175,6 +176,44 @@ export interface TimeBlockView {
 
   // --- 其他元信息 ---
   is_recurring: boolean
+}
+
+/**
+ * ProjectCard (项目卡片视图模型)
+ *
+ * 用途: 在项目列表中显示的项目卡片
+ */
+/**
+ * ProjectCard (项目卡片视图模型)
+ *
+ * 注意：任务统计由前端基于 task store 实时计算
+ * 使用 projectStore.getProjectStatsRealtime(projectId) 获取统计信息
+ */
+export interface ProjectCard {
+  id: string
+  name: string
+  description: string | null
+  status: 'ACTIVE' | 'COMPLETED'
+  due_date: string | null // YYYY-MM-DD
+  completed_at: string | null // ISO 8601 UTC
+  area_id: string | null
+  created_at: string // ISO 8601 UTC
+  updated_at: string // ISO 8601 UTC
+}
+
+/**
+ * ProjectSection (项目章节视图模型)
+ *
+ * 用途: 在项目详情中显示的章节
+ */
+export interface ProjectSection {
+  id: string
+  project_id: string
+  title: string
+  description: string | null
+  sort_order: string | null
+  created_at: string // ISO 8601 UTC
+  updated_at: string // ISO 8601 UTC
 }
 
 /**

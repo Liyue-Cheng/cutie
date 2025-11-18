@@ -271,7 +271,7 @@ export function createTaskCore() {
   const getTasksByViewKey_Mux = computed(() => {
     return (viewKey: string) => {
       const parts = viewKey.split('::')
-      const [type, subtype, identifier] = parts
+      const [type, subtype, identifier, extraIdentifier] = parts
 
       logger.debug(LogTags.STORE_TASKS, 'getTasksByViewKey_Mux called', {
         viewKey,
@@ -287,7 +287,12 @@ export function createTaskCore() {
               const today = new Date().toISOString().split('T')[0]!
               const filteredTasks = allTasksArray.value.filter((task) => {
                 // 基础检查
-                if (task.area_id !== identifier || task.is_completed || task.is_archived || task.is_deleted) {
+                if (
+                  task.area_id !== identifier ||
+                  task.is_completed ||
+                  task.is_archived ||
+                  task.is_deleted
+                ) {
                   return false
                 }
 
@@ -380,6 +385,14 @@ export function createTaskCore() {
               count: allTasks.value.length,
             })
             return allTasks.value
+          } else if (subtype === 'no-project') {
+            // misc::no-project - 无项目任务
+            const tasks = allTasksArray.value.filter((task) => !task.project_id && !task.is_deleted)
+            logger.debug(LogTags.STORE_TASKS, 'Using no-project tasks', {
+              viewKey,
+              count: tasks.length,
+            })
+            return tasks
           }
           break
 
@@ -405,6 +418,49 @@ export function createTaskCore() {
             logger.debug(LogTags.STORE_TASKS, 'Using area tasks', {
               viewKey,
               areaId,
+              count: tasks.length,
+            })
+            return tasks
+          }
+          break
+
+        case 'project':
+          if (identifier === 'section' && extraIdentifier) {
+            // project::${projectId}::section::{sectionId|all}
+            const projectId = subtype
+            const sectionId = extraIdentifier
+
+            if (sectionId === 'all') {
+              // project::${projectId}::section::all - 项目无section任务
+              const tasks = allTasksArray.value.filter(
+                (task) => task.project_id === projectId && !task.section_id && !task.is_deleted
+              )
+              logger.debug(LogTags.STORE_TASKS, 'Using project no-section tasks', {
+                viewKey,
+                projectId,
+                count: tasks.length,
+              })
+              return tasks
+            } else {
+              // project::${projectId}::section::${sectionId} - 特定section任务
+              const tasks = allTasksArray.value.filter(
+                (task) => task.section_id === sectionId && !task.is_deleted
+              )
+              logger.debug(LogTags.STORE_TASKS, 'Using project section tasks', {
+                viewKey,
+                projectId,
+                sectionId,
+                count: tasks.length,
+              })
+              return tasks
+            }
+          } else if (subtype && !identifier) {
+            // project::${projectId} - 项目所有任务
+            const projectId = subtype
+            const tasks = getTasksByProject_Mux.value(projectId)
+            logger.debug(LogTags.STORE_TASKS, 'Using project tasks', {
+              viewKey,
+              projectId,
               count: tasks.length,
             })
             return tasks

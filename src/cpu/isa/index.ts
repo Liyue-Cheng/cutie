@@ -12,6 +12,7 @@ import { TemplateISA } from './template-isa'
 import { RecurrenceISA } from './recurrence-isa'
 import { UserSettingsISA } from './user-settings-isa'
 import { AreaISA } from './area-isa'
+import { ProjectISA } from './project-isa'
 
 /**
  * 完整的ISA定义
@@ -26,6 +27,7 @@ export const ISA: ISADefinition = {
   ...RecurrenceISA,
   ...UserSettingsISA,
   ...AreaISA,
+  ...ProjectISA,
 }
 
 // 导出类型

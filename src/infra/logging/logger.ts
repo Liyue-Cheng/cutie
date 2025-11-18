@@ -528,6 +528,7 @@ export const LogTags = {
   STORE_TIMEBLOCK: 'Store:Timeblock',
   STORE_VIEW: 'Store:View',
   STORE_AREA: 'Store:Area',
+  STORE_PROJECT: 'Store:Project',
   STORE_TRASH: 'Store:Trash',
   STORE_TEMPLATE: 'Store:Template',
   STORE_RECURRENCE: 'Store:Recurrence',

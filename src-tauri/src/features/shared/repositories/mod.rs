@@ -15,6 +15,8 @@ pub mod transaction;
 
 // 具体的 Repository 实现
 pub mod area_repository;
+pub mod project_repository;
+pub mod project_section_repository;
 pub mod task_recurrence_link_repository;
 pub mod task_recurrence_repository;
 pub mod task_repository;
@@ -32,6 +34,8 @@ pub use transaction::*;
 
 // 具体的 Repository 实现
 pub use area_repository::AreaRepository;
+pub use project_repository::ProjectRepository;
+pub use project_section_repository::ProjectSectionRepository;
 pub use task_recurrence_link_repository::TaskRecurrenceLinkRepository;
 pub use task_recurrence_repository::TaskRecurrenceRepository;
 pub use task_repository::TaskRepository;

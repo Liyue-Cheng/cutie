@@ -7,6 +7,8 @@
 // 按业务概念组织的实体
 pub mod ai;
 pub mod area;
+pub mod project;
+pub mod project_section;
 pub mod recurrence_link;
 pub mod schedule;
 pub mod task;
@@ -24,6 +26,17 @@ pub use ai::{AiChatRequest, AiChatResponse, MessageImage, TokenUsage, UserMessag
 
 // Area 相关类型
 pub use area::{Area, AreaDto, AreaRow, AreaTreeDto, CreateAreaRequest, UpdateAreaRequest};
+
+// Project 相关类型
+pub use project::{
+    CreateProjectRequest, Project, ProjectDto, ProjectRow, ProjectStatus, UpdateProjectRequest,
+};
+
+// ProjectSection 相关类型
+pub use project_section::{
+    CreateProjectSectionRequest, ProjectSection, ProjectSectionDto, ProjectSectionRow,
+    UpdateProjectSectionRequest,
+};
 
 // RecurrenceLink 相关类型
 pub use recurrence_link::{TaskRecurrenceLink, TaskRecurrenceLinkRow};

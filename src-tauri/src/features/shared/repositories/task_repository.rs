@@ -18,7 +18,7 @@ impl TaskRepository {
     ) -> AppResult<Option<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date
@@ -46,7 +46,7 @@ impl TaskRepository {
     pub async fn find_by_id(pool: &SqlitePool, task_id: Uuid) -> AppResult<Option<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date
@@ -75,11 +75,11 @@ impl TaskRepository {
         let query = r#"
             INSERT INTO tasks (
                 id, title, glance_note, detail_note, estimated_duration, subtasks,
-                project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_id, recurrence_original_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -94,6 +94,7 @@ impl TaskRepository {
                     .map(|s| serde_json::to_string(s).unwrap()),
             )
             .bind(task.project_id.map(|id| id.to_string()))
+            .bind(task.section_id.map(|id| id.to_string()))
             .bind(task.area_id.map(|id| id.to_string()))
             .bind(task.due_date.map(|d| d.to_string())) // ✅ NaiveDate 使用 to_string()
             .bind(
@@ -155,6 +156,12 @@ impl TaskRepository {
         if request.area_id.is_some() {
             set_clauses.push("area_id = ?");
         }
+        if request.project_id.is_some() {
+            set_clauses.push("project_id = ?");
+        }
+        if request.section_id.is_some() {
+            set_clauses.push("section_id = ?");
+        }
         if request.due_date.is_some() {
             set_clauses.push("due_date = ?");
         }
@@ -198,6 +205,14 @@ impl TaskRepository {
         }
         if let Some(area_id) = &request.area_id {
             let bind_val: Option<String> = area_id.map(|id| id.to_string());
+            q = q.bind(bind_val);
+        }
+        if let Some(project_id) = &request.project_id {
+            let bind_val: Option<String> = project_id.map(|id| id.to_string());
+            q = q.bind(bind_val);
+        }
+        if let Some(section_id) = &request.section_id {
+            let bind_val: Option<String> = section_id.map(|id| id.to_string());
             q = q.bind(bind_val);
         }
         if let Some(due_date) = &request.due_date {
@@ -277,7 +292,7 @@ impl TaskRepository {
     ) -> AppResult<Option<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date
@@ -309,7 +324,7 @@ impl TaskRepository {
     ) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date

@@ -288,6 +288,7 @@ impl RecurrenceInstantiationService {
             estimated_duration: template.estimated_duration_template,
             subtasks: template.subtasks_template.clone(),
             project_id: None,
+            section_id: None,
             area_id: template.area_id,
             due_date: None,
             due_date_type: None,

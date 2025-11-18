@@ -270,12 +270,36 @@ async function addTask() {
           viewKey: props.viewKey,
         })
       } else if (type === 'project' && identifier) {
+        // project::${projectId}::section::${sectionId} - 指定章节的任务
+        // project::${projectId}::section::all - 项目无分类任务
         // project::${projectId} - 指定项目的任务
         taskData.project_id = identifier
-        logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with project context', {
-          projectId: identifier,
-          viewKey: props.viewKey,
-        })
+
+        if (thirdPart === 'section' && parts[3]) {
+          const sectionId = parts[3]
+          if (sectionId !== 'all') {
+            taskData.section_id = sectionId
+            logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with project section context', {
+              projectId: identifier,
+              sectionId,
+              viewKey: props.viewKey,
+            })
+          } else {
+            logger.debug(
+              LogTags.COMPONENT_TASK_BAR,
+              'Creating task with project (no section) context',
+              {
+                projectId: identifier,
+                viewKey: props.viewKey,
+              }
+            )
+          }
+        } else {
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with project context', {
+            projectId: identifier,
+            viewKey: props.viewKey,
+          })
+        }
       }
 
       logger.info(LogTags.COMPONENT_TASK_BAR, 'Creating task', {

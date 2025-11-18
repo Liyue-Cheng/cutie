@@ -18,15 +18,16 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 
 无需额外标识符的固定视图
 
-| 视图名称   | Context Key        | 说明                    |
-| ---------- | ------------------ | ----------------------- |
-| All 任务   | `misc::all`        | 所有任务（包括已完成）  |
-| Staging 区 | `misc::staging`    | 未安排的任务            |
-| Planned    | `misc::planned`    | 已安排的任务            |
-| Incomplete | `misc::incomplete` | 所有未完成任务          |
-| Completed  | `misc::completed`  | 已完成任务              |
-| Deadline   | `misc::deadline`   | 即将到期的任务（7天内） |
-| Template   | `misc::template`   | 模板列表                |
+| 视图名称     | Context Key        | 说明                       |
+| ------------ | ------------------ | -------------------------- |
+| All 任务     | `misc::all`        | 所有任务（包括已完成）     |
+| Staging 区   | `misc::staging`    | 未安排的任务               |
+| Planned      | `misc::planned`    | 已安排的任务               |
+| Incomplete   | `misc::incomplete` | 所有未完成任务             |
+| Completed    | `misc::completed`  | 已完成任务                 |
+| Deadline     | `misc::deadline`   | 即将到期的任务（7天内）    |
+| Template     | `misc::template`   | 模板列表                   |
+| 无项目任务池 | `misc::no-project` | 所有未分配到任何项目的任务 |
 
 **示例**：
 
@@ -90,15 +91,23 @@ sorted_task_ids: '["uuid-1", "uuid-2"]'
 
 按项目筛选的看板
 
-| 视图名称 | Context Key 格式          | 说明           |
-| -------- | ------------------------- | -------------- |
-| 项目看板 | `project::{project_uuid}` | 指定项目的任务 |
+| 视图名称         | Context Key 格式                                | 说明                                          |
+| ---------------- | ----------------------------------------------- | --------------------------------------------- |
+| 项目看板（总览） | `project::{project_uuid}`                       | 指定项目的全部任务                            |
+| 未分类任务列表   | `project::{project_uuid}::section::all`         | 某项目下未分配到任何章节的任务                |
+| 指定章节任务列表 | `project::{project_uuid}::section::{sectionId}` | 某项目下特定章节的任务（`sectionId` 为 UUID） |
 
 **示例**：
 
 ```javascript
 context_key: 'project::proj-uuid-1234'
 sorted_task_ids: '["uuid-1", "uuid-2"]'
+
+context_key: 'project::proj-uuid-1234::section::all'
+sorted_task_ids: '["uuid-3", "uuid-4"]'
+
+context_key: 'project::proj-uuid-1234::section::sect-uuid-5678'
+sorted_task_ids: '["uuid-5", "uuid-6"]'
 ```
 
 ---
@@ -245,11 +254,19 @@ sorted_task_ids: '["uuid-1"]'
 export type ViewContext =
   | {
       type: 'misc'
-      id: 'all' | 'staging' | 'planned' | 'incomplete' | 'completed' | 'deadline' | 'template'
+      id:
+        | 'all'
+        | 'staging'
+        | 'planned'
+        | 'incomplete'
+        | 'completed'
+        | 'deadline'
+        | 'template'
+        | 'no-project'
     }
   | { type: 'daily'; date: string } // YYYY-MM-DD
   | { type: 'area'; areaId: string }
-  | { type: 'project'; projectId: string }
+  | { type: 'project'; projectId: string; sectionId?: 'all' | string }
   | {
       type: 'upcoming'
       timeRange: 'overdue' | 'today' | 'thisWeek' | 'nextWeek' | 'thisMonth' | 'later'
@@ -270,7 +287,9 @@ function getContextKey(context: ViewContext): string {
     case 'area':
       return `area::${context.areaId}`
     case 'project':
-      return `project::${context.projectId}`
+      return context.sectionId
+        ? `project::${context.projectId}::section::${context.sectionId}`
+        : `project::${context.projectId}`
     case 'upcoming':
       return `upcoming::${context.timeRange}::${context.taskType}`
     default:
@@ -369,6 +388,7 @@ GET /view-preferences/area::a1b2c3d4-1234-5678-90ab-cdef12345678
 'misc::completed'
 'misc::deadline'
 'misc::template'
+'misc::no-project'
 
 // 日期看板
 'daily::2025-10-01'
@@ -382,6 +402,8 @@ GET /view-preferences/area::a1b2c3d4-1234-5678-90ab-cdef12345678
 // 项目看板
 'project::proj-uuid-1234-5678-90ab'
 'project::proj-uuid-5678-90ab-cdef'
+'project::proj-uuid::section::all'
+'project::proj-uuid::section::section-uuid'
 
 // Upcoming 视图（18个单元格）
 'upcoming::overdue::dueDate'
@@ -457,12 +479,36 @@ function validateContextKey(key: string): boolean {
       'completed',
       'deadline',
       'template',
+      'no-project',
     ]
     if (!validIds.includes(parts[1])) {
       return false
     }
   }
 
+  // project 类型验证（支持章节视图）
+  if (type === 'project') {
+    const projectId = parts[1]
+    if (!projectId) {
+      return false
+    }
+
+    if (parts.length > 2) {
+      if (parts[2] !== 'section' || parts.length !== 4) {
+        return false
+      }
+
+      const sectionId = parts[3]
+      if (sectionId !== 'all' && !isUuid(sectionId)) {
+        return false
+      }
+    }
+  }
+
   return true
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)
 }
 ```
