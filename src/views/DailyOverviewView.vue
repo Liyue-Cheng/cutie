@@ -4,8 +4,9 @@ import UnderConstruction from '@/components/organisms/UnderConstruction.vue'
 
 <template>
   <UnderConstruction
-    title="Daily shutdown"
-    description="A dedicated end-of-day review flow is under construction."
+    title="Daily overview"
+    description="A new daily overview dashboard is under construction."
   />
 </template>
+
 

@@ -18,6 +18,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/SunsamaLegacyView.vue'),
       },
       {
+        path: 'daily-overview',
+        name: 'daily-overview',
+        component: () => import('../views/DailyOverviewView.vue'),
+      },
+      {
         path: 'staging',
         name: 'staging',
         component: () => import('../views/StagingView.vue'),

@@ -53,6 +53,18 @@
             </li>
           </ul>
 
+          <div class="section-divider">
+            <span class="divider-label">DAILY ROUTINES</span>
+          </div>
+          <ul class="nav-group">
+            <li @click="$router.push('/daily-overview')">
+              <CuteIcon name="Calendar" :size="16" /><span>Daily overview</span>
+            </li>
+            <li @click="$router.push('/daily-shutdown')">
+              <CuteIcon name="BookOpen" :size="16" /><span>Daily shutdown</span>
+            </li>
+          </ul>
+
           <div class="collapsible-section">
             <div class="section-header" @click="isLegacyOpen = !isLegacyOpen">
               <div class="section-title">
