@@ -391,3 +391,63 @@ export const sectionToSectionStrategy: Strategy = {
 
   tags: ['project', 'section'],
 }
+
+/**
+ * 策略6: No Project 列表内部重排
+ */
+export const noProjectReorderStrategy: Strategy = {
+  id: 'no-project-reorder',
+  name: 'No Project Internal Reorder',
+
+  conditions: {
+    source: {
+      viewKey: 'misc::no-project',
+      objectType: 'task',
+    },
+    target: {
+      viewKey: 'misc::no-project',
+    },
+    priority: 80,
+  },
+
+  action: {
+    name: 'reorder_in_no_project',
+    description: '在无项目任务列表中重新排序',
+    async execute(ctx: StrategyContext): Promise<StrategyResult> {
+      if (ctx.sourceViewId !== ctx.targetViewId) {
+        return { success: false, message: '❌ 必须在同一视图内排序' }
+      }
+
+      try {
+        const taskId = ctx.session.object.data.id
+        const taskIds = extractTaskIds(ctx.targetContext)
+        const oldIndex = taskIds.indexOf(taskId)
+
+        let newOrder = [...taskIds]
+        if (oldIndex !== -1) {
+          newOrder = removeTaskFrom(newOrder, taskId)
+        }
+        newOrder = insertTaskAt(newOrder, taskId, ctx.dropIndex)
+
+        await pipeline.dispatch('viewpreference.update_sorting', {
+          context_key: 'misc::no-project',
+          sorted_task_ids: newOrder,
+        })
+
+        return {
+          success: true,
+          message: '✅ 无项目任务已重新排序',
+          affectedViews: ['misc::no-project'],
+          reorderOnly: true,
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `❌ ${error instanceof Error ? error.message : '操作失败'}`,
+        }
+      }
+    },
+  },
+
+  tags: ['project', 'reorder'],
+}

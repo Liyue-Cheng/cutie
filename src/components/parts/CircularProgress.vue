@@ -23,8 +23,15 @@
       class="progress-ring"
       transform="rotate(-90 50 50)"
     />
-    <!-- 中心文本 -->
-    <text x="50" y="50" text-anchor="middle" dominant-baseline="middle" :class="textClass">
+    <!-- 中心文本（可选显示） -->
+    <text
+      v-if="!hideText"
+      x="50"
+      y="50"
+      text-anchor="middle"
+      dominant-baseline="middle"
+      :class="textClass"
+    >
       {{ Math.round(progress) }}%
     </text>
   </svg>
@@ -42,11 +49,14 @@ interface Props {
   size?: 'small' | 'normal' | 'large'
   /** 是否可点击 */
   clickable?: boolean
+  /** 是否隐藏中央文本 */
+  hideText?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'normal',
   clickable: false,
+  hideText: false,
 })
 
 const emit = defineEmits<{
@@ -55,7 +65,7 @@ const emit = defineEmits<{
 
 // 计算尺寸
 const sizeMap = {
-  small: '2.1rem',
+  small: '2.4rem',
   normal: '4.8rem',
   large: '6.4rem',
 }

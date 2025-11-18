@@ -968,10 +968,10 @@ defineExpose({
 
 /* 1x 缩放（默认） - 保持 FullCalendar 默认高度 1.5rem */
 .calendar-container.zoom-1x .fc .fc-timegrid-slot {
-  height: 0.5rem !important; /* 10分钟槽，默认值 */
-  min-height: 0.5rem !important;
-  max-height: 0.5rem !important;
-  line-height: 0.5rem !important;
+  height: 0.75rem !important; /* 10分钟槽，默认值 */
+  min-height: 0.75rem !important;
+  max-height: 0.75rem !important;
+  line-height: 0.75rem !important;
   font-size: 0 !important;
   padding: 0 !important;
 }

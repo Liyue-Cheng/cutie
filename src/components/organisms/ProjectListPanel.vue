@@ -40,32 +40,30 @@
         :ref="(el) => setProjectDropzoneRef(project.id, el)"
         @click="emit('select-project', project.id)"
       >
-        <!-- 左侧进度指示器 -->
-        <CircularProgress
-          :completed="getProjectStats(project.id).completed"
-          :total="getProjectStats(project.id).total"
-          size="small"
-          class="progress"
-        />
+        <div class="project-row">
+          <div class="project-left">
+            <CircularProgress
+              :completed="getProjectStats(project.id).completed"
+              :total="getProjectStats(project.id).total"
+              size="small"
+              hide-text
+              class="progress"
+            />
+            <div class="project-name">{{ project.name }}</div>
+          </div>
 
-        <!-- 项目信息 -->
-        <div class="project-info">
-          <div class="project-name">{{ project.name }}</div>
-          <div class="project-meta">
-            <span class="task-count"
-              >{{ getProjectStats(project.id).completed }}/{{
-                getProjectStats(project.id).total
-              }}
-              任务</span
-            >
+          <div class="project-right">
+            <span class="task-count">
+              {{ getProjectStats(project.id).completed }}/{{ getProjectStats(project.id).total }}
+              任务
+            </span>
             <span v-if="project.due_date" class="due-date">{{ formatDate(project.due_date) }}</span>
+            <span v-if="project.status === 'COMPLETED'" class="status-badge completed inline-badge"
+              >已完成</span
+            >
           </div>
         </div>
 
-        <!-- 右侧状态标签 -->
-        <div v-if="project.status === 'COMPLETED'" class="status-badge completed">已完成</div>
-
-        <!-- 颜色条 -->
         <div
           v-if="projectColor(project)"
           class="color-bar"
@@ -297,7 +295,6 @@ const formatDate = (dateStr: string) => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 1.2rem;
   padding: 1.2rem;
   margin-bottom: 0.8rem;
   background: var(--color-bg-secondary);
@@ -320,6 +317,31 @@ const formatDate = (dateStr: string) => {
   border-color: var(--color-primary);
   background: var(--color-bg-hover);
   box-shadow: 0 0 0 2px rgb(74 144 226 / 25%);
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 1.2rem;
+}
+
+.project-left {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  min-width: 0;
+}
+
+.project-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 .project-card.no-project {
@@ -365,10 +387,9 @@ const formatDate = (dateStr: string) => {
 }
 
 .project-name {
-  font-size: 1.4rem;
-  font-weight: 500;
+  font-size: 1.6rem;
+  font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: 0.4rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -385,12 +406,28 @@ const formatDate = (dateStr: string) => {
   color: var(--color-text-secondary);
 }
 
+.task-count {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.due-date {
+  font-size: 1.3rem;
+  color: var(--color-text-secondary);
+}
+
 .status-badge {
   flex-shrink: 0;
   padding: 0.4rem 0.8rem;
   border-radius: 0.4rem;
   font-size: 1.2rem;
   font-weight: 500;
+}
+
+.inline-badge {
+  font-size: 1.1rem;
+  padding: 0.2rem 0.6rem;
 }
 
 .status-badge.completed {

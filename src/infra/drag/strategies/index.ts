@@ -28,6 +28,7 @@ export {
   dailyToProjectStrategy,
   dailyToSectionStrategy,
   noProjectToProjectStrategy,
+  noProjectReorderStrategy,
   projectReorderStrategy,
   sectionToSectionStrategy,
 } from './project-scheduling'

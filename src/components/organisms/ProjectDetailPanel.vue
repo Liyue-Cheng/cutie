@@ -62,7 +62,11 @@
       <div class="tasks-area">
         <!-- 无 section 的任务（即使没有任务也要显示） -->
         <div class="task-section">
-          <TaskList title="未分类任务" :view-key="`project::${project.id}::section::all`" />
+          <TaskList
+            :key="`project-${project.id}-no-section`"
+            title="未分类任务"
+            :view-key="`project::${project.id}::section::all`"
+          />
         </div>
 
         <!-- 各个 section 的任务 -->
