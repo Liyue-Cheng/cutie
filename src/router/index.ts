@@ -13,11 +13,6 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/HomeView.vue'),
       },
       {
-        path: 'home-legacy',
-        name: 'home-legacy',
-        component: () => import('../views/HomeViewLegacy.vue'),
-      },
-      {
         path: 'sunsama-legacy',
         name: 'sunsama-legacy',
         component: () => import('../views/SunsamaLegacyView.vue'),
@@ -48,26 +43,6 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/TrashView.vue'),
       },
       {
-        path: 'area-test',
-        name: 'area-test',
-        component: () => import('../views/AreaTestView.vue'),
-      },
-      {
-        path: 'debug',
-        name: 'debug',
-        component: () => import('../views/DebugView.vue'),
-      },
-      {
-        path: 'interact-test',
-        name: 'interact-test',
-        component: () => import('../views/InteractTestView.vue'),
-      },
-      {
-        path: 'cpu-debug',
-        name: 'cpu-debug',
-        component: () => import('../views/CPUDebugView.vue'),
-      },
-      {
         path: 'upcoming',
         name: 'upcoming',
         component: () => import('../views/UpcomingView.vue'),
@@ -80,11 +55,6 @@ const routes: Array<RouteRecordRaw> = [
     path: '/ai-chat',
     name: 'ai-chat',
     component: () => import('../views/AIChatView.vue'),
-  },
-  {
-    path: '/checkbox-test',
-    name: 'checkbox-test',
-    component: () => import('../views/CheckboxTestView.vue'),
   },
 ]
 
