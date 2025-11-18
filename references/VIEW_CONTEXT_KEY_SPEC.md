@@ -44,22 +44,30 @@ sorted_task_ids: '["template-uuid-1", "template-uuid-2"]'
 
 ---
 
-### **2. 日期看板（Daily Kanban）**
+### **2. 日级视图（Daily Views）**
 
-按日期组织的看板
+以日期为主维度的视图（可用于看板、列表或其它布局）
 
-| 视图名称 | Context Key 格式      | 说明           |
-| -------- | --------------------- | -------------- |
-| 每日看板 | `daily::{YYYY-MM-DD}` | 指定日期的任务 |
+| 视图名称           | Context Key 格式                  | 说明                                               |
+| ------------------ | --------------------------------- | -------------------------------------------------- |
+| 每日全部任务       | `daily::{YYYY-MM-DD}`             | 指定日期的全部任务（含完成）                       |
+| 每日未完成任务视图 | `daily::{YYYY-MM-DD}::incomplete` | 指定日期的未完成任务（如 Daily shutdown 未完成列） |
+| 每日已完成任务视图 | `daily::{YYYY-MM-DD}::completed`  | 指定日期的已完成任务（如 Daily shutdown 已完成列） |
 
 **示例**：
 
 ```javascript
+// 当日全部任务
 context_key: 'daily::2025-10-01'
 sorted_task_ids: '["uuid-1", "uuid-2"]'
 
-context_key: 'daily::2025-10-02'
+// 当日未完成任务
+context_key: 'daily::2025-10-01::incomplete'
 sorted_task_ids: '["uuid-3", "uuid-4"]'
+
+// 当日已完成任务
+context_key: 'daily::2025-10-01::completed'
+sorted_task_ids: '["uuid-5", "uuid-6"]'
 ```
 
 **日期格式**：

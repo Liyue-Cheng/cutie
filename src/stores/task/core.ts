@@ -358,14 +358,46 @@ export function createTaskCore() {
             })
             return archivedTasks.value
           } else if (subtype === 'completed') {
-            // misc::completed - 已完成任务
+            if (identifier) {
+              // misc::completed::${date} - 指定日期的已完成任务
+              const date = identifier
+              const tasks = completedTasks.value.filter((task) =>
+                task.schedules?.some((schedule) => schedule.scheduled_day === date)
+              )
+
+              logger.debug(LogTags.STORE_TASKS, 'Using completed tasks for date', {
+                viewKey,
+                date,
+                count: tasks.length,
+              })
+
+              return tasks
+            }
+
+            // misc::completed - 所有已完成任务
             logger.debug(LogTags.STORE_TASKS, 'Using completed tasks', {
               viewKey,
               count: completedTasks.value.length,
             })
             return completedTasks.value
           } else if (subtype === 'incomplete') {
-            // misc::incomplete - 未完成任务
+            if (identifier) {
+              // misc::incomplete::${date} - 指定日期的未完成任务
+              const date = identifier
+              const tasks = incompleteTasks.value.filter((task) =>
+                task.schedules?.some((schedule) => schedule.scheduled_day === date)
+              )
+
+              logger.debug(LogTags.STORE_TASKS, 'Using incomplete tasks for date', {
+                viewKey,
+                date,
+                count: tasks.length,
+              })
+
+              return tasks
+            }
+
+            // misc::incomplete - 所有未完成任务
             logger.debug(LogTags.STORE_TASKS, 'Using incomplete tasks', {
               viewKey,
               count: incompleteTasks.value.length,

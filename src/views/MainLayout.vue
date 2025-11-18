@@ -53,6 +53,9 @@
             </li>
           </ul>
 
+          <div class="section-divider">
+            <span class="divider-label">DAILY ROUTINES</span>
+          </div>
           <ul class="nav-group">
             <li @click="$router.push('/daily-overview')">
               <CuteIcon name="Calendar" :size="16" /><span>Daily overview</span>
@@ -241,7 +244,6 @@ onBeforeUnmount(() => {
 .section-divider {
   padding: 1rem 1.2rem 0.5rem;
   margin: 0.5rem 0 1rem;
-  border-top: 1px solid var(--color-border-soft, rgb(0 0 0 / 8%));
 }
 
 .divider-label {
