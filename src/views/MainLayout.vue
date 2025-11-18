@@ -53,9 +53,6 @@
             </li>
           </ul>
 
-          <div class="section-divider">
-            <span class="divider-label">DAILY ROUTINES</span>
-          </div>
           <ul class="nav-group">
             <li @click="$router.push('/daily-overview')">
               <CuteIcon name="Calendar" :size="16" /><span>Daily overview</span>
