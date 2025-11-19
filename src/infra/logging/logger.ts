@@ -571,4 +571,9 @@ export const LogTags = {
 
   // 指令追踪器相关
   INSTRUCTION_TRACKER: 'InstructionTracker',
+
+  // AI 相关
+  AI_CLIENT: 'AI:Client',
+  AI_PARSER: 'AI:Parser',
+  AI_EXECUTOR: 'AI:Executor',
 } as const

@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import type { ChatMessage } from '@/types/ai'
+import type { AssistantToolCall, ChatMessage } from '@/types/ai'
 
 // ==================== State ====================
 export const messages = ref<ChatMessage[]>([])
@@ -32,3 +32,49 @@ export function resetError() {
   error.value = null
 }
 
+// 追加内容到最后一条 assistant 消息（用于流式输出）
+export function appendToLastAssistantMessage(text: string) {
+  if (!text) return
+
+  const list = messages.value
+  const last = list[list.length - 1]
+
+  if (!last || last.role !== 'assistant') {
+    const newMsg: ChatMessage = {
+      role: 'assistant',
+      text,
+      tool_calls: [],
+    }
+    messages.value = [...list, newMsg]
+    return
+  }
+
+  const updated: ChatMessage = {
+    ...last,
+    text: (last.text || '') + text,
+  }
+
+  messages.value = [...list.slice(0, list.length - 1), updated]
+}
+
+export function appendToolCallToAssistant(toolCall: AssistantToolCall) {
+  const list = messages.value
+  const last = list[list.length - 1]
+
+  if (!last || last.role !== 'assistant') {
+    const newMsg: ChatMessage = {
+      role: 'assistant',
+      text: '',
+      tool_calls: [toolCall],
+    }
+    messages.value = [...list, newMsg]
+    return
+  }
+
+  const updated: ChatMessage = {
+    ...last,
+    tool_calls: [...(last.tool_calls || []), toolCall],
+  }
+
+  messages.value = [...list.slice(0, list.length - 1), updated]
+}

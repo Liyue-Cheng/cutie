@@ -108,6 +108,14 @@
 
   <!-- 快速添加任务对话框 -->
   <QuickAddTaskModal :show="showQuickAddDialog" @close="showQuickAddDialog = false" />
+
+  <!-- 全局 AI 聊天对话框 -->
+  <AiChatDialog v-if="isAiDialogOpen" @close="isAiDialogOpen = false" />
+
+  <!-- 右下角 AI 浮动按钮 -->
+  <button class="ai-fab-button" type="button" title="AI 助手" @click="isAiDialogOpen = true">
+    <CuteIcon name="Sparkles" :size="20" />
+  </button>
 </template>
 
 <script setup lang="ts">
@@ -120,6 +128,7 @@ import AreaManager from '@/components/parts/AreaManager.vue'
 import QuickAddTaskModal from '@/components/organisms/QuickAddTaskModal.vue'
 import RecurrenceManagerModal from '@/components/organisms/RecurrenceManagerModal.vue'
 import SettingsModal from '@/components/organisms/SettingsModal.vue'
+import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useMidnightRefresh } from '@/composables/useMidnightRefresh'
 
 const appWindow = getCurrentWindow()
@@ -132,6 +141,7 @@ const isAreaManagerOpen = ref(false)
 const isRecurrenceManagerOpen = ref(false)
 const isSettingsOpen = ref(false)
 const showQuickAddDialog = ref(false)
+const isAiDialogOpen = ref(false)
 
 const themeClassName = 'theme-temp-susamacopy'
 
@@ -392,5 +402,38 @@ onBeforeUnmount(() => {
   /* 🔧 确保子视图也遵守尺寸约束 */
   min-height: 0;
   min-width: 0;
+}
+
+.ai-fab-button {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 999px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  box-shadow: 0 10px 25px rgb(0 0 0 / 20%);
+  cursor: pointer;
+  z-index: 1100;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.ai-fab-button:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 25%);
+  background: linear-gradient(135deg, #764ba2 0%, #b4637a 100%);
+}
+
+.ai-fab-button:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 18%);
 }
 </style>

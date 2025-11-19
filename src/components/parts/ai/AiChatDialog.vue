@@ -3,6 +3,7 @@ import { ref, nextTick, watch } from 'vue'
 import { useAiStore } from '@/stores/ai'
 import type { MessageImage } from '@/types/ai'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import AiToolCallCard from './AiToolCallCard.vue'
 
 const emit = defineEmits<{
   close: []
@@ -144,7 +145,15 @@ watch(
         <div v-for="(message, index) in aiStore.allMessages" :key="index" class="message-wrapper">
           <div :class="['message-bubble', message.role]">
             <div class="message-role">{{ message.role === 'user' ? '你' : 'AI' }}</div>
-            <div class="message-text">{{ message.text }}</div>
+            <div v-if="message.text" class="message-text">{{ message.text }}</div>
+            <div
+              v-if="
+                message.role === 'assistant' && message.tool_calls && message.tool_calls.length > 0
+              "
+              class="tool-card-list"
+            >
+              <AiToolCallCard v-for="call in message.tool_calls" :key="call.id" :call="call" />
+            </div>
             <!-- 显示用户发送的图片 -->
             <div
               v-if="message.role === 'user' && message.images && message.images.length > 0"
@@ -385,6 +394,13 @@ watch(
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: break-word;
+}
+
+.tool-card-list {
+  margin-top: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .message-images {

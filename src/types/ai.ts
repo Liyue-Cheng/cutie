@@ -23,6 +23,16 @@ export interface AssistantMessage {
   response_time_ms?: number // 响应时间（毫秒）
   model?: string // 使用的模型
   usage?: TokenUsage // Token 使用情况
+  tool_calls?: AssistantToolCall[]
+}
+
+export interface AssistantToolCall {
+  id: string
+  tool_name: string
+  params: Record<string, string>
+  status: 'success' | 'error'
+  message: string
+  data?: any
 }
 
 /**

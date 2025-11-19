@@ -132,3 +132,6 @@ src-tauri/target/
 
 # AI documentation
 ai-doc/
+
+# Kilocode reference code (not to be committed)
+from-kilocode/
