@@ -866,578 +866,412 @@ defineExpose({
 <style>
 /*
  * ===============================================
- * FullCalendar 自定义样式
+ * FullCalendar 自定义样式 - Cutie日历组件
  * ===============================================
- * 
- * 本文件包含对 FullCalendar 组件的所有自定义样式修改，
- * 按功能模块分组，便于维护和理解。
+ *
+ * 🎯 功能概述：
+ * 本文件为FullCalendar组件提供完整的样式重写，实现：
+ * - 与Cutie设计系统的完全集成
+ * - 支持1x/2x/3x三种缩放级别
+ * - 任务、时间块、截止日期三种事件类型的自定义渲染
+ * - 响应式布局和主题切换支持
+ *
+ * 🏗️ 架构说明：
+ * - 使用FullCalendar CSS变量统一主题控制
+ * - 按功能模块分组，每个模块有明确的职责边界
+ * - 利用CSS自定义属性实现动态配置
+ * - 遵循BEM命名约定和语义化类名
+ *
+ * 📋 样式模块索引：
+ * 0. 容器配置与FullCalendar变量设置
+ * 1. 核心布局与溢出控制
+ * 2. 边框统一管理
+ * 3. 时间轴与标签系统
+ * 4. 缩放系统(1x/2x/3x)
+ * 5. 事件样式统一(task/timeblock/due-date)
+ * 6. 视图特定样式(week/month/day)
+ * 7. 交互反馈与状态管理
+ * 8. 自定义组件集成
  */
 
 /* ===============================================
- * 0. 日历容器样式
+ * 0. 日历容器配置与FullCalendar变量设置
  * =============================================== */
+
 .calendar-container {
+  /* 🎛️ 容器布局配置 */
   height: 100%;
   position: relative;
   overflow: hidden;
   padding: 0.8rem;
-  padding-left: 1.6rem; /* 增加左侧 padding，避免时间标签被截断 */
+  padding-left: 1.6rem; /* 🔧 为时间标签预留溢出空间 */
 
-  /* ✅ 统一设置 FullCalendar 边框颜色（全局变量） */
-  --fc-border-color: var(--color-border-default);
+  /* 🎨 FullCalendar主题变量映射 - 统一使用Cutie设计token */
+  --fc-border-color: var(--color-border-default);        /* 📐 统一边框颜色 */
+  --fc-today-bg-color: transparent;                      /* 📅 今日背景透明，无染色 */
+  --fc-now-indicator-color: var(--color-danger);         /* ⏰ 当前时间指示器 */
+  --fc-neutral-text-color: var(--color-text-secondary);  /* 📝 次要文本颜色 */
+  --fc-small-font-size: 1.1rem;                          /* 📏 小字体尺寸 */
+  --fc-event-selected-overlay-color: transparent;        /* ❌ 禁用事件选中覆盖 */
+
+  /* 🔧 自定义缩放变量 - 支持动态时间槽高度调节 */
+  --zoom-slot-height-1x: 0.75rem;  /* 紧凑视图：10分钟=0.75rem, 1小时=4.5rem */
+  --zoom-slot-height-2x: 1.5rem;   /* 标准视图：10分钟=1.5rem, 1小时=9rem */
+  --zoom-slot-height-3x: 3rem;     /* 详细视图：10分钟=3rem, 1小时=18rem */
 }
 
-/* 允许时间标签溢出到左侧 */
+/* ===============================================
+ * 1. 核心布局与溢出控制
+ * =============================================== */
+
+/* 🌊 允许时间标签向左溢出 - 避免标签被容器边界裁切 */
 .calendar-container :deep(.fc),
 .calendar-container :deep(.fc-view-harness),
 .calendar-container :deep(.fc-timegrid) {
-  overflow: visible !important;
+  overflow: visible !important; /* 🔓 解除FullCalendar默认的overflow:hidden限制 */
 }
 
-/* 预览事件样式 - 使用自定义组件渲染，因此保持透明 */
-.fc-event.preview-event {
-  background: transparent !important;
-  border: none !important;
-  color: inherit !important;
-  pointer-events: none !important; /* 允许命中检测到下方的真实事件，避免阻挡 */
-}
-
-/* 月视图任务事件样式调整 */
-.calendar-container :deep(.fc-daygrid-event.task-event) {
-  padding: 0.2rem 0.4rem;
-}
-
-.calendar-container :deep(.fc-daygrid-event.task-event .fc-event-main) {
-  padding: 0;
-}
-
-/* 创建中事件样式 */
-.fc-event.creating-event {
-  background-color: var(--color-background-accent-light) !important;
-  color: var(--color-text-primary, #575279) !important;
-  border-color: var(--color-info) !important;
-  opacity: 0.8;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.8;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
-/* 当前时间指示器样式 */
+/* ⏰ 当前时间指示器配置 - 使用FullCalendar内置功能 */
 .fc-timegrid-now-indicator-line {
-  border-color: var(--color-danger) !important;
-  border-width: 2px !important;
-  z-index: 10 !important;
+  border-color: var(--fc-now-indicator-color) !important; /* 🎨 使用统一的危险色 */
+  border-width: 2px !important; /* 📏 增加线条粗细提升可见性 */
+  z-index: 10 !important; /* 🔝 确保在所有事件之上 */
 }
 
-/* 隐藏时间指示器的三角箭头 */
 .fc-timegrid-now-indicator-arrow {
-  display: none !important;
+  display: none !important; /* ❌ 隐藏默认箭头，保持简洁 */
 }
 
-/* ===============================================
- * 1. 今日高亮样式
- * =============================================== */
+/* 📅 今日背景控制 - 保持透明，无染色 */
 .fc .fc-day-today {
-  background-color: transparent !important; /* 移除今日的默认蓝色背景 */
+  background-color: transparent !important; /* ❌ 移除今日默认背景染色 */
 }
 
 /* ===============================================
- * 2. 时间标签样式修复
+ * 2. 边框精细管理 - 选择性移除FullCalendar默认边框
  * =============================================== */
 
-/* 时间标签垂直居中 */
-.fc .fc-timegrid-slot-label {
-  transform: translateY(-50%);
-}
-
-/* 时间标签字号和字重 */
-.fc .fc-timegrid-slot-label-cushion {
-  font-size: 1.3rem !important;
-  font-weight: 500 !important;
-  color: var(--color-text-secondary) !important;
-  padding-right: 0.8rem !important; /* 增加右侧间距，避免被截断 */
-}
-
-/* 移除时间槽边框 */
-.fc .fc-timegrid-slot-label,
-.fc .fc-timegrid-slot-minor {
-  border: none !important;
-}
-
-/* 为时间标签容器添加上边距，防止 translateY(-50%) 导致的裁切问题 */
-.fc .fc-timegrid-slots {
-  padding-top: 1rem !important;
-}
-
-/* ===============================================
- * 3. 滚动条样式美化
- * =============================================== */
-
-/* 隐藏默认滚动条 */
-.fc .fc-scroller::-webkit-scrollbar {
-  width: 8px;
-  background-color: transparent;
-}
-
-/* 滚动条轨道样式 */
-.fc .fc-scroller::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
-/* 滚动条滑块样式 */
-.fc .fc-scroller::-webkit-scrollbar-thumb {
-  background-color: var(--color-border-default);
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-/* 滚动条滑块悬停样式 */
-.fc .fc-scroller::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-border-strong);
-}
-
-/* ===============================================
- * 4. 时间网格分隔线样式
- * =============================================== */
-.fc .fc-timegrid-divider {
-  padding: 0 !important; /* 增加分隔线区域的内边距 */
-  border-bottom: none !important;
-  background-color: transparent !important; /* 设置透明背景 */
-}
-
-/* ===============================================
- * 5. 边框移除 - 解决多余边框显示问题
- * =============================================== */
-
-/* 移除主网格边框 */
+/* 🗂️ 移除主网格外边框 */
 .fc-theme-standard .fc-scrollgrid {
-  border: none !important;
+  border: none !important; /* ❌ 移除最外层网格边框 */
 }
 
-/* 移除表格单元格右边框 */
+/* 📊 移除表格单元格右边框 - 保留其他边框 */
 .fc-theme-standard td,
 .fc-theme-standard th {
-  border-right: none !important;
+  border-right: none !important; /* ❌ 仅移除右边框，保留上下边框 */
 }
 
-/* 移除特定容器的边框 */
+/* 🌊 移除液体布局容器边框 */
 .fc .fc-scrollgrid-section-liquid > td {
-  border: none !important;
+  border: none !important; /* ❌ 移除液体布局单元格边框 */
+}
+
+/* ⏰ 移除时间标签和次要时间槽边框 */
+.fc .fc-timegrid-slot-label,
+.fc .fc-timegrid-slot-minor {
+  border: none !important; /* ❌ 移除时间相关元素边框 */
+}
+
+/* 🛤️ 时间网格车道边框控制 - 默认移除，特定情况保留 */
+.calendar-container .fc .fc-timegrid-slot-lane {
+  border: none !important; /* ❌ 默认移除所有时间槽边框 */
+}
+
+/* 🎯 保留整点时间横线 - 提供时间分隔视觉提示 */
+.calendar-container .fc .fc-timegrid-slot-lane[data-time$=':00:00'] {
+  border-top: 1px solid var(--fc-border-color) !important; /* ✅ 整点横线使用统一边框色 */
+}
+
+/* 🔧 时间网格分隔线配置 */
+.fc .fc-timegrid-divider {
+  padding: 0 !important; /* ❌ 移除内边距 */
+  border-bottom: none !important; /* ❌ 移除底边框 */
+  background-color: transparent !important; /* 🎭 透明背景 */
 }
 
 /* ===============================================
- * 6. 事件样式自定义
+ * 3. 时间轴与标签系统
  * =============================================== */
 
-/* 事件边框和视觉效果（边框颜色已通过 --fc-border-color 统一控制） */
-.fc-event,
-.fc-timegrid-event {
-  box-shadow: none !important; /* 移除默认阴影效果 */
+/* ⏰ 时间标签垂直对齐 */
+.fc .fc-timegrid-slot-label {
+  transform: translateY(-50%); /* 🎯 精确居中对齐 */
 }
 
-/* 所有时间块事件使用项目默认字体颜色 */
+/* 📝 时间标签文字样式 */
+.fc .fc-timegrid-slot-label-cushion {
+  font-size: 1.3rem !important; /* 📏 适中的字体大小 */
+  font-weight: 500 !important; /* 📝 中等字重，保持清晰 */
+  color: var(--fc-neutral-text-color) !important; /* 🎨 使用FullCalendar变量 */
+  padding-right: 0.8rem !important; /* 📐 右侧留白避免截断 */
+}
+
+/* 🏗️ 时间槽容器配置 */
+.fc .fc-timegrid-slots {
+  padding-top: 1rem !important; /* 🔝 顶部留白防止translateY裁切 */
+}
+
+/* ❌ 隐藏时间轴装饰元素 */
+.fc-timegrid-axis-cushion {
+  display: none !important; /* 🎭 移除不需要的时间轴装饰 */
+}
+
+/* ===============================================
+ * 4. 滚动条美化 - WebKit浏览器样式定制
+ * =============================================== */
+
+/* 📏 滚动条尺寸控制 */
+.fc .fc-scroller::-webkit-scrollbar {
+  width: 8px; /* 📐 细滚动条，不占用过多空间 */
+  background-color: transparent; /* 🎭 透明背景 */
+}
+
+/* 🛤️ 滚动条轨道 */
+.fc .fc-scroller::-webkit-scrollbar-track {
+  background-color: transparent; /* 🎭 透明轨道 */
+}
+
+/* 🎛️ 滚动条滑块 */
+.fc .fc-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-default); /* 🎨 使用默认边框色 */
+  border-radius: 4px; /* ⭕ 圆角设计 */
+  transition: background-color 0.2s; /* 🎬 平滑颜色过渡 */
+}
+
+/* 🖱️ 滑块悬停效果 */
+.fc .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-border-strong); /* 🎨 悬停时加深颜色 */
+}
+
+/* ===============================================
+ * 5. 事件基础样式统一
+ * =============================================== */
+
+/* 🎭 统一移除事件阴影效果 */
+.fc-event,
+.fc-timegrid-event {
+  box-shadow: none !important; /* ❌ 移除FullCalendar默认阴影 */
+}
+
+/* 📝 事件文本统一样式 */
 .fc-event .fc-event-title,
 .fc-event .fc-event-time,
 .fc-timegrid-event .fc-event-title,
 .fc-timegrid-event .fc-event-time {
-  color: var(--color-text-primary, #575279) !important;
-  font-weight: 600 !important;
+  color: var(--color-text-primary, #575279) !important; /* 🎨 统一主要文本色 */
+  font-weight: 600 !important; /* 📝 加粗提升可读性 */
 }
 
-/* 全天事件内边距 */
+/* 📦 全天事件布局控制 */
 .fc-daygrid-event {
-  padding: 2px 6px !important; /* 上下2px，左右6px */
-  margin: 1px 4px !important; /* 外边距，让事件之间有间隔 */
+  padding: 2px 6px !important; /* 📐 上下2px，左右6px内边距 */
+  margin: 1px 4px !important; /* 📏 事件间距分离 */
 }
 
-.fc-timegrid-axis-cushion {
-  display: none !important;
-}
-
-/* 全天事件标题容器 */
-
-.fc-daygrid-day-events {
-  padding: 0 !important;
-  min-height: 2px !important;
-  margin-bottom: 2rem !important;
-
-  /* display: none !important; */
-}
-
-/* 全天事件标题文字 */
+/* 📄 全天事件文本精细调节 */
 .fc-daygrid-event .fc-event-title {
-  padding: 1px 0 !important; /* 微调文字内边距 */
-  line-height: 1.4 !important; /* 调整行高，让文字更舒适 */
+  padding: 1px 0 !important; /* 📐 文字内边距微调 */
+  line-height: 1.4 !important; /* 📏 行高优化可读性 */
+}
+
+/* 📋 全天事件容器配置 */
+.fc-daygrid-day-events {
+  padding: 0 !important; /* ❌ 移除默认内边距 */
+  min-height: 2px !important; /* 📏 最小高度保证 */
+  margin-bottom: 2rem !important; /* 🔻 底部留白 */
 }
 
 /* ===============================================
- * 7. 装饰竖线样式
+ * 6. 缩放系统 - 动态时间槽高度控制(1x/2x/3x)
  * =============================================== */
 
-.decorative-line {
-  position: fixed; /* 脱离内层 padding 影响，参照 viewport */
-  width: 0.8px;
-  background: var(--color-border-default);
-  pointer-events: none;
-  z-index: 5;
-}
-
-/* ===============================================
- * 8. 日历缩放样式（调整时间槽高度）
- * =============================================== */
-
-/* 1x 缩放（默认） - 保持 FullCalendar 默认高度 1.5rem */
+/* 🔍 1x缩放(紧凑视图) - 10分钟槽高度优化 */
 .calendar-container.zoom-1x .fc .fc-timegrid-slot {
-  height: 0.75rem !important; /* 10分钟槽，默认值 */
-  min-height: 0.75rem !important;
-  max-height: 0.75rem !important;
-  line-height: 0.75rem !important;
-  font-size: 0 !important;
-  padding: 0 !important;
+  height: var(--zoom-slot-height-1x) !important; /* ✅ 使用统一变量 */
+  min-height: var(--zoom-slot-height-1x) !important;
+  max-height: var(--zoom-slot-height-1x) !important;
+  line-height: var(--zoom-slot-height-1x) !important;
+  font-size: 0 !important; /* ❌ 隐藏槽内文本 */
+  padding: 0 !important; /* ❌ 移除内边距 */
 }
 
-/* 同时控制时间标签列，防止其撑高行 */
+/* ⏰ 1x缩放时间标签列高度控制 */
 .calendar-container.zoom-1x .fc .fc-timegrid-slot-label {
-  height: 0.6rem !important;
+  height: 0.6rem !important; /* 📏 比时间槽略小，防止撑高 */
   min-height: 0.6rem !important;
   max-height: 0.6rem !important;
   line-height: 0 !important;
   padding: 0 !important;
 }
 
-/* 时间标签文字使用绝对定位，不参与高度计算 */
+/* 📍 1x缩放时间标签文字绝对定位 */
 .calendar-container.zoom-1x .fc .fc-timegrid-slot-label-cushion {
-  position: absolute;
+  position: absolute; /* 🎯 脱离文档流，不影响高度计算 */
   top: 50%;
-  transform: translate(calc(-100% - 0.4rem), -50%); /* 往左移动 0.4rem */
-  line-height: 1 !important;
-  white-space: nowrap;
+  transform: translate(calc(-100% - 0.4rem), -50%); /* ⬅️ 向左偏移0.4rem */
+  line-height: 1 !important; /* 📏 正常行高 */
+  white-space: nowrap; /* 🚫 防止文字换行 */
 }
 
-/* 1x 缩放时隐藏半点时间标签 (xx:30) */
-
+/* ⏰ 1x缩放隐藏半点时间标签(:30) - 减少视觉干扰 */
 .calendar-container.zoom-1x
   .fc
   .fc-timegrid-slot-label[data-time$=':30:00']
   .fc-timegrid-slot-label-cushion {
-  display: none !important;
+  display: none !important; /* ❌ 仅显示整点时间 */
 }
 
-/* 时间网格分隔线：清除默认的 5 分钟槽边框 */
-.calendar-container .fc .fc-timegrid-slot-lane {
-  border: none !important;
-}
-
-/* 仅整点显示横线（已通过 --fc-border-color 统一颜色） */
-.calendar-container .fc .fc-timegrid-slot-lane[data-time$=':00:00'] {
-  border-top: 1px solid var(--fc-border-color) !important;
-}
-
-/* 2x 缩放 - 每小时约 2倍 */
+/* 🔍 2x缩放(标准视图) */
 .calendar-container.zoom-2x .fc .fc-timegrid-slot {
-  height: 1.5rem !important; /* 10分钟槽 = 3rem，1小时 = 18rem */
+  height: var(--zoom-slot-height-2x) !important; /* ✅ 10分钟=1.5rem */
 }
 
-/* 3x 缩放 - 每小时约 3倍 */
+/* 🔍 3x缩放(详细视图) */
 .calendar-container.zoom-3x .fc .fc-timegrid-slot {
-  height: 3rem !important; /* 10分钟槽 = 4.5rem，1小时 = 27rem */
+  height: var(--zoom-slot-height-3x) !important; /* ✅ 10分钟=3rem */
 }
 
 /* ===============================================
- * 9. 拖拽悬浮在已有事件上的视觉反馈（简化版：仅显示链子图标）
+ * 7. 特殊事件样式 - 预览/创建中/链接反馈
  * =============================================== */
+
+/* 👻 预览事件 - 透明样式，不干扰用户操作 */
+.fc-event.preview-event {
+  background: transparent !important; /* 🎭 完全透明背景 */
+  border: none !important; /* ❌ 无边框 */
+  color: inherit !important; /* 🎨 继承父元素颜色 */
+  pointer-events: none !important; /* 🖱️ 允许点击穿透到下方事件 */
+}
+
+/* ⚡ 创建中事件 - 脉冲动画提供视觉反馈 */
+.fc-event.creating-event {
+  background-color: var(--color-background-accent-light) !important; /* 🎨 浅色强调背景 */
+  color: var(--color-text-primary, #575279) !important; /* 📝 主要文本色 */
+  border-color: var(--color-info) !important; /* 🔷 信息色边框 */
+  opacity: 0.8; /* 👻 轻微透明 */
+  animation: pulse 1s infinite; /* 🎬 无限脉冲动画 */
+}
+
+/* 🎬 脉冲动画定义 - 创建中事件的呼吸效果 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8; /* 📉 起始和结束透明度 */
+  }
+  50% {
+    opacity: 1; /* 📈 中间点完全不透明 */
+  }
+}
+
+/* 🔗 拖拽链接目标指示器 - 悬浮链子图标反馈 */
 .fc-event.hover-link-target::after {
-  content: '🔗';
-  position: absolute;
+  content: '🔗'; /* 🔗 链子emoji图标 */
+  position: absolute; /* 📍 绝对定位覆盖 */
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 2rem;
-  pointer-events: none;
+  transform: translate(-50%, -50%); /* 🎯 精确居中 */
+  font-size: 2rem; /* 📏 大尺寸突出显示 */
+  pointer-events: none; /* 🖱️ 不阻挡鼠标事件 */
+}
+
+/* 📱 月视图任务事件样式调整 */
+.calendar-container :deep(.fc-daygrid-event.task-event) {
+  padding: 0.2rem 0.4rem; /* 📐 月视图专用内边距 */
+}
+
+.calendar-container :deep(.fc-daygrid-event.task-event .fc-event-main) {
+  padding: 0; /* ❌ 移除主要内容内边距 */
 }
 
 /* ===============================================
- * 10. 周视图样式优化
+ * 8. 统一事件样式 - 三种事件类型的基础样式合并
  * =============================================== */
 
-/* 周视图日期头部样式 */
-.fc .fc-col-header-cell {
-  padding: 0.5rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  background-color: var(--color-background);
-
-  /* border 已通过 --fc-border-color 统一控制 */
-}
-
-/* 今天的列头部高亮 */
-.fc .fc-col-header-cell.fc-day-today {
-  background-color: var(--color-calendar-today-bg);
-  color: var(--color-calendar-today);
-}
-
-/* 周视图列之间的分隔线（已通过 --fc-border-color 统一控制） */
-
-/* 周视图今天的列高亮 */
-.fc .fc-timegrid-col.fc-day-today {
-  background-color: var(--color-calendar-today-bg);
-}
-
-/* ===============================================
- * 11. 月视图样式优化
- * =============================================== */
-
-/* stylelint-disable selector-class-pattern */
-
-/* ✅ 月视图固定行高：防止事件多的格子撑高整行（仅月视图） */
-.fc-dayGridMonth-view .fc-daygrid-body tr {
-  height: 120px !important; /* 强制固定行高 */
-}
-
-.fc-dayGridMonth-view .fc-daygrid-day-frame {
-  height: 120px !important; /* 强制固定格子高度 */
-  overflow: hidden; /* 超出部分隐藏，配合 dayMaxEvents 使用 */
-}
-
-/* 事件容器固定高度（仅月视图） */
-.fc-dayGridMonth-view .fc-daygrid-day-events {
-  min-height: auto !important;
-  overflow: visible; /* 允许 "+N more" 显示 */
-}
-/* stylelint-enable selector-class-pattern */
-
-/* 月视图单元格样式（border 已通过 --fc-border-color 统一控制） */
-.fc .fc-daygrid-day {
-  cursor: pointer;
-}
-
-.fc .fc-daygrid-day:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
-}
-
-/* 月视图今天高亮 */
-.fc .fc-daygrid-day.fc-day-today {
-  background-color: var(--color-calendar-today-bg);
-}
-
-/* 月视图今天的日期数字高亮 */
-.fc .fc-day-today .fc-daygrid-day-number {
-  color: var(--color-text-on-accent);
-  background-color: var(--color-calendar-today);
-  font-weight: 700;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 月视图事件样式 */
-.fc .fc-daygrid-event {
-  margin: 1px 2px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 1.2rem;
-}
-
-/* 月视图 "+N more" 链接样式 */
-.fc .fc-daygrid-more-link {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-text-accent);
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.15s ease;
-  cursor: pointer;
-}
-
-.fc .fc-daygrid-more-link:hover {
-  background-color: var(--color-background-hover);
-  text-decoration: none;
-}
-
-/* FullCalendar Popover 样式优化 */
-.fc .fc-popover {
-  background: var(--color-background-primary);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
-  z-index: 9999;
-
-  /* border 已通过 --fc-border-color 统一控制 */
-}
-
-.fc .fc-popover-header {
-  background: var(--color-background-primary);
-  padding: 0.8rem 1rem;
-  border-radius: 8px 8px 0 0;
-
-  /* border-bottom 已通过 --fc-border-color 统一控制 */
-}
-
-.fc .fc-popover-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.fc .fc-popover-close {
-  font-size: 1.6rem;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
-}
-
-.fc .fc-popover-close:hover {
-  opacity: 1;
-}
-
-.fc .fc-popover-body {
-  background: var(--color-background-primary);
-  padding: 0.4rem;
-  max-height: 400px;
-  overflow-y: auto;
-  border-radius: 0 0 8px 8px;
-}
-
-/* Popover 内的事件样式 */
-.fc .fc-popover-body .fc-daygrid-event {
-  margin: 2px 0;
-  cursor: pointer;
-}
-
-.fc .fc-popover-body .fc-daygrid-event:hover {
-  opacity: 0.8;
-}
-
-/* ===============================================
- * 12. 任务事件样式（统一为图标+文本）
- * =============================================== */
-
-/* 任务事件（全日）样式 - 无背景，图标+文本 */
-.fc-event.task-event {
-  background: transparent !important;
-  border: none !important;
-  font-weight: 500;
-  cursor: default;
-  padding-left: 0 !important;
-}
-
-.fc-event.task-event .fc-event-main {
-  color: var(--color-text-primary, #575279) !important;
-}
-
-.fc-event.task-event:hover {
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
-}
-
-/* ===============================================
- * 13. 全天时间块事件样式（月视图）
- * =============================================== */
-
-/* 月视图全天时间块 - 无背景，使用自定义 Vue 组件渲染 */
-.fc-event.timeblock-allday {
-  background: transparent !important;
-  border: none !important;
-  font-weight: 500;
-  cursor: pointer;
-  padding-left: 0 !important;
-}
-
-.fc-event.timeblock-allday .fc-event-main {
-  color: var(--color-text-primary, #575279) !important;
-}
-
-.fc-event.timeblock-allday:hover {
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
-}
-
-/* ===============================================
- * 14. 截止日期事件样式（统一为图标+文本）
- * =============================================== */
-
-/* 截止日期事件样式 - 无背景，图标+文本 */
+/* 🎭 事件基础样式统一 - task/timeblock/due-date共用 */
+.fc-event.task-event,
+.fc-event.timeblock-allday,
 .fc-event.due-date-event {
-  background: transparent !important;
-  border: none !important;
-  font-weight: 600;
-  cursor: default;
-  padding-left: 0 !important;
+  background: transparent !important; /* 🎭 透明背景，使用Vue组件渲染 */
+  border: none !important; /* ❌ 无边框 */
+  font-weight: 500; /* 📝 中等字重 */
+  cursor: default; /* 🖱️ 默认鼠标样式 */
+  padding-left: 0 !important; /* ❌ 移除左侧内边距 */
 }
 
+/* 📝 事件主要内容文字颜色统一 */
+.fc-event.task-event .fc-event-main,
+.fc-event.timeblock-allday .fc-event-main,
 .fc-event.due-date-event .fc-event-main {
-  color: var(--color-text-primary, #575279) !important;
+  color: var(--color-text-primary, #575279) !important; /* 🎨 统一主要文本色 */
 }
 
+/* 🖱️ 悬停效果统一 */
+.fc-event.task-event:hover,
+.fc-event.timeblock-allday:hover,
 .fc-event.due-date-event:hover {
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
+  opacity: 0.7; /* 👻 悬停时轻微透明 */
+  transition: opacity 0.15s ease; /* 🎬 平滑过渡效果 */
 }
 
-/* 逾期的截止日期事件 - 文字颜色更醒目 */
+/* 🎯 特殊样式差异化处理 */
+.fc-event.timeblock-allday {
+  cursor: pointer; /* 👆 时间块可点击 */
+}
+
+.fc-event.due-date-event {
+  font-weight: 600; /* 📝 截止日期使用更粗字重 */
+}
+
+/* ⚠️ 逾期截止日期特殊标记 */
 .fc-event.due-date-event.overdue .fc-event-main {
-  color: var(--color-danger) !important;
-  font-weight: 700;
+  color: var(--color-danger) !important; /* 🔴 危险色突出逾期状态 */
+  font-weight: 700; /* 📝 最粗字重强调 */
 }
 
 /* ===============================================
- * 15. TimeGrid 视图时间块事件自定义样式
+ * 9. TimeGrid事件禁用选中状态 - 完全使用自定义组件控制
  * =============================================== */
 
-/* TimeGrid 视图中的时间块事件 - 使用自定义组件完全控制样式 */
+/* ❌ 禁用FullCalendar的事件选中状态 */
 .fc {
-  --fc-event-selected-overlay-color: transparent;
+  --fc-event-selected-overlay-color: transparent; /* ✅ 使用FullCalendar变量 */
 }
 
+/* 🎭 TimeGrid事件透明化处理 */
 .fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event) {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
+  background: transparent !important; /* 🎭 背景透明 */
+  border: none !important; /* ❌ 无边框 */
+  padding: 0 !important; /* ❌ 无内边距 */
 }
 
 .fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event) .fc-event-main {
-  padding: 0 !important;
+  padding: 0 !important; /* ❌ 主要内容无内边距 */
 }
 
-/* 禁用所有事件的 hover、active、focus 状态样式（TimeGrid 和月视图） */
+/* 🖱️ 禁用所有事件交互状态样式 */
 .fc-event:not(.fc-event-mirror, .preview-event):hover,
 .fc-event:not(.fc-event-mirror, .preview-event):active,
 .fc-event:not(.fc-event-mirror, .preview-event):focus {
-  outline: none !important;
-  box-shadow: none !important;
+  outline: none !important; /* ❌ 移除轮廓 */
+  box-shadow: none !important; /* ❌ 移除阴影 */
 }
 
-/* TimeGrid 事件额外禁用背景色 */
+/* 🎭 TimeGrid事件额外状态重置 */
 .fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event):hover,
 .fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event):active,
 .fc-timegrid-event.fc-event:not(.fc-event-mirror, .preview-event):focus {
-  background: transparent !important;
+  background: transparent !important; /* 🎭 保持透明背景 */
 }
 
-/* 禁用 FullCalendar 的事件选中状态（右键后的灰色背景和 ESC 后的黑色边框） */
-.fc-event.fc-event-selected {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* TimeGrid 事件选中状态额外禁用背景色 */
+/* ❌ 禁用事件选中状态的所有视觉反馈 */
+.fc-event.fc-event-selected,
 .fc-timegrid-event.fc-event.fc-event-selected {
-  background: transparent !important;
   outline: none !important;
   box-shadow: none !important;
+  background: transparent !important;
 }
 
+/* ❌ 移除选中状态伪元素 */
 .fc-event.fc-event-selected::before,
 .fc-event.fc-event-selected::after,
 .fc-event:focus::before,
@@ -1445,94 +1279,273 @@ defineExpose({
   display: none !important;
 }
 
-/* 确保 TimeGrid 拖拽 mirror 也使用透明背景和无边框 */
+/* 🎭 确保拖拽mirror事件也保持透明 */
 .fc-timegrid-event.fc-event-mirror {
   background: transparent !important;
   border: none !important;
 }
 
 /* ===============================================
- * 16. 自定义日期头部样式
+ * 10. 视图特定样式 - 周视图/月视图定制
  * =============================================== */
 
+/* 📅 周视图日期头部 */
+.fc .fc-col-header-cell {
+  padding: 0.5rem; /* 📐 适中的内边距 */
+  font-weight: 600; /* 📝 加粗字重 */
+  color: var(--color-text-primary); /* 🎨 主要文本色 */
+  background-color: var(--color-background); /* 🎭 背景色 */
+  /* 🔲 border由--fc-border-color变量统一控制 */
+}
+
+/* 🌟 今日列头部高亮 - 仅保留文字颜色，无背景 */
+.fc .fc-col-header-cell.fc-day-today {
+  background-color: transparent !important; /* ❌ 移除列头背景染色 */
+  color: var(--color-calendar-today); /* 🎨 仅保留今日文字色 */
+}
+
+/* 📅 周视图今日列背景 - 保持透明 */
+.fc .fc-timegrid-col.fc-day-today {
+  background-color: transparent !important; /* ❌ 移除时间网格列背景染色 */
+}
+
+/* 📱 月视图网格样式 */
+.fc .fc-daygrid-day {
+  cursor: pointer; /* 👆 可点击单元格 */
+}
+
+.fc .fc-daygrid-day:hover {
+  background-color: var(--color-background-hover, rgb(0 0 0 / 2%)); /* 🖱️ 悬停反馈 */
+}
+
+/* 📅 月视图今日高亮 - 仅数字徽章，无格子背景 */
+.fc .fc-daygrid-day.fc-day-today {
+  background-color: transparent !important; /* ❌ 移除月视图格子背景染色 */
+}
+
+/* 🎯 月视图今日数字徽章 */
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--color-text-on-accent); /* 🎨 高对比度文字 */
+  background-color: var(--color-calendar-today); /* 🎨 今日强调色 */
+  font-weight: 700; /* 📝 最粗字重 */
+  padding: 0.2rem 0.6rem; /* 📐 徽章内边距 */
+  border-radius: 999px; /* ⭕ 胶囊形状 */
+  display: inline-flex; /* 🎪 弹性布局 */
+  align-items: center; /* ⬆️ 垂直居中 */
+  justify-content: center; /* ↔️ 水平居中 */
+}
+
+/* 📦 月视图事件样式 */
+.fc .fc-daygrid-event {
+  margin: 1px 2px; /* 📏 事件间距 */
+  padding: 2px 4px; /* 📐 事件内边距 */
+  border-radius: 3px; /* ⭕ 圆角 */
+  font-size: 1.2rem; /* 📏 字体大小 */
+}
+
+/* 📝 "+N more"链接样式 */
+.fc .fc-daygrid-more-link {
+  font-size: 1.1rem; /* 📏 字体大小 */
+  font-weight: 600; /* 📝 字重 */
+  color: var(--color-text-accent); /* 🎨 强调色 */
+  padding: 2px 4px; /* 📐 内边距 */
+  border-radius: 3px; /* ⭕ 圆角 */
+  transition: background-color 0.15s ease; /* 🎬 过渡动画 */
+  cursor: pointer; /* 👆 可点击 */
+}
+
+.fc .fc-daygrid-more-link:hover {
+  background-color: var(--color-background-hover); /* 🖱️ 悬停背景 */
+  text-decoration: none; /* ❌ 移除下划线 */
+}
+
+/* ===============================================
+ * 11. 月视图高度固定 - 防止内容撑高布局
+ * =============================================== */
+
+/* stylelint-disable selector-class-pattern */
+
+/* 📏 月视图固定行高 - 防止事件过多撑高 */
+.fc-dayGridMonth-view .fc-daygrid-body tr {
+  height: 120px !important; /* 🔒 强制固定行高 */
+}
+
+.fc-dayGridMonth-view .fc-daygrid-day-frame {
+  height: 120px !important; /* 🔒 固定单元格高度 */
+  overflow: hidden; /* ❌ 隐藏超出内容，配合dayMaxEvents */
+}
+
+/* 📦 月视图事件容器 */
+.fc-dayGridMonth-view .fc-daygrid-day-events {
+  min-height: auto !important; /* 📏 自动最小高度 */
+  overflow: visible; /* ✅ 允许"+N more"显示 */
+}
+
+/* stylelint-enable selector-class-pattern */
+
+/* ===============================================
+ * 12. Popover弹窗样式 - 月视图"+more"事件展示
+ * =============================================== */
+
+/* 🎪 Popover主容器 */
+.fc .fc-popover {
+  background: var(--color-background-primary); /* 🎭 主背景色 */
+  border-radius: 8px; /* ⭕ 大圆角 */
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%); /* 🌫️ 深度阴影 */
+  z-index: 9999; /* 🔝 最高层级 */
+  /* 🔲 border由--fc-border-color变量控制 */
+}
+
+/* 📋 Popover头部 */
+.fc .fc-popover-header {
+  background: var(--color-background-primary); /* 🎭 背景色 */
+  padding: 0.8rem 1rem; /* 📐 内边距 */
+  border-radius: 8px 8px 0 0; /* ⭕ 顶部圆角 */
+  /* 🔲 border-bottom由--fc-border-color变量控制 */
+}
+
+/* 📝 Popover标题 */
+.fc .fc-popover-title {
+  font-size: 1.3rem; /* 📏 标题字体 */
+  font-weight: 600; /* 📝 加粗 */
+  color: var(--color-text-primary); /* 🎨 主要文字色 */
+}
+
+/* ❌ Popover关闭按钮 */
+.fc .fc-popover-close {
+  font-size: 1.6rem; /* 📏 关闭按钮大小 */
+  color: var(--color-text-secondary); /* 🎨 次要文字色 */
+  cursor: pointer; /* 👆 可点击 */
+  opacity: 0.6; /* 👻 半透明 */
+  transition: opacity 0.15s ease; /* 🎬 透明度过渡 */
+}
+
+.fc .fc-popover-close:hover {
+  opacity: 1; /* 🔆 悬停时完全不透明 */
+}
+
+/* 📄 Popover内容区域 */
+.fc .fc-popover-body {
+  background: var(--color-background-primary); /* 🎭 背景色 */
+  padding: 0.4rem; /* 📐 内边距 */
+  max-height: 400px; /* 📏 最大高度限制 */
+  overflow-y: auto; /* 📜 垂直滚动 */
+  border-radius: 0 0 8px 8px; /* ⭕ 底部圆角 */
+}
+
+/* 📦 Popover内事件样式 */
+.fc .fc-popover-body .fc-daygrid-event {
+  margin: 2px 0; /* 📏 事件间距 */
+  cursor: pointer; /* 👆 可点击 */
+}
+
+.fc .fc-popover-body .fc-daygrid-event:hover {
+  opacity: 0.8; /* 👻 悬停透明效果 */
+}
+
+/* ===============================================
+ * 13. 装饰线系统 - 时间分隔视觉辅助
+ * =============================================== */
+
+.decorative-line {
+  position: fixed; /* 📍 固定定位，参照视口 */
+  width: 0.8px; /* 📏 细线宽度 */
+  background: var(--color-border-default); /* 🎨 默认边框色 */
+  pointer-events: none; /* 🖱️ 鼠标事件穿透 */
+  z-index: 5; /* 🔝 适中的层级 */
+}
+
+/* ===============================================
+ * 14. 自定义日期头部 - 多日视图顶部导航
+ * =============================================== */
+
+/* 📅 自定义日期头部容器 */
 .custom-day-headers {
-  display: flex;
-  align-items: center;
-  background-color: var(--color-background-content);
-  border-bottom: 1px solid var(--color-border-default);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  height: 48px;
+  display: flex; /* 🎪 弹性布局 */
+  align-items: center; /* ⬆️ 垂直居中 */
+  background-color: var(--color-background-content); /* 🎭 内容背景色 */
+  border-bottom: 1px solid var(--color-border-default); /* 🔲 底部边框 */
+  position: sticky; /* 📍 粘性定位 */
+  top: 0; /* 🔝 顶部对齐 */
+  z-index: 10; /* 🔝 高层级 */
+  height: 48px; /* 📏 固定高度 */
 }
 
+/* ⏰ 时间轴占位符 */
 .time-axis-placeholder {
-  flex-shrink: 0;
-  border-right: 1px solid var(--color-border-default);
+  flex-shrink: 0; /* 🚫 不收缩 */
+  border-right: 1px solid var(--color-border-default); /* 🔲 右边框 */
 }
 
+/* 📅 单个日期头部 */
 .custom-day-header {
-  flex-shrink: 0; /* 使用固定宽度，不自动伸缩 */
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  padding: 0 0.4rem; /* 移除上下 padding，避免撑高父容器 */
-  height: 100%; /* 继承父容器高度 */
-  border-left: 1px solid var(--color-border-default);
-  transition: background-color 0.2s ease;
-  box-sizing: border-box; /* 确保 padding 不影响宽度 */
-  cursor: pointer;
+  flex-shrink: 0; /* 🚫 固定宽度，不收缩 */
+  display: flex; /* 🎪 弹性布局 */
+  flex-direction: row; /* ➡️ 水平排列 */
+  align-items: center; /* ⬆️ 垂直居中 */
+  justify-content: center; /* ↔️ 水平居中 */
+  gap: 0.6rem; /* 📏 子元素间距 */
+  padding: 0 0.4rem; /* 📐 水平内边距 */
+  height: 100%; /* 📏 继承容器高度 */
+  border-left: 1px solid var(--color-border-default); /* 🔲 左边框 */
+  transition: background-color 0.2s ease; /* 🎬 背景色过渡 */
+  box-sizing: border-box; /* 📦 边框盒模型 */
+  cursor: pointer; /* 👆 可点击 */
 }
 
+/* 🖱️ 日期头部悬停效果 */
 .custom-day-header:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 3%));
+  background-color: var(--color-background-hover, rgb(0 0 0 / 3%)); /* 🎨 悬停背景 */
 }
 
+/* 🎯 拖拽目标状态 */
 .custom-day-header.is-drag-target {
-  background-color: var(--color-primary-bg, rgb(74 144 226 / 15%));
-  border-color: var(--color-primary, #4a90e2);
+  background-color: var(--color-primary-bg, rgb(74 144 226 / 15%)); /* 🎨 主色背景 */
+  border-color: var(--color-primary, #4a90e2); /* 🎨 主色边框 */
 }
 
+/* 📍 拖拽预览指示器 */
 .drag-preview-indicator {
-  font-size: 1.6rem;
-  font-weight: 600;
-  color: var(--color-primary, #4a90e2);
-  line-height: 1;
+  font-size: 1.6rem; /* 📏 指示器大小 */
+  font-weight: 600; /* 📝 加粗 */
+  color: var(--color-primary, #4a90e2); /* 🎨 主色 */
+  line-height: 1; /* 📏 紧凑行高 */
 }
 
+/* 📝 日期头部文字元素 */
 .custom-day-header .day-name {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--color-text-secondary, #666);
-  text-transform: uppercase;
+  font-size: 1.2rem; /* 📏 日期名字体 */
+  font-weight: 600; /* 📝 加粗 */
+  color: var(--color-text-secondary, #666); /* 🎨 次要文字色 */
+  text-transform: uppercase; /* 🔤 大写转换 */
 }
 
 .custom-day-header .date-number {
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary, #333);
+  font-size: 1.4rem; /* 📏 日期数字字体 */
+  font-weight: 500; /* 📝 中等字重 */
+  color: var(--color-text-primary, #333); /* 🎨 主要文字色 */
 }
 
+/* 🌟 今日徽章 */
 .custom-day-header .today-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.6rem;
-  margin-left: 0.4rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-primary, #4a90e2);
-  background-color: var(--color-primary-bg, rgb(74 144 226 / 10%));
-  border-radius: 1rem;
-  line-height: 1.4;
+  display: inline-flex; /* 🎪 内联弹性布局 */
+  align-items: center; /* ⬆️ 垂直居中 */
+  gap: 0.3rem; /* 📏 内部间距 */
+  padding: 0.2rem 0.6rem; /* 📐 徽章内边距 */
+  margin-left: 0.4rem; /* 📏 左边距 */
+  font-size: 1.1rem; /* 📏 徽章字体 */
+  font-weight: 600; /* 📝 加粗 */
+  color: var(--color-primary, #4a90e2); /* 🎨 主色文字 */
+  background-color: var(--color-primary-bg, rgb(74 144 226 / 10%)); /* 🎨 主色背景 */
+  border-radius: 1rem; /* ⭕ 胶囊形状 */
+  line-height: 1.4; /* 📏 舒适行高 */
 }
 
+/* 🔴 今日指示圆点 */
 .custom-day-header .today-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background-color: var(--color-primary, #4a90e2);
+  width: 0.5rem; /* 📏 圆点宽度 */
+  height: 0.5rem; /* 📏 圆点高度 */
+  border-radius: 50%; /* ⭕ 完全圆形 */
+  background-color: var(--color-primary, #4a90e2); /* 🎨 主色填充 */
 }
 </style>
