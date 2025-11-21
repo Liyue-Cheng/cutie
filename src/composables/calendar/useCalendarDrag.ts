@@ -6,9 +6,9 @@ import { parseDateString } from '@/infra/utils/dateUtils'
 import type { ViewMetadata, CalendarViewConfig } from '@/types/drag'
 import { useCrossViewDrag, useDragTransfer } from '@/composables/drag'
 import { useAreaStore } from '@/stores/area'
-import { useTaskStore } from '@/stores/task'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { apiPost } from '@/stores/shared'
+import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
 
 export function useCalendarDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -33,7 +33,6 @@ export function useCalendarDrag(
   const crossViewDrag = useCrossViewDrag()
   const dragTransfer = useDragTransfer()
   const areaStore = useAreaStore()
-  const taskStore = useTaskStore()
 
   /**
    * 全局拖拽开始处理
@@ -200,7 +199,7 @@ export function useCalendarDrag(
       const area = currentDraggedTask.value?.area_id
         ? areaStore.getAreaById(currentDraggedTask.value.area_id)
         : null
-      const previewColor = area?.color || '#9ca3af'
+      const previewColor = area?.color || getDefaultAreaColor()
 
       logger.debug(LogTags.COMPONENT_CALENDAR, 'Creating all-day preview')
       previewEvent.value = {
@@ -262,7 +261,7 @@ export function useCalendarDrag(
         const area = currentDraggedTask.value?.area_id
           ? areaStore.getAreaById(currentDraggedTask.value.area_id)
           : null
-        const previewColor = area?.color || '#9ca3af'
+        const previewColor = area?.color || getDefaultAreaColor()
 
         previewEvent.value = {
           id: 'preview-event',

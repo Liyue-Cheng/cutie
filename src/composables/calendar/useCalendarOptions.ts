@@ -23,6 +23,7 @@ import CalendarTimeGridEventContent from '@/components/assembles/calender/Calend
 import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
 import { useTaskStore } from '@/stores/task'
 import { toLocalISOString } from '@/infra/utils/dateUtils'
+import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
 
 export function useCalendarOptions(
   calendarEvents: ComputedRef<EventInput[]>,
@@ -140,8 +141,9 @@ export function useCalendarOptions(
         container.style.width = '100%'
         container.style.height = '100%'
 
-        const areaColor =
-          extended.areaColor || extended.previewColor || arg.event.backgroundColor || '#9ca3af'
+        const areaColorCandidate =
+          extended.areaColor || extended.previewColor || arg.event.backgroundColor
+        const areaColor = areaColorCandidate || getDefaultAreaColor()
         const startTime = arg.event.start ? toLocalISOString(arg.event.start) : ''
         const endTime = arg.event.end ? toLocalISOString(arg.event.end) : ''
         const taskId = extended.taskId as string | undefined
@@ -226,7 +228,7 @@ export function useCalendarOptions(
         container.style.width = '100%'
         container.style.height = '100%'
 
-        const areaColor = extended.areaColor || '#9ca3af'
+        const areaColor = extended.areaColor || getDefaultAreaColor()
 
         // 使用 Vue 组件渲染
         const app = createApp(CalendarTimeBlockEventContent, {

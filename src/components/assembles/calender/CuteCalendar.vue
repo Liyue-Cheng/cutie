@@ -45,18 +45,20 @@
     <TimeBlockDetailPanel
       v-if="selectedTimeBlockId"
       :time-block-id="selectedTimeBlockId"
-      @close="selectedTimeBlockId = null"
+      :panel-position="detailPanelPosition"
+      @close="handleDetailPanelClose"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import FullCalendar from '@fullcalendar/vue3'
-import type { DatesSetArg } from '@fullcalendar/core'
+import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import { computed, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import { useRegisterStore } from '@/stores/register'
+import { useUserSettingsStore } from '@/stores/user-settings'
 import { useAutoScroll } from '@/composables/calendar/useAutoScroll'
 import { useTimePosition } from '@/composables/calendar/useTimePosition'
 import { useDecorativeLine } from '@/composables/calendar/useDecorativeLine'
@@ -72,6 +74,7 @@ import TimeBlockDetailPanel from '@/components/organisms/TimeBlockDetailPanel.vu
 const timeBlockStore = useTimeBlockStore()
 const taskStore = useTaskStore()
 const registerStore = useRegisterStore()
+const userSettingsStore = useUserSettingsStore()
 
 // ==================== Props ====================
 const props = withDefaults(
@@ -114,6 +117,110 @@ const currentDateRef = computed(() => props.currentDate)
 // 选中的时间块ID（用于显示详情面板）
 const selectedTimeBlockId = ref<string | null>(null)
 
+type DetailPanelPosition = {
+  top: number
+  left: number
+}
+
+const detailPanelPosition = ref<DetailPanelPosition | null>(null)
+let detailPanelAnchorEl: HTMLElement | null = null
+const DETAIL_PANEL_GAP = 12
+const DETAIL_PANEL_VIEWPORT_PADDING = 48
+let viewportListenersRegistered = false
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function resetDetailPanelAnchor() {
+  detailPanelAnchorEl = null
+  detailPanelPosition.value = null
+}
+
+function updateDetailPanelPosition(anchorEl: HTMLElement | null) {
+  if (!anchorEl) {
+    resetDetailPanelAnchor()
+    return
+  }
+
+  detailPanelAnchorEl = anchorEl
+  const rect = anchorEl.getBoundingClientRect()
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0
+  const centerY = rect.top + rect.height / 2
+  const top =
+    viewportHeight > 0
+      ? clamp(
+          centerY,
+          DETAIL_PANEL_VIEWPORT_PADDING,
+          viewportHeight - DETAIL_PANEL_VIEWPORT_PADDING
+        )
+      : centerY
+  const left = rect.left - DETAIL_PANEL_GAP
+
+  detailPanelPosition.value = {
+    top,
+    left,
+  }
+}
+
+function handleViewportChange() {
+  if (!detailPanelAnchorEl || !selectedTimeBlockId.value) {
+    return
+  }
+
+  if (typeof document !== 'undefined' && !document.body.contains(detailPanelAnchorEl)) {
+    resetDetailPanelAnchor()
+    return
+  }
+
+  updateDetailPanelPosition(detailPanelAnchorEl)
+}
+
+function handleDetailPanelClose() {
+  selectedTimeBlockId.value = null
+  resetDetailPanelAnchor()
+}
+
+watch(selectedTimeBlockId, (newValue) => {
+  if (!newValue) {
+    resetDetailPanelAnchor()
+  }
+})
+
+onMounted(() => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.addEventListener('resize', handleViewportChange)
+  window.addEventListener('scroll', handleViewportChange, true)
+  viewportListenersRegistered = true
+})
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined' || !viewportListenersRegistered) {
+    return
+  }
+  window.removeEventListener('resize', handleViewportChange)
+  window.removeEventListener('scroll', handleViewportChange, true)
+  viewportListenersRegistered = false
+})
+
+watch(
+  () => userSettingsStore.theme,
+  () => {
+    nextTick(() => {
+      const api = calendarRef.value?.getApi()
+      if (!api) {
+        return
+      }
+      api.render()
+      clearCache()
+      updateDisplayDates()
+      syncColumnWidths()
+    })
+  }
+)
+
 // ==================== Composables ====================
 // 自动滚动
 const { handleAutoScroll, stopAutoScroll } = useAutoScroll()
@@ -140,6 +247,25 @@ const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef, mon
 
 // 事件处理器
 const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
+
+function handleCalendarEventClick(clickInfo: EventClickArg) {
+  handlers.handleEventClick(clickInfo)
+
+  const extended = clickInfo.event.extendedProps as {
+    type?: string
+  }
+
+  if (extended?.type === 'timeblock') {
+    updateDetailPanelPosition(clickInfo.el as HTMLElement | null)
+  } else {
+    resetDetailPanelAnchor()
+  }
+}
+
+const calendarHandlers = {
+  ...handlers,
+  handleEventClick: handleCalendarEventClick,
+}
 
 function formatDateShort(d: Date) {
   const y = d.getFullYear()
@@ -276,7 +402,7 @@ const handleDatesSet = (dateInfo: DatesSetArg) => {
 // 日历配置（传递视图类型、天数和日期变化回调）
 const { calendarOptions } = useCalendarOptions(
   calendarEvents,
-  handlers,
+  calendarHandlers,
   props.viewType,
   handleDatesSet,
   props.days ?? 1
@@ -756,6 +882,9 @@ defineExpose({
   overflow: hidden;
   padding: 0.8rem;
   padding-left: 1.6rem; /* 增加左侧 padding，避免时间标签被截断 */
+
+  /* ✅ 统一设置 FullCalendar 边框颜色（全局变量） */
+  --fc-border-color: var(--color-border-default);
 }
 
 /* 允许时间标签溢出到左侧 */
@@ -834,6 +963,7 @@ defineExpose({
 .fc .fc-timegrid-slot-label-cushion {
   font-size: 1.3rem !important;
   font-weight: 500 !important;
+  color: var(--color-text-secondary) !important;
   padding-right: 0.8rem !important; /* 增加右侧间距，避免被截断 */
 }
 
@@ -908,10 +1038,9 @@ defineExpose({
  * 6. 事件样式自定义
  * =============================================== */
 
-/* 事件边框和视觉效果 */
+/* 事件边框和视觉效果（边框颜色已通过 --fc-border-color 统一控制） */
 .fc-event,
 .fc-timegrid-event {
-  border-color: var(--color-border-default) !important; /* 设置事件边框为灰色 */
   box-shadow: none !important; /* 移除默认阴影效果 */
 }
 
@@ -1003,10 +1132,14 @@ defineExpose({
   display: none !important;
 }
 
-/* 1x 缩放时移除半点时间槽的边框 */
-
-.calendar-container.zoom-1x .fc .fc-timegrid-slot-lane[data-time$=':30:00'] {
+/* 时间网格分隔线：清除默认的 5 分钟槽边框 */
+.calendar-container .fc .fc-timegrid-slot-lane {
   border: none !important;
+}
+
+/* 仅整点显示横线（已通过 --fc-border-color 统一颜色） */
+.calendar-container .fc .fc-timegrid-slot-lane[data-time$=':00:00'] {
+  border-top: 1px solid var(--fc-border-color) !important;
 }
 
 /* 2x 缩放 - 每小时约 2倍 */
@@ -1042,23 +1175,21 @@ defineExpose({
   font-weight: 600;
   color: var(--color-text-primary);
   background-color: var(--color-background);
-  border-bottom: 2px solid var(--color-border-default);
+
+  /* border 已通过 --fc-border-color 统一控制 */
 }
 
 /* 今天的列头部高亮 */
 .fc .fc-col-header-cell.fc-day-today {
-  background-color: var(--color-primary-bg, #e3f2fd);
-  color: var(--color-primary, #4a90e2);
+  background-color: var(--color-calendar-today-bg);
+  color: var(--color-calendar-today);
 }
 
-/* 周视图列之间的分隔线 */
-.fc .fc-timegrid-col {
-  border-right: 1px solid var(--color-border-default);
-}
+/* 周视图列之间的分隔线（已通过 --fc-border-color 统一控制） */
 
 /* 周视图今天的列高亮 */
 .fc .fc-timegrid-col.fc-day-today {
-  background-color: var(--color-background-hover, rgb(74 144 226 / 5%));
+  background-color: var(--color-calendar-today-bg);
 }
 
 /* ===============================================
@@ -1084,7 +1215,7 @@ defineExpose({
 }
 /* stylelint-enable selector-class-pattern */
 
-/* 月视图单元格样式 */
+/* 月视图单元格样式（border 已通过 --fc-border-color 统一控制） */
 .fc .fc-daygrid-day {
   cursor: pointer;
 }
@@ -1095,13 +1226,13 @@ defineExpose({
 
 /* 月视图今天高亮 */
 .fc .fc-daygrid-day.fc-day-today {
-  background-color: var(--color-primary-bg, #e3f2fd);
+  background-color: var(--color-calendar-today-bg);
 }
 
 /* 月视图今天的日期数字高亮 */
 .fc .fc-day-today .fc-daygrid-day-number {
   color: var(--color-text-on-accent);
-  background-color: var(--color-primary, #4a90e2);
+  background-color: var(--color-calendar-today);
   font-weight: 700;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
@@ -1122,7 +1253,7 @@ defineExpose({
 .fc .fc-daygrid-more-link {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--color-primary, #4a90e2);
+  color: var(--color-text-accent);
   padding: 2px 4px;
   border-radius: 3px;
   transition: background-color 0.15s ease;
@@ -1130,24 +1261,26 @@ defineExpose({
 }
 
 .fc .fc-daygrid-more-link:hover {
-  background-color: var(--color-primary-bg, #e3f2fd);
+  background-color: var(--color-background-hover);
   text-decoration: none;
 }
 
 /* FullCalendar Popover 样式优化 */
 .fc .fc-popover {
   background: var(--color-background-primary);
-  border: 1px solid var(--color-border-default);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
   z-index: 9999;
+
+  /* border 已通过 --fc-border-color 统一控制 */
 }
 
 .fc .fc-popover-header {
   background: var(--color-background-primary);
-  border-bottom: 1px solid var(--color-border-default);
   padding: 0.8rem 1rem;
   border-radius: 8px 8px 0 0;
+
+  /* border-bottom 已通过 --fc-border-color 统一控制 */
 }
 
 .fc .fc-popover-title {
@@ -1325,8 +1458,8 @@ defineExpose({
 .custom-day-headers {
   display: flex;
   align-items: center;
-  background-color: var(--color-background-content, #fff);
-  border-bottom: 1px solid var(--color-border-default, #e0e0e0);
+  background-color: var(--color-background-content);
+  border-bottom: 1px solid var(--color-border-default);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -1335,7 +1468,7 @@ defineExpose({
 
 .time-axis-placeholder {
   flex-shrink: 0;
-  border-right: 1px solid var(--color-border-default, #e0e0e0);
+  border-right: 1px solid var(--color-border-default);
 }
 
 .custom-day-header {
@@ -1345,8 +1478,9 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  padding: 1.2rem 0.4rem;
-  border-left: 1px solid var(--color-border-default, #e0e0e0);
+  padding: 0 0.4rem; /* 移除上下 padding，避免撑高父容器 */
+  height: 100%; /* 继承父容器高度 */
+  border-left: 1px solid var(--color-border-default);
   transition: background-color 0.2s ease;
   box-sizing: border-box; /* 确保 padding 不影响宽度 */
   cursor: pointer;

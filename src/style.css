@@ -149,6 +149,9 @@ html {
   --color-skeleton-highlight: #403d52;
   --color-empty-icon: #6e6a86;
   --color-empty-text: #908caa;
+
+  /* 2.10 默认区域色 */
+  --color-area-default: #c4a7e7;
 }
 
 
@@ -286,6 +289,9 @@ body.theme-rose-pine-dawn {
   --color-skeleton-highlight: #dfdad9;
   --color-empty-icon: #9893a5;
   --color-empty-text: #797593;
+
+  /* 3.10 默认区域色 */
+  --color-area-default: #56949f;
 }
 
 
@@ -423,6 +429,9 @@ body.theme-rose-pine-moon {
   --color-skeleton-highlight: #44415a;
   --color-empty-icon: #6e6a86;
   --color-empty-text: #908caa;
+
+  /* 4.10 默认区域色 */
+  --color-area-default: #9ccfd8;
 }
 
 
@@ -560,6 +569,9 @@ body.theme-cutie {
   --color-skeleton-highlight: #ffe4ec;
   --color-empty-icon: #c4a4b0;
   --color-empty-text: #9d8090;
+
+  /* 5.10 默认区域色 */
+  --color-area-default: #ff6b9d;
 }
 
 
@@ -697,6 +709,9 @@ body.theme-business {
   --color-skeleton-highlight: #e0e0e0;
   --color-empty-icon: #9e9e9e;
   --color-empty-text: #757575;
+
+  /* 6.10 默认区域色 */
+  --color-area-default: #1976d2;
 }
 
 
@@ -835,6 +850,7 @@ a:hover {
     .task-card .note-text
   ) {
   display: -webkit-box;
+  line-clamp: 1;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;

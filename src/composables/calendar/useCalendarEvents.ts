@@ -10,6 +10,8 @@ import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { toLocalISOString, parseLocalISOString, toDateString } from '@/infra/utils/dateUtils'
+import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
+import { useUserSettingsStore } from '@/stores/user-settings'
 
 export interface MonthViewFilters {
   showRecurringTasks: boolean
@@ -26,6 +28,7 @@ export function useCalendarEvents(
   const timeBlockStore = useTimeBlockStore()
   const taskStore = useTaskStore()
   const areaStore = useAreaStore()
+  const userSettingsStore = useUserSettingsStore()
 
   /**
    * 日历事件列表（响应式）
@@ -41,9 +44,14 @@ export function useCalendarEvents(
    * - 所有操作必须通过 store，不要直接修改本地状态
    */
   const calendarEvents = computed((): EventInput[] => {
+    // 读取主题以建立依赖：主题变化时重新计算事件颜色
+    const currentTheme = userSettingsStore.theme
+    void currentTheme
+
     const events: EventInput[] = []
     const scheduledTaskKeys = new Set<string>()
     const filters = monthViewFilters?.value
+    const defaultAreaColor = getDefaultAreaColor()
 
     // 1. 添加时间块事件
     timeBlockStore.allTimeBlocks.forEach((timeBlock) => {
@@ -64,7 +72,7 @@ export function useCalendarEvents(
 
       // 颜色优先级：
       // 1. 如果有 area，使用 area 的颜色
-      // 2. 如果没有 area 但有关联任务（从任务创建），使用灰色
+      // 2. 如果没有 area 但有关联任务（从任务创建），使用主题默认区域色
       // 3. 如果没有 area 也没有关联任务（手动创建），使用青色
       let color = '#bceaee' // 默认青色（手动创建）
       // ✅ 通过 area_id 从 store 获取完整 area 信息
@@ -72,7 +80,7 @@ export function useCalendarEvents(
       if (area) {
         color = area.color
       } else if (timeBlock.linked_tasks && timeBlock.linked_tasks.length > 0) {
-        color = '#9ca3af' // 灰色（从无 area 任务创建）
+        color = defaultAreaColor
       }
 
       // 计算显示时间
@@ -216,7 +224,7 @@ export function useCalendarEvents(
         // 遍历该任务的所有日程
         task.schedules?.forEach((schedule) => {
           const area = task.area_id ? areaStore.getAreaById(task.area_id) : null
-          const color = area?.color || '#9ca3af'
+          const color = area?.color || defaultAreaColor
 
           // 任务显示为全日事件
           const startDate = new Date(schedule.scheduled_day + 'T00:00:00')

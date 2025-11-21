@@ -16,6 +16,7 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { isTaskCard, isTemplate } from '@/types/dtos'
 import { apiPost } from '@/stores/shared'
 import { parseDateString } from '@/infra/utils/dateUtils'
+import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
 
 export function useCalendarInteractDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -162,7 +163,7 @@ export function useCalendarInteractDrag(
 
       const areaId = task && (task as any).area_id ? (task as any).area_id : undefined
       const area = areaId ? areaStore.getAreaById(areaId) : null
-      const previewColor = area?.color || '#9ca3af'
+      const previewColor = area?.color || getDefaultAreaColor()
 
       const isRecurringTask = Boolean(task && (task as any).recurrence_id)
       const taskTitle = ((task as any)?.title ?? (task as any)?.name ?? '任务') as string
@@ -221,7 +222,7 @@ export function useCalendarInteractDrag(
 
     const areaId2 = task && (task as any).area_id ? (task as any).area_id : undefined
     const area = areaId2 ? areaStore.getAreaById(areaId2) : null
-    const previewColor = area?.color || '#9ca3af'
+    const previewColor = area?.color || getDefaultAreaColor()
 
     const previewKey = `timed-${startTimeForPreview.toISOString()}-${endTime.toISOString()}`
     if (!force && lastPreviewKey === previewKey && previewEvent.value) {

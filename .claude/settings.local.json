@@ -50,7 +50,8 @@
       "Bash(git ls-files:*)",
       "Bash(cloc:*)",
       "Bash(git commit:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Read(//c/Users/liyue/Desktop/projects/dashboard/kilocode/**)"
     ],
     "deny": [],
     "ask": []
