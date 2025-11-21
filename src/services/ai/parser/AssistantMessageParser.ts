@@ -7,7 +7,6 @@ import {
   toolParamNames,
   type AssistantMessageContent,
 } from '../shared/cutie-tools'
-import { logger, LogTags } from '@/infra/logging'
 
 /**
  * Parser for assistant messages. Maintains state between chunks
@@ -105,11 +104,6 @@ export class AssistantMessageParser {
           // End of a tool use.
           this.currentToolUse.partial = false
 
-          logger.debug(LogTags.AI_PARSER, '工具调用解析完成', {
-            toolName: this.currentToolUse.name,
-            params: this.currentToolUse.params,
-          })
-
           this.currentToolUse = undefined
           continue
         } else {
@@ -157,10 +151,6 @@ export class AssistantMessageParser {
             params: {},
             partial: true,
           }
-
-          logger.debug(LogTags.AI_PARSER, '检测到工具调用开始', {
-            toolName: extractedToolName,
-          })
 
           this.currentToolUseStartIndex = this.accumulator.length
 

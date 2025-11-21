@@ -165,14 +165,42 @@ export async function sendChatWithTools(
     for (const block of contentBlocks) {
       if (block.type === 'text') {
         const content = block.content ?? ''
-        if (content.length > streamedTextLength) {
-          const delta = content.slice(streamedTextLength)
+
+        // Calculate delta
+        let displayContent = content
+
+        // Remove partial XML tag at the very end of the content (for tool use tags)
+        // Prevents artifacts from showing up in chat
+        const lastOpenBracketIndex = displayContent.lastIndexOf('<')
+        if (lastOpenBracketIndex !== -1) {
+          const possibleTag = displayContent.slice(lastOpenBracketIndex)
+          const hasCloseBracket = possibleTag.includes('>')
+
+          if (!hasCloseBracket) {
+            let tagContent: string
+            if (possibleTag.startsWith('</')) {
+              tagContent = possibleTag.slice(2).trim()
+            } else {
+              tagContent = possibleTag.slice(1).trim()
+            }
+
+            const isLikelyTagName = /^[a-zA-Z_]+$/.test(tagContent)
+            const isOpeningOrClosing = possibleTag === '<' || possibleTag === '</'
+
+            if (isOpeningOrClosing || isLikelyTagName) {
+              displayContent = displayContent.slice(0, lastOpenBracketIndex).trim()
+            }
+          }
+        }
+
+        if (displayContent.length > streamedTextLength) {
+          const delta = displayContent.slice(streamedTextLength)
           if (delta.trim().length > 0) {
             emitChunk(delta)
           }
-          streamedTextLength = content.length
-        } else if (content.length < streamedTextLength) {
-          streamedTextLength = content.length
+          streamedTextLength = displayContent.length
+        } else if (displayContent.length < streamedTextLength) {
+          streamedTextLength = displayContent.length
         }
       } else if (block.type === 'tool_use') {
         // 工具调用完成（!partial）才执行

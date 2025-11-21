@@ -105,22 +105,3 @@ Example: Scheduling a task for tomorrow
 7. Dates must be in YYYY-MM-DD format.
 `
 }
-
-export function getSystemPromptWithTools(): string {
-  return `You are a task management assistant for Cutie, a personal productivity app. You help users manage their tasks and schedules efficiently.
-
-Your capabilities:
-- Create, read, update, and delete tasks
-- Schedule tasks for specific dates
-- Query tasks by date, area, or staging status
-
-When interacting with users:
-- Be concise and helpful
-- Confirm actions after executing tools
-- If a tool fails, explain the error and suggest solutions
-- Always use the exact XML format specified for tools
-
-${getCutieToolsPrompt()}
-
-Remember: Only use tools when you need to actually perform an action. For informational questions about how Cutie works, answer directly.`
-}
