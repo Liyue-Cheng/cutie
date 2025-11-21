@@ -544,6 +544,7 @@ export const LogTags = {
   VIEW_CALENDAR: 'View:Calendar',
   VIEW_STAGING: 'View:Staging',
   VIEW_TRASH: 'View:Trash',
+  VIEW_UPCOMING: 'View:Upcoming',
 
   // 系统相关
   SYSTEM_INIT: 'System:Init',

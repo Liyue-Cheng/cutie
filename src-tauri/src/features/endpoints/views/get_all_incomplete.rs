@@ -3,10 +3,11 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
+use chrono::NaiveDate;
 
 use crate::{
     entities::{ScheduleStatus, Task, TaskCardDto},
-    features::shared::TaskAssembler,
+    features::shared::{RecurrenceInstantiationService, TaskAssembler},
     infra::{
         core::{AppError, AppResult},
         http::error_handler::success_response,
@@ -132,24 +133,105 @@ pub async fn handle(State(app_state): State<AppState>) -> Response {
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
+    use crate::features::shared::TaskRecurrenceRepository;
+    use rrule::RRuleSet;
 
     pub async fn execute(app_state: &AppState) -> AppResult<Vec<TaskCardDto>> {
         let pool = app_state.db_pool();
 
-        // 1. 获取所有未完成任务
+        // 1. 为所有活跃的循环规则实例化未来最近的一个实例
+        instantiate_next_recurrence_instances(app_state).await?;
+
+        // 2. 获取所有未完成任务（包括刚实例化的循环任务）
         let tasks = database::find_all_incomplete_tasks(pool).await?;
 
-        // 2. 为每个任务组装 TaskCardDto
+        // 3. 为每个任务组装 TaskCardDto
         let mut task_cards = Vec::new();
         for task in tasks {
             let task_card = assemble_task_card(&task, pool).await?;
             task_cards.push(task_card);
         }
 
-        // 3. 按 created_at 倒序（最新的在前）
+        // 4. 按 created_at 倒序（最新的在前）
         task_cards.sort_by(|a, b| b.id.cmp(&a.id));
 
         Ok(task_cards)
+    }
+
+    /// 为所有活跃的循环规则实例化未来最近的一个实例
+    async fn instantiate_next_recurrence_instances(app_state: &AppState) -> AppResult<()> {
+        let pool = app_state.db_pool();
+        let today = app_state.clock().now_utc().date_naive();
+
+        // 1. 获取所有活跃的循环规则
+        let recurrences = TaskRecurrenceRepository::find_all_active(pool).await?;
+
+        tracing::info!(
+            "🔄 [ALL_INCOMPLETE] Found {} active recurrences to check",
+            recurrences.len()
+        );
+
+        // 2. 对每个循环规则，找到未来最近的实例日期并实例化
+        for recurrence in recurrences {
+            // 计算下一个实例日期
+            if let Some(next_date) = find_next_occurrence(&recurrence, &today) {
+                tracing::debug!(
+                    "🔄 [ALL_INCOMPLETE] Recurrence {} next occurrence: {}",
+                    recurrence.id,
+                    next_date
+                );
+
+                // 实例化该日期
+                let _ = RecurrenceInstantiationService::instantiate_for_date(
+                    pool,
+                    app_state.id_generator().as_ref(),
+                    app_state.clock().as_ref(),
+                    &next_date,
+                )
+                .await;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 计算循环规则的下一个实例日期（从今天开始）
+    fn find_next_occurrence(
+        recurrence: &crate::entities::TaskRecurrence,
+        from_date: &NaiveDate,
+    ) -> Option<NaiveDate> {
+        // 确定 DTSTART
+        let dtstart_date = recurrence
+            .start_date
+            .clone()
+            .unwrap_or_else(|| {
+                crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(
+                    &recurrence.created_at.date_naive(),
+                )
+            });
+
+        // 构建完整的 RRULE 字符串
+        let start_date_rrule = dtstart_date.replace("-", "");
+        let full_rrule = format!("DTSTART:{}\nRRULE:{}", start_date_rrule, recurrence.rule);
+
+        // 解析 RRULE
+        let rrule_set: RRuleSet = match full_rrule.parse() {
+            Ok(set) => set,
+            Err(e) => {
+                tracing::warn!("Failed to parse RRULE for recurrence {}: {:?}", recurrence.id, e);
+                return None;
+            }
+        };
+
+        // 找到从今天开始的第一个实例
+        for occurrence in rrule_set.into_iter().take(1000) {
+            let occ_date = occurrence.date_naive();
+            if occ_date >= *from_date {
+                return Some(occ_date);
+            }
+        }
+
+        None
     }
 
     /// 组装单个任务的 TaskCard（包含完整的 schedules + time_blocks）
