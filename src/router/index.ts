@@ -13,9 +13,9 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/HomeView.vue'),
       },
       {
-        path: 'sunsama-legacy',
-        name: 'sunsama-legacy',
-        component: () => import('../views/SunsamaLegacyView.vue'),
+        path: 'kanban-legacy',
+        name: 'kanban-legacy',
+        component: () => import('../views/KanbanLegacyView.vue'),
       },
       {
         path: 'daily-overview',

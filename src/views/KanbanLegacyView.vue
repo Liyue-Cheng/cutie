@@ -13,6 +13,7 @@ import TemplateKanbanColumn from '@/components/assembles/template/TemplateKanban
 import UnderConstruction from '@/components/organisms/UnderConstruction.vue'
 import TrashView from '@/views/TrashView.vue'
 import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
+import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
 import { useRegisterStore } from '@/stores/register'
@@ -41,7 +42,7 @@ onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing, loading incomplete tasks...')
 
   // 🔥 设置当前视图寄存器
-  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'sunsama-legacy')
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'kanban-legacy')
 
   // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
   await taskStore.fetchAllIncompleteTasks_DMA()
@@ -135,11 +136,12 @@ function forceCalendarRefresh() {
   requestAnimationFrame(resize)
 }
 
-function switchRightPaneView(view: RightPaneView) {
+function switchRightPaneView(view: string) {
+  const viewKey = view as RightPaneView
   logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
 
   // 🆕 如果点击的是当前已选中的视图，则切换右边栏的展开/收起状态
-  if (currentRightPaneView.value === view) {
+  if (currentRightPaneView.value === viewKey) {
     const willExpand = isRightPaneCollapsed.value
     isRightPaneCollapsed.value = !isRightPaneCollapsed.value
 
@@ -156,7 +158,7 @@ function switchRightPaneView(view: RightPaneView) {
   }
 
   // 切换到新视图
-  currentRightPaneView.value = view
+  currentRightPaneView.value = viewKey
 
   // 🆕 切换视图时展开右边栏并刷新日历
   const wasCollapsed = isRightPaneCollapsed.value
@@ -167,9 +169,9 @@ function switchRightPaneView(view: RightPaneView) {
   }
 
   // 🔥 切换到非日历视图时，强制将日历收窄回1天
-  if (view !== 'calendar' && calendarDays.value === 3) {
+  if (viewKey !== 'calendar' && calendarDays.value === 3) {
     calendarDays.value = 1
-    logger.info(LogTags.VIEW_HOME, 'Calendar auto-collapsed to 1 day', { view })
+    logger.info(LogTags.VIEW_HOME, 'Calendar auto-collapsed to 1 day', { view: viewKey })
   }
 }
 
@@ -402,25 +404,14 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
         </template>
       </TwoRowLayout>
     </div>
-    <div class="toolbar-pane">
-      <div class="toolbar-content">
-        <!-- 其他视图切换按钮 -->
-        <button
-          v-for="(config, viewKey) in viewConfig"
-          :key="viewKey"
-          class="toolbar-button"
-          :class="{ active: currentRightPaneView === viewKey }"
-          :title="config.label"
-          @click="switchRightPaneView(viewKey as RightPaneView)"
-        >
-          <CuteIcon :name="config.icon" :size="24" />
-        </button>
-        <!-- AI 聊天按钮 (置底) -->
-        <button class="toolbar-button ai-button" title="AI 助手" @click="openAiChat">
-          <CuteIcon name="Sparkles" :size="24" />
-        </button>
-      </div>
-    </div>
+    <!-- 右侧垂直图标栏 -->
+    <VerticalToolbar
+      :view-config="viewConfig"
+      :current-view="currentRightPaneView"
+      :show-ai-button="true"
+      @view-change="switchRightPaneView"
+      @ai-click="openAiChat"
+    />
     <TaskEditorModal
       v-if="uiStore.isEditorOpen"
       :task-id="uiStore.editorTaskId"
@@ -562,64 +553,6 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
   background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
   border-color: var(--rose-pine-foam, #56949f);
   color: var(--rose-pine-foam, #56949f);
-}
-
-.toolbar-pane {
-  width: 6rem; /* 96px */
-  min-width: 6rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.toolbar-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1rem 0;
-  gap: 0.5rem;
-  height: 100%;
-  position: relative;
-}
-
-.toolbar-button {
-  width: 4.8rem;
-  height: 4.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  border: none;
-  border-radius: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--color-text-tertiary);
-  position: relative;
-}
-
-.toolbar-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  color: var(--color-text-secondary);
-}
-
-.toolbar-button.active {
-  background-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-base, #faf4ed);
-}
-
-.toolbar-button:active {
-  transform: scale(0.95);
-}
-
-.toolbar-button.ai-button {
-  background-color: var(--rose-pine-iris, #907aa9);
-  color: var(--rose-pine-base, #faf4ed);
-  position: absolute;
-  bottom: 1rem;
-}
-
-.toolbar-button.ai-button:hover {
-  background-color: var(--rose-pine-love, #b4637a);
-  transform: scale(1.05);
 }
 
 /* ==================== 看板标题栏 ==================== */

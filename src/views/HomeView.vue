@@ -12,7 +12,12 @@
     </div>
 
     <!-- 可拖动的分割线 -->
-    <div class="divider" @mousedown="startDragging" @dblclick="resetPaneWidth"></div>
+    <div
+      class="divider"
+      :class="{ 'auto-adjusting': isAutoAdjusting }"
+      @mousedown="startDragging"
+      @dblclick="resetPaneWidth"
+    ></div>
 
     <!-- 中栏（原右栏）-->
     <div class="middle-column">
@@ -27,21 +32,11 @@
     </div>
 
     <!-- 右侧垂直图标栏 -->
-    <div class="toolbar-pane">
-      <div class="toolbar-content">
-        <!-- 视图切换按钮 -->
-        <button
-          v-for="(config, viewKey) in rightPaneViewConfig"
-          :key="viewKey"
-          class="toolbar-button"
-          :class="{ active: currentRightPaneView === viewKey }"
-          :title="config.label"
-          @click="switchRightPaneView(viewKey as RightPaneView)"
-        >
-          <CuteIcon :name="config.icon" :size="24" />
-        </button>
-      </div>
-    </div>
+    <VerticalToolbar
+      :view-config="rightPaneViewConfig"
+      :current-view="currentRightPaneView"
+      @view-change="switchRightPaneView"
+    />
 
     <!-- 任务编辑器模态框挂载点 -->
     <TaskEditorModal
@@ -60,10 +55,10 @@ import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
 import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
+import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
-import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
@@ -88,8 +83,8 @@ const rightPaneViewConfig = {
 } as const
 
 // 切换右栏视图
-function switchRightPaneView(viewKey: RightPaneView) {
-  currentRightPaneView.value = viewKey
+function switchRightPaneView(viewKey: string) {
+  currentRightPaneView.value = viewKey as RightPaneView
   logger.info(LogTags.VIEW_HOME, 'Right pane view switched', { viewKey })
 }
 
@@ -129,6 +124,47 @@ function onRecentDateChange(date: string) {
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing Home view with Recent + Calendar...')
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'home')
+
+  // 初始化时执行一次自动调节
+  await nextTick()
+  if (shouldAutoAdjust()) {
+    animateToOptimalRatio()
+  }
+})
+
+// ==================== 自动调节监听器 ====================
+
+// 监听左栏视图变化
+watch(currentView, async (newView, oldView) => {
+  logger.debug(LogTags.VIEW_HOME, 'Left view changed', { from: oldView, to: newView })
+
+  // 切换到 Recent 视图时，如果右栏是需要调节的视图，执行自动调节
+  if (newView === 'recent' && shouldAutoAdjust()) {
+    await nextTick()
+    animateToOptimalRatio()
+  }
+})
+
+// 监听右栏视图变化
+watch(currentRightPaneView, async (newView, oldView) => {
+  logger.debug(LogTags.VIEW_HOME, 'Right view changed', { from: oldView, to: newView })
+
+  // 右栏切换到需要调节的视图时，如果左栏是 Recent，执行自动调节
+  if (currentView.value === 'recent' && shouldAutoAdjust()) {
+    await nextTick()
+    animateToOptimalRatio()
+  }
+})
+
+// 监听日历天数变化
+watch(calendarDays, async (newDays, oldDays) => {
+  logger.debug(LogTags.VIEW_HOME, 'Calendar days changed', { from: oldDays, to: newDays })
+
+  // 在 Recent + Calendar 组合时，日历天数变化触发自动调节
+  if (shouldAutoAdjust()) {
+    await nextTick()
+    animateToOptimalRatio()
+  }
 })
 
 // ==================== 日历状态 ====================
@@ -142,9 +178,154 @@ const currentCalendarDate = computed(() => {
 // ==================== 可拖动分割线逻辑 ====================
 const leftPaneWidth = ref(40) // 默认比例 2:3，左栏占 40%
 const isDragging = ref(false)
+const isAutoAdjusting = ref(false) // 自动调节状态标记
 let rafId: number | null = null
 
+// ==================== 自动宽度调节系统 ====================
+
+const TOOLBAR_WIDTH = 96 // 工具栏固定宽度 (6rem = 96px)
+const DIVIDER_WIDTH = 3   // 分割线宽度
+
+// 根据视图模式计算最佳比例
+function calculateOptimalRatio(): number {
+  // 只有在 Recent 左栏时才自动调节
+  if (currentView.value !== 'recent') {
+    return leftPaneWidth.value
+  }
+
+  // 获取容器实际宽度
+  const container = document.querySelector('.home-view') as HTMLElement
+  if (!container) return leftPaneWidth.value
+
+  const containerWidth = container.getBoundingClientRect().width
+  // 可分配宽度 = 总宽度 - 工具栏宽度 - 分割线宽度
+  const availableWidth = containerWidth - TOOLBAR_WIDTH - DIVIDER_WIDTH
+
+  let leftRatio: number
+
+  // 根据右栏视图类型确定比例
+  if (currentRightPaneView.value === 'calendar') {
+    // Calendar 视图：根据天数调整
+    switch (calendarDays.value) {
+      case 1:
+        leftRatio = 0.5 // 1:1 比例
+        break
+      case 3:
+      case 5:
+        leftRatio = 0.4 // 4:6 比例
+        break
+      case 7:
+        leftRatio = 0.333 // 1:2 比例
+        break
+      default:
+        leftRatio = 0.4
+    }
+  } else if (currentRightPaneView.value === 'staging' || currentRightPaneView.value === 'templates') {
+    // Staging 和 Templates 视图：固定 1:1 比例
+    leftRatio = 0.5
+  } else {
+    // 其他视图保持当前比例
+    return leftPaneWidth.value
+  }
+
+  // 计算左栏在整个容器中的百分比
+  const leftWidthPx = availableWidth * leftRatio
+  const leftWidthPercent = (leftWidthPx / containerWidth) * 100
+
+  return Math.max(20, Math.min(80, leftWidthPercent)) // 限制在 20%-80% 范围内
+}
+
+// 平滑动画调节到目标比例
+async function animateToOptimalRatio() {
+  const targetWidth = calculateOptimalRatio()
+
+  // 如果目标比例与当前比例相同，无需动画
+  if (Math.abs(leftPaneWidth.value - targetWidth) < 0.1) {
+    return
+  }
+
+  // 防止重复动画和拖拽冲突
+  if (isAutoAdjusting.value || isDragging.value) return
+
+  isAutoAdjusting.value = true
+  const startWidth = leftPaneWidth.value
+  const duration = 350 // 350ms 动画时长
+  const startTime = performance.now()
+
+  logger.info(LogTags.VIEW_HOME, 'Auto-adjusting pane width', {
+    from: startWidth,
+    to: targetWidth,
+    days: calendarDays.value,
+    leftView: currentView.value,
+    rightView: currentRightPaneView.value,
+    actualRatio: getActualRatio(targetWidth), // 显示实际的左栏:中栏比例
+  })
+
+  function animateFrame(currentTime: number) {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+
+    // 使用 ease-out-cubic 缓动函数，更自然的动画效果
+    const easeOutCubic = 1 - Math.pow(1 - progress, 3)
+
+    // 计算当前宽度
+    const currentWidth = startWidth + (targetWidth - startWidth) * easeOutCubic
+    leftPaneWidth.value = currentWidth
+
+    // 实时更新日历尺寸
+    updateCalendarSize()
+
+    if (progress < 1) {
+      rafId = requestAnimationFrame(animateFrame)
+    } else {
+      // 动画完成
+      leftPaneWidth.value = targetWidth
+      isAutoAdjusting.value = false
+      updateCalendarSize()
+      logger.debug(LogTags.VIEW_HOME, 'Auto-adjustment animation completed', { finalWidth: targetWidth })
+    }
+  }
+
+  rafId = requestAnimationFrame(animateFrame)
+}
+
+// 检查是否需要自动调节
+function shouldAutoAdjust(): boolean {
+  // 左栏必须是 Recent
+  if (currentView.value !== 'recent') return false
+
+  // 右栏是 Calendar、Staging 或 Templates 时需要自动调节
+  return (
+    currentRightPaneView.value === 'calendar' ||
+    currentRightPaneView.value === 'staging' ||
+    currentRightPaneView.value === 'templates'
+  )
+}
+
+// 计算实际的左栏:中栏比例（用于日志显示）
+function getActualRatio(leftWidthPercent: number): string {
+  const container = document.querySelector('.home-view') as HTMLElement
+  if (!container) return 'unknown'
+
+  const containerWidth = container.getBoundingClientRect().width
+  const leftWidthPx = (containerWidth * leftWidthPercent) / 100
+  const middleWidthPx = containerWidth - leftWidthPx - DIVIDER_WIDTH - TOOLBAR_WIDTH
+
+  const leftRatio = leftWidthPx / (leftWidthPx + middleWidthPx)
+  const middleRatio = middleWidthPx / (leftWidthPx + middleWidthPx)
+
+  // 转换为简单的比例形式
+  const scale = Math.min(leftRatio, middleRatio)
+  const left = Math.round(leftRatio / scale)
+  const middle = Math.round(middleRatio / scale)
+
+  return `${left}:${middle}`
+}
+
 function startDragging(e: MouseEvent) {
+  // 自动调节动画期间禁用拖拽
+  if (isAutoAdjusting.value) return
+
   isDragging.value = true
   document.addEventListener('mousemove', onDragging)
   document.addEventListener('mouseup', stopDragging)
@@ -227,6 +408,7 @@ onBeforeUnmount(() => {
   if (rafId !== null) {
     cancelAnimationFrame(rafId)
   }
+  isAutoAdjusting.value = false // 清理自动调节状态
 })
 </script>
 
@@ -274,6 +456,11 @@ onBeforeUnmount(() => {
   z-index: 10;
 }
 
+/* 自动调节时的样式 - 只改变光标，保持视觉一致 */
+.divider.auto-adjusting {
+  cursor: default; /* 自动调节期间禁用拖拽光标 */
+}
+
 /* 扩大可点击区域 */
 .divider::before {
   content: '';
@@ -307,101 +494,5 @@ onBeforeUnmount(() => {
 .divider:hover::after {
   opacity: 1;
   background-color: var(--color-text-secondary);
-}
-
-/* 右侧垂直图标栏 */
-.toolbar-pane {
-  width: 6rem; /* 96px */
-  min-width: 6rem;
-  display: flex;
-  flex-direction: column;
-  background-color: transparent;
-  border-left: 1px solid var(--color-border-default);
-  border-radius: 0 0.8rem 0.8rem 0;
-}
-
-.toolbar-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1.6rem 0;
-  gap: 0.8rem;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.toolbar-content::-webkit-scrollbar {
-  display: none;
-}
-
-/* 图标按钮样式 */
-.toolbar-button {
-  width: 4.8rem;
-  height: 4.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  border: 1px solid transparent;
-  border-radius: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--color-text-secondary);
-  position: relative;
-  flex-shrink: 0;
-}
-
-.toolbar-button:hover {
-  background-color: var(--color-background-hover, rgba(0, 0, 0, 0.04));
-  border-color: var(--color-border-light);
-  color: var(--color-text-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.toolbar-button:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-
-/* 激活状态 */
-.toolbar-button.active {
-  background-color: var(--color-primary-light, #e3f2fd);
-  border-color: var(--color-primary, #2196f3);
-  color: var(--color-primary, #2196f3);
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.16);
-}
-
-.toolbar-button.active:hover {
-  background-color: var(--color-primary-light, #e3f2fd);
-  border-color: var(--color-primary, #2196f3);
-  color: var(--color-primary, #2196f3);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.24);
-}
-
-/* 工具提示 */
-.toolbar-button::before {
-  content: attr(title);
-  position: absolute;
-  right: 110%;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: var(--color-background-tooltip, rgba(0, 0, 0, 0.8));
-  color: var(--color-text-tooltip, white);
-  padding: 0.6rem 1rem;
-  border-radius: 0.4rem;
-  font-size: 1.3rem;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 1000;
-}
-
-.toolbar-button:hover::before {
-  opacity: 1;
 }
 </style>

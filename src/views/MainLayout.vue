@@ -74,8 +74,8 @@
               <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isLegacyOpen }" />
             </div>
             <ul v-if="isLegacyOpen" class="sub-list">
-              <li @click="$router.push('/sunsama-legacy')">
-                <CuteIcon name="LayoutGrid" :size="16" /><span>Sunsama Legacy</span>
+              <li @click="$router.push('/kanban-legacy')">
+                <CuteIcon name="LayoutGrid" :size="16" /><span>Kanban Legacy</span>
               </li>
               <li @click="$router.push('/calendar-legacy')">
                 <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Legacy</span>
