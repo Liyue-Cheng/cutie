@@ -13,9 +13,9 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/HomeView.vue'),
       },
       {
-        path: 'kanban-legacy',
-        name: 'kanban-legacy',
-        component: () => import('../views/KanbanLegacyView.vue'),
+        path: 'timeline-kanban',
+        name: 'timeline-kanban',
+        component: () => import('../views/TimelineKanbanView.vue'),
       },
       {
         path: 'daily-overview',
@@ -23,14 +23,14 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/DailyOverviewView.vue'),
       },
       {
-        path: 'staging',
-        name: 'staging',
-        component: () => import('../views/StagingView.vue'),
+        path: 'staging-kanban',
+        name: 'staging-kanban',
+        component: () => import('../views/StagingKanbanView.vue'),
       },
       {
-        path: 'calendar-legacy',
-        name: 'calendar-legacy',
-        component: () => import('../views/CalendarView.vue'),
+        path: 'calendar-kanban',
+        name: 'calendar-kanban',
+        component: () => import('../views/CalendarKanbanView.vue'),
       },
       {
         path: 'daily-planning',

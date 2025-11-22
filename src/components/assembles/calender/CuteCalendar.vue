@@ -907,17 +907,17 @@ defineExpose({
   padding-left: 1.6rem; /* 🔧 为时间标签预留溢出空间 */
 
   /* 🎨 FullCalendar主题变量映射 - 统一使用Cutie设计token */
-  --fc-border-color: var(--color-border-default);        /* 📐 统一边框颜色 */
-  --fc-today-bg-color: transparent;                      /* 📅 今日背景透明，无染色 */
-  --fc-now-indicator-color: var(--color-danger);         /* ⏰ 当前时间指示器 */
-  --fc-neutral-text-color: var(--color-text-secondary);  /* 📝 次要文本颜色 */
-  --fc-small-font-size: 1.1rem;                          /* 📏 小字体尺寸 */
-  --fc-event-selected-overlay-color: transparent;        /* ❌ 禁用事件选中覆盖 */
+  --fc-border-color: var(--color-border-default); /* 📐 统一边框颜色 */
+  --fc-today-bg-color: transparent; /* 📅 今日背景透明，无染色 */
+  --fc-now-indicator-color: var(--color-danger); /* ⏰ 当前时间指示器 */
+  --fc-neutral-text-color: var(--color-text-secondary); /* 📝 次要文本颜色 */
+  --fc-small-font-size: 1.1rem; /* 📏 小字体尺寸 */
+  --fc-event-selected-overlay-color: transparent; /* ❌ 禁用事件选中覆盖 */
 
   /* 🔧 自定义缩放变量 - 支持动态时间槽高度调节 */
-  --zoom-slot-height-1x: 0.75rem;  /* 紧凑视图：10分钟=0.75rem, 1小时=4.5rem */
-  --zoom-slot-height-2x: 1.5rem;   /* 标准视图：10分钟=1.5rem, 1小时=9rem */
-  --zoom-slot-height-3x: 3rem;     /* 详细视图：10分钟=3rem, 1小时=18rem */
+  --zoom-slot-height-1x: 0.75rem; /* 紧凑视图：10分钟=0.75rem, 1小时=4.5rem */
+  --zoom-slot-height-2x: 1.5rem; /* 标准视图：10分钟=1.5rem, 1小时=9rem */
+  --zoom-slot-height-3x: 3rem; /* 详细视图：10分钟=3rem, 1小时=18rem */
 }
 
 /* ===============================================
@@ -1155,9 +1155,11 @@ defineExpose({
 
 /* 🎬 脉冲动画定义 - 创建中事件的呼吸效果 */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.8; /* 📉 起始和结束透明度 */
   }
+
   50% {
     opacity: 1; /* 📈 中间点完全不透明 */
   }
@@ -1205,14 +1207,6 @@ defineExpose({
   color: var(--color-text-primary, #575279) !important; /* 🎨 统一主要文本色 */
 }
 
-/* 🖱️ 悬停效果统一 */
-.fc-event.task-event:hover,
-.fc-event.timeblock-allday:hover,
-.fc-event.due-date-event:hover {
-  opacity: 0.7; /* 👻 悬停时轻微透明 */
-  transition: opacity 0.15s ease; /* 🎬 平滑过渡效果 */
-}
-
 /* 🎯 特殊样式差异化处理 */
 .fc-event.timeblock-allday {
   cursor: pointer; /* 👆 时间块可点击 */
@@ -1220,6 +1214,14 @@ defineExpose({
 
 .fc-event.due-date-event {
   font-weight: 600; /* 📝 截止日期使用更粗字重 */
+}
+
+/* 🖱️ 悬停效果统一 */
+.fc-event.task-event:hover,
+.fc-event.timeblock-allday:hover,
+.fc-event.due-date-event:hover {
+  opacity: 0.7; /* 👻 悬停时轻微透明 */
+  transition: opacity 0.15s ease; /* 🎬 平滑过渡效果 */
 }
 
 /* ⚠️ 逾期截止日期特殊标记 */
@@ -1295,6 +1297,7 @@ defineExpose({
   font-weight: 600; /* 📝 加粗字重 */
   color: var(--color-text-primary); /* 🎨 主要文本色 */
   background-color: var(--color-background); /* 🎭 背景色 */
+
   /* 🔲 border由--fc-border-color变量统一控制 */
 }
 
@@ -1393,6 +1396,7 @@ defineExpose({
   border-radius: 8px; /* ⭕ 大圆角 */
   box-shadow: 0 4px 12px rgb(0 0 0 / 15%); /* 🌫️ 深度阴影 */
   z-index: 9999; /* 🔝 最高层级 */
+
   /* 🔲 border由--fc-border-color变量控制 */
 }
 
@@ -1401,6 +1405,7 @@ defineExpose({
   background: var(--color-background-primary); /* 🎭 背景色 */
   padding: 0.8rem 1rem; /* 📐 内边距 */
   border-radius: 8px 8px 0 0; /* ⭕ 顶部圆角 */
+
   /* 🔲 border-bottom由--fc-border-color变量控制 */
 }
 

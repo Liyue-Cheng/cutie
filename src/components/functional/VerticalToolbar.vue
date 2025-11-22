@@ -96,7 +96,7 @@ defineEmits<{
 }
 
 .toolbar-button:hover {
-  background-color: var(--color-background-hover, rgba(0, 0, 0, 0.05));
+  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
   color: var(--color-text-secondary);
 }
 
@@ -121,28 +121,5 @@ defineEmits<{
 .toolbar-button.ai-button:hover {
   background-color: var(--rose-pine-love, #b4637a);
   transform: scale(1.05);
-}
-
-/* 工具提示 */
-.toolbar-button::before {
-  content: attr(title);
-  position: absolute;
-  right: 110%;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: var(--color-background-tooltip, rgba(0, 0, 0, 0.8));
-  color: var(--color-text-tooltip, white);
-  padding: 0.6rem 1rem;
-  border-radius: 0.4rem;
-  font-size: 1.3rem;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 1000;
-}
-
-.toolbar-button:hover::before {
-  opacity: 1;
 }
 </style>

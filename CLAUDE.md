@@ -7,6 +7,7 @@ This file provides guidance to Claude Code when working with this codebase.
 - [Project Overview](#project-overview)
 - [Development Commands](#development-commands)
 - [Architecture](#architecture)
+- [View Naming Convention](#view-naming-convention)
 - [CABC Documentation Standard](#cabc-documentation-standard)
 - [Backend Development](#backend-development)
 - [Frontend Development](#frontend-development)

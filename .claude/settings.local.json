@@ -51,7 +51,8 @@
       "Bash(cloc:*)",
       "Bash(git commit:*)",
       "Bash(cat:*)",
-      "Read(//c/Users/liyue/Desktop/projects/dashboard/kilocode/**)"
+      "Read(//c/Users/liyue/Desktop/projects/dashboard/kilocode/**)",
+      "WebFetch(domain:fullcalendar.io)"
     ],
     "deny": [],
     "ask": []

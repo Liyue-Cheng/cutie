@@ -42,7 +42,7 @@ onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing, loading incomplete tasks...')
 
   // 🔥 设置当前视图寄存器
-  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'kanban-legacy')
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'timeline-kanban')
 
   // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
   await taskStore.fetchAllIncompleteTasks_DMA()
