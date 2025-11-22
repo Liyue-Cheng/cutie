@@ -243,53 +243,47 @@ CREATE INDEX idx_tasks_created_at ON tasks(created_at);
 
 ## 6. 后端实现方案
 
-### 6.1 LexoRank 库设计
+### 6.1 使用开源 LexoRank Crate
 
-**核心模块：** `src-tauri/src/infra/lexorank/`
+**依赖库：** [`lexorank`](https://crates.io/crates/lexorank) - Rust port of LexoRank by Atlassian JIRA
 
-```rust
-// src-tauri/src/infra/lexorank/mod.rs
+**添加依赖到 `Cargo.toml`：**
 
-pub mod generator;
-pub mod rebalancer;
-
-pub use generator::LexoRankGenerator;
-pub use rebalancer::rebalance_if_needed;
-
-/// LexoRank 配置
-pub struct LexoRankConfig {
-    pub rank_length: usize,        // 默认6
-    pub bucket_count: u8,          // 默认3 (0,1,2)
-    pub rebalance_threshold: f32,  // 默认0.8 (80%满时重平衡)
-}
-
-impl Default for LexoRankConfig {
-    fn default() -> Self {
-        Self {
-            rank_length: 6,
-            bucket_count: 3,
-            rebalance_threshold: 0.8,
-        }
-    }
-}
+```toml
+[dependencies]
+lexorank = "1.0"  # 最新版本
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 ```
 
-**生成器实现：**
+**库特性：**
+- ✅ 轻量级不可变类实现
+- ✅ 支持无界长度的 rank
+- ✅ 核心操作：创建、递增/递减、计算中间rank
+- ✅ MIT/ISC 许可证
+- ✅ 100% Rust 实现
+
+### 6.2 LexoRank 包装模块
+
+**核心模块：** `src-tauri/src/infra/lexorank_wrapper.rs`
 
 ```rust
-// src-tauri/src/infra/lexorank/generator.rs
+// src-tauri/src/infra/lexorank_wrapper.rs
 
-use std::collections::HashMap;
+use lexorank::LexoRank;
+use crate::infra::core::{AppError, AppResult};
 
-const BASE36_CHARS: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
-const MID_CHAR: u8 = b'm'; // 36进制中点
+/// LexoRank 服务包装器
+/// 提供业务层友好的API，封装开源库的复杂性
+pub struct LexoRankService;
 
-pub struct LexoRankGenerator;
-
-impl LexoRankGenerator {
-    /// 生成初始 rank（新任务添加到列表开头）
-    pub fn initial_rank(bucket: u8) -> String {
-        format!("{}|m00000:", bucket)
+impl LexoRankService {
+    /// 生成初始 rank（用于空列表的第一个任务）
+    ///
+    /// # 返回
+    /// 中间位置的 rank 字符串
+    pub fn initial_rank() -> String {
+        LexoRank::middle().to_string()
     }
 
     /// 在两个 rank 之间生成新 rank
@@ -300,182 +294,130 @@ impl LexoRankGenerator {
     ///
     /// # 返回
     /// - `Ok(String)`: 新的rank字符串
-    /// - `Err`: 无法生成（需要重平衡）
+    /// - `Err(AppError)`: 无法生成rank时返回错误
     pub fn generate_between(
         prev: Option<&str>,
         next: Option<&str>,
-    ) -> Result<String, LexoRankError> {
+    ) -> AppResult<String> {
         match (prev, next) {
+            // 空列表：返回中间rank
+            (None, None) => {
+                Ok(Self::initial_rank())
+            }
+
             // 插入到列表开头
-            (None, Some(next_rank)) => Self::before(next_rank),
+            (None, Some(next_str)) => {
+                let next_rank = LexoRank::parse(next_str)
+                    .map_err(|e| AppError::validation_error(
+                        "next_rank",
+                        &format!("Invalid rank format: {:?}", e),
+                        "INVALID_RANK_FORMAT"
+                    ))?;
+
+                // 使用 gen_prev() 生成前一个rank
+                let new_rank = next_rank.gen_prev();
+                Ok(new_rank.to_string())
+            }
 
             // 插入到列表末尾
-            (Some(prev_rank), None) => Self::after(prev_rank),
+            (Some(prev_str), None) => {
+                let prev_rank = LexoRank::parse(prev_str)
+                    .map_err(|e| AppError::validation_error(
+                        "prev_rank",
+                        &format!("Invalid rank format: {:?}", e),
+                        "INVALID_RANK_FORMAT"
+                    ))?;
+
+                // 使用 gen_next() 生成后一个rank
+                let new_rank = prev_rank.gen_next();
+                Ok(new_rank.to_string())
+            }
 
             // 插入到两个任务之间
-            (Some(prev_rank), Some(next_rank)) => {
-                Self::between(prev_rank, next_rank)
-            }
+            (Some(prev_str), Some(next_str)) => {
+                let prev_rank = LexoRank::parse(prev_str)
+                    .map_err(|e| AppError::validation_error(
+                        "prev_rank",
+                        &format!("Invalid rank format: {:?}", e),
+                        "INVALID_RANK_FORMAT"
+                    ))?;
 
-            // 空列表
-            (None, None) => Ok(Self::initial_rank(0)),
-        }
-    }
+                let next_rank = LexoRank::parse(next_str)
+                    .map_err(|e| AppError::validation_error(
+                        "next_rank",
+                        &format!("Invalid rank format: {:?}", e),
+                        "INVALID_RANK_FORMAT"
+                    ))?;
 
-    /// 在 rank 之前插入
-    fn before(rank: &str) -> Result<String, LexoRankError> {
-        let (bucket, rank_str) = Self::parse_rank(rank)?;
+                // 使用 between() 计算中间rank
+                let new_rank = prev_rank.between(&next_rank)
+                    .map_err(|e| AppError::validation_error(
+                        "rank_calculation",
+                        &format!("Failed to calculate rank between: {:?}", e),
+                        "RANK_CALCULATION_FAILED"
+                    ))?;
 
-        // 找到第一个非'0'字符，减半
-        let mut chars: Vec<u8> = rank_str.bytes().collect();
-        let mid_pos = chars.iter().position(|&c| c != b'0').unwrap_or(0);
-
-        if mid_pos < chars.len() {
-            let char_val = Self::char_to_val(chars[mid_pos])?;
-            if char_val > 0 {
-                chars[mid_pos] = Self::val_to_char(char_val / 2);
-                return Ok(Self::format_rank(bucket, &chars));
-            }
-        }
-
-        // 无法在前面插入，需要重平衡
-        Err(LexoRankError::RebalanceRequired)
-    }
-
-    /// 在 rank 之后插入
-    fn after(rank: &str) -> Result<String, LexoRankError> {
-        let (bucket, rank_str) = Self::parse_rank(rank)?;
-
-        // 找到第一个非'z'字符，增加一半
-        let mut chars: Vec<u8> = rank_str.bytes().collect();
-        let mut pos = chars.len() - 1;
-
-        while pos > 0 && chars[pos] == b'z' {
-            pos -= 1;
-        }
-
-        let char_val = Self::char_to_val(chars[pos])?;
-        if char_val < 35 {
-            let new_val = (char_val + 36) / 2;
-            chars[pos] = Self::val_to_char(new_val);
-            return Ok(Self::format_rank(bucket, &chars));
-        }
-
-        // 需要增加长度或重平衡
-        if chars.len() < 8 {
-            chars.push(MID_CHAR);
-            return Ok(Self::format_rank(bucket, &chars));
-        }
-
-        Err(LexoRankError::RebalanceRequired)
-    }
-
-    /// 在两个 rank 之间插入
-    fn between(prev: &str, next: &str) -> Result<String, LexoRankError> {
-        let (bucket1, prev_str) = Self::parse_rank(prev)?;
-        let (bucket2, next_str) = Self::parse_rank(next)?;
-
-        if bucket1 != bucket2 {
-            return Err(LexoRankError::DifferentBuckets);
-        }
-
-        // 字典序中点算法
-        let mid = Self::calculate_midpoint(prev_str, next_str)?;
-        Ok(Self::format_rank(bucket1, mid.as_bytes()))
-    }
-
-    /// 计算字典序中点
-    fn calculate_midpoint(prev: &str, next: &str) -> Result<String, LexoRankError> {
-        let prev_bytes: Vec<u8> = prev.bytes().collect();
-        let next_bytes: Vec<u8> = next.bytes().collect();
-
-        let max_len = prev_bytes.len().max(next_bytes.len());
-        let mut result = Vec::with_capacity(max_len + 1);
-
-        let mut carry = 0u8;
-        for i in 0..max_len {
-            let p = prev_bytes.get(i).copied().unwrap_or(b'0');
-            let n = next_bytes.get(i).copied().unwrap_or(b'z');
-
-            let p_val = Self::char_to_val(p)?;
-            let n_val = Self::char_to_val(n)?;
-
-            if p_val >= n_val && i == 0 {
-                return Err(LexoRankError::InvalidOrder);
-            }
-
-            let sum = p_val + n_val + carry;
-            let mid_val = sum / 2;
-            carry = sum % 2;
-
-            result.push(Self::val_to_char(mid_val));
-        }
-
-        // 处理舍入进位
-        if carry > 0 && result.last() != Some(&b'z') {
-            if let Some(last) = result.last_mut() {
-                *last = Self::val_to_char(Self::char_to_val(*last)? + 1);
+                Ok(new_rank.to_string())
             }
         }
-
-        Ok(String::from_utf8(result).unwrap())
     }
 
-    // === 辅助函数 ===
-
-    fn parse_rank(rank: &str) -> Result<(u8, &str), LexoRankError> {
-        let parts: Vec<&str> = rank.split('|').collect();
-        if parts.len() != 2 {
-            return Err(LexoRankError::InvalidFormat);
-        }
-
-        let bucket = parts[0].parse::<u8>()
-            .map_err(|_| LexoRankError::InvalidBucket)?;
-        let rank_str = parts[1].trim_end_matches(':');
-
-        Ok((bucket, rank_str))
-    }
-
-    fn format_rank(bucket: u8, rank_chars: &[u8]) -> String {
-        format!("{}|{}:", bucket, String::from_utf8_lossy(rank_chars))
-    }
-
-    fn char_to_val(c: u8) -> Result<u8, LexoRankError> {
-        match c {
-            b'0'..=b'9' => Ok(c - b'0'),
-            b'a'..=b'z' => Ok(c - b'a' + 10),
-            _ => Err(LexoRankError::InvalidCharacter(c as char)),
-        }
-    }
-
-    fn val_to_char(val: u8) -> u8 {
-        if val < 10 {
-            b'0' + val
-        } else {
-            b'a' + (val - 10)
-        }
+    /// 验证 rank 字符串格式
+    pub fn validate_rank(rank: &str) -> AppResult<()> {
+        LexoRank::parse(rank)
+            .map(|_| ())
+            .map_err(|e| AppError::validation_error(
+                "rank",
+                &format!("Invalid rank format: {:?}", e),
+                "INVALID_RANK_FORMAT"
+            ))
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum LexoRankError {
-    #[error("Invalid rank format")]
-    InvalidFormat,
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    #[error("Invalid bucket")]
-    InvalidBucket,
+    #[test]
+    fn test_initial_rank() {
+        let rank = LexoRankService::initial_rank();
+        assert!(!rank.is_empty());
+        assert!(LexoRankService::validate_rank(&rank).is_ok());
+    }
 
-    #[error("Invalid character: {0}")]
-    InvalidCharacter(char),
+    #[test]
+    fn test_generate_between_empty() {
+        let rank = LexoRankService::generate_between(None, None).unwrap();
+        assert!(!rank.is_empty());
+    }
 
-    #[error("Ranks are in different buckets")]
-    DifferentBuckets,
+    #[test]
+    fn test_generate_between_start() {
+        let next = LexoRankService::initial_rank();
+        let new_rank = LexoRankService::generate_between(None, Some(&next)).unwrap();
 
-    #[error("Invalid rank order")]
-    InvalidOrder,
+        // 新rank应该小于next
+        assert!(new_rank < next);
+    }
 
-    #[error("Rebalance required")]
-    RebalanceRequired,
+    #[test]
+    fn test_generate_between_end() {
+        let prev = LexoRankService::initial_rank();
+        let new_rank = LexoRankService::generate_between(Some(&prev), None).unwrap();
+
+        // 新rank应该大于prev
+        assert!(new_rank > prev);
+    }
+
+    #[test]
+    fn test_generate_between_middle() {
+        let rank1 = LexoRankService::initial_rank();
+        let rank2 = LexoRankService::generate_between(Some(&rank1), None).unwrap();
+        let middle = LexoRankService::generate_between(Some(&rank1), Some(&rank2)).unwrap();
+
+        // middle应该在rank1和rank2之间
+        assert!(rank1 < middle && middle < rank2);
+    }
 }
 ```
 
@@ -577,8 +519,8 @@ pub async fn handle(
         None
     };
 
-    // 3. 生成新rank
-    let new_rank = LexoRankGenerator::generate_between(
+    // 3. 🔥 使用开源库生成新rank
+    let new_rank = LexoRankService::generate_between(
         prev_rank.as_deref(),
         next_rank.as_deref(),
     )?;
@@ -689,7 +631,116 @@ pub async fn handle(request: BatchInitRanksRequest) -> Response {
 
 ## 7. 前端实现方案
 
-### 7.1 数据结构调整
+### 7.1 使用开源 LexoRank 库
+
+**依赖库：** [`@dalet-oss/lexorank`](https://www.npmjs.com/package/@dalet-oss/lexorank) - 积极维护的 TypeScript 实现
+
+**添加依赖：**
+
+```bash
+pnpm add @dalet-oss/lexorank
+```
+
+**库特性：**
+- ✅ 完整的 TypeScript 类型支持
+- ✅ 基于 kvandake/lexorank-ts 的活跃分支（2024年10月fork）
+- ✅ 支持 min/max/middle 静态方法
+- ✅ 支持 genNext/genPrev/between 实例方法
+- ✅ MIT 许可证
+
+**核心API：**
+
+```typescript
+import { LexoRank } from '@dalet-oss/lexorank'
+
+// 静态方法
+const minRank = LexoRank.min()        // 最小rank
+const maxRank = LexoRank.max()        // 最大rank
+const middleRank = LexoRank.middle()  // 中间rank
+
+// 解析字符串
+const rank = LexoRank.parse('0|m00000:')
+
+// 实例方法
+const nextRank = rank.genNext()       // 生成下一个rank
+const prevRank = rank.genPrev()       // 生成前一个rank
+const betweenRank = rank1.between(rank2)  // 计算中间rank
+
+// 转换为字符串
+const rankStr = rank.toString()       // "0|m00000:"
+```
+
+### 7.2 LexoRank 工具类（可选）
+
+**如果需要包装层（与后端保持一致的错误处理）：**
+
+```typescript
+// src/infra/lexorank/LexoRankService.ts
+
+import { LexoRank } from '@dalet-oss/lexorank'
+
+export class LexoRankService {
+  /**
+   * 生成初始 rank（空列表）
+   */
+  static initialRank(): string {
+    return LexoRank.middle().toString()
+  }
+
+  /**
+   * 在两个 rank 之间生成新 rank
+   * @param prev 前一个rank（null表示列表开头）
+   * @param next 后一个rank（null表示列表末尾）
+   */
+  static generateBetween(prev: string | null, next: string | null): string {
+    try {
+      // 空列表
+      if (!prev && !next) {
+        return this.initialRank()
+      }
+
+      // 插入到列表开头
+      if (!prev && next) {
+        const nextRank = LexoRank.parse(next)
+        return nextRank.genPrev().toString()
+      }
+
+      // 插入到列表末尾
+      if (prev && !next) {
+        const prevRank = LexoRank.parse(prev)
+        return prevRank.genNext().toString()
+      }
+
+      // 插入到两个任务之间
+      if (prev && next) {
+        const prevRank = LexoRank.parse(prev)
+        const nextRank = LexoRank.parse(next)
+        return prevRank.between(nextRank).toString()
+      }
+
+      throw new Error('Invalid rank combination')
+    } catch (error) {
+      console.error('Failed to generate rank:', error)
+      // Fallback: 使用后端计算
+      throw error
+    }
+  }
+
+  /**
+   * 验证 rank 字符串格式
+   */
+  static validateRank(rank: string): boolean {
+    try {
+      LexoRank.parse(rank)
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+```
+
+### 7.3 数据结构调整
 
 ```typescript
 // src/types/dtos.ts
@@ -1039,17 +1090,17 @@ LIMIT 100;
 
 | 风险 | 影响 | 缓解措施 |
 |-----|------|---------|
-| LexoRank生成算法bug | 高 | 充分单元测试，边界情况覆盖 |
-| Rank字符串无限增长 | 中 | 实现Rebalance机制，监控rank长度 |
+| 开源库兼容性问题 | 中 | 选择活跃维护的库，编写包装层隔离 |
+| Rank字符串无限增长 | 低 | 库自动处理，监控rank长度即可 |
 | JSON索引性能问题 | 中 | 性能测试，必要时改为关系表 |
 | 数据迁移失败 | 高 | 保留旧表90天，支持回滚 |
 
 ### 10.2 实现挑战
 
-**挑战1：Rebalance机制**
-- 当rank字符串过长（>10位）时触发重平衡
-- 需要批量更新同一视图的所有任务
-- 解决方案：后台异步任务，用户无感知
+**挑战1：开源库的限制**
+- 开源库可能不支持自定义bucket系统
+- 依赖外部库的bug修复速度
+- 解决方案：编写包装层，必要时可切换库或fork维护
 
 **挑战2：历史视图排序**
 - 过去日期的Daily视图无法再拖拽
@@ -1077,69 +1128,67 @@ LIMIT 100;
 
 ## 11. 实施计划
 
-### 11.1 第一阶段：核心库实现（3天）
+**⏱️ 总工期：10天（使用开源库，比自研节省5天）**
 
-**Day 1-2: LexoRank库**
-- [ ] 实现 `LexoRankGenerator`
-- [ ] 单元测试（100%覆盖）
-- [ ] 性能基准测试
+### 11.1 第一阶段：依赖集成与Schema（1天）
 
-**Day 3: 数据库Schema**
+**Day 1: 依赖和数据库**
+- [ ] 添加Rust依赖：`lexorank = "1.0"` to `Cargo.toml`
+- [ ] 添加前端依赖：`pnpm add @dalet-oss/lexorank`
 - [ ] 编写Migration SQL
-- [ ] 添加 `sort_positions` 字段
+- [ ] 添加 `sort_positions` 字段到tasks表
 - [ ] 创建JSON索引
+- [ ] 编写LexoRankService包装层（Rust + 单元测试）
+- [ ] （可选）编写LexoRankService包装层（TypeScript）
 
-### 11.2 第二阶段：后端API（5天）
+### 11.2 第二阶段：后端API（3天）
 
-**Day 4-5: 任务实体改造**
-- [ ] 更新 `Task` struct
+**Day 2-3: 任务实体改造**
+- [ ] 更新 `Task` struct 添加 `sort_positions`
 - [ ] 更新 DTO 和 Assembler
-- [ ] 修改所有任务查询SQL（添加排序逻辑）
+- [ ] 修改所有任务查询SQL（添加ORDER BY排序逻辑）
 
-**Day 6-7: 新增API端点**
-- [ ] `PATCH /tasks/:id/sort-position`
+**Day 4: 新增API端点**
+- [ ] `PATCH /tasks/:id/sort-position`（集成LexoRankService）
 - [ ] `POST /tasks/batch-init-ranks`
 - [ ] SSE事件集成
+- [ ] 编写数据迁移脚本
 
-**Day 8: 数据迁移脚本**
-- [ ] 编写迁移工具
-- [ ] 在测试数据库验证
-- [ ] 编写回滚脚本
+### 11.3 第三阶段：前端集成（3天）
 
-### 11.3 第三阶段：前端集成（4天）
-
-**Day 9-10: 数据层**
+**Day 5-6: 数据层**
 - [ ] 更新 `TaskCard` 类型定义
 - [ ] 修改 Store 的排序逻辑
-- [ ] 新增 CPU Pipeline 指令
+- [ ] 新增 CPU Pipeline 指令 `task.update_sort_position`
 
-**Day 11-12: UI层**
-- [ ] 更新拖拽处理逻辑
-- [ ] 添加Fallback机制
-- [ ] 测试所有视图类型
+**Day 7: UI层**
+- [ ] 更新所有看板组件的拖拽逻辑
+- [ ] 添加Fallback机制（无rank时按创建时间）
+- [ ] 测试所有视图类型（Staging/Daily/Area/Project/Section）
 
 ### 11.4 第四阶段：测试与部署（3天）
 
-**Day 13: 集成测试**
+**Day 8: 集成测试**
 - [ ] E2E测试（拖拽排序）
-- [ ] 并发测试（多客户端）
+- [ ] 并发测试（多客户端同时拖拽）
 - [ ] 性能测试（100+ 任务看板）
+- [ ] 开源库兼容性测试
 
-**Day 14: 灰度发布**
-- [ ] 启用双写模式
+**Day 9: 灰度发布**
+- [ ] 启用双写模式（同时写入sort_positions和view_preferences）
 - [ ] 监控错误率
 - [ ] 收集用户反馈
 
-**Day 15: 全量迁移**
+**Day 10: 全量迁移**
 - [ ] 运行数据迁移脚本
 - [ ] 停止写入旧系统
-- [ ] 重命名旧表
+- [ ] 重命名旧表为 `view_preferences_deprecated`
 
 ### 11.5 第五阶段：清理与优化（持续）
 
-**Week 3-4:**
-- [ ] 优化查询性能（根据监控数据）
-- [ ] 实现Rebalance后台任务
+**Week 2-3:**
+- [ ] 优化查询性能（根据监控数据调整索引）
+- [ ] 监控rank字符串长度（评估是否需要rebalance）
 - [ ] 编写技术文档
 
 **Week 12-13:**
@@ -1160,20 +1209,36 @@ LIMIT 100;
 
 ### 12.2 投入产出比
 
-**投入：** 15天开发 + 90天观察期
+**投入：** 10天开发 + 90天观察期（使用开源库，比自研节省5天）
 **产出：**
 - 性能提升：查询46%，写入40%
 - 存储节省：78%
 - 维护成本降低：消除JSON数组管理复杂度
 - 用户体验改善：拖拽响应更快，并发冲突减少
+- 开发效率：使用成熟开源库，避免重复造轮子
 
 ### 12.3 推荐决策
 
 **✅ 强烈推荐实施，理由：**
 1. 现有系统架构缺陷明显（扩展性差、维护成本高）
 2. LexoRank是业界成熟方案（Jira、Trello、Linear均采用）
-3. 迁移风险可控（保留旧表90天，支持回滚）
-4. 长期收益显著（性能、可维护性、扩展性全面提升）
+3. 开源库可靠且积极维护（lexorank rust crate + @dalet-oss/lexorank）
+4. 迁移风险可控（保留旧表90天，支持回滚）
+5. 长期收益显著（性能、可维护性、扩展性全面提升）
+
+### 12.4 开源库选择理由
+
+**后端：** `lexorank` (Rust crate)
+- ✅ 100% Rust实现，类型安全
+- ✅ 支持无界长度rank，自动处理增长
+- ✅ API简洁（parse, genNext, genPrev, between）
+- ✅ ISC/MIT许可证
+
+**前端：** `@dalet-oss/lexorank` (npm package)
+- ✅ 2024年10月积极fork，修复原作者废弃项目
+- ✅ 完整TypeScript类型支持
+- ✅ 与Rust库API兼容（相同的方法命名）
+- ✅ MIT许可证
 
 ---
 
