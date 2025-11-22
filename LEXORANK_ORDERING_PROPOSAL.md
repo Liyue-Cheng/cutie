@@ -180,7 +180,65 @@ pub struct Task {
 }
 ```
 
-### 4.2 视图查询策略
+### 4.2 Rank 注入时机策略
+
+**核心原则：按需注入 + 置顶策略**
+
+| 场景 | 注入时机 | 插入位置 | 实现方式 |
+|------|---------|---------|---------|
+| **创建新任务** | 立即注入 | 列表顶部 | 创建API查询当前视图首任务，生成 `firstRank.genPrev()` |
+| **回到暂存区** | 重新生成 | 列表顶部 | Return to Staging API 重新注入 Staging rank |
+| **拖拽排序** | 增量更新 | 用户指定 | 基于前后任务计算中间 rank |
+| **视图首次加载** | 懒加载批量初始化 | 按 `created_at` | 前端检测缺失，调用批量初始化API |
+
+**场景1：创建任务（置顶）**
+
+```rust
+// POST /api/tasks
+// 请求体包含 view_context（当前所在视图）
+{
+  "title": "新任务",
+  "view_context": "misc::staging",  // 🔥 必需字段
+  // ... 其他字段
+}
+
+// 后端逻辑
+1. 创建任务实体
+2. 查询当前视图的第一个任务的 rank
+3. 生成新 rank = firstRank.genPrev()  // 比第一个更小
+4. 初始化 sort_positions = {"misc::staging": "新rank"}
+5. 返回任务（带 sort_positions）
+```
+
+**场景2：回到暂存区（重新置顶）**
+
+```rust
+// DELETE /api/task-schedules (Return to Staging)
+
+// 后端逻辑
+1. 删除所有 >= today 的 schedules
+2. 查询 Staging 视图的第一个任务的 rank
+3. 生成新 rank = firstRank.genPrev()
+4. 更新 sort_positions["misc::staging"] = 新rank
+5. 发送 SSE 事件（带新 rank）
+```
+
+**场景3：视图懒加载（批量初始化）**
+
+```rust
+// POST /api/tasks/batch-init-ranks
+{
+  "view_context": "daily::2025-10-01",
+  "task_ids": ["uuid-1", "uuid-2", "uuid-3"]  // 按 created_at DESC 排序
+}
+
+// 后端逻辑
+1. 按 task_ids 顺序均匀生成 ranks
+2. 批量更新 sort_positions
+3. 返回 task_id -> rank 映射
+```
+
+### 4.3 视图查询策略
 
 **查询流程：**
 ```sql
@@ -188,12 +246,19 @@ pub struct Task {
 SELECT * FROM tasks WHERE ...
 
 -- 2. 按 sort_positions 中的 rank 排序
-ORDER BY json_extract(sort_positions, '$.{context_key}') ASC NULLS LAST
+ORDER BY
+  CASE
+    WHEN json_extract(sort_positions, '$.{context_key}') IS NULL
+    THEN 1  -- 无rank的排在后面
+    ELSE 0  -- 有rank的排在前面
+  END,
+  json_extract(sort_positions, '$.{context_key}') ASC,  -- 有rank的按字典序
+  created_at DESC  -- 无rank的按创建时间倒序
 ```
 
 **排序规则：**
-- 有 rank：按字典序升序排列
-- 无 rank（NULL）：排在末尾，按 `created_at` 倒序（新任务在前）
+- 有 rank：按字典序升序排列（最前）
+- 无 rank（NULL）：排在末尾，按 `created_at DESC`（新任务在前）
 
 ---
 
@@ -469,9 +534,140 @@ impl TryFrom<TaskRow> for Task {
 }
 ```
 
-### 6.3 新增API端点
+### 6.3 Rank 注入实现
 
-#### 6.3.1 更新任务排序位置
+#### 6.3.1 创建任务时注入（置顶）
+
+**修改现有创建任务 API：** `POST /api/tasks`
+
+**请求体新增字段：**
+```json
+{
+  "title": "新任务",
+  "view_context": "misc::staging",  // 🔥 新增：当前所在视图
+  // ... 其他字段
+}
+```
+
+**实现逻辑：**
+```rust
+// src-tauri/src/features/endpoints/tasks/create_task.rs
+
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Json(request): Json<CreateTaskRequest>,
+) -> Response {
+    let _permit = app_state.acquire_write_permit().await;
+    let pool = app_state.db_pool();
+
+    // 1. 创建任务实体（现有逻辑）
+    let task_id = app_state.id_generator().new_uuid();
+    // ... 设置其他字段
+
+    // 2. 🔥 生成初始排序位置（置顶）
+    let initial_rank = if let Some(view_context) = &request.view_context {
+        // 查询当前视图的第一个任务
+        let first_rank = database::get_first_rank_in_view(pool, view_context).await?;
+
+        match first_rank {
+            Some(rank) => {
+                // 生成比第一个更小的rank（插入到顶部）
+                let rank_obj = LexoRank::parse(&rank)?;
+                rank_obj.gen_prev().to_string()
+            }
+            None => {
+                // 视图为空，使用初始rank
+                LexoRankService::initial_rank()
+            }
+        }
+    } else {
+        LexoRankService::initial_rank()
+    };
+
+    // 3. 初始化 sort_positions
+    let mut sort_positions = HashMap::new();
+    if let Some(view_context) = &request.view_context {
+        sort_positions.insert(view_context.clone(), initial_rank);
+    }
+
+    // 4. 写入数据库
+    database::insert_task(pool, &task, &sort_positions).await?;
+
+    // 5. 发送SSE事件 + 返回响应
+    // ...
+}
+
+// 辅助函数：查询视图中的第一个任务的rank
+async fn get_first_rank_in_view(
+    pool: &SqlitePool,
+    view_context: &str,
+) -> AppResult<Option<String>> {
+    let query = r#"
+        SELECT json_extract(sort_positions, ?) as rank
+        FROM tasks
+        WHERE json_extract(sort_positions, ?) IS NOT NULL
+          AND deleted_at IS NULL
+        ORDER BY json_extract(sort_positions, ?) ASC
+        LIMIT 1
+    "#;
+
+    let json_path = format!("$.{}", view_context);
+    let row: Option<(Option<String>,)> = sqlx::query_as(query)
+        .bind(&json_path)
+        .bind(&json_path)
+        .bind(&json_path)
+        .fetch_optional(pool)
+        .await?;
+
+    Ok(row.and_then(|(rank,)| rank))
+}
+```
+
+#### 6.3.2 回到暂存区时重新注入（置顶）
+
+**修改 Return to Staging API：** `DELETE /api/task-schedules`
+
+**实现逻辑：**
+```rust
+// src-tauri/src/features/endpoints/task_schedules/delete_schedules.rs
+
+pub async fn handle(
+    State(app_state): State<AppState>,
+    Path(task_id): Path<String>,
+) -> Response {
+    let _permit = app_state.acquire_write_permit().await;
+    let pool = app_state.db_pool();
+
+    // 1. 删除所有 >= today 的 schedules（现有逻辑）
+    let today = get_local_date_string();
+    database::delete_schedules_from_date(pool, &task_id, &today).await?;
+
+    // 2. 🔥 重新注入 Staging rank（置顶）
+    let staging_context = "misc::staging";
+    let first_rank = database::get_first_rank_in_view(pool, staging_context).await?;
+
+    let new_rank = match first_rank {
+        Some(rank) => {
+            let rank_obj = LexoRank::parse(&rank)?;
+            rank_obj.gen_prev().to_string()
+        }
+        None => {
+            LexoRankService::initial_rank()
+        }
+    };
+
+    // 3. 更新任务的 sort_positions
+    database::update_task_rank(pool, &task_id, staging_context, &new_rank).await?;
+
+    // 4. 发送SSE事件
+    emit_event("task.returned_to_staging", payload_with_new_rank);
+
+    // 5. 返回响应
+    Ok(())
+}
+```
+
+#### 6.3.3 更新任务排序位置（拖拽）
 
 **端点：** `PATCH /api/tasks/:task_id/sort-position`
 
@@ -593,17 +789,93 @@ async fn update_task_rank(
 }
 ```
 
-#### 6.3.2 批量初始化排序位置
+#### 6.3.4 批量初始化排序位置（懒加载）
 
 **端点：** `POST /api/tasks/batch-init-ranks`
 
-**用途：** 为现有任务批量生成初始rank（迁移工具）
+**用途：** 视图首次加载时，为缺少rank的任务批量生成
 
 **请求体：**
 ```json
 {
   "view_context": "daily::2025-10-01",
-  "task_ids": ["uuid-1", "uuid-2", "uuid-3"]  // 按显示顺序
+  "task_ids": ["uuid-1", "uuid-2", "uuid-3"]  // 🔥 按 created_at DESC 排序
+}
+```
+
+**实现逻辑：**
+```rust
+pub async fn handle(request: BatchInitRanksRequest) -> Response {
+    let _permit = app_state.acquire_write_permit().await;
+    let pool = app_state.db_pool();
+
+    // 1. 检查视图是否已有任务（决定起始rank）
+    let first_rank = database::get_first_rank_in_view(pool, &request.view_context).await?;
+
+    // 2. 均匀生成ranks
+    let ranks = if let Some(existing_first) = first_rank {
+        // 视图已有任务：在现有任务之后均匀分布
+        let first_obj = LexoRank::parse(&existing_first)?;
+        let last_obj = first_obj.gen_next(); // 生成一个后续rank作为边界
+
+        // 在 first 和 last 之间均匀分配
+        generate_evenly_distributed_ranks(
+            &existing_first,
+            &last_obj.to_string(),
+            request.task_ids.len()
+        )
+    } else {
+        // 视图为空：从中间开始均匀分布
+        let middle = LexoRankService::initial_rank();
+        let middle_obj = LexoRank::parse(&middle)?;
+        let prev_obj = middle_obj.gen_prev();
+        let next_obj = middle_obj.gen_next();
+
+        generate_evenly_distributed_ranks(
+            &prev_obj.to_string(),
+            &next_obj.to_string(),
+            request.task_ids.len()
+        )
+    };
+
+    // 3. 批量更新任务的 sort_positions
+    let mut tx = pool.begin().await?;
+
+    for (task_id, rank) in request.task_ids.iter().zip(ranks.iter()) {
+        update_task_rank(&mut tx, task_id, &request.view_context, rank).await?;
+    }
+
+    tx.commit().await?;
+
+    // 4. 返回 task_id -> rank 映射
+    let result: HashMap<String, String> = request.task_ids
+        .iter()
+        .zip(ranks.iter())
+        .map(|(id, rank)| (id.clone(), rank.clone()))
+        .collect();
+
+    Ok(Json(result))
+}
+
+// 辅助函数：均匀生成多个ranks
+fn generate_evenly_distributed_ranks(
+    start: &str,
+    end: &str,
+    count: usize,
+) -> Vec<String> {
+    let start_obj = LexoRank::parse(start).unwrap();
+    let end_obj = LexoRank::parse(end).unwrap();
+
+    let mut ranks = Vec::new();
+    let mut prev = start_obj;
+
+    for _ in 0..count {
+        let next = prev.between(&end_obj).unwrap();
+        ranks.push(next.to_string());
+        prev = next;
+    }
+
+    ranks
 }
 ```
 
@@ -756,22 +1028,29 @@ export interface TaskCard {
 }
 ```
 
-### 7.2 排序逻辑
+### 7.4 排序逻辑与懒加载
 
 ```typescript
 // src/composables/useViewTasks.ts
 
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useTaskStore } from '@/stores/task'
+import { pipeline } from '@/cpu'
 
 export function useViewTasks(viewContext: string) {
   const taskStore = useTaskStore()
+  const isInitializing = ref(false)
 
   // 获取视图中的所有任务（过滤逻辑不变）
   const tasks = computed(() => {
     return taskStore.allTasks.filter(task => {
       // ... 现有的过滤逻辑（按日期、area、project等）
     })
+  })
+
+  // 🔥 检查哪些任务缺少 rank
+  const tasksWithoutRank = computed(() => {
+    return tasks.value.filter(task => !task.sortPositions[viewContext])
   })
 
   // 🔥 按 sort_positions 排序
@@ -794,13 +1073,47 @@ export function useViewTasks(viewContext: string) {
     })
   })
 
+  // 🔥 懒加载：视图首次渲染时批量初始化缺失的 ranks
+  const initializeMissingRanks = async () => {
+    if (isInitializing.value || tasksWithoutRank.value.length === 0) {
+      return
+    }
+
+    isInitializing.value = true
+
+    try {
+      // 按 created_at DESC 排序（新任务在前）
+      const taskIds = tasksWithoutRank.value
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .map(t => t.id)
+
+      // 调用批量初始化API
+      await pipeline.dispatch('task.batch_init_ranks', {
+        viewContext,
+        taskIds,
+      })
+    } catch (error) {
+      console.error('Failed to initialize ranks:', error)
+    } finally {
+      isInitializing.value = false
+    }
+  }
+
+  // 组件挂载时检查并初始化
+  onMounted(() => {
+    if (tasksWithoutRank.value.length > 0) {
+      initializeMissingRanks()
+    }
+  })
+
   return {
     tasks: sortedTasks,
+    isInitializing,
   }
 }
 ```
 
-### 7.3 拖拽更新
+### 7.5 拖拽更新
 
 ```typescript
 // src/components/assembles/tasks/kanban/SimpleKanbanColumn.vue
