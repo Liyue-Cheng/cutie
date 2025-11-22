@@ -85,10 +85,14 @@ use uuid::Uuid;
 
 use crate::{
     entities::template::{Template, TemplateCategory, TemplateDto},
-    features::shared::{repositories::TaskRepository, TransactionHelper},
+    features::shared::{
+        repositories::{TaskRepository, TemplateSortRepository},
+        TransactionHelper,
+    },
     infra::{
         core::{AppError, AppResult, DbError},
         http::error_handler::created_response,
+        LexoRankService,
     },
     startup::AppState,
 };
@@ -148,7 +152,7 @@ mod logic {
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
         // 5. 创建模板
-        let template = Template {
+        let mut template = Template {
             id: template_id,
             title: request.title.unwrap_or(task.title.clone()),
             glance_note_template: task.glance_note.clone(),
@@ -157,10 +161,18 @@ mod logic {
             subtasks_template: task.subtasks.clone(),
             area_id: task.area_id,
             category,
+            sort_rank: None,
             created_at: now,
             updated_at: now,
             is_deleted: false,
         };
+
+        let last_rank = TemplateSortRepository::get_highest_sort_rank_in_tx(&mut tx).await?;
+        let new_rank = match last_rank {
+            Some(rank) => LexoRankService::generate_between(Some(rank.as_str()), None)?,
+            None => LexoRankService::initial_rank(),
+        };
+        template.sort_rank = Some(new_rank.clone());
 
         // 6. 插入数据库
         database::insert_in_tx(&mut tx, &template).await?;
@@ -182,6 +194,7 @@ mod logic {
             "subtasks_template": template.subtasks_template,
             "area_id": template.area_id,
             "category": template.category.as_str(),
+            "sort_rank": template.sort_rank,
             "created_at": template.created_at,
             "updated_at": template.updated_at,
         });
@@ -210,6 +223,7 @@ mod logic {
             category: template.category,
             created_at: template.created_at,
             updated_at: template.updated_at,
+            sort_rank: template.sort_rank,
         };
 
         Ok(dto)
@@ -231,8 +245,8 @@ mod database {
             INSERT INTO templates (
                 id, title, glance_note_template, detail_note_template,
                 estimated_duration_template, subtasks_template, area_id,
-                category, created_at, updated_at, is_deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                category, sort_rank, created_at, updated_at, is_deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(template.id.to_string())
@@ -248,6 +262,7 @@ mod database {
         )
         .bind(template.area_id.map(|id| id.to_string()))
         .bind(template.category.as_str())
+        .bind(&template.sort_rank)
         .bind(&template.created_at)
         .bind(&template.updated_at)
         .bind(template.is_deleted)

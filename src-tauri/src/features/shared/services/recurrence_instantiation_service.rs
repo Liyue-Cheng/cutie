@@ -287,6 +287,7 @@ impl RecurrenceInstantiationService {
             detail_note,
             estimated_duration: template.estimated_duration_template,
             subtasks: template.subtasks_template.clone(),
+            sort_positions: std::collections::HashMap::new(),
             project_id: None,
             section_id: None,
             area_id: template.area_id,
@@ -366,7 +367,7 @@ impl RecurrenceInstantiationService {
         let query = r#"
             SELECT id, title, glance_note_template, detail_note_template,
                    estimated_duration_template, subtasks_template, area_id, category,
-                   created_at, updated_at, is_deleted
+                   sort_rank, created_at, updated_at, is_deleted
             FROM templates
             WHERE id = ? AND is_deleted = 0
         "#;

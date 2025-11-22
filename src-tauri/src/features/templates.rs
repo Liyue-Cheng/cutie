@@ -19,6 +19,8 @@ pub fn create_routes() -> Router<AppState> {
         .route("/", post(endpoints::create_template))
         .route("/:id", patch(endpoints::update_template)) // ✅ 修正：PUT -> PATCH
         .route("/:id", delete(endpoints::delete_template))
+        .route("/:id/sort-rank", patch(endpoints::update_sort_rank))
+        .route("/batch-init-ranks", post(endpoints::batch_init_ranks))
         .route(
             "/:id/create-task",
             post(endpoints::create_task_from_template),

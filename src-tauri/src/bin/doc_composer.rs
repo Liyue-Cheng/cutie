@@ -268,7 +268,6 @@ fn feature_display_name(feature: &str) -> String {
         "areas" => "Areas (领域管理)".to_string(),
         "time_blocks" => "Time Blocks (时间块管理)".to_string(),
         "views" => "Views (视图查询)".to_string(),
-        "view_preferences" => "View Preferences (视图偏好)".to_string(),
         _ => {
             // 首字母大写
             let mut chars = feature.chars();

@@ -1,6 +1,8 @@
 /// Task核心模型
 ///
 /// 从shared/core/models/task.rs迁移而来
+use std::collections::HashMap;
+
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -54,6 +56,12 @@ pub struct Task {
     ///
     /// **前置条件:** 必须是Vec<Subtask>的有效结构
     pub subtasks: Option<Vec<Subtask>>,
+
+    /// 视图排序位置（LexoRank）
+    ///
+    /// Key: view_context (如 "daily::2025-10-01")
+    /// Value: lexorank 字符串 (如 "0|m00000:")
+    pub sort_positions: HashMap<String, String>,
 
     /// 项目ID (外键, 可选)
     ///
@@ -135,6 +143,7 @@ impl Task {
             detail_note: None,
             estimated_duration: None,
             subtasks: None,
+            sort_positions: HashMap::new(),
             project_id: None,
             section_id: None,
             area_id: None,
@@ -217,7 +226,8 @@ pub struct TaskRow {
     pub glance_note: Option<String>,
     pub detail_note: Option<String>,
     pub estimated_duration: Option<i32>,
-    pub subtasks: Option<String>, // JSON
+    pub subtasks: Option<String>,       // JSON
+    pub sort_positions: Option<String>, // JSON
     pub project_id: Option<String>,
     pub section_id: Option<String>,
     pub area_id: Option<String>,
@@ -250,6 +260,15 @@ impl TryFrom<TaskRow> for Task {
                 .subtasks
                 .as_ref()
                 .and_then(|s| serde_json::from_str(s).ok()),
+            sort_positions: row
+                .sort_positions
+                .as_ref()
+                .map(|json| {
+                    serde_json::from_str(json)
+                        .map_err(|e| format!("Failed to parse sort_positions: {}", e))
+                })
+                .transpose()?
+                .unwrap_or_default(),
             project_id: row
                 .project_id
                 .as_ref()

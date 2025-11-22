@@ -98,10 +98,7 @@ impl TryFrom<ProjectRow> for Project {
                 .as_ref()
                 .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()),
             completed_at: row.completed_at,
-            area_id: row
-                .area_id
-                .as_ref()
-                .and_then(|s| Uuid::parse_str(s).ok()),
+            area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
             created_at: row.created_at,
             updated_at: row.updated_at,
             is_deleted: row.is_deleted,
@@ -145,4 +142,3 @@ impl Project {
         matches!(self.status, ProjectStatus::Completed)
     }
 }
-

@@ -21,6 +21,27 @@ import {
 import { pipeline } from '@/cpu'
 import { isTaskCard } from '@/types/dtos'
 
+function isLexoRankView(viewKey: string): boolean {
+  return Boolean(viewKey)
+}
+
+function buildLexoRankPayload(viewKey: string, order: string[], taskId: string) {
+  const index = order.indexOf(taskId)
+  if (index === -1) {
+    return null
+  }
+
+  const prev = index > 0 ? order[index - 1] : null
+  const next = index < order.length - 1 ? order[index + 1] : null
+
+  return {
+    task_id: taskId,
+    view_context: viewKey,
+    prev_task_id: prev,
+    next_task_id: next,
+  }
+}
+
 /**
  * 策略 1：Staging → Daily
  *
@@ -68,31 +89,15 @@ export const stagingToDailyStrategy: Strategy = {
         await pipeline.dispatch('schedule.create', createPayload)
         operations.push(createOperationRecord('create_schedule', ctx.targetViewId, createPayload))
 
-        // 🎯 步骤 2: 从 Staging 移除（更新排序）
-        const sourceSorting = extractTaskIds(ctx.sourceContext)
-        const newSourceSorting = removeTaskFrom(sourceSorting, task.id)
-        const sourceSortPayload = {
-          view_key: ctx.sourceViewId,
-          sorted_task_ids: newSourceSorting,
-          original_sorted_task_ids: sourceSorting,
-        }
-        await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
-        )
-
-        // 🎯 步骤 3: 插入到 Daily（更新排序）
+        // 🎯 步骤 2: 更新目标日视图的排序
         const targetSorting = extractTaskIds(ctx.targetContext)
         const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
-        const targetSortPayload = {
-          view_key: ctx.targetViewId,
-          sorted_task_ids: newTargetSorting,
-          original_sorted_task_ids: targetSorting,
+
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetSorting, task.id)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+          operations.push(createOperationRecord('update_sort_position', ctx.targetViewId, payload))
         }
-        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
-        )
 
         return {
           success: true,
@@ -171,13 +176,14 @@ export const dailyToDailyStrategy: Strategy = {
         if (isSameDay(ctx.sourceViewId, ctx.targetZone)) {
           const sorting = extractTaskIds(ctx.sourceContext)
           const newSorting = moveTaskWithin(sorting, task.id, ctx.dropIndex ?? sorting.length)
-          const sortPayload = {
-            view_key: ctx.sourceViewId,
-            sorted_task_ids: newSorting,
-            original_sorted_task_ids: sorting,
+
+          const payload = buildLexoRankPayload(ctx.sourceViewId, newSorting, task.id)
+          if (payload) {
+            await pipeline.dispatch('task.update_sort_position', payload)
+            operations.push(
+              createOperationRecord('update_sort_position', ctx.sourceViewId, payload)
+            )
           }
-          await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
-          operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sortPayload))
 
           return {
             success: true,
@@ -220,15 +226,14 @@ export const dailyToDailyStrategy: Strategy = {
           // 🎯 步骤 3: 插入到目标 Daily
           const targetSorting = extractTaskIds(ctx.targetContext)
           const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
-          const targetSortPayload = {
-            view_key: ctx.targetViewId,
-            sorted_task_ids: newTargetSorting,
-            original_sorted_task_ids: targetSorting,
+
+          const payload = buildLexoRankPayload(ctx.targetViewId, newTargetSorting, task.id)
+          if (payload) {
+            await pipeline.dispatch('task.update_sort_position', payload)
+            operations.push(
+              createOperationRecord('update_sort_position', ctx.targetViewId, payload)
+            )
           }
-          await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
-          operations.push(
-            createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
-          )
 
           return {
             success: true,
@@ -284,33 +289,15 @@ export const dailyToDailyStrategy: Strategy = {
           operations.push(createOperationRecord('update_schedule', ctx.targetViewId, updatePayload))
         }
 
-        // 🎯 步骤 2: 仅当不需要保留源日程时，才从源 Daily 移除
-        if (!shouldKeepSource) {
-          const sourceSorting = extractTaskIds(ctx.sourceContext)
-          const newSourceSorting = removeTaskFrom(sourceSorting, task.id)
-          const sourceSortPayload = {
-            view_key: ctx.sourceViewId,
-            sorted_task_ids: newSourceSorting,
-            original_sorted_task_ids: sourceSorting,
-          }
-          await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
-          operations.push(
-            createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
-          )
-        }
-
-        // 🎯 步骤 3: 插入到目标 Daily
+        // 🎯 步骤 2: 插入到目标 Daily
         const targetSorting = extractTaskIds(ctx.targetContext)
         const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
-        const targetSortPayload = {
-          view_key: ctx.targetViewId,
-          sorted_task_ids: newTargetSorting,
-          original_sorted_task_ids: targetSorting,
+
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetSorting, task.id)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+          operations.push(createOperationRecord('update_sort_position', ctx.targetViewId, payload))
         }
-        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
-        )
 
         return {
           success: true,
@@ -392,31 +379,15 @@ export const dailyToStagingStrategy: Strategy = {
         await pipeline.dispatch('task.return_to_staging', returnPayload)
         operations.push(createOperationRecord('return_to_staging', ctx.sourceViewId, returnPayload))
 
-        // 🎯 步骤 2: 从 Daily 移除
-        const sourceSorting = extractTaskIds(ctx.sourceContext)
-        const newSourceSorting = removeTaskFrom(sourceSorting, task.id)
-        const sourceSortPayload = {
-          view_key: ctx.sourceViewId,
-          sorted_task_ids: newSourceSorting,
-          original_sorted_task_ids: sourceSorting,
-        }
-        await pipeline.dispatch('viewpreference.update_sorting', sourceSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.sourceViewId, sourceSortPayload)
-        )
-
-        // 🎯 步骤 3: 插入到 Staging
+        // 🎯 步骤 2: 插入到 Staging
         const targetSorting = extractTaskIds(ctx.targetContext)
         const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
-        const targetSortPayload = {
-          view_key: ctx.targetViewId,
-          sorted_task_ids: newTargetSorting,
-          original_sorted_task_ids: targetSorting,
+
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetSorting, task.id)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+          operations.push(createOperationRecord('update_sort_position', ctx.targetViewId, payload))
         }
-        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
-        )
 
         return {
           success: true,
@@ -486,13 +457,11 @@ export const dailyReorderStrategy: Strategy = {
       try {
         const sorting = extractTaskIds(ctx.sourceContext)
         const newSorting = moveTaskWithin(sorting, task.id, ctx.dropIndex ?? sorting.length)
-        const sortPayload = {
-          view_key: ctx.sourceViewId,
-          sorted_task_ids: newSorting,
-          original_sorted_task_ids: sorting,
+        const payload = buildLexoRankPayload(ctx.sourceViewId, newSorting, task.id)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+          operations.push(createOperationRecord('update_sort_position', ctx.sourceViewId, payload))
         }
-        await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.sourceViewId, sortPayload))
 
         return {
           success: true,
@@ -552,13 +521,20 @@ export const stagingReorderStrategy: Strategy = {
       try {
         const sorting = extractTaskIds(ctx.targetContext)
         const newSorting = moveTaskWithin(sorting, task.id, ctx.dropIndex ?? sorting.length)
-        const sortPayload = {
-          view_key: ctx.targetZone,
-          sorted_task_ids: newSorting,
-          original_sorted_task_ids: sorting,
+        const newIndex = newSorting.indexOf(task.id)
+        const prevTaskId = newIndex > 0 ? newSorting[newIndex - 1] : null
+        const nextTaskId =
+          newIndex >= 0 && newIndex < newSorting.length - 1 ? newSorting[newIndex + 1] : null
+
+        const payload = {
+          task_id: task.id,
+          view_context: ctx.targetZone,
+          prev_task_id: prevTaskId,
+          next_task_id: nextTaskId,
         }
-        await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.targetZone, sortPayload))
+
+        await pipeline.dispatch('task.update_sort_position', payload)
+        operations.push(createOperationRecord('update_sort_position', ctx.targetZone, payload))
 
         return {
           success: true,

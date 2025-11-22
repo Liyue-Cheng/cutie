@@ -3,6 +3,7 @@
 /// 任务相关的HTTP端点
 pub use add_schedule::handle as add_schedule;
 pub use archive_task::handle as archive_task;
+pub use batch_init_ranks::handle as batch_init_ranks;
 pub use complete_task::handle as complete_task;
 pub use create_task::handle as create_task;
 pub use create_task_with_schedule::handle as create_task_with_schedule;
@@ -16,10 +17,12 @@ pub use restore_task::handle as restore_task;
 pub use return_to_staging::handle as return_to_staging;
 pub use unarchive_task::handle as unarchive_task;
 pub use update_schedule::handle as update_schedule;
+pub use update_sort_position::handle as update_sort_position;
 pub use update_task::handle as update_task;
 
 mod add_schedule;
 mod archive_task;
+mod batch_init_ranks;
 mod complete_task;
 mod create_task;
 mod create_task_with_schedule;
@@ -33,4 +36,5 @@ mod restore_task;
 mod return_to_staging;
 mod unarchive_task;
 mod update_schedule;
+mod update_sort_position;
 mod update_task;

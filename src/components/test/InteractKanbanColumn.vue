@@ -5,9 +5,8 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import type { ViewMetadata } from '@/types/drag'
-import { useViewStore } from '@/stores/view'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { dragPreviewState } from '@/infra/drag-interact'
 import { useViewTasks } from '@/composables/useViewTasks'
@@ -24,8 +23,6 @@ const props = defineProps<{
   viewKey: string // 🔥 必需：所有看板都必须提供 viewKey
   viewMetadata?: ViewMetadata // 可选：可自动推导
 }>()
-
-const viewStore = useViewStore()
 
 // ==================== 数据源管理 ====================
 
@@ -193,91 +190,33 @@ function handleTaskCompleted(completedTaskId: string) {
   // 插入到最后一个未完成任务的后面
   newOrder.splice(insertPosition, 0, completedTaskId)
 
-  // 🔥 使用 CPU Pipeline 更新排序（乐观更新）
-  const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
-  pipeline
-    .dispatch('viewpreference.update_sorting', {
-      view_key: props.viewKey,
-      sorted_task_ids: newOrder,
-      original_sorted_task_ids: originalOrder, // 用于失败回滚
-    })
-    .catch((error) => {
-      logger.error(
-        LogTags.COMPONENT_KANBAN_COLUMN,
-        'Failed to persist completed task reorder',
-        error,
-        { viewKey: props.viewKey }
-      )
-    })
+  const payload = buildLexoPayload(props.viewKey, newOrder, completedTaskId)
+  if (!payload) return
+
+  pipeline.dispatch('task.update_sort_position', payload).catch((error) => {
+    logger.error(
+      LogTags.COMPONENT_KANBAN_COLUMN,
+      'Failed to persist completed task reorder',
+      error,
+      { viewKey: props.viewKey }
+    )
+  })
 }
 
-// ==================== 排序配置管理 ====================
+function buildLexoPayload(viewKey: string, order: string[], taskId: string) {
+  const index = order.indexOf(taskId)
+  if (index === -1) return null
 
-const previousTaskIds = ref<Set<string>>(new Set())
+  const prev = index > 0 ? order[index - 1] : null
+  const next = index < order.length - 1 ? order[index + 1] : null
 
-onMounted(async () => {
-  // 🔥 简化：所有看板都有 viewKey，直接加载排序配置
-  const alreadyLoaded = viewStore.sortWeights.has(props.viewKey)
-  if (!alreadyLoaded) {
-    await viewStore.fetchViewPreference(props.viewKey)
+  return {
+    view_context: viewKey,
+    task_id: taskId,
+    prev_task_id: prev,
+    next_task_id: next,
   }
-  // 🆕 注册 daily 视图
-  const parts = props.viewKey.split('::')
-  if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
-    viewStore.registerDailyView(parts[1])
-  }
-})
-
-onBeforeUnmount(() => {
-  const parts = props.viewKey.split('::')
-  if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
-    viewStore.unregisterDailyView(parts[1])
-  }
-})
-
-// ✅ 自动检测任务列表变化并持久化（使用 effectiveTasks）
-watch(
-  () => effectiveTasks.value,
-  (newTasks) => {
-    // ✅ 移除 sortingConfigLoaded 检查，避免闪烁
-    if (isDragging.value) {
-      previousTaskIds.value = new Set(newTasks.map((t) => t.id))
-      return
-    }
-
-    const currentTaskIds = new Set(newTasks.map((t) => t.id))
-    const hasChanges =
-      currentTaskIds.size !== previousTaskIds.value.size ||
-      !Array.from(currentTaskIds).every((id) => previousTaskIds.value.has(id))
-
-    if (hasChanges) {
-      previousTaskIds.value = currentTaskIds
-      const currentOrder = newTasks.map((t) => t.id)
-
-      // 🔥 使用 CPU Pipeline 自动持久化排序（乐观更新）
-      const originalOrder = viewStore.getSortedTaskIds(props.viewKey, effectiveTasks.value)
-      pipeline
-        .dispatch('viewpreference.update_sorting', {
-          view_key: props.viewKey,
-          sorted_task_ids: currentOrder,
-          original_sorted_task_ids: originalOrder,
-        })
-        .catch((error) => {
-          logger.error(
-            LogTags.COMPONENT_KANBAN_COLUMN,
-            'Failed to auto-persist view tasks',
-            error,
-            {
-              viewKey: props.viewKey,
-            }
-          )
-        })
-    } else {
-      previousTaskIds.value = currentTaskIds
-    }
-  },
-  { deep: false, immediate: true }
-)
+}
 </script>
 
 <template>

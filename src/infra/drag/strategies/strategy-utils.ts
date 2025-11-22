@@ -122,6 +122,7 @@ export interface OperationRecord {
     | 'update_schedule'
     | 'delete_schedule'
     | 'update_sorting'
+    | 'update_sort_position'
     | 'return_to_staging'
   target: string
   payload?: any

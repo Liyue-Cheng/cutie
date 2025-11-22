@@ -23,4 +23,3 @@ pub struct UpdateProjectRequest {
     pub due_date: Option<Option<NaiveDate>>,
     pub area_id: Option<Option<Uuid>>,
 }
-

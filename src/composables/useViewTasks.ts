@@ -1,8 +1,9 @@
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { pipeline } from '@/cpu'
 
 /**
  * 根据 viewKey 自动获取和排序任务
@@ -22,6 +23,9 @@ import { logger, LogTags } from '@/infra/logging/logger'
 export function useViewTasks(viewKey: string) {
   const taskStore = useTaskStore()
   const viewStore = useViewStore()
+  const attemptedInitTaskIds = ref<Set<string>>(new Set())
+  const isLexoRankView = !!viewKey
+  const isInitializingRanks = ref(false)
 
   /**
    * 根据 viewKey 获取基础任务列表并应用排序
@@ -155,36 +159,84 @@ export function useViewTasks(viewKey: string) {
     )
   }
 
+  if (isLexoRankView) {
+    watch(
+      tasks,
+      async (newTasks) => {
+        if (!Array.isArray(newTasks) || newTasks.length === 0) {
+          return
+        }
+
+        const missing = newTasks
+          .filter((task) => !task.sort_positions || !task.sort_positions[viewKey])
+          .map((task) => task.id)
+          .filter((id) => !attemptedInitTaskIds.value.has(id))
+
+        if (missing.length === 0) {
+          return
+        }
+
+        missing.forEach((id) => attemptedInitTaskIds.value.add(id))
+
+        if (isInitializingRanks.value) {
+          return
+        }
+
+        isInitializingRanks.value = true
+
+        try {
+          await pipeline.dispatch('task.batch_init_ranks', {
+            view_context: viewKey,
+            task_ids: missing,
+          })
+        } catch (error) {
+          logger.error(
+            LogTags.STORE_VIEW,
+            'Failed to initialize LexoRank for staging tasks',
+            error instanceof Error ? error : new Error(String(error)),
+            {
+              viewKey,
+              taskIds: missing,
+            }
+          )
+          // 失败时允许后续重新尝试
+          missing.forEach((id) => attemptedInitTaskIds.value.delete(id))
+        } finally {
+          isInitializingRanks.value = false
+        }
+      },
+      { immediate: true }
+    )
+  }
+
   /**
    * 组件挂载时预加载排序配置和数据
    */
   onMounted(async () => {
-    if (viewKey) {
-      try {
-        // 1. 加载排序配置
-        await viewStore.fetchViewPreference(viewKey)
-        logger.debug(LogTags.STORE_VIEW, 'Loaded sorting preference', { viewKey })
+    if (!viewKey) {
+      return
+    }
 
-        // 2. 如果是日视图，调用专用端点获取任务（触发循环任务实例化）
-        const parts = viewKey.split('::')
-        if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
-          const date = parts[1]
-          logger.info(LogTags.STORE_VIEW, 'Fetching daily tasks for date', { date, viewKey })
-          await taskStore.fetchDailyTasks_DMA(date)
-          logger.info(LogTags.STORE_VIEW, 'Daily tasks loaded', { date, viewKey })
+    try {
+      // 如果是日视图，调用专用端点获取任务（触发循环任务实例化）
+      const parts = viewKey.split('::')
+      if (parts.length >= 2 && parts[0] === 'daily' && parts[1]) {
+        const date = parts[1]
+        logger.info(LogTags.STORE_VIEW, 'Fetching daily tasks for date', { date, viewKey })
+        await taskStore.fetchDailyTasks_DMA(date)
+        logger.info(LogTags.STORE_VIEW, 'Daily tasks loaded', { date, viewKey })
 
-          // 3. 注册日视图，以便循环操作后能刷新
-          viewStore.registerDailyView(date)
-          logger.debug(LogTags.STORE_VIEW, 'Registered daily view for refresh', { date, viewKey })
-        }
-      } catch (error) {
-        logger.error(
-          LogTags.STORE_VIEW,
-          'Failed to load view data',
-          error instanceof Error ? error : new Error(String(error)),
-          { viewKey }
-        )
+        // 注册日视图，以便循环操作后能刷新
+        viewStore.registerDailyView(date)
+        logger.debug(LogTags.STORE_VIEW, 'Registered daily view for refresh', { date, viewKey })
       }
+    } catch (error) {
+      logger.error(
+        LogTags.STORE_VIEW,
+        'Failed to load view data',
+        error instanceof Error ? error : new Error(String(error)),
+        { viewKey }
+      )
     }
   })
 

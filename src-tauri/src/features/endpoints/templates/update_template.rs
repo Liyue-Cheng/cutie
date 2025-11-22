@@ -194,6 +194,7 @@ mod logic {
             category: updated.category,
             created_at: updated.created_at,
             updated_at: updated.updated_at,
+            sort_rank: updated.sort_rank,
         };
 
         Ok(dto)
@@ -214,7 +215,7 @@ mod database {
             SELECT
                 id, title, glance_note_template, detail_note_template,
                 estimated_duration_template, subtasks_template, area_id, category,
-                created_at, updated_at, is_deleted
+                sort_rank, created_at, updated_at, is_deleted
             FROM templates
             WHERE id = ? AND is_deleted = FALSE
         "#;
@@ -237,7 +238,7 @@ mod database {
             SELECT
                 id, title, glance_note_template, detail_note_template,
                 estimated_duration_template, subtasks_template, area_id, category,
-                created_at, updated_at, is_deleted
+                sort_rank, created_at, updated_at, is_deleted
             FROM templates
             WHERE id = ? AND is_deleted = FALSE
         "#;

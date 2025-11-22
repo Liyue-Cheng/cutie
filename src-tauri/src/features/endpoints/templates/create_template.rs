@@ -93,10 +93,11 @@ use axum::{
 
 use crate::{
     entities::template::{CreateTemplateRequest, Template, TemplateCategory, TemplateDto},
-    features::shared::TransactionHelper,
+    features::shared::{repositories::TemplateSortRepository, TransactionHelper},
     infra::{
         core::{AppError, AppResult, ValidationError},
         http::error_handler::created_response,
+        LexoRankService,
     },
     startup::AppState,
 };
@@ -177,7 +178,7 @@ mod logic {
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
         // 4. 创建实体
-        let template = Template {
+        let mut template = Template {
             id,
             title: request.title,
             glance_note_template: request.glance_note_template,
@@ -186,15 +187,24 @@ mod logic {
             subtasks_template: request.subtasks_template,
             area_id: request.area_id,
             category: request.category.unwrap_or(TemplateCategory::General),
+            sort_rank: None,
             created_at: now,
             updated_at: now,
             is_deleted: false,
         };
 
-        // 5. 插入数据库
+        // 5. 生成排序位置（追加到末尾）
+        let last_rank = TemplateSortRepository::get_highest_sort_rank_in_tx(&mut tx).await?;
+        let new_rank = match last_rank {
+            Some(rank) => LexoRankService::generate_between(Some(rank.as_str()), None)?,
+            None => LexoRankService::initial_rank(),
+        };
+        template.sort_rank = Some(new_rank.clone());
+
+        // 6. 插入数据库
         database::insert_in_tx(&mut tx, &template).await?;
 
-        // 6. 写入事件到 outbox（在事务内）
+        // 7. 写入事件到 outbox（在事务内）
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -211,6 +221,7 @@ mod logic {
             "subtasks_template": template.subtasks_template,
             "area_id": template.area_id,
             "category": template.category.as_str(),
+            "sort_rank": template.sort_rank,
             "created_at": template.created_at,
             "updated_at": template.updated_at,
         });
@@ -224,10 +235,10 @@ mod logic {
 
         outbox_repo.append_in_tx(&mut tx, &event).await?;
 
-        // 7. 提交事务
+        // 8. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 8. 组装 DTO
+        // 9. 组装 DTO
         let dto = TemplateDto {
             id: template.id,
             title: template.title,
@@ -237,6 +248,7 @@ mod logic {
             subtasks_template: template.subtasks_template,
             area_id: template.area_id,
             category: template.category,
+            sort_rank: template.sort_rank,
             created_at: template.created_at,
             updated_at: template.updated_at,
         };
@@ -263,9 +275,9 @@ mod database {
             INSERT INTO templates (
                 id, title, glance_note_template, detail_note_template,
                 estimated_duration_template, subtasks_template, area_id, category,
-                created_at, updated_at, is_deleted
+                sort_rank, created_at, updated_at, is_deleted
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -277,6 +289,7 @@ mod database {
             .bind(subtasks_json)
             .bind(template.area_id.map(|id| id.to_string()))
             .bind(template.category.as_str())
+            .bind(&template.sort_rank)
             .bind(template.created_at)
             .bind(template.updated_at)
             .bind(template.is_deleted)

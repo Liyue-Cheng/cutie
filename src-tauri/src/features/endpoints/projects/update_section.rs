@@ -150,7 +150,10 @@ mod logic {
 
         // 4. 验证章节属于指定项目
         if section.project_id != project_id {
-            return Err(AppError::not_found("ProjectSection", section_id.to_string()));
+            return Err(AppError::not_found(
+                "ProjectSection",
+                section_id.to_string(),
+            ));
         }
 
         // 5. 如果更新标题，检查唯一性
@@ -276,4 +279,3 @@ mod events {
         Ok(())
     }
 }
-

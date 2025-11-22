@@ -97,6 +97,7 @@ mod logic {
                 subtasks_template: t.subtasks_template,
                 area_id: t.area_id,
                 category: t.category,
+                sort_rank: t.sort_rank.clone(),
                 created_at: t.created_at,
                 updated_at: t.updated_at,
             })
@@ -117,10 +118,13 @@ mod database {
             SELECT
                 id, title, glance_note_template, detail_note_template,
                 estimated_duration_template, subtasks_template, area_id, category,
-                created_at, updated_at, is_deleted
+                sort_rank, created_at, updated_at, is_deleted
             FROM templates
             WHERE is_deleted = FALSE
-            ORDER BY created_at DESC
+            ORDER BY
+                CASE WHEN sort_rank IS NULL THEN 1 ELSE 0 END,
+                sort_rank ASC,
+                created_at DESC
         "#;
 
         let rows: Vec<TemplateRow> = sqlx::query_as(query)

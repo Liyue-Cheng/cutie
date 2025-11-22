@@ -7,6 +7,8 @@ use axum::{
     Json,
 };
 
+use std::collections::HashMap;
+
 use crate::{
     entities::{CreateTaskRequest, ScheduleStatus, Task, TaskCardDto},
     features::shared::{repositories::TaskRepository, TaskAssembler},
@@ -234,6 +236,7 @@ mod logic {
             detail_note: request.detail_note.clone(),
             estimated_duration: request.estimated_duration,
             subtasks: request.subtasks.clone(),
+            sort_positions: HashMap::new(),
             project_id: request.project_id,
             section_id: request.section_id,
             area_id: request.area_id,

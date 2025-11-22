@@ -18,7 +18,7 @@ impl TaskRepository {
     ) -> AppResult<Option<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, sort_positions, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date
@@ -46,7 +46,7 @@ impl TaskRepository {
     pub async fn find_by_id(pool: &SqlitePool, task_id: Uuid) -> AppResult<Option<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, sort_positions, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date
@@ -74,12 +74,12 @@ impl TaskRepository {
     pub async fn insert_in_tx(tx: &mut Transaction<'_, Sqlite>, task: &Task) -> AppResult<()> {
         let query = r#"
             INSERT INTO tasks (
-                id, title, glance_note, detail_note, estimated_duration, subtasks,
+                id, title, glance_note, detail_note, estimated_duration, subtasks, sort_positions,
                 project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_id, recurrence_original_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -93,6 +93,7 @@ impl TaskRepository {
                     .as_ref()
                     .map(|s| serde_json::to_string(s).unwrap()),
             )
+            .bind(serde_json::to_string(&task.sort_positions).unwrap_or_else(|_| "{}".to_string()))
             .bind(task.project_id.map(|id| id.to_string()))
             .bind(task.section_id.map(|id| id.to_string()))
             .bind(task.area_id.map(|id| id.to_string()))
@@ -292,7 +293,7 @@ impl TaskRepository {
     ) -> AppResult<Option<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, sort_positions, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date
@@ -324,7 +325,7 @@ impl TaskRepository {
     ) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT id, title, glance_note, detail_note, estimated_duration,
-                   subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   subtasks, sort_positions, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                    created_at, updated_at, deleted_at, source_info,
                    external_source_id, external_source_provider, external_source_metadata,
                    recurrence_id, recurrence_original_date

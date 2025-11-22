@@ -75,15 +75,13 @@ export const templateToDailyStrategy: Strategy = {
         // 🎯 步骤 3: 插入到 Daily 视图（更新排序）
         const targetSorting = extractTaskIds(ctx.targetContext)
         const newTargetSorting = insertTaskAt(targetSorting, newTask.id, ctx.dropIndex)
-        const targetSortPayload = {
-          view_key: ctx.targetViewId,
-          sorted_task_ids: newTargetSorting,
-          original_sorted_task_ids: targetSorting,
+        const sortPayload = buildTaskLexoPayload(ctx.targetViewId, newTargetSorting, newTask.id)
+        if (sortPayload) {
+          await pipeline.dispatch('task.update_sort_position', sortPayload)
+          operations.push(
+            createOperationRecord('update_sort_position', ctx.targetViewId, sortPayload)
+          )
         }
-        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
-        )
 
         return {
           success: true,
@@ -155,17 +153,14 @@ export const dailyToTemplateStrategy: Strategy = {
 
         // 🎯 步骤 2: 插入到模板视图（更新排序）
         const targetSorting = extractTaskIds(ctx.targetContext)
-        // 注意：模板视图使用模板ID，不是任务ID
         const newTargetSorting = insertTaskAt(targetSorting, newTemplate.id, ctx.dropIndex)
-        const targetSortPayload = {
-          view_key: ctx.targetViewId,
-          sorted_task_ids: newTargetSorting,
-          original_sorted_task_ids: targetSorting,
+        const templatePayload = buildTemplateSortPayload(newTargetSorting, newTemplate.id)
+        if (templatePayload) {
+          await pipeline.dispatch('template.update_sort_rank', templatePayload)
+          operations.push(
+            createOperationRecord('update_sort_position', ctx.targetViewId, templatePayload)
+          )
         }
-        await pipeline.dispatch('viewpreference.update_sorting', targetSortPayload)
-        operations.push(
-          createOperationRecord('update_sorting', ctx.targetViewId, targetSortPayload)
-        )
 
         // 注意：不更新源视图排序，保留原任务在原位置
 
@@ -193,7 +188,7 @@ export const dailyToTemplateStrategy: Strategy = {
  * 策略 3：Template 内部重排序
  *
  * 操作链：
- * 1. 更新模板视图排序 (viewpreference.update_sorting)
+ * 1. 更新模板排序 (template.update_sort_rank)
  */
 export const templateReorderStrategy: Strategy = {
   id: 'template-reorder',
@@ -226,13 +221,13 @@ export const templateReorderStrategy: Strategy = {
       try {
         const sorting = extractTaskIds(ctx.targetContext)
         const newSorting = moveTaskWithin(sorting, template.id, ctx.dropIndex ?? sorting.length)
-        const sortPayload = {
-          view_key: ctx.targetZone,
-          sorted_task_ids: newSorting,
-          original_sorted_task_ids: sorting,
+        const templatePayload = buildTemplateSortPayload(newSorting, template.id)
+        if (templatePayload) {
+          await pipeline.dispatch('template.update_sort_rank', templatePayload)
+          operations.push(
+            createOperationRecord('update_sort_position', ctx.targetZone, templatePayload)
+          )
         }
-        await pipeline.dispatch('viewpreference.update_sorting', sortPayload)
-        operations.push(createOperationRecord('update_sorting', ctx.targetZone, sortPayload))
 
         return {
           success: true,
@@ -253,4 +248,33 @@ export const templateReorderStrategy: Strategy = {
   },
 
   tags: ['template', 'reorder'],
+}
+
+function buildTaskLexoPayload(viewKey: string, order: string[], taskId: string) {
+  const index = order.indexOf(taskId)
+  if (index === -1) return null
+
+  const prev = index > 0 ? order[index - 1] : null
+  const next = index < order.length - 1 ? order[index + 1] : null
+
+  return {
+    view_context: viewKey,
+    task_id: taskId,
+    prev_task_id: prev,
+    next_task_id: next,
+  }
+}
+
+function buildTemplateSortPayload(order: string[], templateId: string) {
+  const index = order.indexOf(templateId)
+  if (index === -1) return null
+
+  const prev = index > 0 ? order[index - 1] : null
+  const next = index < order.length - 1 ? order[index + 1] : null
+
+  return {
+    template_id: templateId,
+    prev_template_id: prev,
+    next_template_id: next,
+  }
 }

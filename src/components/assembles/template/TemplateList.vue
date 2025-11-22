@@ -37,9 +37,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useTemplateStore } from '@/stores/template'
-import { useViewStore } from '@/stores/view'
 import type { ViewMetadata } from '@/types/drag'
 import TemplateStrip from './TemplateStrip.vue'
 import TemplateEditorModal from './TemplateEditorModal.vue'
@@ -48,9 +47,10 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 import { dragPreviewState } from '@/infra/drag-interact/preview-state'
+import { pipeline } from '@/cpu'
 
 const templateStore = useTemplateStore()
-const viewStore = useViewStore()
+const pendingInit = ref(new Set<string>())
 
 const selectedTemplateId = ref<string | null>(null)
 const isEditorOpen = ref(false)
@@ -68,16 +68,9 @@ const viewMetadata = computed<ViewMetadata>(
     }) as ViewMetadata
 )
 
-// 加载所有模板和视图偏好
+// 加载所有模板
 onMounted(async () => {
   try {
-    // 1. 加载视图偏好排序
-    await viewStore.fetchViewPreference(VIEW_KEY)
-    logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Template view preference loaded', {
-      viewKey: VIEW_KEY,
-    })
-
-    // 2. 加载模板数据
     await templateStore.fetchAllTemplates()
     logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Templates loaded', {
       count: templateStore.generalTemplates.length,
@@ -91,26 +84,36 @@ onMounted(async () => {
   }
 })
 
-// 原始模板列表（仅通用模板 + 应用排序）
-const originalTemplates = computed(() => {
-  const baseTemplates = templateStore.generalTemplates
+// 原始模板列表
+const originalTemplates = computed(() => templateStore.generalTemplates)
 
-  // 应用视图偏好排序
-  const weights = viewStore.sortWeights.get(VIEW_KEY)
-  if (!weights || weights.size === 0) {
-    // 没有排序信息，保持原顺序
-    return baseTemplates
-  }
+watch(
+  () => originalTemplates.value,
+  (templates) => {
+    const missing = templates
+      .filter((template) => !template.sort_rank && !pendingInit.value.has(template.id))
+      .map((template) => template.id)
 
-  // 手动应用排序
-  const sorted = [...baseTemplates].sort((a, b) => {
-    const weightA = weights.get(a.id) ?? Infinity
-    const weightB = weights.get(b.id) ?? Infinity
-    return weightA - weightB
-  })
+    if (missing.length === 0) {
+      return
+    }
 
-  return sorted
-})
+    missing.forEach((id) => pendingInit.value.add(id))
+    pipeline
+      .dispatch('template.batch_init_ranks', {
+        template_ids: missing,
+      })
+      .catch((error) => {
+        logger.error(
+          LogTags.COMPONENT_KANBAN_COLUMN,
+          'Failed to batch initialize template ranks',
+          error instanceof Error ? error : new Error(String(error))
+        )
+        missing.forEach((id) => pendingInit.value.delete(id))
+      })
+  },
+  { immediate: true }
+)
 
 // 拖放系统集成
 const templateContainerRef = ref<HTMLElement | null>(null)

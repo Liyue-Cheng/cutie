@@ -69,6 +69,9 @@ pub struct Template {
     /// 模板类别
     pub category: TemplateCategory,
 
+    /// 排序位置（LexoRank）
+    pub sort_rank: Option<String>,
+
     /// 创建时间
     pub created_at: DateTime<Utc>,
 
@@ -93,6 +96,7 @@ pub struct TemplateRow {
     pub subtasks_template: Option<String>, // JSON
     pub area_id: Option<String>,
     pub category: String,
+    pub sort_rank: Option<String>,
     pub created_at: DateTime<Utc>, // SQLx自动转换
     pub updated_at: DateTime<Utc>, // SQLx自动转换
     pub is_deleted: bool,
@@ -114,6 +118,7 @@ impl TryFrom<TemplateRow> for Template {
                 .and_then(|s| serde_json::from_str(s).ok()),
             area_id: row.area_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
             category: TemplateCategory::try_from(row.category.as_str())?,
+            sort_rank: row.sort_rank,
             created_at: row.created_at, // SQLx已经转换
             updated_at: row.updated_at, // SQLx已经转换
             is_deleted: row.is_deleted,
@@ -133,6 +138,7 @@ impl Template {
             subtasks_template: None,
             area_id: None,
             category: TemplateCategory::General,
+            sort_rank: None,
             created_at,
             updated_at: created_at,
             is_deleted: false,

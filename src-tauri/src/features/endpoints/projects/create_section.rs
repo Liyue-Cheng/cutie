@@ -9,7 +9,10 @@ use uuid::Uuid;
 
 use crate::{
     entities::{CreateProjectSectionRequest, ProjectSection, ProjectSectionDto},
-    features::shared::{repositories::{ProjectRepository, ProjectSectionRepository}, TransactionHelper},
+    features::shared::{
+        repositories::{ProjectRepository, ProjectSectionRepository},
+        TransactionHelper,
+    },
     infra::{
         core::{AppError, AppResult},
         http::error_handler::created_response,
@@ -267,4 +270,3 @@ mod events {
         Ok(())
     }
 }
-

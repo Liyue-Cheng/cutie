@@ -61,6 +61,7 @@ impl TaskAssembler {
             recurrence_id: task.recurrence_id,
             recurrence_original_date: task.recurrence_original_date.clone(),
             recurrence_expiry_behavior: None, // 需要后续填充（调用 fill_recurrence_expiry_behavior）
+            sort_positions: task.sort_positions.clone(),
         }
     }
 
@@ -442,6 +443,7 @@ impl TaskAssembler {
 mod tests {
     use super::*;
     use chrono::Utc;
+    use std::collections::HashMap;
     use uuid::Uuid;
 
     fn create_test_task() -> Task {
@@ -452,7 +454,9 @@ mod tests {
             detail_note: Some("Detailed note".to_string()),
             estimated_duration: Some(60),
             subtasks: None,
+            sort_positions: HashMap::new(),
             project_id: None,
+            section_id: None,
             area_id: None,
             due_date: None,
             due_date_type: None,

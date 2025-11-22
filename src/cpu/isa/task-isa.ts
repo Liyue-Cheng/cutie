@@ -15,6 +15,22 @@ import {
   type TaskTransactionResult,
 } from '@/infra/transaction/transactionProcessor'
 
+interface UpdateSortPositionResponse {
+  task_id: string
+  view_context: string
+  new_rank: string
+  updated_at: string
+}
+
+interface BatchInitRanksResponse {
+  view_context: string
+  assigned: Array<{
+    task_id: string
+    new_rank: string
+  }>
+  updated_at: string
+}
+
 export const TaskISA: ISADefinition = {
   'task.create': {
     meta: {
@@ -402,6 +418,102 @@ export const TaskISA: ISADefinition = {
         correlation_id: context.correlationId,
         source: 'http',
       })
+    },
+  },
+
+  'task.update_sort_position': {
+    meta: {
+      description: '更新任务在视图中的排序位置',
+      category: 'task',
+      resourceIdentifier: (payload) => [`task:${payload.task_id}`],
+      priority: 6,
+      timeout: 10000,
+    },
+
+    validate: async (payload) => {
+      if (!payload?.task_id || !payload?.view_context) {
+        console.warn('❌ 缺少必要参数 task_id 或 view_context')
+        return false
+      }
+      const taskStore = useTaskStore()
+      const task = taskStore.getTaskById_Mux(payload.task_id)
+      if (!task) {
+        console.warn('❌ 任务不存在:', payload.task_id)
+        return false
+      }
+      return true
+    },
+
+    request: {
+      method: 'PATCH',
+      url: (payload) => `/tasks/${payload.task_id}/sort-position`,
+      body: (payload) => ({
+        view_context: payload.view_context,
+        prev_task_id: payload.prev_task_id ?? null,
+        next_task_id: payload.next_task_id ?? null,
+      }),
+    },
+
+    commit: async (result: UpdateSortPositionResponse) => {
+      const taskStore = useTaskStore()
+      const task = taskStore.getTaskById_Mux(result.task_id)
+      if (!task) {
+        return
+      }
+      const updatedSortPositions = {
+        ...(task.sort_positions ?? {}),
+        [result.view_context]: result.new_rank,
+      }
+      taskStore.addOrUpdateTask_mut({
+        ...task,
+        sort_positions: updatedSortPositions,
+      } as TaskCard)
+    },
+  },
+
+  'task.batch_init_ranks': {
+    meta: {
+      description: '批量初始化任务排序位置',
+      category: 'task',
+      resourceIdentifier: (payload) => payload.task_ids?.map((id: string) => `task:${id}`) ?? [],
+      priority: 4,
+      timeout: 10000,
+    },
+
+    validate: async (payload) => {
+      if (
+        !payload?.view_context ||
+        !Array.isArray(payload.task_ids) ||
+        payload.task_ids.length === 0
+      ) {
+        console.warn('❌ 批量初始化排序缺少参数或任务列表为空')
+        return false
+      }
+      return true
+    },
+
+    request: {
+      method: 'POST',
+      url: () => `/tasks/batch-init-ranks`,
+      body: (payload) => payload,
+    },
+
+    commit: async (result: BatchInitRanksResponse) => {
+      const taskStore = useTaskStore()
+      for (const assignment of result.assigned) {
+        const task = taskStore.getTaskById_Mux(assignment.task_id)
+        if (!task) {
+          continue
+        }
+        const updatedSortPositions = {
+          ...(task.sort_positions ?? {}),
+          [result.view_context]: assignment.new_rank,
+        }
+        taskStore.addOrUpdateTask_mut({
+          ...task,
+          sort_positions: updatedSortPositions,
+        } as TaskCard)
+      }
     },
   },
 }

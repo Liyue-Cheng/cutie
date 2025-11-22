@@ -192,7 +192,7 @@ mod database {
         let query = r#"
             SELECT
                 t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
-                t.subtasks, t.project_id, t.section_id, t.area_id, t.due_date, t.due_date_type,
+                t.subtasks, t.sort_positions, t.project_id, t.section_id, t.area_id, t.due_date, t.due_date_type,
                 t.completed_at, t.archived_at, t.created_at, t.updated_at, t.deleted_at, t.source_info,
                 t.external_source_id, t.external_source_provider, t.external_source_metadata,
                 t.recurrence_id, t.recurrence_original_date

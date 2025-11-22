@@ -24,6 +24,7 @@ pub mod core;
 pub mod database;
 pub mod events;
 pub mod http;
+pub mod lexorank_wrapper;
 pub mod logging;
 pub mod ports;
 
@@ -43,6 +44,9 @@ pub use http::{ApiResponse, EmptyResponse, ErrorResponse, HealthCheckResponse, M
 
 // Ports - 依赖抽象接口（最常用）
 pub use ports::{Clock, IdGenerator, SystemClock, UuidV4Generator};
+
+// LexoRank - 排序服务包装器
+pub use lexorank_wrapper::LexoRankService;
 
 // Database - 连接配置
 pub use database::{DatabaseConfig, SynchronousMode};

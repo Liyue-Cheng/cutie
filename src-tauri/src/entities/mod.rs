@@ -17,7 +17,6 @@ pub mod template;
 pub mod time_block;
 pub mod transaction_result;
 pub mod user_setting;
-pub mod view_preference;
 
 // 显式导出所有公共类型，避免 ambiguous glob re-exports 警告
 

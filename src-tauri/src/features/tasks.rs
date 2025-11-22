@@ -30,6 +30,8 @@ pub fn create_routes() -> Router<AppState> {
         .route("/:id/unarchive", post(endpoints::unarchive_task)) // ✅ 修正方法
         .route("/:id/restore", patch(endpoints::restore_task))
         .route("/:id/return-to-staging", post(endpoints::return_to_staging)) // ✅ 修正方法
+        .route("/:id/sort-position", patch(endpoints::update_sort_position))
+        .route("/batch-init-ranks", post(endpoints::batch_init_ranks))
         .route(
             "/:id/to-template",
             post(endpoints::create_template_from_task),

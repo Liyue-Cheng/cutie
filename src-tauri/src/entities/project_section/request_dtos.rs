@@ -16,4 +16,3 @@ pub struct UpdateProjectSectionRequest {
     pub description: Option<Option<String>>,
     pub sort_order: Option<String>,
 }
-

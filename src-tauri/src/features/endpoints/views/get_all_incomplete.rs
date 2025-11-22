@@ -201,14 +201,11 @@ mod logic {
         from_date: &NaiveDate,
     ) -> Option<NaiveDate> {
         // 确定 DTSTART
-        let dtstart_date = recurrence
-            .start_date
-            .clone()
-            .unwrap_or_else(|| {
-                crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(
-                    &recurrence.created_at.date_naive(),
-                )
-            });
+        let dtstart_date = recurrence.start_date.clone().unwrap_or_else(|| {
+            crate::infra::core::utils::time_utils::format_date_yyyy_mm_dd(
+                &recurrence.created_at.date_naive(),
+            )
+        });
 
         // 构建完整的 RRULE 字符串
         let start_date_rrule = dtstart_date.replace("-", "");
@@ -218,7 +215,11 @@ mod logic {
         let rrule_set: RRuleSet = match full_rrule.parse() {
             Ok(set) => set,
             Err(e) => {
-                tracing::warn!("Failed to parse RRULE for recurrence {}: {:?}", recurrence.id, e);
+                tracing::warn!(
+                    "Failed to parse RRULE for recurrence {}: {:?}",
+                    recurrence.id,
+                    e
+                );
                 return None;
             }
         };
@@ -263,7 +264,7 @@ mod database {
         let query = r#"
             SELECT
                 id, title, glance_note, detail_note, estimated_duration,
-                subtasks, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                subtasks, sort_positions, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_id, recurrence_original_date

@@ -54,10 +54,11 @@ impl ProjectSectionRepository {
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
 
         match row {
-            Some(r) => Ok(Some(
-                ProjectSection::try_from(r)
-                    .map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))?,
-            )),
+            Some(r) => {
+                Ok(Some(ProjectSection::try_from(r).map_err(|e| {
+                    AppError::DatabaseError(DbError::QueryError(e))
+                })?))
+            }
             None => Ok(None),
         }
     }
@@ -192,26 +193,21 @@ impl ProjectSectionRepository {
         };
 
         let count: i64 = match exclude_id {
-            Some(id) => {
-                sqlx::query_scalar(query)
-                    .bind(project_id.to_string())
-                    .bind(title)
-                    .bind(id.to_string())
-                    .fetch_one(&mut **tx)
-                    .await
-                    .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?
-            }
-            None => {
-                sqlx::query_scalar(query)
-                    .bind(project_id.to_string())
-                    .bind(title)
-                    .fetch_one(&mut **tx)
-                    .await
-                    .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?
-            }
+            Some(id) => sqlx::query_scalar(query)
+                .bind(project_id.to_string())
+                .bind(title)
+                .bind(id.to_string())
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?,
+            None => sqlx::query_scalar(query)
+                .bind(project_id.to_string())
+                .bind(title)
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?,
         };
 
         Ok(count > 0)
     }
 }
-

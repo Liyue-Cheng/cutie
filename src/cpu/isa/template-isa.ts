@@ -175,4 +175,64 @@ export const TemplateISA: ISADefinition = {
       templateStore.addOrUpdateTemplate_mut(result)
     },
   },
+
+  'template.update_sort_rank': {
+    meta: {
+      description: '更新模板排序位置',
+      category: 'template',
+      resourceIdentifier: (payload) => [`template:${payload.template_id}`],
+      priority: 6,
+      timeout: 5000,
+    },
+    validate: async (payload) => {
+      const templateStore = useTemplateStore()
+      return Boolean(templateStore.getTemplateById(payload.template_id))
+    },
+    request: {
+      method: 'PATCH',
+      url: (payload) => `/templates/${payload.template_id}/sort-rank`,
+      body: (payload) => ({
+        prev_template_id: payload.prev_template_id ?? null,
+        next_template_id: payload.next_template_id ?? null,
+      }),
+    },
+    commit: async (result: { template_id: string; new_rank: string }) => {
+      const templateStore = useTemplateStore()
+      const template = templateStore.getTemplateById(result.template_id)
+      if (!template) return
+      templateStore.addOrUpdateTemplate_mut({
+        ...template,
+        sort_rank: result.new_rank,
+      })
+    },
+  },
+
+  'template.batch_init_ranks': {
+    meta: {
+      description: '批量初始化模板排序',
+      category: 'template',
+      resourceIdentifier: (payload) =>
+        (payload.template_ids || []).map((id: string) => `template:${id}`),
+      priority: 4,
+      timeout: 10000,
+    },
+    request: {
+      method: 'POST',
+      url: '/templates/batch-init-ranks',
+      body: (payload) => ({
+        template_ids: payload.template_ids,
+      }),
+    },
+    commit: async (result: { assigned: Array<{ template_id: string; new_rank: string }> }) => {
+      const templateStore = useTemplateStore()
+      result.assigned.forEach(({ template_id, new_rank }) => {
+        const template = templateStore.getTemplateById(template_id)
+        if (!template) return
+        templateStore.addOrUpdateTemplate_mut({
+          ...template,
+          sort_rank: new_rank,
+        })
+      })
+    },
+  },
 }

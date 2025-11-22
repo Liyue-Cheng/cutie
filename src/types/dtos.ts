@@ -111,6 +111,13 @@ export interface TaskCard {
   recurrence_id: string | null // 循环规则ID，null 表示非循环任务
   recurrence_original_date: string | null // 循环任务的原始日期 (YYYY-MM-DD)
   recurrence_expiry_behavior: string | null // 循环任务的过期行为 ("CARRYOVER_TO_STAGING" | "EXPIRE")
+
+  // --- 排序信息 ---
+  /**
+   * 视图上下文 → LexoRank 字符串
+   * 后端若无排序信息会省略该字段
+   */
+  sort_positions?: Record<string, string>
 }
 
 /**
@@ -235,6 +242,7 @@ export interface Template {
   }> | null
   area_id: string | null
   category: TemplateCategory
+  sort_rank: string | null
   created_at: string
   updated_at: string
 }

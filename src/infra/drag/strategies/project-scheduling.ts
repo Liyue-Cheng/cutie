@@ -12,6 +12,23 @@ import type { Strategy, StrategyContext, StrategyResult } from '../types'
 import { pipeline } from '@/cpu'
 import { extractTaskIds, insertTaskAt, removeTaskFrom } from './strategy-utils'
 
+function buildLexoRankPayload(viewKey: string, order: string[], taskId: string) {
+  const index = order.indexOf(taskId)
+  if (index === -1) {
+    return null
+  }
+
+  const prev = index > 0 ? order[index - 1] : null
+  const next = index < order.length - 1 ? order[index + 1] : null
+
+  return {
+    task_id: taskId,
+    view_context: viewKey,
+    prev_task_id: prev,
+    next_task_id: next,
+  }
+}
+
 /**
  * 策略1: Daily → Project
  * 从日历拖任务到项目视图 = 设置项目归属（保留日程）
@@ -59,10 +76,10 @@ export const dailyToProjectStrategy: Strategy = {
         const targetTaskIds = extractTaskIds(ctx.targetContext)
         const newTargetOrder = insertTaskAt(targetTaskIds, taskId, ctx.dropIndex)
 
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.targetViewId,
-          sorted_task_ids: newTargetOrder,
-        })
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetOrder, taskId)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+        }
 
         return {
           success: true,
@@ -129,10 +146,10 @@ export const dailyToSectionStrategy: Strategy = {
         const targetTaskIds = extractTaskIds(ctx.targetContext)
         const newTargetOrder = insertTaskAt(targetTaskIds, taskId, ctx.dropIndex)
 
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.targetViewId,
-          sorted_task_ids: newTargetOrder,
-        })
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetOrder, taskId)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+        }
 
         return {
           success: true,
@@ -191,20 +208,13 @@ export const noProjectToProjectStrategy: Strategy = {
           },
         })
 
-        const sourceTaskIds = extractTaskIds(ctx.sourceContext)
-        const newSourceOrder = removeTaskFrom(sourceTaskIds, taskId)
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.sourceViewId,
-          sorted_task_ids: newSourceOrder,
-        })
-
         const targetTaskIds = extractTaskIds(ctx.targetContext)
         const newTargetOrder = insertTaskAt(targetTaskIds, taskId, ctx.dropIndex)
 
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.targetViewId,
-          sorted_task_ids: newTargetOrder,
-        })
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetOrder, taskId)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+        }
 
         return {
           success: true,
@@ -262,11 +272,10 @@ export const projectReorderStrategy: Strategy = {
         }
         newOrder = insertTaskAt(newOrder, taskId, ctx.dropIndex)
 
-        // 更新排序
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.targetViewId,
-          sorted_task_ids: newOrder,
-        })
+        const payload = buildLexoRankPayload(ctx.targetViewId, newOrder, taskId)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+        }
 
         return {
           success: true,
@@ -330,10 +339,10 @@ export const sectionToSectionStrategy: Strategy = {
           }
           newOrder = insertTaskAt(newOrder, taskId, ctx.dropIndex)
 
-          await pipeline.dispatch('viewpreference.update_sorting', {
-            context_key: ctx.targetViewId,
-            sorted_task_ids: newOrder,
-          })
+          const payload = buildLexoRankPayload(ctx.targetViewId, newOrder, taskId)
+          if (payload) {
+            await pipeline.dispatch('task.update_sort_position', payload)
+          }
 
           return {
             success: true,
@@ -357,23 +366,14 @@ export const sectionToSectionStrategy: Strategy = {
           updates,
         })
 
-        // 步骤 2: 更新源视图排序（移除任务）
-        const sourceTaskIds = extractTaskIds(ctx.sourceContext)
-        const newSourceOrder = removeTaskFrom(sourceTaskIds, taskId)
-
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.sourceViewId,
-          sorted_task_ids: newSourceOrder,
-        })
-
-        // 步骤 3: 更新目标视图排序（添加任务）
+        // 步骤 2: 更新目标视图排序（添加任务）
         const targetTaskIds = extractTaskIds(ctx.targetContext)
         const newTargetOrder = insertTaskAt(targetTaskIds, taskId, ctx.dropIndex)
 
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: ctx.targetViewId,
-          sorted_task_ids: newTargetOrder,
-        })
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetOrder, taskId)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+        }
 
         return {
           success: true,
@@ -429,10 +429,10 @@ export const noProjectReorderStrategy: Strategy = {
         }
         newOrder = insertTaskAt(newOrder, taskId, ctx.dropIndex)
 
-        await pipeline.dispatch('viewpreference.update_sorting', {
-          context_key: 'misc::no-project',
-          sorted_task_ids: newOrder,
-        })
+        const payload = buildLexoRankPayload(ctx.targetViewId, newOrder, taskId)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+        }
 
         return {
           success: true,

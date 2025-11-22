@@ -8,10 +8,7 @@ use uuid::Uuid;
 use crate::{
     entities::ProjectSectionDto,
     features::shared::repositories::ProjectSectionRepository,
-    infra::{
-        core::AppResult,
-        http::error_handler::success_response,
-    },
+    infra::{core::AppResult, http::error_handler::success_response},
     startup::AppState,
 };
 
@@ -96,10 +93,7 @@ GET /api/projects/{project_id}/sections
 */
 
 // ==================== HTTP 处理器 ====================
-pub async fn handle(
-    State(app_state): State<AppState>,
-    Path(project_id): Path<Uuid>,
-) -> Response {
+pub async fn handle(State(app_state): State<AppState>, Path(project_id): Path<Uuid>) -> Response {
     match logic::execute(&app_state, project_id).await {
         Ok(sections) => success_response(sections).into_response(),
         Err(err) => err.into_response(),
@@ -133,4 +127,3 @@ mod logic {
         Ok(section_dtos)
     }
 }
-

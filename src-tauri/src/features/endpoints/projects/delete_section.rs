@@ -142,7 +142,10 @@ mod logic {
                 // 章节存在且属于指定项目
             }
             _ => {
-                return Err(AppError::not_found("ProjectSection", section_id.to_string()));
+                return Err(AppError::not_found(
+                    "ProjectSection",
+                    section_id.to_string(),
+                ));
             }
         }
 
@@ -152,7 +155,8 @@ mod logic {
         ProjectSectionRepository::soft_delete(&mut tx, section_id, now).await?;
 
         // 写入 Event Outbox
-        events::write_section_deleted_event(app_state, &mut tx, section_id, project_id, now).await?;
+        events::write_section_deleted_event(app_state, &mut tx, section_id, project_id, now)
+            .await?;
 
         // 提交事务
         TransactionHelper::commit(tx).await?;
@@ -196,4 +200,3 @@ mod events {
         Ok(())
     }
 }
-

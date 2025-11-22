@@ -35,6 +35,9 @@ pub struct TemplateDto {
     /// 模板类别
     pub category: TemplateCategory,
 
+    /// 排序位置（LexoRank）
+    pub sort_rank: Option<String>,
+
     /// 创建时间
     pub created_at: DateTime<Utc>,
 

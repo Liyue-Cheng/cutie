@@ -21,7 +21,7 @@ import { apiGet } from '@/stores/shared'
  * - 只存储排序权重（持久化由 Command Handler 负责）
  *
  * 数据流：
- * 1. 组件触发指令 → pipeline.dispatch('viewpreference.update_sorting', ...)
+ * 1. 组件触发 LexoRank 指令 → pipeline.dispatch('task.update_sort_position', ...)
  * 2. EX 阶段乐观更新 → viewStore.updateSortingOptimistic_mut(...)
  * 3. EX 阶段调用 API
  * 4. 成功 → WB commit | 失败 → WB 回滚
@@ -89,6 +89,11 @@ export const useViewStore = defineStore('view', () => {
    * - 预先构建索引，排序时 O(1) 查找
    */
   function applySorting(tasks: TaskCard[], viewKey: string): TaskCard[] {
+    const lexorankSorted = applyLexoRankSorting(tasks, viewKey)
+    if (lexorankSorted) {
+      return lexorankSorted
+    }
+
     const weights = sortWeights.value.get(viewKey)
 
     if (!weights || weights.size === 0) {
@@ -118,6 +123,32 @@ export const useViewStore = defineStore('view', () => {
     })
 
     return sorted
+  }
+
+  function applyLexoRankSorting(tasks: TaskCard[], viewKey: string): TaskCard[] | null {
+    const tasksWithRank: Array<{ task: TaskCard; rank: string }> = []
+    const tasksWithoutRank: Array<{ task: TaskCard; originalIndex: number }> = []
+
+    tasks.forEach((task, index) => {
+      const rank = task.sort_positions?.[viewKey]
+      if (rank) {
+        tasksWithRank.push({ task, rank })
+      } else {
+        tasksWithoutRank.push({ task, originalIndex: index })
+      }
+    })
+
+    if (tasksWithRank.length === 0) {
+      return null
+    }
+
+    tasksWithRank.sort((a, b) => a.rank.localeCompare(b.rank))
+    tasksWithoutRank.sort((a, b) => a.originalIndex - b.originalIndex)
+
+    return [
+      ...tasksWithRank.map((entry) => entry.task),
+      ...tasksWithoutRank.map((entry) => entry.task),
+    ]
   }
 
   /**
@@ -159,25 +190,6 @@ export const useViewStore = defineStore('view', () => {
       viewKey,
       taskCount: orderedTaskIds.length,
     })
-  }
-
-  /**
-   * ❌ 已废弃：旧的 updateSorting 方法
-   * 请使用 pipeline.dispatch('viewpreference.update_sorting', ...) 代替
-   *
-   * @deprecated 使用 CPU Pipeline 代替直接调用
-   */
-  async function updateSorting(viewKey: string, orderedTaskIds: string[]): Promise<boolean> {
-    logger.warn(
-      LogTags.STORE_VIEW,
-      '⚠️ DEPRECATED: Direct updateSorting call detected. Use pipeline.dispatch("viewpreference.update_sorting") instead',
-      { viewKey }
-    )
-
-    // 为了向后兼容，临时保留实现
-    // 🔥 TODO: 移除此方法，强制使用 Command Bus
-    updateSortingOptimistic_mut(viewKey, orderedTaskIds)
-    return true
   }
 
   /**
@@ -475,11 +487,6 @@ export const useViewStore = defineStore('view', () => {
     // ============================================================
     fetchViewPreference, // 从后端加载单个视图
     batchFetchViewPreferences, // 批量加载多个视图
-
-    // ============================================================
-    // DEPRECATED - 向后兼容
-    // ============================================================
-    updateSorting, // ❌ 已废弃，使用 pipeline.dispatch('viewpreference.update_sorting') 代替
 
     // ============================================================
     // Daily 视图注册与刷新

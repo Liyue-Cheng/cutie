@@ -1,6 +1,8 @@
 /// Task 响应 DTOs - 对应前端的视图模型
 ///
 /// 这些 DTOs 与前端的 dtos.ts 中定义的类型一一对应
+use std::collections::HashMap;
+
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -54,6 +56,11 @@ pub struct TaskCardDto {
     pub recurrence_original_date: Option<String>,
     /// 循环任务的过期行为（从关联的 recurrence 获取，用于前端筛选）
     pub recurrence_expiry_behavior: Option<String>, // "CARRYOVER_TO_STAGING" | "EXPIRE"
+
+    // --- 排序信息 ---
+    /// 任务在各视图中的 LexoRank 排序位置
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub sort_positions: HashMap<String, String>,
 }
 
 /// 任务日程 DTO（包含时间片）

@@ -41,9 +41,6 @@ impl TestDb {
             .await?;
         sqlx::query("DELETE FROM tasks").execute(&self.pool).await?;
         sqlx::query("DELETE FROM areas").execute(&self.pool).await?;
-        sqlx::query("DELETE FROM view_preferences")
-            .execute(&self.pool)
-            .await?;
         sqlx::query("DELETE FROM event_outbox")
             .execute(&self.pool)
             .await?;
