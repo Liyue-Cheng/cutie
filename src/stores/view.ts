@@ -146,8 +146,8 @@ export const useViewStore = defineStore('view', () => {
     tasksWithoutRank.sort((a, b) => a.originalIndex - b.originalIndex)
 
     return [
-      ...tasksWithRank.map((entry) => entry.task),
       ...tasksWithoutRank.map((entry) => entry.task),
+      ...tasksWithRank.map((entry) => entry.task),
     ]
   }
 
