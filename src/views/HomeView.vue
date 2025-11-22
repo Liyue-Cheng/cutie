@@ -25,7 +25,7 @@
         ref="calendarPanelRef"
         :current-calendar-date="currentCalendarDate"
         :calendar-days="calendarDays"
-        :left-view-type="currentView === 'projects' ? 'recent' : currentView"
+        :left-view-type="currentView"
         :current-right-pane-view="currentRightPaneView"
         @calendar-size-update="updateCalendarSize"
       />
@@ -73,14 +73,49 @@ const currentView = ref<'recent' | 'staging' | 'projects'>('recent') // 当前�
 type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
 const currentRightPaneView = ref<RightPaneView>('calendar')
 
-// 右栏视图配置
-const rightPaneViewConfig = {
+// 完整的右栏视图配置
+const fullRightPaneViewConfig = {
   calendar: { icon: 'Calendar', label: '日历' },
   timeline: { icon: 'Clock', label: '时间线' },
   staging: { icon: 'Layers', label: 'Staging' },
   upcoming: { icon: 'CalendarClock', label: 'Upcoming' },
   templates: { icon: 'FileText', label: 'Templates' },
 } as const
+
+// 根据左栏视图动态计算右栏视图配置
+const rightPaneViewConfig = computed(() => {
+  if (currentView.value === 'staging') {
+    // Staging 视图：移除右栏的 staging 和 templates，保持 calendar 在首位
+    return {
+      calendar: fullRightPaneViewConfig.calendar,
+      timeline: fullRightPaneViewConfig.timeline,
+      upcoming: fullRightPaneViewConfig.upcoming,
+    }
+  } else if (currentView.value === 'projects') {
+    // Projects 视图：只保留 timeline 和 templates，timeline 在首位
+    return {
+      timeline: fullRightPaneViewConfig.timeline,
+      templates: fullRightPaneViewConfig.templates,
+    }
+  }
+
+  // Recent 视图：保持原有顺序，calendar 在首位
+  return { ...fullRightPaneViewConfig }
+})
+
+// 根据左栏视图获取默认的右栏视图
+function getDefaultRightPaneView(leftView: 'recent' | 'staging' | 'projects'): RightPaneView {
+  switch (leftView) {
+    case 'recent':
+      return 'calendar' // Recent 视图默认显示日历（3天视图）
+    case 'staging':
+      return 'calendar' // Staging 视图默认显示日历（月视图）
+    case 'projects':
+      return 'timeline' // Projects 视图默认显示时间线
+    default:
+      return 'calendar'
+  }
+}
 
 // 切换右栏视图
 function switchRightPaneView(viewKey: string) {
@@ -95,19 +130,42 @@ const calendarPanelRef = ref<InstanceType<typeof HomeCalendarPanel> | null>(null
 // 监听路由变化，切换视图
 watch(
   () => route.query.view,
-  (newView) => {
+  async (newView) => {
+    let targetView: 'recent' | 'staging' | 'projects' = 'recent'
+
     if (newView === 'staging') {
-      currentView.value = 'staging'
+      targetView = 'staging'
       logger.info(LogTags.VIEW_HOME, 'Switched to Staging view')
     } else if (newView === 'projects') {
-      currentView.value = 'projects'
+      targetView = 'projects'
       logger.info(LogTags.VIEW_HOME, 'Switched to Projects view')
     } else {
-      currentView.value = 'recent'
+      targetView = 'recent'
       // 切换回 Recent 视图时，确保日历跳转到今天
       const today = getTodayDateString()
       registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, today)
       logger.info(LogTags.VIEW_HOME, 'Switched to Recent view', { date: today })
+    }
+
+    currentView.value = targetView
+
+    // 自动切换到该左栏视图的默认右栏视图（重要：处理组件初始化时的情况）
+    const defaultRightView = getDefaultRightPaneView(targetView)
+    if (currentRightPaneView.value !== defaultRightView) {
+      logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${targetView}' (from route)`)
+      currentRightPaneView.value = defaultRightView
+    }
+
+    // Recent 视图需要设置日历天数为3天
+    if (targetView === 'recent') {
+      calendarDays.value = 3
+      logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
+    }
+
+    // 立即调节布局比例（左栏切换不需要动画）
+    await nextTick()
+    if (shouldAutoAdjust()) {
+      animateToOptimalRatio(true) // instant = true
     }
   },
   { immediate: true }
@@ -125,10 +183,10 @@ onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing Home view with Recent + Calendar...')
   registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'home')
 
-  // 初始化时执行一次自动调节
+  // 初始化时执行一次自动调节（立即执行，不需要动画）
   await nextTick()
   if (shouldAutoAdjust()) {
-    animateToOptimalRatio()
+    animateToOptimalRatio(true) // instant = true
   }
 })
 
@@ -138,10 +196,23 @@ onMounted(async () => {
 watch(currentView, async (newView, oldView) => {
   logger.debug(LogTags.VIEW_HOME, 'Left view changed', { from: oldView, to: newView })
 
-  // 切换到 Recent 视图时，如果右栏是需要调节的视图，执行自动调节
-  if (newView === 'recent' && shouldAutoAdjust()) {
+  // 自动切换到该左栏视图的默认右栏视图
+  const defaultRightView = getDefaultRightPaneView(newView)
+  if (currentRightPaneView.value !== defaultRightView) {
+    logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${newView}'`)
+    currentRightPaneView.value = defaultRightView
+  }
+
+  // Recent 视图需要设置日历天数为3天
+  if (newView === 'recent') {
+    calendarDays.value = 3
+    logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
+  }
+
+  // 立即调节布局比例（左栏切换不需要动画）
+  if (shouldAutoAdjust()) {
     await nextTick()
-    animateToOptimalRatio()
+    animateToOptimalRatio(true) // instant = true
   }
 })
 
@@ -149,8 +220,8 @@ watch(currentView, async (newView, oldView) => {
 watch(currentRightPaneView, async (newView, oldView) => {
   logger.debug(LogTags.VIEW_HOME, 'Right view changed', { from: oldView, to: newView })
 
-  // 右栏切换到需要调节的视图时，如果左栏是 Recent，执行自动调节
-  if (currentView.value === 'recent' && shouldAutoAdjust()) {
+  // 右栏切换时，如果需要自动调节则执行
+  if (shouldAutoAdjust()) {
     await nextTick()
     animateToOptimalRatio()
   }
@@ -188,11 +259,6 @@ const DIVIDER_WIDTH = 3   // 分割线宽度
 
 // 根据视图模式计算最佳比例
 function calculateOptimalRatio(): number {
-  // 只有在 Recent 左栏时才自动调节
-  if (currentView.value !== 'recent') {
-    return leftPaneWidth.value
-  }
-
   // 获取容器实际宽度
   const container = document.querySelector('.home-view') as HTMLElement
   if (!container) return leftPaneWidth.value
@@ -203,28 +269,46 @@ function calculateOptimalRatio(): number {
 
   let leftRatio: number
 
-  // 根据右栏视图类型确定比例
-  if (currentRightPaneView.value === 'calendar') {
-    // Calendar 视图：根据天数调整
-    switch (calendarDays.value) {
-      case 1:
-        leftRatio = 0.5 // 1:1 比例
-        break
-      case 3:
-      case 5:
-        leftRatio = 0.4 // 4:6 比例
-        break
-      case 7:
-        leftRatio = 0.333 // 1:2 比例
-        break
-      default:
-        leftRatio = 0.4
+  if (currentView.value === 'recent') {
+    // Recent 视图：根据右栏类型确定比例
+    if (currentRightPaneView.value === 'calendar') {
+      // Calendar 视图：根据天数调整
+      switch (calendarDays.value) {
+        case 1:
+          leftRatio = 0.5 // 1:1 比例
+          break
+        case 3:
+        case 5:
+          leftRatio = 0.4 // 4:6 比例
+          break
+        case 7:
+          leftRatio = 0.333 // 1:2 比例
+          break
+        default:
+          leftRatio = 0.4
+      }
+    } else if (currentRightPaneView.value === 'staging' || currentRightPaneView.value === 'templates') {
+      // Staging 和 Templates 视图：固定 1:1 比例
+      leftRatio = 0.5
+    } else {
+      // 其他视图保持当前比例
+      return leftPaneWidth.value
     }
-  } else if (currentRightPaneView.value === 'staging' || currentRightPaneView.value === 'templates') {
-    // Staging 和 Templates 视图：固定 1:1 比例
-    leftRatio = 0.5
+  } else if (currentView.value === 'staging') {
+    // Staging 视图
+    if (currentRightPaneView.value === 'calendar') {
+      leftRatio = 0.25 // 1:3 比例
+    } else if (currentRightPaneView.value === 'timeline') {
+      leftRatio = 0.5 // 50:50 比例
+    } else {
+      // 其他视图保持当前比例
+      return leftPaneWidth.value
+    }
+  } else if (currentView.value === 'projects') {
+    // Projects 视图：无论右栏是什么都是 3:1 比例
+    leftRatio = 0.75
   } else {
-    // 其他视图保持当前比例
+    // 未知视图保持当前比例
     return leftPaneWidth.value
   }
 
@@ -236,7 +320,7 @@ function calculateOptimalRatio(): number {
 }
 
 // 平滑动画调节到目标比例
-async function animateToOptimalRatio() {
+async function animateToOptimalRatio(instant: boolean = false) {
   const targetWidth = calculateOptimalRatio()
 
   // 如果目标比例与当前比例相同，无需动画
@@ -246,6 +330,20 @@ async function animateToOptimalRatio() {
 
   // 防止重复动画和拖拽冲突
   if (isAutoAdjusting.value || isDragging.value) return
+
+  // 如果需要立即执行（左栏切换时）
+  if (instant) {
+    leftPaneWidth.value = targetWidth
+    await nextTick()
+    updateCalendarSize()
+    logger.info(LogTags.VIEW_HOME, 'Instantly adjusted pane width (left view switch)', {
+      to: targetWidth,
+      leftView: currentView.value,
+      rightView: currentRightPaneView.value,
+      actualRatio: getActualRatio(targetWidth),
+    })
+    return
+  }
 
   isAutoAdjusting.value = true
   const startWidth = leftPaneWidth.value
@@ -291,15 +389,29 @@ async function animateToOptimalRatio() {
 
 // 检查是否需要自动调节
 function shouldAutoAdjust(): boolean {
-  // 左栏必须是 Recent
-  if (currentView.value !== 'recent') return false
+  // Recent 视图：Calendar、Staging 或 Templates 时需要自动调节
+  if (currentView.value === 'recent') {
+    return (
+      currentRightPaneView.value === 'calendar' ||
+      currentRightPaneView.value === 'staging' ||
+      currentRightPaneView.value === 'templates'
+    )
+  }
 
-  // 右栏是 Calendar、Staging 或 Templates 时需要自动调节
-  return (
-    currentRightPaneView.value === 'calendar' ||
-    currentRightPaneView.value === 'staging' ||
-    currentRightPaneView.value === 'templates'
-  )
+  // Staging 视图：Calendar 或 Timeline 时需要自动调节
+  if (currentView.value === 'staging') {
+    return (
+      currentRightPaneView.value === 'calendar' ||
+      currentRightPaneView.value === 'timeline'
+    )
+  }
+
+  // Projects 视图：无论右栏是什么都需要自动调节（固定3:1比例）
+  if (currentView.value === 'projects') {
+    return true
+  }
+
+  return false
 }
 
 // 计算实际的左栏:中栏比例（用于日志显示）

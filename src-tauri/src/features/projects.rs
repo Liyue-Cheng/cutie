@@ -34,4 +34,3 @@ pub fn create_routes() -> Router<AppState> {
             delete(endpoints::delete_section),
         )
 }
-

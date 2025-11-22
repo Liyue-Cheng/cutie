@@ -127,7 +127,7 @@ import { getTodayDateString } from '@/infra/utils/dateUtils'
 interface Props {
   currentCalendarDate?: string
   calendarDays?: 1 | 3 | 5 | 7
-  leftViewType?: 'recent' | 'staging'
+  leftViewType?: 'recent' | 'staging' | 'projects'
   currentRightPaneView?: 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
 }
 
@@ -163,10 +163,13 @@ const calendarViewType = computed(() => {
   return props.calendarDays === 7 ? 'week' : 'day'
 })
 
-// 最终的日历视图类型：Staging 视图强制使用月视图
+// 最终的日历视图类型：Staging 视图强制使用月视图，Projects 视图使用周视图
 const effectiveCalendarViewType = computed(() => {
   if (props.leftViewType === 'staging') {
     return 'month'
+  }
+  if (props.leftViewType === 'projects') {
+    return 'week'
   }
   return calendarViewType.value
 })
