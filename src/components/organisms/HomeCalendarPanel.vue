@@ -4,7 +4,7 @@
       <template #top>
         <div class="calendar-controls">
           <!-- 左侧：年月显示 -->
-          <div v-if="currentRightPaneView === 'calendar'" class="calendar-year-month">
+          <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-year-month">
             {{ calendarYearMonth }}
           </div>
 
@@ -15,7 +15,7 @@
           <div class="controls-right">
             <!-- 缩放按钮（仅日历视图显示） -->
             <button
-              v-if="currentRightPaneView === 'calendar'"
+              v-if="props.currentRightPaneView === 'calendar'"
               class="zoom-btn"
               @click="cycleZoom"
               title="切换缩放"
@@ -25,7 +25,7 @@
 
             <!-- 月视图筛选菜单 -->
             <CuteDropdown
-              v-if="currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'"
+              v-if="props.currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'"
               :close-on-select="false"
             >
               <template #trigger>
@@ -75,30 +75,13 @@
                 </label>
               </CuteDropdownItem>
             </CuteDropdown>
-
-            <!-- 视图选择下拉菜单 -->
-            <CuteDropdown v-model="currentRightPaneView">
-              <template #trigger>
-                <button class="view-selector-btn">
-                  <span>{{ viewSelectorLabel }}</span>
-                  <CuteIcon name="ChevronDown" :size="14" />
-                </button>
-              </template>
-              <CuteDropdownItem
-                v-for="view in viewOptions"
-                :key="view.value"
-                :label="view.label"
-                :active="currentRightPaneView === view.value"
-                @click="currentRightPaneView = view.value"
-              />
-            </CuteDropdown>
           </div>
         </div>
       </template>
 
       <template #bottom>
         <!-- 日历视图 -->
-        <div v-if="currentRightPaneView === 'calendar'" class="calendar-wrapper">
+        <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-wrapper">
           <CuteCalendar
             ref="calendarRef"
             :current-date="currentCalendarDate"
@@ -110,16 +93,16 @@
         </div>
         <!-- 时间线视图 -->
         <DoubleRowTimeline
-          v-else-if="currentRightPaneView === 'timeline'"
+          v-else-if="props.currentRightPaneView === 'timeline'"
           :current-month="currentCalendarDate.slice(0, 7)"
           :month-view-filters="monthViewFilters"
         />
         <!-- Staging 视图 -->
-        <StagingList v-else-if="currentRightPaneView === 'staging'" />
+        <StagingList v-else-if="props.currentRightPaneView === 'staging'" />
         <!-- Upcoming 视图 -->
-        <UpcomingPanel v-else-if="currentRightPaneView === 'upcoming'" />
+        <UpcomingPanel v-else-if="props.currentRightPaneView === 'upcoming'" />
         <!-- Templates 视图 -->
-        <TemplateList v-else-if="currentRightPaneView === 'templates'" />
+        <TemplateList v-else-if="props.currentRightPaneView === 'templates'" />
       </template>
     </TwoRowLayout>
   </div>
@@ -145,12 +128,14 @@ interface Props {
   currentCalendarDate?: string
   calendarDays?: 1 | 3 | 5 | 7
   leftViewType?: 'recent' | 'staging'
+  currentRightPaneView?: 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   currentCalendarDate: () => getTodayDateString(),
   calendarDays: 3,
   leftViewType: 'recent',
+  currentRightPaneView: 'calendar',
 })
 
 // Emits
@@ -159,21 +144,7 @@ const emit = defineEmits<{
 }>()
 
 // ==================== 右栏视图状态 ====================
-type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
-const currentRightPaneView = ref<RightPaneView>('calendar')
-
-const viewOptions = [
-  { value: 'calendar', label: '日历' },
-  { value: 'timeline', label: '时间线' },
-  { value: 'staging', label: 'Staging' },
-  { value: 'upcoming', label: 'Upcoming' },
-  { value: 'templates', label: 'Templates' },
-] as const
-
-const viewSelectorLabel = computed(() => {
-  const option = viewOptions.find((opt) => opt.value === currentRightPaneView.value)
-  return option?.label || '日历'
-})
+// 移除内部状态管理，使用从父组件传入的 currentRightPaneView
 
 // ==================== 日历状态 ====================
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
@@ -231,8 +202,8 @@ function notifyCalendarSizeUpdate() {
   emit('calendar-size-update')
 }
 
-// 监听视图切换，通知父组件更新日历尺寸
-watch(currentRightPaneView, () => {
+// 监听右栏视图变化，通知父组件更新日历尺寸
+watch(() => props.currentRightPaneView, () => {
   notifyCalendarSizeUpdate()
 })
 

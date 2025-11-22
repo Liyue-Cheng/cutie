@@ -14,15 +14,33 @@
     <!-- 可拖动的分割线 -->
     <div class="divider" @mousedown="startDragging" @dblclick="resetPaneWidth"></div>
 
-    <!-- 右栏 -->
-    <div class="right-column">
+    <!-- 中栏（原右栏）-->
+    <div class="middle-column">
       <HomeCalendarPanel
         ref="calendarPanelRef"
         :current-calendar-date="currentCalendarDate"
         :calendar-days="calendarDays"
         :left-view-type="currentView === 'projects' ? 'recent' : currentView"
+        :current-right-pane-view="currentRightPaneView"
         @calendar-size-update="updateCalendarSize"
       />
+    </div>
+
+    <!-- 右侧垂直图标栏 -->
+    <div class="toolbar-pane">
+      <div class="toolbar-content">
+        <!-- 视图切换按钮 -->
+        <button
+          v-for="(config, viewKey) in rightPaneViewConfig"
+          :key="viewKey"
+          class="toolbar-button"
+          :class="{ active: currentRightPaneView === viewKey }"
+          :title="config.label"
+          @click="switchRightPaneView(viewKey as RightPaneView)"
+        >
+          <CuteIcon :name="config.icon" :size="24" />
+        </button>
+      </div>
     </div>
 
     <!-- 任务编辑器模态框挂载点 -->
@@ -45,6 +63,7 @@ import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
@@ -53,7 +72,26 @@ const registerStore = useRegisterStore()
 const uiStore = useUIStore()
 
 // ==================== 视图切换状态 ====================
-const currentView = ref<'recent' | 'staging' | 'projects'>('recent') // 当前视图
+const currentView = ref<'recent' | 'staging' | 'projects'>('recent') // 当前左栏视图
+
+// ==================== 右栏视图管理 ====================
+type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
+const currentRightPaneView = ref<RightPaneView>('calendar')
+
+// 右栏视图配置
+const rightPaneViewConfig = {
+  calendar: { icon: 'Calendar', label: '日历' },
+  timeline: { icon: 'Clock', label: '时间线' },
+  staging: { icon: 'Layers', label: 'Staging' },
+  upcoming: { icon: 'CalendarClock', label: 'Upcoming' },
+  templates: { icon: 'FileText', label: 'Templates' },
+} as const
+
+// 切换右栏视图
+function switchRightPaneView(viewKey: RightPaneView) {
+  currentRightPaneView.value = viewKey
+  logger.info(LogTags.VIEW_HOME, 'Right pane view switched', { viewKey })
+}
 
 // ==================== 日历天数联动状态 ====================
 const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentTaskPanel 联动
@@ -203,9 +241,9 @@ onBeforeUnmount(() => {
   border-radius: 0.8rem;
 }
 
-/* 左右栏 */
+/* 左、中、右栏 */
 .left-column,
-.right-column {
+.middle-column {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -218,7 +256,7 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.right-column {
+.middle-column {
   flex: 1;
   min-width: 0;
   position: relative;
@@ -269,5 +307,101 @@ onBeforeUnmount(() => {
 .divider:hover::after {
   opacity: 1;
   background-color: var(--color-text-secondary);
+}
+
+/* 右侧垂直图标栏 */
+.toolbar-pane {
+  width: 6rem; /* 96px */
+  min-width: 6rem;
+  display: flex;
+  flex-direction: column;
+  background-color: transparent;
+  border-left: 1px solid var(--color-border-default);
+  border-radius: 0 0.8rem 0.8rem 0;
+}
+
+.toolbar-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.6rem 0;
+  gap: 0.8rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.toolbar-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* 图标按钮样式 */
+.toolbar-button {
+  width: 4.8rem;
+  height: 4.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-secondary);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.toolbar-button:hover {
+  background-color: var(--color-background-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--color-border-light);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.toolbar-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* 激活状态 */
+.toolbar-button.active {
+  background-color: var(--color-primary-light, #e3f2fd);
+  border-color: var(--color-primary, #2196f3);
+  color: var(--color-primary, #2196f3);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.16);
+}
+
+.toolbar-button.active:hover {
+  background-color: var(--color-primary-light, #e3f2fd);
+  border-color: var(--color-primary, #2196f3);
+  color: var(--color-primary, #2196f3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.24);
+}
+
+/* 工具提示 */
+.toolbar-button::before {
+  content: attr(title);
+  position: absolute;
+  right: 110%;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--color-background-tooltip, rgba(0, 0, 0, 0.8));
+  color: var(--color-text-tooltip, white);
+  padding: 0.6rem 1rem;
+  border-radius: 0.4rem;
+  font-size: 1.3rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.toolbar-button:hover::before {
+  opacity: 1;
 }
 </style>
