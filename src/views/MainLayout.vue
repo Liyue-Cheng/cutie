@@ -65,23 +65,17 @@
             </li>
           </ul>
 
-          <div class="collapsible-section">
-            <div class="section-header" @click="isLegacyOpen = !isLegacyOpen">
-              <div class="section-title">
-                <CuteIcon name="Archive" :size="16" />
-                <span>Legacy</span>
-              </div>
-              <CuteIcon name="ChevronDown" :size="16" :class="{ 'is-rotated': isLegacyOpen }" />
-            </div>
-            <ul v-if="isLegacyOpen" class="sub-list">
-              <li @click="$router.push('/kanban-legacy')">
-                <CuteIcon name="LayoutGrid" :size="16" /><span>Kanban Legacy</span>
-              </li>
-              <li @click="$router.push('/calendar-legacy')">
-                <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Legacy</span>
-              </li>
-            </ul>
+          <div class="section-divider">
+            <span class="divider-label">KANBAN</span>
           </div>
+          <ul class="nav-group">
+            <li @click="$router.push('/timeline-kanban')">
+              <CuteIcon name="LayoutGrid" :size="16" /><span>Timeline Kanban</span>
+            </li>
+            <li @click="$router.push('/calendar-kanban')">
+              <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Kanban</span>
+            </li>
+          </ul>
         </div>
         <div class="sidebar-footer">
           <ul class="nav-group">
@@ -136,7 +130,6 @@ const appWindow = getCurrentWindow()
 // 启动全局午夜刷新监测
 useMidnightRefresh()
 
-const isLegacyOpen = ref(false)
 const isAreaManagerOpen = ref(false)
 const isRecurrenceManagerOpen = ref(false)
 const isSettingsOpen = ref(false)
