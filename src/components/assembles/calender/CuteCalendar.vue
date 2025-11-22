@@ -274,8 +274,6 @@ function formatDateShort(d: Date) {
   return `${y}-${m}-${day}`
 }
 
-const MAX_CONCURRENT_DAILY_FETCHES = 5
-
 // 🔥 拉取月视图数据的辅助函数
 const fetchMonthViewData = async () => {
   if (props.viewType !== 'month' || !calendarRef.value) {
@@ -310,7 +308,7 @@ const fetchMonthViewData = async () => {
     )
   }
 
-  // 🔄 同步加载每一天的任务，确保循环任务实例生成
+  // 🔄 同步加载日期范围任务，确保循环任务实例生成
   try {
     const datesToFetch: string[] = []
     const cursor = new Date(startDate)
@@ -323,36 +321,10 @@ const fetchMonthViewData = async () => {
 
     totalFetchDays = datesToFetch.length
 
-    const executing = new Set<Promise<void>>()
-
-    const scheduleFetch = (date: string) => {
-      const taskPromise = taskStore
-        .fetchDailyTasks_DMA(date)
-        .catch((error) =>
-          logger.error(
-            LogTags.COMPONENT_CALENDAR,
-            'Failed to fetch daily tasks for month view',
-            error instanceof Error ? error : new Error(String(error)),
-            { date }
-          )
-        )
-        .finally(() => {
-          executing.delete(taskPromise)
-        }) as Promise<void>
-
-      executing.add(taskPromise)
-      return taskPromise
-    }
-
-    for (const date of datesToFetch) {
-      scheduleFetch(date)
-      if (executing.size >= MAX_CONCURRENT_DAILY_FETCHES) {
-        await Promise.race(executing)
-      }
-    }
-
-    if (executing.size > 0) {
-      await Promise.allSettled(Array.from(executing))
+    if (datesToFetch.length > 0) {
+      const rangeStart = datesToFetch[0]!
+      const rangeEnd = datesToFetch[datesToFetch.length - 1]!
+      await taskStore.fetchDailyTasksRange_DMA(rangeStart, rangeEnd)
     }
   } catch (error) {
     logger.error(

@@ -15,7 +15,7 @@
  * - 提高效率，减少 CPU（Command Bus）负担
  */
 
-import type { TaskCard, TaskDetail } from '@/types/dtos'
+import type { BatchDailyTasksResponse, TaskCard, TaskDetail } from '@/types/dtos'
 import { apiGet } from '@/stores/shared'
 import type { createTaskCore } from './core'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -115,6 +115,47 @@ export function createLoaders(core: ReturnType<typeof createTaskCore>) {
   }
 
   /**
+   * DMA: 批量加载日期范围内的任务
+   * API: GET /views/daily-range?start_view_key=daily::YYYY-MM-DD&end_view_key=...
+   */
+  async function fetchDailyTasksRange_DMA(startDate: string, endDate: string) {
+    return withLoading(async () => {
+      if (!startDate || !endDate) {
+        logger.warn(LogTags.STORE_TASKS, 'DMA: Missing date range for daily-range fetch', {
+          startDate,
+          endDate,
+        })
+        return null
+      }
+
+      let rangeStart = startDate
+      let rangeEnd = endDate
+      if (rangeStart > rangeEnd) {
+        ;[rangeStart, rangeEnd] = [rangeEnd, rangeStart]
+      }
+
+      const startViewKey = encodeURIComponent(`daily::${rangeStart}`)
+      const endViewKey = encodeURIComponent(`daily::${rangeEnd}`)
+      const endpoint = `/views/daily-range?start_view_key=${startViewKey}&end_view_key=${endViewKey}`
+
+      const response: BatchDailyTasksResponse = await apiGet(endpoint)
+
+      response.views.forEach((view) => {
+        addOrUpdateTasks(view.tasks)
+      })
+
+      logger.info(LogTags.STORE_TASKS, 'DMA: Loaded daily tasks range', {
+        startDate: rangeStart,
+        endDate: rangeEnd,
+        totalViews: response.views.length,
+        totalTasks: response.total_tasks,
+      })
+
+      return response
+    }, `fetch daily tasks range ${startDate} - ${endDate}`)
+  }
+
+  /**
    * DMA: 加载任务详情（编辑器使用）
    * API: GET /tasks/:id
    */
@@ -154,6 +195,7 @@ export function createLoaders(core: ReturnType<typeof createTaskCore>) {
     fetchStagingTasks_DMA,
     fetchDailyTasks_DMA,
     refreshDailyTasks_DMA,
+    fetchDailyTasksRange_DMA,
     fetchTaskDetail_DMA,
     searchTasks_DMA,
   }

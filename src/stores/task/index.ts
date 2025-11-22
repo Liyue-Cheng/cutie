@@ -97,6 +97,7 @@ export const useTaskStore = defineStore('task', () => {
     fetchStagingTasks_DMA: loaders.fetchStagingTasks_DMA,
     fetchDailyTasks_DMA: loaders.fetchDailyTasks_DMA,
     refreshDailyTasks_DMA: loaders.refreshDailyTasks_DMA,
+    fetchDailyTasksRange_DMA: loaders.fetchDailyTasksRange_DMA,
     fetchTaskDetail_DMA: loaders.fetchTaskDetail_DMA,
     searchTasks_DMA: loaders.searchTasks_DMA,
 

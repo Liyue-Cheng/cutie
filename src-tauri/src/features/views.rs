@@ -14,6 +14,7 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/all-incomplete", get(endpoints::get_all_incomplete))
         .route("/daily/:date", get(endpoints::get_daily_tasks)) // ✅ 修正：/daily-tasks -> /daily/:date
+        .route("/daily-range", get(endpoints::get_daily_tasks_batch))
         .route("/planned", get(endpoints::get_planned))
         .route("/staging", get(endpoints::get_staging_view))
 }

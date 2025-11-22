@@ -263,8 +263,24 @@ function onFilterChange() {
 
 // 预加载日期范围的任务
 async function loadDateRangeTasks() {
-  for (const dateInfo of dateList.value) {
-    await taskStore.fetchDailyTasks_DMA(dateInfo.date)
+  const dates = dateList.value.map((info) => info.date)
+  if (dates.length === 0) {
+    return
+  }
+
+  const sortedDates = [...dates].sort()
+  const startDate = sortedDates[0]!
+  const endDate = sortedDates[sortedDates.length - 1]!
+
+  try {
+    await taskStore.fetchDailyTasksRange_DMA(startDate, endDate)
+  } catch (error) {
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Failed to preload recent view date range',
+      error instanceof Error ? error : new Error(String(error)),
+      { startDate, endDate }
+    )
   }
 }
 

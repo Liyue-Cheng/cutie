@@ -121,6 +121,30 @@ export interface TaskCard {
 }
 
 /**
+ * Daily 视图批量查询响应
+ */
+export interface DailyViewTasksPayload {
+  view_key: string
+  date: string
+  count: number
+  tasks: TaskCard[]
+}
+
+export interface DailyRangeMeta {
+  start_view_key: string
+  end_view_key: string
+  start_date: string
+  end_date: string
+  total_days: number
+}
+
+export interface BatchDailyTasksResponse {
+  range: DailyRangeMeta
+  views: DailyViewTasksPayload[]
+  total_tasks: number
+}
+
+/**
  * TaskDetail (任务详情视图模型)
  *
  * 用途: 当用户需要查看或编辑一个任务的全部信息时，由后端返回的、最完整的数据模型。
