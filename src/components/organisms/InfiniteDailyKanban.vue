@@ -3,7 +3,6 @@ import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import type { ViewMetadata, DateViewConfig } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue'
 // import { useTaskStore } from '@/stores/task' // 🗑️ 不再需要
-import { useViewStore } from '@/stores/view'
 import { useRegisterStore } from '@/stores/register'
 import { controllerDebugState } from '@/infra/drag-interact'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -11,7 +10,6 @@ import { getTodayDateString, toDateString, isSameDate } from '@/infra/utils/date
 
 // ==================== Stores ====================
 // const taskStore = useTaskStore() // 🗑️ 不再需要：SimpleKanbanColumn 内部处理任务数据
-const viewStore = useViewStore()
 const registerStore = useRegisterStore()
 
 // ==================== 配置常量 ====================
@@ -523,10 +521,6 @@ onMounted(async () => {
   logger.info(LogTags.COMPONENT_KANBAN, 'Initializing daily kanbans')
   // 初始化日期看板
   initKanbans()
-
-  // ✅ 批量加载所有看板的view preferences（防抖优化）
-  const viewKeys = kanbans.value.map((k) => k.viewKey)
-  await viewStore.batchFetchViewPreferences(viewKeys)
 
   // ✅ 无需手动加载任务，getKanbanTasks 会自动从 TaskStore 获取（响应式）
 

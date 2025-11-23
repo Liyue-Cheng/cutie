@@ -1,8 +1,7 @@
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { apiGet } from '@/stores/shared'
 
 /**
  * View Store V5.0 - 纯状态容器 (Frontend-as-a-CPU 架构)
@@ -66,13 +65,6 @@ export const useViewStore = defineStore('view', () => {
    * 🆕 刷新配置
    */
   const REFRESH_DEBOUNCE_DELAY = 300 // ms
-
-  /**
-   * 🆕 批量更新防抖机制
-   * 缓存待更新的排序，在下一个tick统一应用
-   */
-  let pendingUpdates = new Map<string, Map<string, number>>()
-  let updateScheduled = false
 
   // ============================================================
   // GETTERS (Wires / Multiplexers) - 只读数据选择
@@ -190,82 +182,6 @@ export const useViewStore = defineStore('view', () => {
       viewKey,
       taskCount: orderedTaskIds.length,
     })
-  }
-
-  /**
-   * 加载排序配置（从后端加载时调用）
-   * 🆕 使用防抖批量更新，避免多次触发响应式重新计算
-   * @param viewKey 视图标识
-   * @param orderedTaskIds 保存的任务ID顺序
-   */
-  function loadSorting(viewKey: string, orderedTaskIds: string[]) {
-    const weights = new Map<string, number>()
-    orderedTaskIds.forEach((id, index) => {
-      weights.set(id, index)
-    })
-
-    // ✅ 缓存待更新的数据
-    pendingUpdates.set(viewKey, weights)
-
-    // ✅ 如果还没有调度更新，在下一个tick批量应用所有更新
-    if (!updateScheduled) {
-      updateScheduled = true
-      nextTick(() => {
-        // 一次性应用所有缓存的更新
-        const newMap = new Map(sortWeights.value)
-        pendingUpdates.forEach((weights, key) => {
-          newMap.set(key, weights)
-        })
-        sortWeights.value = newMap
-
-        // 清理
-        pendingUpdates.clear()
-        updateScheduled = false
-      })
-    }
-  }
-
-  /**
-   * 🆕 批量加载多个视图的排序配置
-   * @param viewKeys 视图标识数组
-   * @returns 成功加载的数量
-   */
-  async function batchFetchViewPreferences(viewKeys: string[]): Promise<number> {
-    const results = await Promise.all(viewKeys.map((key) => fetchViewPreference(key)))
-    const successCount = results.filter((r) => r).length
-    return successCount
-  }
-
-  /**
-   * 从后端加载视图的排序配置
-   * @param viewKey 视图标识（必须符合 VIEW_CONTEXT_KEY_SPEC 规范，如 'misc::staging', 'daily::2025-10-01'）
-   */
-  async function fetchViewPreference(viewKey: string): Promise<boolean> {
-    try {
-      const data = await apiGet<{
-        context_key: string
-        sorted_task_ids: string[]
-        updated_at: string
-      }>(`/view-preferences/${encodeURIComponent(viewKey)}`)
-
-      // 加载排序配置
-      loadSorting(viewKey, data.sorted_task_ids)
-
-      return true
-    } catch (err) {
-      // 404 表示没有保存的配置，静默处理
-      if (err instanceof Error && err.message.includes('404')) {
-        return true
-      }
-
-      logger.error(
-        LogTags.STORE_VIEW,
-        'Failed to fetch preference',
-        err instanceof Error ? err : new Error(String(err)),
-        { viewKey }
-      )
-      return false
-    }
   }
 
   /**
@@ -480,14 +396,6 @@ export const useViewStore = defineStore('view', () => {
     updateSortingOptimistic_mut, // 🔥 乐观更新（由 Command Handler 调用）
     clearSorting,
     clearAllSorting,
-    loadSorting, // 从后端加载时调用（批量防抖）
-
-    // ============================================================
-    // DMA (Direct Memory Access) - 数据加载
-    // ============================================================
-    fetchViewPreference, // 从后端加载单个视图
-    batchFetchViewPreferences, // 批量加载多个视图
-
     // ============================================================
     // Daily 视图注册与刷新
     // ============================================================

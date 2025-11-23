@@ -4,14 +4,12 @@ import type { ViewMetadata } from '@/types/drag'
 import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
-import { useViewStore } from '@/stores/view'
 import { controllerDebugState } from '@/infra/drag-interact'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== Stores ====================
 const areaStore = useAreaStore()
 const taskStore = useTaskStore()
-const viewStore = useViewStore()
 
 // ==================== 配置常量 ====================
 const KANBAN_WIDTH = 23 // 每个看板宽度（rem）
@@ -169,12 +167,6 @@ onMounted(async () => {
 
   // 确保任务已加载
   await taskStore.fetchAllIncompleteTasks_DMA()
-
-  // 批量加载所有看板的 view preferences
-  const viewKeys = kanbans.value.map((k) => k.viewKey)
-  if (viewKeys.length > 0) {
-    await viewStore.batchFetchViewPreferences(viewKeys)
-  }
 
   // 发送看板数量变化事件
   emit('kanban-count-change', kanbans.value.length)
