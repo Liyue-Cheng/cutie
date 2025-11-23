@@ -6,7 +6,7 @@
   />
   <SettingsModal :show="isSettingsOpen" @close="isSettingsOpen = false" />
   <CutePane class="main-frame">
-    <div class="title-bar" data-tauri-drag-region @mousedown="appWindow.startDragging()">
+    <div class="title-bar" @mousedown="handleTitleBarMouseDown">
       <div class="window-controls" @mousedown.stop>
         <CuteButton class="control-btn" @click="appWindow.minimize()">
           <CuteIcon name="Minus" :size="16" />
@@ -114,7 +114,7 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. Import lifecycle hooks and ref
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalPosition, PhysicalPosition } from '@tauri-apps/api/window'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CutePane from '@/components/alias/CutePane.vue'
@@ -129,6 +129,118 @@ const appWindow = getCurrentWindow()
 
 // 启动全局午夜刷新监测
 useMidnightRefresh()
+
+// ==================== 窗口拖动处理 (完全手动实现 - Workaround for Tauri bug #10767) ====================
+// 不使用 startDragging()，完全手动计算和设置窗口位置
+// 关键：e.screenX/screenY 是逻辑坐标，需要乘以 devicePixelRatio 转换为物理坐标
+// 使用 requestAnimationFrame 优化性能，避免卡顿
+let isDragging = false
+let windowStartX = 0
+let windowStartY = 0
+let mouseStartX = 0
+let mouseStartY = 0
+let scaleFactor = 1
+let pendingFrame = false
+let currentMouseX = 0
+let currentMouseY = 0
+
+const handleTitleBarMouseDown = async (e: MouseEvent) => {
+  // 只响应左键
+  if (e.button !== 0) return
+
+  try {
+    // 获取当前窗口位置（Physical 坐标）
+    const position = await appWindow.outerPosition()
+    windowStartX = position.x
+    windowStartY = position.y
+
+    // 获取屏幕缩放因子
+    scaleFactor = window.devicePixelRatio
+
+    // 记录鼠标起始位置（逻辑坐标）
+    mouseStartX = e.screenX
+    mouseStartY = e.screenY
+    currentMouseX = e.screenX
+    currentMouseY = e.screenY
+
+    console.log('Drag start - Window:', position, 'Mouse:', { x: mouseStartX, y: mouseStartY }, 'Scale:', scaleFactor)
+
+    isDragging = true
+
+    // 添加全局监听器
+    document.addEventListener('mousemove', handleMouseMove, { passive: false })
+    document.addEventListener('mouseup', handleMouseUp)
+
+    // 防止默认行为
+    e.preventDefault()
+  } catch (err) {
+    console.error('Failed to start drag:', err)
+  }
+}
+
+const updateWindowPosition = () => {
+  if (!isDragging) return
+
+  // 计算鼠标移动的距离（逻辑坐标），然后转换为物理坐标
+  const deltaX = (currentMouseX - mouseStartX) * scaleFactor
+  const deltaY = (currentMouseY - mouseStartY) * scaleFactor
+
+  // 计算新的窗口位置（物理坐标）
+  const newX = Math.round(windowStartX + deltaX)
+  const newY = Math.round(windowStartY + deltaY)
+
+  // 不等待 setPosition 完成，直接发送命令
+  appWindow.setPosition(new PhysicalPosition(newX, newY)).catch(err => {
+    console.error('Failed to set window position:', err)
+  })
+
+  pendingFrame = false
+}
+
+const handleMouseMove = (e: MouseEvent) => {
+  if (!isDragging) return
+
+  // 检查鼠标按钮状态，如果没有按下任何按钮，停止拖动
+  if (e.buttons === 0) {
+    console.log('Mouse button released, stopping drag')
+    handleMouseUp()
+    return
+  }
+
+  // 更新当前鼠标位置
+  currentMouseX = e.screenX
+  currentMouseY = e.screenY
+
+  // 使用 requestAnimationFrame 节流，避免过多的更新
+  if (!pendingFrame) {
+    pendingFrame = true
+    requestAnimationFrame(updateWindowPosition)
+  }
+
+  // 防止默认行为
+  e.preventDefault()
+}
+
+const handleMouseUp = () => {
+  if (!isDragging) return
+
+  isDragging = false
+  pendingFrame = false
+
+  // 清理监听器
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', handleMouseUp)
+
+  console.log('Drag ended')
+}
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  if (isDragging) {
+    handleMouseUp()
+  }
+  document.body.classList.remove(themeClassName)
+})
 
 const isAreaManagerOpen = ref(false)
 const isRecurrenceManagerOpen = ref(false)
@@ -150,12 +262,6 @@ onMounted(() => {
   }
 })
 
-// 3. Use onBeforeUnmount hook (good practice)
-// onBeforeUnmount is executed before the component is unmounted
-onBeforeUnmount(() => {
-  // When the component unmounts, remove the class to avoid affecting other pages
-  document.body.classList.remove(themeClassName)
-})
 </script>
 
 <style scoped>
@@ -183,6 +289,11 @@ onBeforeUnmount(() => {
   background-color: var(--color-background-primary);
   z-index: 10;
   flex-shrink: 0;
+
+  /* 防止拖动时选中文本 */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
 }
 
 .window-controls {
