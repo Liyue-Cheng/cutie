@@ -1,27 +1,7 @@
 /**
- * useCalendarInteractDrag - 日历拖放系统（基于 interact.js）
+ * 日历拖放（interact.js 版本）
  *
- * 🎯 核心功能：
- * - 处理从 Kanban/TaskList 拖拽任务到日历
- * - 实时显示拖拽预览（跟随鼠标的半透明任务卡片）
- * - 支持拖拽到全天区域或分时区域
- * - 支持拖拽到已有时间块上（链接任务）
- *
- * 🔑 技术栈：
- * - interact.js：底层拖拽引擎
- * - dragPreviewState：全局拖拽状态（由 interact manager 管理）
- * - useDragStrategy：统一的拖放策略系统
- * - getTimeFromDropPosition：坐标 → 时间转换
- *
- * 🎨 预览样式：
- * - 全天区域：显示为全天任务卡片
- * - 分时区域：显示为时间格卡片（带时间范围）
- * - 悬停在已有时间块上：显示链接图标（🔗）
- *
- * 📌 与框选系统的区别：
- * - 框选：由 CuteCalendar 的 mouse 事件驱动
- * - 拖拽：由 interact.js 驱动，监听 dragPreviewState
- * - 两套系统互不干扰（框选只在空白区域启动）
+ * 使用新的 interact.js 拖放系统和策略系统
  */
 
 import { ref, watch, type Ref } from 'vue'
@@ -68,24 +48,6 @@ export function useCalendarInteractDrag(
 
   /**
    * 更新预览事件（根据 dragPreviewState 与鼠标位置）
-   *
-   * 🎯 功能：
-   * - 监听全局拖拽状态（dragPreviewState）
-   * - 根据鼠标位置计算预览事件的时间和位置
-   * - 写入 previewEvent.value，触发 FullCalendar 重新渲染
-   *
-   * ⚡ 性能优化：
-   * - 位置阈值（POSITION_EPSILON）：鼠标移动 < 0.5px 不更新
-   * - previewKey 缓存：时间范围未变化时不重新创建事件对象
-   *
-   * 🔍 检测逻辑：
-   * 1. 是否在日历区域内（getBoundingClientRect）
-   * 2. 是否悬停在已有事件上（.fc-event）
-   * 3. 是否在全天区域（.fc-daygrid-day）
-   * 4. 是否在分时区域（默认）
-   *
-   * @param positionOverride 手动指定鼠标位置（用于强制更新）
-   * @param force 是否强制更新（忽略位置阈值）
    */
   function updatePreviewFromDragState(positionOverride?: Position | null, force = false) {
     const preview = dragPreviewState.value

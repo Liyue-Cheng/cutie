@@ -376,7 +376,8 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
 }
 
 .timeline-day-cell.is-today .day-number {
-  color: var(--color-primary);
+  /* 使用日历“今天”主色，避免依赖未定义的 color-primary */
+  color: var(--color-calendar-today);
 }
 
 .date-info {
@@ -434,8 +435,10 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-primary, #6366f1);
-  color: var(--color-button-primary-text, #fff);
+
+  /* 使用日历“今天”语义色，避免在组件中写死颜色 */
+  background-color: var(--color-calendar-today-bg);
+  color: var(--color-calendar-today);
   padding: 0.4rem 0.8rem;
   border-radius: 1rem;
   font-size: 1.2rem;

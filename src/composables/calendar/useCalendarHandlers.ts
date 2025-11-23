@@ -1,24 +1,17 @@
 /**
  * useCalendarHandlers - 日历事件处理器
  *
- * 🎯 核心职责：
- * 处理日历上的所有用户交互，包括：
- * - 时间段框选（通过自定义 overlay，不使用 FullCalendar 原生 select）
- * - 时间块拖动/调整大小
- * - 事件点击（打开详情面板）
- * - 右键菜单（任务菜单、时间块菜单）
- *
- * 🔑 重要概念：
- * - previewEvent：用于在用户操作过程中显示预览卡片（如框选时、拖拽时）
- * - 所有时间块相关操作通过 pipeline.dispatch 发送指令，走统一的命令系统
- *
- * 📌 注意：
- * - 本文件只处理"松手后"的逻辑（打开创建对话框）
- * - "拖动过程中"的预览由 CuteCalendar.vue 的 mouse 事件驱动
+ * 处理用户创建、修改、右键点击日历事件的逻辑
  */
 
 import { type Ref } from 'vue'
-import type { EventInput, EventChangeArg, EventMountArg, EventClickArg } from '@fullcalendar/core'
+import type {
+  EventInput,
+  EventChangeArg,
+  DateSelectArg,
+  EventMountArg,
+  EventClickArg,
+} from '@fullcalendar/core'
 import { useContextMenu } from '@/composables/useContextMenu'
 import CalendarEventMenu from '@/components/assembles/ContextMenu/CalendarEventMenu.vue'
 import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue'
@@ -26,7 +19,6 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
-import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
@@ -38,111 +30,75 @@ export function useCalendarHandlers(
   const uiStore = useUIStore()
 
   /**
-   * 处理时间格框选 - 打开创建对话框并显示预览
+   * 处理日期选择 - 打开创建对话框
    */
-  async function handleTimeGridSelection(payload: {
-    start: Date
-    end: Date
-    isAllDay?: boolean
-    anchorTop?: number
-    anchorLeft?: number
-  }) {
-    previewEvent.value = null
+  async function handleDateSelect(selectInfo: DateSelectArg) {
+    // ✅ 根据选择区域判断是否为全天事件
+    const isAllDay = selectInfo.allDay
 
-    const isAllDay = payload.isAllDay ?? false
-    let normalizedStart = new Date(payload.start)
-    let normalizedEnd = new Date(payload.end)
-
-    if (normalizedEnd.getTime() < normalizedStart.getTime()) {
-      const temp = normalizedStart
-      normalizedStart = normalizedEnd
-      normalizedEnd = temp
+    // 截断：非全天情况下不得跨天
+    let startISO = selectInfo.start.toISOString()
+    let endISO = selectInfo.end.toISOString()
+    if (!isAllDay) {
+      const start = new Date(selectInfo.start)
+      let end = new Date(selectInfo.end)
+      const dayEnd = new Date(start)
+      dayEnd.setHours(23, 59, 59, 999) // 截断到当天最后一刻
+      if (end.getTime() > dayEnd.getTime()) {
+        end = dayEnd
+      }
+      startISO = start.toISOString()
+      endISO = end.toISOString()
     }
 
-    if (isAllDay) {
-      normalizedStart.setHours(0, 0, 0, 0)
-      normalizedEnd.setHours(23, 59, 59, 999)
-    } else {
-      const dayEnd = new Date(normalizedStart)
-      dayEnd.setHours(23, 59, 59, 999)
-      if (normalizedEnd.getTime() > dayEnd.getTime()) {
-        normalizedEnd = dayEnd
-      }
-
-      // 至少保留 15 分钟
-      if (normalizedEnd.getTime() === normalizedStart.getTime()) {
-        const adjusted = new Date(normalizedStart.getTime() + 15 * 60 * 1000)
-        normalizedEnd = adjusted.getTime() > dayEnd.getTime() ? dayEnd : adjusted
-      }
-    }
-
-    const startISO = normalizedStart.toISOString()
-    const endISO = normalizedEnd.toISOString()
-
+    // 计算本地时间字符串
     let startTimeLocal: string | undefined
     let endTimeLocal: string | undefined
 
     if (isAllDay) {
+      // 全天事件：使用 00:00:00 到 23:59:59
       startTimeLocal = '00:00:00'
       endTimeLocal = '23:59:59'
     } else {
+      // 分时事件：提取时间部分
       const startDate = new Date(startISO)
       const endDate = new Date(endISO)
-      startTimeLocal = startDate.toTimeString().split(' ')[0]
-      endTimeLocal = endDate.toTimeString().split(' ')[0]
+      startTimeLocal = startDate.toTimeString().split(' ')[0] // HH:MM:SS
+      endTimeLocal = endDate.toTimeString().split(' ')[0] // HH:MM:SS
     }
 
+    // 计算锚点位置：使用 FullCalendar 选中高亮区域的 bounding rect
+    let anchorTop: number | undefined
+    let anchorLeft: number | undefined
+    if (typeof document !== 'undefined') {
+      const highlights = document.querySelectorAll('.fc-highlight') as NodeListOf<HTMLElement>
+      if (highlights.length > 0) {
+        const el = highlights[highlights.length - 1]!
+        const rect = el.getBoundingClientRect()
+        anchorTop = rect.top + rect.height / 2
+        anchorLeft = rect.left
+      }
+    }
+
+    // 🔥 打开时间块创建对话框，传递时间信息和锚点（保留 FullCalendar 自带的高亮作为预览）
     uiStore.openTimeBlockCreateDialog({
       startISO,
       endISO,
       startTimeLocal,
       endTimeLocal,
       isAllDay,
-      anchorTop: payload.anchorTop,
-      anchorLeft: payload.anchorLeft,
+      anchorTop,
+      anchorLeft,
     })
-
-    previewEvent.value = {
-      id: 'preview-event',
-      title: '',
-      start: startISO,
-      end: endISO,
-      allDay: isAllDay,
-      color: 'transparent',
-      backgroundColor: 'transparent',
-      borderColor: 'transparent',
-      classNames: ['preview-event'],
-      display: 'block',
-      extendedProps: {
-        type: 'timeblock',
-        isPreview: true,
-        areaColor: getDefaultAreaColor(),
-      },
-    }
   }
 
   /**
    * 处理事件变化 - 拖动或调整大小时间块
-   *
-   * 🎯 触发时机：
-   * - 用户拖动已有的时间块到新位置
-   * - 用户调整时间块的开始/结束时间（拖动上下边缘）
-   *
-   * 🔄 处理流程：
-   * 1. 过滤：只处理 type='timeblock' 的真实时间块（忽略任务、截止日期）
-   * 2. 全天 ↔ 分时转换：自动调整时间格式
-   * 3. 跨天截断：分时事件不允许跨天，自动截断到当天末尾
-   * 4. 发送更新指令：通过 pipeline.dispatch('time_block.update') 更新后端
-   *
-   * 📌 注意：
-   * - 乐观更新已在 timeblock-isa.ts 中实现，UI 会立即响应
-   * - 失败时会 revert 日历显示并 alert 错误
    */
   async function handleEventChange(changeInfo: EventChangeArg) {
     const { event, oldEvent } = changeInfo
 
-    // ✅ 过滤：只处理真实的时间块事件
-    // 日历上还会显示"任务"、"截止日期"等虚拟事件，这些不允许拖动
+    // ✅ 只处理真实的时间块事件，忽略虚拟事件（任务、截止日期等）
     const eventType = (event.extendedProps as any)?.type
     if (eventType !== 'timeblock') {
       logger.debug(LogTags.COMPONENT_CALENDAR, 'Ignoring event change for non-timeblock event', {
@@ -153,8 +109,7 @@ export function useCalendarHandlers(
       return
     }
 
-    // 🔄 检查全天 ↔ 分时状态变化
-    // FullCalendar 允许用户把"全天事件"拖到"分时区域"，反之亦然
+    // ✅ 检查全天状态变化
     const wasAllDay = oldEvent.allDay
     const isNowAllDay = event.allDay
     const isNowTimed = !event.allDay
@@ -162,7 +117,7 @@ export function useCalendarHandlers(
     let startTime = event.start?.toISOString()
     let endTime = event.end?.toISOString()
 
-    // 📅 → ⏰ 从全天拖到分时：默认设为 1 小时，并截断到当天末尾
+    // ✅ 从全天拖到分时：设置为 1 小时，并截断到日界
     if (wasAllDay && isNowTimed && event.start) {
       const start = new Date(event.start)
       let end = new Date(start.getTime() + 60 * 60 * 1000) // Add 1 hour
@@ -183,12 +138,12 @@ export function useCalendarHandlers(
       })
     }
 
-    // ⏰ → 📅 从分时拖到全天：规整到日界（00:00 - 00:00）
+    // ✅ 从分时拖到全天：规整到日界
     if (!wasAllDay && isNowAllDay && event.start && event.end) {
       const startDate = new Date(event.start)
-      startDate.setHours(0, 0, 0, 0) // 开始时间设为当天 00:00
+      startDate.setHours(0, 0, 0, 0)
       const endDate = new Date(event.end)
-      endDate.setHours(0, 0, 0, 0) // 结束时间设为次日 00:00
+      endDate.setHours(0, 0, 0, 0)
       startTime = startDate.toISOString()
       endTime = endDate.toISOString()
 
@@ -198,14 +153,12 @@ export function useCalendarHandlers(
       })
     }
 
-    // 🔪 统一截断：分时事件不得跨天（包括拖动/拉伸）
-    // ⚠️ 重要：必须使用本地时间比较，不能直接比较 ISO 字符串
-    // 原因：UTC 时间可能跨天，但本地时间未跨天（或反之）
+    // 统一截断：分时事件不得跨天（包括拖动/拉伸）
     if (!isNowAllDay && event.start && event.end) {
       let start = new Date(event.start)
       let end = new Date(event.end)
 
-      // 🌍 本地日期提取器：使用本地时间避免 UTC 偏移误判
+      // 使用本地日期比较（避免 UTC 偏移导致误判）
       const toLocalYMD = (d: Date) => {
         const y = d.getFullYear()
         const m = `${d.getMonth() + 1}`.padStart(2, '0')
@@ -362,7 +315,7 @@ export function useCalendarHandlers(
   }
 
   return {
-    handleTimeGridSelection,
+    handleDateSelect,
     handleEventChange,
     handleEventContextMenu,
     handleEventClick,

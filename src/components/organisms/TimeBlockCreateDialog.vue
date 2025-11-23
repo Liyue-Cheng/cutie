@@ -8,7 +8,7 @@
             :class="['type-button', { active: selectedType === 'task' }]"
             @click="selectedType = 'task'"
           >
-            <CuteIcon name="ListTodo" :size="20" />
+            <CuteIcon name="CheckSquare" :size="20" />
             <span>Task</span>
           </button>
           <button
@@ -45,29 +45,6 @@
   </Teleport>
 </template>
 
-<!--
-  TimeBlockCreateDialog - 时间块创建对话框
-
-  🎯 功能：
-  在日历上框选时间段后，弹出此对话框让用户选择创建 Task 或 Event
-
-  🎨 设计特点：
-  - 贴在时间块左侧显示（通过 position prop 定位）
-  - 不使用遮罩层（点击外部会关闭但不会阻挡视线）
-  - 支持类型切换（Task / Event），默认选中 Task
-  - 确认按钮在标题为空时禁用
-
-  🔑 交互规则：
-  - 点击对话框外部 → 关闭且不创建
-  - 点击取消 → 关闭且不创建
-  - 点击确认 → 触发 @confirm 事件并传递 { type, title }
-  - Enter 键 → 等同于点击确认
-  - Esc 键 → 等同于点击取消
-
-  📌 注意：
-  - 使用捕获阶段的全局 mousedown 监听器，优先拦截外部点击
-  - 通过 event.stopPropagation() + preventDefault() 防止点击穿透
--->
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -75,8 +52,8 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 const props = defineProps<{
   show: boolean
   position?: {
-    top: number // 锚点的视口 Y 坐标（像素）
-    left: number // 锚点的视口 X 坐标（像素）
+    top: number
+    left: number
   }
 }>()
 
@@ -85,13 +62,11 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const selectedType = ref<'task' | 'event'>('task') // 选中的类型，默认 Task
-const title = ref('') // 用户输入的标题
-const inputRef = ref<HTMLInputElement | null>(null) // 输入框 ref（用于自动聚焦）
-const popoverRef = ref<HTMLElement | null>(null) // 弹窗 ref（用于检测外部点击）
+const selectedType = ref<'task' | 'event'>('task')
+const title = ref('')
+const inputRef = ref<HTMLInputElement | null>(null)
+const popoverRef = ref<HTMLElement | null>(null)
 
-// 🎨 弹窗样式：根据锚点位置计算
-// transform: translate(-100%, -50%) 会让弹窗出现在锚点左侧并垂直居中
 const popoverStyle = computed(() => {
   const top = props.position?.top ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
   const left = props.position?.left ?? (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)

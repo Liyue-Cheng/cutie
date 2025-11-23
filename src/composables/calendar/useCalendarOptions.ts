@@ -1,27 +1,7 @@
 /**
  * useCalendarOptions - FullCalendar 配置
  *
- * 🎯 核心功能：
- * - 生成 FullCalendar 的完整配置对象（calendarOptions）
- * - 集成所有事件处理器（handlers）
- * - 配置自定义事件渲染（eventContent）
- *
- * 🔑 关键配置：
- * - plugins：interactionPlugin、timeGridPlugin、dayGridPlugin
- * - views：自定义 3 天/5 天/7 天视图
- * - slotDuration：5 分钟槽位（精细化时间控制）
- * - eventContent：使用 Vue 组件渲染所有事件（任务、时间块、截止日期）
- *
- * 🎨 自定义渲染策略：
- * - TimeGrid 视图：使用 CalendarTimeGridEventContent（带时间范围和复选框）
- * - DayGrid（月视图）：
- *   - 任务：CalendarTaskEventContent
- *   - 时间块：CalendarTimeBlockEventContent
- *   - 截止日期：CalendarDueDateEventContent
- *
- * 📌 重要：
- * - 已禁用 FullCalendar 原生的 select（改用自定义框选）
- * - eventContent 返回 { domNodes: [container] } 挂载 Vue 组件
+ * 配置 FullCalendar 插件、视图、时间槽等选项
  */
 
 import { reactive, type ComputedRef, createApp } from 'vue'
@@ -31,6 +11,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import type {
   EventInput,
   EventChangeArg,
+  DateSelectArg,
   EventMountArg,
   EventClickArg,
   DatesSetArg,
@@ -47,6 +28,7 @@ import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
 export function useCalendarOptions(
   calendarEvents: ComputedRef<EventInput[]>,
   handlers: {
+    handleDateSelect: (selectInfo: DateSelectArg) => Promise<void>
     handleEventChange: (changeInfo: EventChangeArg) => Promise<void>
     handleEventContextMenu: (info: EventMountArg) => void
     handleEventClick: (clickInfo: EventClickArg) => void
@@ -105,7 +87,7 @@ export function useCalendarOptions(
     height: '100%',
     weekends: true,
     editable: true,
-    selectable: false,
+    selectable: true,
     eventResizableFromStart: true, // 允许从开始时间调整大小
 
     // 🆕 自定义视图：3天、5天、7天视图
@@ -130,31 +112,13 @@ export function useCalendarOptions(
     fixedWeekCount: false, // 不固定显示6周，根据实际月份调整
 
     events: calendarEvents,
+    select: handlers.handleDateSelect,
     eventChange: handlers.handleEventChange,
     eventDidMount: handlers.handleEventDidMount,
     eventClick: handlers.handleEventClick,
     datesSet: handleDatesSet, // 🆕 日期变化回调
 
-    /**
-     * 🎨 自定义事件内容渲染（FullCalendar 官方推荐方式）
-     *
-     * 🔄 渲染流程：
-     * 1. 检查事件类型（type: 'task' | 'timeblock' | 'due_date'）
-     * 2. 检查视图类型（timeGrid | dayGrid）
-     * 3. 创建 Vue 组件实例
-     * 4. 挂载到 DOM 容器
-     * 5. 返回 { domNodes: [container] }
-     *
-     * 🎯 组件映射：
-     * - timeGrid + timeblock/preview → CalendarTimeGridEventContent
-     * - dayGrid + task → CalendarTaskEventContent
-     * - dayGrid + timeblock → CalendarTimeBlockEventContent
-     * - dayGrid + due_date → CalendarDueDateEventContent
-     *
-     * 📌 注意：
-     * - isPreview = true 时，CalendarTimeGridEventContent 不显示标题
-     * - 所有组件都通过 createApp 动态创建，避免全局注册
-     */
+    // 🔥 自定义事件内容渲染（官方推荐方式）
     eventContent: (arg: EventContentArg) => {
       const extended = arg.event.extendedProps as {
         type?: string
@@ -187,12 +151,9 @@ export function useCalendarOptions(
         const scheduleOutcome = extended.scheduleOutcome as string | null | undefined
         const scheduleDay = extended.scheduleDay as string | undefined
 
-        // 预览事件使用空标题，避免显示“Time Block”占位
-        const displayTitle = isPreviewEvent ? '' : arg.event.title || 'Time Block'
-
         // 使用 Vue 组件渲染
         const app = createApp(CalendarTimeGridEventContent, {
-          title: displayTitle,
+          title: arg.event.title || 'Time Block',
           areaColor,
           startTime,
           endTime,
@@ -200,7 +161,6 @@ export function useCalendarOptions(
           isCompleted,
           scheduleOutcome,
           scheduleDay,
-          isPreview: isPreviewEvent,
         })
 
         app.mount(container)
