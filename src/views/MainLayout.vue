@@ -163,7 +163,14 @@ const handleTitleBarMouseDown = async (e: MouseEvent) => {
     currentMouseX = e.screenX
     currentMouseY = e.screenY
 
-    console.log('Drag start - Window:', position, 'Mouse:', { x: mouseStartX, y: mouseStartY }, 'Scale:', scaleFactor)
+    console.log(
+      'Drag start - Window:',
+      position,
+      'Mouse:',
+      { x: mouseStartX, y: mouseStartY },
+      'Scale:',
+      scaleFactor
+    )
 
     isDragging = true
 
@@ -190,7 +197,7 @@ const updateWindowPosition = () => {
   const newY = Math.round(windowStartY + deltaY)
 
   // 不等待 setPosition 完成，直接发送命令
-  appWindow.setPosition(new PhysicalPosition(newX, newY)).catch(err => {
+  appWindow.setPosition(new PhysicalPosition(newX, newY)).catch((err) => {
     console.error('Failed to set window position:', err)
   })
 
@@ -261,7 +268,6 @@ onMounted(() => {
     document.body.classList.add(themeClassName)
   }
 })
-
 </script>
 
 <style scoped>
@@ -292,7 +298,6 @@ onMounted(() => {
 
   /* 防止拖动时选中文本 */
   user-select: none;
-  -webkit-user-select: none;
   cursor: default;
 }
 
