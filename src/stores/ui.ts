@@ -45,6 +45,32 @@ export const useUIStore = defineStore('ui', () => {
    */
   const isRecurrenceEditDialogOpen = computed(() => recurrenceEditDialogId.value !== null)
 
+  // ==================== 时间块创建对话框状态 ====================
+
+  /**
+   * 时间块创建对话框上下文
+   * 存储选择的时间信息以及锚点位置（用于在日历左侧浮出面板）
+   */
+  interface TimeBlockCreateContext {
+    // 时间信息
+    startISO: string
+    endISO: string
+    startTimeLocal?: string
+    endTimeLocal?: string
+    isAllDay: boolean
+
+    // UI 锚点（视口坐标）
+    anchorTop?: number
+    anchorLeft?: number
+  }
+
+  const timeBlockCreateContext = ref<TimeBlockCreateContext | null>(null)
+
+  /**
+   * 时间块创建对话框是否打开
+   */
+  const isTimeBlockCreateDialogOpen = computed(() => timeBlockCreateContext.value !== null)
+
   // ==================== 操作方法 ====================
 
   /**
@@ -101,6 +127,29 @@ export const useUIStore = defineStore('ui', () => {
     })
   }
 
+  /**
+   * 打开时间块创建对话框
+   * @param context 时间选择上下文
+   */
+  function openTimeBlockCreateDialog(context: TimeBlockCreateContext) {
+    timeBlockCreateContext.value = context
+
+    logger.info(LogTags.STORE_UI, 'Opening time block create dialog', {
+      startISO: context.startISO,
+      endISO: context.endISO,
+      isAllDay: context.isAllDay,
+    })
+  }
+
+  /**
+   * 关闭时间块创建对话框
+   */
+  function closeTimeBlockCreateDialog() {
+    timeBlockCreateContext.value = null
+
+    logger.info(LogTags.STORE_UI, 'Closing time block create dialog')
+  }
+
   return {
     // 任务编辑器状态
     editorTaskId,
@@ -111,10 +160,16 @@ export const useUIStore = defineStore('ui', () => {
     recurrenceEditDialogId,
     isRecurrenceEditDialogOpen,
 
+    // 时间块创建对话框状态
+    timeBlockCreateContext,
+    isTimeBlockCreateDialogOpen,
+
     // 操作方法
     openEditor,
     closeEditor,
     openRecurrenceEditDialog,
     closeRecurrenceEditDialog,
+    openTimeBlockCreateDialog,
+    closeTimeBlockCreateDialog,
   }
 })

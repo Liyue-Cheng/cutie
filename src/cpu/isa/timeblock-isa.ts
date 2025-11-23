@@ -195,6 +195,66 @@ export const TimeBlockISA: ISADefinition = {
       priority: 6,
       timeout: 10000,
     },
+    optimistic: {
+      enabled: true,
+      apply: (payload) => {
+        const timeBlockStore = useTimeBlockStore()
+        const existing = timeBlockStore.getTimeBlockById(payload.id)
+
+        if (!existing) {
+          return {}
+        }
+
+        const previous: TimeBlockView = {
+          ...existing,
+          linked_tasks: existing.linked_tasks.map((task) => ({ ...task })),
+        }
+
+        const updates = payload.updates || {}
+
+        const updatedBlock: TimeBlockView = {
+          ...existing,
+          title: updates.title !== undefined ? (updates.title ?? null) : existing.title,
+          glance_note:
+            updates.glance_note !== undefined
+              ? (updates.glance_note ?? null)
+              : existing.glance_note,
+          detail_note:
+            updates.detail_note !== undefined
+              ? (updates.detail_note ?? null)
+              : existing.detail_note,
+          start_time: updates.start_time ?? existing.start_time,
+          end_time: updates.end_time ?? existing.end_time,
+          start_time_local:
+            updates.start_time_local !== undefined
+              ? (updates.start_time_local ?? null)
+              : (existing.start_time_local ?? null),
+          end_time_local:
+            updates.end_time_local !== undefined
+              ? (updates.end_time_local ?? null)
+              : (existing.end_time_local ?? null),
+          time_type: updates.time_type ?? existing.time_type,
+          creation_timezone:
+            updates.creation_timezone !== undefined
+              ? (updates.creation_timezone ?? null)
+              : (existing.creation_timezone ?? null),
+          is_all_day: updates.is_all_day !== undefined ? updates.is_all_day : existing.is_all_day,
+          area_id:
+            updates.area_id !== undefined ? (updates.area_id ?? null) : (existing.area_id ?? null),
+        }
+
+        timeBlockStore.addOrUpdateTimeBlock_mut(updatedBlock)
+
+        return { previous }
+      },
+      rollback: (snapshot) => {
+        if (!snapshot?.previous) {
+          return
+        }
+        const timeBlockStore = useTimeBlockStore()
+        timeBlockStore.addOrUpdateTimeBlock_mut(snapshot.previous)
+      },
+    },
     request: {
       method: 'PATCH',
       url: (payload) => `/time-blocks/${payload.id}`,

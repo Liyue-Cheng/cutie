@@ -267,7 +267,9 @@ export function useCalendarEvents(
       })
     }
 
-    // 3. 添加截止日期事件（仅在月视图）
+    // ==================== 3. 添加截止日期事件 ====================
+    // 显示条件：仅月视图且筛选器未关闭
+    // 去重规则：如果该任务在截止日期当天已有排期，则不单独显示截止日期
     if (viewType.value === 'month' && filters?.showDueDates !== false) {
       taskStore.allTasks.forEach((task) => {
         // 跳过已完成、已归档、已删除的任务
@@ -311,7 +313,9 @@ export function useCalendarEvents(
       })
     }
 
-    // 4. 添加预览事件
+    // ==================== 4. 添加预览事件 ====================
+    // 来源：drag.previewEvent（由 CuteCalendar 框选或 useCalendarInteractDrag 拖拽驱动）
+    // 去重：如果预览的任务在该日期已有排期，则不重复显示
     if (previewEvent.value) {
       const previewProps = previewEvent.value.extendedProps as
         | {

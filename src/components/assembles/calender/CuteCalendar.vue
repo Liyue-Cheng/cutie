@@ -1,3 +1,37 @@
+<!--
+  CuteCalendar - 日历核心组件
+
+  🎯 核心功能：
+  - 基于 FullCalendar 封装的完整日历视图
+  - 支持单日/多日/周/月视图切换
+  - 支持 1x/2x/3x 缩放等级
+  - 完全自定义的事件渲染（使用 Vue 组件）
+  - 自定义框选系统（替代 FullCalendar 原生 select）
+
+  🎨 视觉特性：
+  - 与 Cutie 设计系统完全集成
+  - 自定义日期头部（带拖放支持）
+  - 时间块详情面板（点击事件时显示）
+  - 实时预览（框选/拖拽时的跟手卡片）
+
+  🔑 技术架构：
+  - FullCalendar：提供基础时间网格和事件容器
+  - useCalendarEvents：生成事件列表（任务、时间块、截止日期）
+  - useCalendarHandlers：处理事件交互（点击、拖拽、框选）
+  - useCalendarInteractDrag：处理任务拖拽到日历
+  - eventContent：使用 Vue 组件自定义渲染所有事件
+
+  🚀 自定义框选系统：
+  - 不使用 FullCalendar 的 selectable / .fc-highlight
+  - 监听 mousedown/mousemove/mouseup 自行计算时间范围
+  - 通过 drag.previewEvent 驱动预览卡片渲染
+  - 松手后打开 TimeBlockCreateDialog 让用户选择 Task/Event
+
+  📌 重要概念：
+  - previewEvent：框选/拖拽过程中的临时事件，用于实时显示预览
+  - selectedTimeBlockId：当前选中的时间块 ID，用于显示详情面板
+  - displayDates：自定义日期头部的数据（支持拖放任务到日期）
+-->
 <template>
   <div class="calendar-container" :class="`zoom-${currentZoom}x`">
     <!-- 自定义日期头部 -->
@@ -64,6 +98,7 @@ import { useTimePosition } from '@/composables/calendar/useTimePosition'
 import { useDecorativeLine } from '@/composables/calendar/useDecorativeLine'
 import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
 import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
+import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInteractDrag'
@@ -76,18 +111,28 @@ const taskStore = useTaskStore()
 const registerStore = useRegisterStore()
 const userSettingsStore = useUserSettingsStore()
 
-// ==================== Props ====================
+/**
+ * ==================== Props ====================
+ *
+ * 📋 Props 说明：
+ * - currentDate：日历显示的中心日期（YYYY-MM-DD）
+ * - zoom：缩放等级（1x=紧凑，2x=标准，3x=详细）
+ * - viewType：视图类型（day/week/month）
+ * - days：多日视图的天数（1/3/5/7）
+ * - monthViewFilters：月视图的事件筛选器
+ */
 const props = withDefaults(
   defineProps<{
     currentDate?: string // YYYY-MM-DD 格式的日期
-    zoom?: 1 | 2 | 3 // 缩放倍率
-    viewType?: 'day' | 'week' | 'month' // ✅ 新增：视图类型（单天、周或月视图）
-    days?: 1 | 3 | 5 | 7 // 🆕 新增：显示天数（1天、3天、5天或7天）
+    zoom?: 1 | 2 | 3 // 缩放倍率（影响 slot 高度）
+    viewType?: 'day' | 'week' | 'month' // 视图类型
+    days?: 1 | 3 | 5 | 7 // 显示天数（仅 day 视图有效）
     monthViewFilters?: {
-      showRecurringTasks: boolean
-      showScheduledTasks: boolean
-      showDueDates: boolean
-      showAllDayEvents: boolean
+      // 月视图筛选器
+      showRecurringTasks: boolean // 是否显示循环任务
+      showScheduledTasks: boolean // 是否显示已排期任务
+      showDueDates: boolean // 是否显示截止日期
+      showAllDayEvents: boolean // 是否显示全天事件
     }
   }>(),
   {
@@ -221,14 +266,25 @@ watch(
   }
 )
 
-// ==================== Composables ====================
+/**
+ * ==================== Composables ====================
+ *
+ * 📦 各 composable 的职责：
+ * - useAutoScroll：拖拽到边界时自动滚动日历
+ * - useTimePosition：将鼠标坐标映射为日历时间
+ * - useDecorativeLine：装饰竖线（已禁用）
+ * - useCalendarInteractDrag：处理任务拖拽到日历（基于 interact.js）
+ * - useCalendarEvents：生成 FullCalendar 的事件列表
+ * - useCalendarHandlers：处理事件点击、拖动、框选等交互
+ * - useDragStrategy：统一的拖放策略系统
+ */
 // 自动滚动
 const { handleAutoScroll, stopAutoScroll } = useAutoScroll()
 
 // 时间位置计算
 const { getTimeFromDropPosition, clearCache } = useTimePosition(calendarRef)
 
-// 装饰线
+// 装饰线（已禁用，但保留接口）
 const decorativeLine = useDecorativeLine(calendarRef, currentDateRef)
 decorativeLine.initialize()
 
@@ -239,6 +295,23 @@ const drag = useCalendarInteractDrag(calendarRef, {
   stopAutoScroll,
 })
 const dragStrategy = useDragStrategy()
+
+/**
+ * ==================== 自定义框选状态 ====================
+ *
+ * 🎯 替代 FullCalendar 原生的 selectable / .fc-highlight
+ *
+ * 状态说明：
+ * - isSelecting：是否正在框选（mousedown → mouseup）
+ * - selectionStartTime：框选起始时间
+ * - selectionCurrentTime：框选当前时间（跟随鼠标移动）
+ * - selectionAnchor：锚点坐标（用于定位 TimeBlockCreateDialog）
+ */
+const isSelecting = ref(false)
+const selectionStartTime = ref<Date | null>(null)
+const selectionCurrentTime = ref<Date | null>(null)
+const selectionAnchor = ref<{ top: number; left: number } | null>(null)
+const slotDurationMinutes = ref<number | null>(null)
 
 // 日历事件数据（传入视图类型和筛选器）
 const viewTypeRef = computed(() => props.viewType)
@@ -265,6 +338,312 @@ function handleCalendarEventClick(clickInfo: EventClickArg) {
 const calendarHandlers = {
   ...handlers,
   handleEventClick: handleCalendarEventClick,
+}
+
+/**
+ * 判断当前是否为时间网格视图
+ *
+ * 🎯 用途：
+ * - 自定义框选只在 timeGrid 视图中启用（单日/多日/周视图）
+ * - 月视图（dayGrid）不支持框选，只能点击日期单元格
+ *
+ * @returns true 表示当前为 timeGrid* 视图，false 表示其他视图
+ */
+function isTimeGridViewActive() {
+  const viewTypeName = calendarRef.value?.getApi()?.view?.type ?? ''
+  return viewTypeName.startsWith('timeGrid')
+}
+
+/**
+ * 更新 slot 高度缓存
+ *
+ * 🎯 目的：
+ * - 避免 mousemove 时频繁扫描 DOM，减少布局抖动
+ * - 从前两个 .fc-timegrid-slot[data-time] 计算出"一个 slot 代表几分钟"
+ *
+ * 🔄 调用时机：
+ * - 组件首次加载（onMounted）
+ * - 视图类型切换（watch viewType / days）
+ * - 缩放等级切换（watch zoom）
+ * - 窗口 resize（ResizeObserver）
+ *
+ * 📌 注意：
+ * - FullCalendar 的 slotDuration = '00:05:00'，理论值为 5 分钟
+ * - 实际计算一次，确保与 DOM 实际渲染一致（兜底值 15 分钟）
+ */
+function updateSlotDurationMinutes() {
+  const calendarEl = calendarRef.value?.$el as HTMLElement | null
+  if (!calendarEl) {
+    slotDurationMinutes.value = null
+    return
+  }
+
+  const slots = calendarEl.querySelectorAll('.fc-timegrid-slot[data-time]')
+  if (slots.length >= 2) {
+    const parseMinutes = (time: string) => {
+      const [h = '0', m = '0', s = '0'] = time.split(':')
+      return parseInt(h) * 60 + parseInt(m) + parseInt(s) / 60
+    }
+
+    const first = slots[0]?.getAttribute('data-time')
+    const second = slots[1]?.getAttribute('data-time')
+    if (first && second) {
+      const diff = parseMinutes(second) - parseMinutes(first)
+      if (diff > 0) {
+        slotDurationMinutes.value = diff
+        return
+      }
+    }
+  }
+
+  slotDurationMinutes.value = 15
+}
+
+function registerSelectionListeners() {
+  const calendarEl = calendarRef.value?.$el as HTMLElement | null
+  if (!calendarEl) return
+  calendarEl.addEventListener('mousedown', handleTimeGridMouseDown)
+}
+
+function unregisterSelectionListeners() {
+  const calendarEl = calendarRef.value?.$el as HTMLElement | null
+  if (!calendarEl) return
+  calendarEl.removeEventListener('mousedown', handleTimeGridMouseDown)
+}
+
+/**
+ * 自定义时间格框选：在鼠标按下时启动跟手预览（替代 FullCalendar 的 select/highlight）
+ */
+/**
+ * 处理时间网格鼠标按下事件 - 启动自定义框选
+ *
+ * 🎯 功能：
+ * - 替代 FullCalendar 原生的 selectable / .fc-highlight
+ * - 在用户鼠标按下时记录起点，注册全局 mousemove/mouseup
+ * - 立即渲染一个最小高度的预览卡片（避免后续闪烁）
+ *
+ * 🚫 排除情况：
+ * - 非左键点击（右键/中键）
+ * - 点击在已有事件上（保留事件拖动/点击）
+ * - 非 timeGrid 视图（月视图不支持框选）
+ * - 点击在时间轴标签上
+ *
+ * 📌 注意：
+ * - 只在空白的时间网格区域启动框选
+ * - 与 useCalendarInteractDrag 的任务拖拽互不干扰
+ */
+function handleTimeGridMouseDown(event: MouseEvent) {
+  // 🔍 只处理左键（button = 0）
+  if (event.button !== 0) return
+  // 🔍 只在 timeGrid 视图中启用框选
+  if (!isTimeGridViewActive()) return
+  const target = event.target as HTMLElement | null
+  if (!target) return
+
+  // 避免与事件拖拽/点击冲突
+  if (target.closest('.fc-event')) return
+  if (!target.closest('.fc-timegrid-body')) return
+
+  const calendarEl = calendarRef.value?.$el as HTMLElement | null
+  if (!calendarEl) return
+
+  const dropLikeEvent = { clientX: event.clientX, clientY: event.clientY } as DragEvent
+  const startTime = getTimeFromDropPosition(dropLikeEvent, calendarEl)
+  if (!startTime) return
+
+  event.preventDefault()
+
+  isSelecting.value = true
+  selectionStartTime.value = new Date(startTime)
+  selectionCurrentTime.value = new Date(startTime)
+
+  const columnEl = target.closest('.fc-timegrid-col') as HTMLElement | null
+  if (columnEl) {
+    const rect = columnEl.getBoundingClientRect()
+    selectionAnchor.value = {
+      top: event.clientY,
+      left: rect.left,
+    }
+  } else {
+    selectionAnchor.value = {
+      top: event.clientY,
+      left: event.clientX,
+    }
+  }
+
+  // 👂 注册全局监听器：mousemove 跟手更新预览，mouseup 完成框选
+  window.addEventListener('mousemove', handleTimeGridMouseMove)
+  window.addEventListener('mouseup', handleTimeGridMouseUp, { once: true })
+
+  // 🎬 立即渲染第一帧预览（最小高度 = 1 个 slot）
+  // 这样用户一按下就能看到预览卡片，避免等到 mousemove 时才出现
+  const minMinutes = getSlotDurationMinutes()
+  const initialEnd = new Date(selectionStartTime.value.getTime() + minMinutes * 60 * 1000)
+  const { start, end } = normalizeTimedRange(selectionStartTime.value, initialEnd, minMinutes)
+  selectionCurrentTime.value = end
+  updateSelectionPreview(start, end)
+}
+
+function getSlotDurationMinutes(): number {
+  if (slotDurationMinutes.value == null) {
+    updateSlotDurationMinutes()
+  }
+  return slotDurationMinutes.value ?? 15
+}
+
+/**
+ * 规范化分时时间范围
+ *
+ * 🎯 功能：
+ * 1. 确保 start <= end（自动交换）
+ * 2. 截断跨天（end 不能超过 start 所在天的 23:59:59.999）
+ * 3. 强制最小持续时间（避免拖出"一条线"的时间块）
+ *
+ * 📏 最小持续时间 = 一个 slot 的高度（通常 5 或 15 分钟）
+ * - 如果用户只点了一下（start ≈ end），自动延长到最小时长
+ * - 避免预览卡片高度 < 1 个 slot，消除闪烁
+ *
+ * @param start 起始时间
+ * @param end 结束时间
+ * @param minMinutes 最小持续时间（分钟），默认从 slotDurationMinutes 读取
+ * @returns { start, end } 规范化后的时间范围
+ */
+function normalizeTimedRange(start: Date, end: Date, minMinutes?: number) {
+  let normalizedStart = new Date(start)
+  let normalizedEnd = new Date(end)
+
+  if (normalizedEnd.getTime() < normalizedStart.getTime()) {
+    const temp = normalizedStart
+    normalizedStart = normalizedEnd
+    normalizedEnd = temp
+  }
+
+  const dayEnd = new Date(normalizedStart)
+  dayEnd.setHours(23, 59, 59, 999)
+  if (normalizedEnd.getTime() > dayEnd.getTime()) {
+    normalizedEnd = dayEnd
+  }
+
+  const minimumMinutes = minMinutes ?? getSlotDurationMinutes()
+  const minimumMs = minimumMinutes * 60 * 1000
+
+  if (normalizedEnd.getTime() - normalizedStart.getTime() < minimumMs) {
+    const adjusted = new Date(normalizedStart.getTime() + minimumMs)
+    normalizedEnd = adjusted.getTime() > dayEnd.getTime() ? dayEnd : adjusted
+  }
+
+  return { start: normalizedStart, end: normalizedEnd }
+}
+
+/**
+ * 更新选区预览事件
+ *
+ * 🎨 核心：
+ * - 将预览时间段写入 drag.previewEvent
+ * - useCalendarEvents 会监听这个 ref，并生成 FullCalendar 事件列表
+ * - useCalendarOptions 的 eventContent 会用 CalendarTimeGridEventContent 渲染预览卡片
+ *
+ * 🔑 为什么是 type: 'timeblock' + isPreview: true：
+ * - type: 'timeblock' → 让 eventContent 走时间块渲染分支
+ * - isPreview: true → CalendarTimeGridEventContent 不显示标题和复选框
+ *
+ * @param start 预览起始时间
+ * @param end 预览结束时间
+ */
+function updateSelectionPreview(start: Date, end: Date) {
+  drag.previewEvent.value = {
+    id: 'preview-event',
+    title: '', // 预览不显示标题
+    start: start.toISOString(),
+    end: end.toISOString(),
+    allDay: false,
+    color: 'transparent',
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    classNames: ['preview-event'],
+    display: 'block',
+    extendedProps: {
+      type: 'timeblock',
+      isPreview: true,
+      areaColor: getDefaultAreaColor(), // 使用默认区域颜色
+    },
+  }
+}
+
+/**
+ * 处理鼠标移动 - 实时更新预览卡片
+ *
+ * 🎯 功能：
+ * - 根据鼠标当前位置计算时间
+ * - 更新 drag.previewEvent，触发 FullCalendar 重新渲染
+ * - 预览卡片会"跟手"变化高度
+ *
+ * ⚡ 性能优化：
+ * - getTimeFromDropPosition 内部已有节流（16ms）
+ * - 只在 isSelecting = true 时响应
+ *
+ * 📌 注意：
+ * - normalizeTimedRange 会确保最小高度 = 1 个 slot
+ * - 用户拖出的时间范围可能上下颠倒（start > end），会自动交换
+ */
+function handleTimeGridMouseMove(event: MouseEvent) {
+  if (!isSelecting.value || !selectionStartTime.value) return
+  const calendarEl = calendarRef.value?.$el as HTMLElement | null
+  if (!calendarEl) return
+
+  const dropLikeEvent = { clientX: event.clientX, clientY: event.clientY } as DragEvent
+  const current = getTimeFromDropPosition(dropLikeEvent, calendarEl)
+  if (!current) return
+
+  selectionCurrentTime.value = new Date(current)
+  const minMinutes = getSlotDurationMinutes()
+  const { start, end } = normalizeTimedRange(
+    selectionStartTime.value,
+    selectionCurrentTime.value,
+    minMinutes
+  )
+  updateSelectionPreview(start, end)
+}
+
+function resetSelectionState() {
+  window.removeEventListener('mousemove', handleTimeGridMouseMove)
+  window.removeEventListener('mouseup', handleTimeGridMouseUp)
+  isSelecting.value = false
+  selectionStartTime.value = null
+  selectionCurrentTime.value = null
+  selectionAnchor.value = null
+}
+
+async function handleTimeGridMouseUp() {
+  window.removeEventListener('mousemove', handleTimeGridMouseMove)
+
+  if (!isSelecting.value || !selectionStartTime.value || !selectionCurrentTime.value) {
+    resetSelectionState()
+    drag.previewEvent.value = null
+    return
+  }
+
+  const start = selectionStartTime.value
+  const end = selectionCurrentTime.value
+  const anchor = selectionAnchor.value
+  resetSelectionState()
+
+  const minMinutes = getSlotDurationMinutes()
+  const { start: normalizedStart, end: normalizedEnd } = normalizeTimedRange(start, end, minMinutes)
+  const durationMs = normalizedEnd.getTime() - normalizedStart.getTime()
+
+  if (durationMs < 5 * 60 * 1000) {
+    drag.previewEvent.value = null
+    return
+  }
+
+  await handlers.handleTimeGridSelection({
+    start: normalizedStart,
+    end: normalizedEnd,
+    isAllDay: false,
+    anchorTop: anchor?.top,
+    anchorLeft: anchor?.left,
+  })
 }
 
 function formatDateShort(d: Date) {
@@ -521,12 +900,32 @@ watch(
         })
       }
     }
+
+    resetSelectionState()
+    drag.previewEvent.value = null
   },
   { immediate: false }
 )
 
-// ==================== 视图类型切换功能 ====================
-// 获取视图名称的辅助函数
+/**
+ * ==================== 视图类型切换功能 ====================
+ *
+ * 🎯 支持的视图：
+ * - timeGridDay：单日视图
+ * - timeGrid3Days：3 天视图
+ * - timeGrid5Days：5 天视图
+ * - timeGrid7Days：7 天视图
+ * - timeGridWeek：周视图（7 天，但固定周一到周日）
+ * - dayGridMonth：月视图
+ */
+
+/**
+ * 获取 FullCalendar 视图名称
+ *
+ * @param viewType 视图类型（day/week/month）
+ * @param days 天数（仅 day 类型有效）
+ * @returns FullCalendar 视图名称字符串
+ */
 function getViewName(viewType: 'day' | 'week' | 'month', days: 1 | 3 | 5 | 7): string {
   if (viewType === 'day') {
     if (days === 3) return 'timeGrid3Days'
@@ -540,7 +939,22 @@ function getViewName(viewType: 'day' | 'week' | 'month', days: 1 | 3 | 5 | 7): s
   }
 }
 
-// 监听 viewType 和 days prop 变化，动态切换视图
+/**
+ * 监听视图类型和天数变化，动态切换视图
+ *
+ * 🔄 处理流程：
+ * 1. 计算目标视图名称（getViewName）
+ * 2. 保存当前日期
+ * 3. 切换视图（calendarApi.changeView）
+ * 4. 恢复日期（避免切换视图后日期跳变）
+ * 5. 清除缓存（强制重新计算位置）
+ * 6. 更新自定义日期头部
+ * 7. 刷新 slot 高度缓存
+ * 8. 如果切换到月视图，拉取该月数据
+ *
+ * 📌 注意：
+ * - 视图切换会导致 DOM 重新渲染，需要等待 nextTick
+ */
 watch(
   [() => props.viewType, () => props.days],
   async ([newViewType, newDays]) => {
@@ -580,21 +994,45 @@ watch(
     updateDisplayDates()
 
     // 🔥 如果切换到月视图，拉取该月份的数据
+    // 原因：月视图需要显示整月的循环任务实例，需要单独拉取
     if (newViewType === 'month') {
       await nextTick() // 确保视图已切换
       await fetchMonthViewData()
     }
+
+    // 🔄 更新 slot 高度缓存（不同视图可能有不同的 slot 配置）
+    await nextTick()
+    updateSlotDurationMinutes()
+
+    resetSelectionState()
+    drag.previewEvent.value = null
 
     logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar view changed successfully', {
       viewName,
       viewType: newViewType,
       days: newDays,
     })
+
+    await nextTick()
+    updateSlotDurationMinutes()
   },
   { immediate: false }
 )
 
-// 缩放变化：强制更新日历尺寸并重算装饰线，同时保持当前日期和滚动位置比例
+/**
+ * 监听缩放等级变化
+ *
+ * 🎯 功能：
+ * - 保存滚动位置比例
+ * - 强制更新日历尺寸
+ * - 按比例恢复滚动位置
+ * - 更新 slot 高度缓存
+ *
+ * 📌 为什么要保存滚动比例：
+ * - zoom 变化会改变 slot 高度，导致总高度变化
+ * - 如果不保存比例，视口会跳到顶部（用户体验差）
+ * - 保存比例后，缩放前后"看到的时间点"保持一致
+ */
 watch(
   () => props.zoom,
   async () => {
@@ -636,21 +1074,36 @@ watch(
         }
       } catch {}
     }
+    updateSlotDurationMinutes()
     // decorativeLine.updatePosition() // 已禁用
   }
 )
 
-// 窗口resize处理函数
+/**
+ * ==================== 生命周期管理 ====================
+ */
+
+// 窗口 resize 观察器
 let resizeObserver: ResizeObserver | null = null
 
 onMounted(async () => {
   // 使用 nextTick 确保DOM完全渲染后再获取数据
   await nextTick()
 
-  // 🔥 注册日历为 dropzone（新系统）
+  // 🔥 注册日历为 dropzone（interact.js 系统）
+  // 用于接收从 Kanban/TaskList 拖拽过来的任务
   drag.registerCalendarDropzone()
 
+  // 🔥 注册自定义框选监听器
+  // 用于处理用户在时间网格上的鼠标框选操作
+  registerSelectionListeners()
+
+  // 🔄 初始化 slot 高度缓存
+  await nextTick()
+  updateSlotDurationMinutes()
+
   // 🔥 监听窗口大小变化，同步列宽和更新日历尺寸
+  // 使用 ResizeObserver 替代 window.resize，性能更好且更精确
   resizeObserver = new ResizeObserver(() => {
     if (calendarRef.value) {
       const calendarApi = calendarRef.value.getApi()
@@ -660,6 +1113,7 @@ onMounted(async () => {
         // 延迟同步列宽，等待DOM更新
         nextTick(() => {
           syncColumnWidths()
+          updateSlotDurationMinutes()
         })
       }
     }
@@ -670,6 +1124,8 @@ onMounted(async () => {
   if (calendarContainer) {
     resizeObserver.observe(calendarContainer)
   }
+
+  registerSelectionListeners()
 
   try {
     // 如果有初始日期，切换到该日期
@@ -719,6 +1175,8 @@ onMounted(async () => {
         })
       }
     }
+
+    updateSlotDurationMinutes()
   } catch (error) {
     logger.error(
       LogTags.COMPONENT_CALENDAR,
@@ -729,6 +1187,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  unregisterSelectionListeners()
+  resetSelectionState()
+
   // 清理resize observer
   if (resizeObserver) {
     resizeObserver.disconnect()
@@ -828,10 +1289,26 @@ function registerHeaderDropzones() {
   })
 }
 
-// ==================== 暴露给父组件 ====================
+/**
+ * ==================== 暴露给父组件 ====================
+ *
+ * 🔑 暴露的方法：
+ * - calendarRef：FullCalendar 组件引用（可调用 getApi() 等方法）
+ * - syncColumnWidths：同步自定义日期头部的列宽
+ * - clearPreview：清除预览事件（drag.previewEvent）
+ * - resetSelectionState：重置框选状态（清理 isSelecting 等）
+ *
+ * 📌 使用场景：
+ * - HomeCalendarPanel 调用 clearPreview + resetSelectionState 清理框选
+ * - 父组件通过 calendarRef.calendarRef.getApi() 调用 FullCalendar API
+ */
 defineExpose({
   calendarRef, // 暴露 calendarRef，让父组件可以调用 FullCalendar API
   syncColumnWidths, // 暴露同步列宽方法，用于实时更新
+  clearPreview: () => {
+    drag.previewEvent.value = null
+  },
+  resetSelectionState,
 })
 </script>
 
@@ -987,6 +1464,11 @@ defineExpose({
 /* ❌ 隐藏时间轴装饰元素 */
 .fc-timegrid-axis-cushion {
   display: none !important; /* 🎭 移除不需要的时间轴装饰 */
+}
+
+/* 禁用 FullCalendar 原生选区高亮，改用自定义 overlay */
+.calendar-container :deep(.fc-highlight) {
+  display: none !important;
 }
 
 /* ===============================================
