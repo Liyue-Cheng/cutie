@@ -444,21 +444,6 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
   flex-shrink: 0;
 }
 
-/* ==================== 过期日期遮罩 ==================== */
-.timeline-day-cell.is-past {
-  position: relative;
-}
-
-.timeline-day-cell.is-past::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgb(255 255 255 / 60%);
-  pointer-events: none;
-  z-index: 1;
-  border-radius: inherit;
-}
-
 /* ==================== 中栏：虚线分隔 ==================== */
 .cell-divider {
   height: 0;
@@ -474,6 +459,19 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
   padding: 1.2rem 1.6rem;
   flex: 1;
   min-height: 8rem;
+}
+
+/* ==================== 过期日期褪色效果（仅影响内容颜色，不叠加背景色） ==================== */
+.timeline-day-cell.is-past .cell-header,
+.timeline-day-cell.is-past .cell-content {
+  opacity: 0.55;
+  filter: grayscale(0.1);
+}
+
+/* 保持“今天”徽章在过期列中依然清晰可见 */
+.timeline-day-cell.is-past .today-badge {
+  opacity: 0.9;
+  filter: none;
 }
 
 /* 截止日期区 */
