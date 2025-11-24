@@ -55,6 +55,14 @@ watch(
   { immediate: true }
 )
 
+// 判断当前是否精确匹配"工作日"（周一到周五）
+const isExactlyWeekdays = computed(() => {
+  if (freq.value !== RRule.WEEKLY) return false
+  if (byweekday.value.length !== 5) return false
+  const sorted = [...byweekday.value].sort((a, b) => a - b)
+  return sorted.join(',') === '0,1,2,3,4'
+})
+
 // 生成 RRULE 字符串
 const ruleString = computed(() => {
   const options: any = {
@@ -77,26 +85,6 @@ const ruleString = computed(() => {
 
   const rule = new RRule(options)
   return rule.toString().replace('RRULE:', '') // 移除 RRULE: 前缀
-})
-
-// 人类可读的规则描述
-const ruleDescription = computed(() => {
-  try {
-    const rule = new RRule({
-      freq: freq.value,
-      interval: interval.value,
-      ...(freq.value === RRule.WEEKLY && byweekday.value.length > 0
-        ? { byweekday: byweekday.value }
-        : {}),
-      ...(freq.value === RRule.MONTHLY && bymonthday.value ? { bymonthday: bymonthday.value } : {}),
-      ...(freq.value === RRule.YEARLY && bymonth.value && bymonthday.value
-        ? { bymonth: bymonth.value, bymonthday: bymonthday.value }
-        : {}),
-    })
-    return rule.toText()
-  } catch (e) {
-    return '无效的规则'
-  }
 })
 
 function toggleWeekday(day: number) {
@@ -151,6 +139,11 @@ function setWeekdays() {
   freq.value = RRule.WEEKLY
   byweekday.value = [0, 1, 2, 3, 4] // 周一到周五
 }
+
+function setWeekly() {
+  freq.value = RRule.WEEKLY
+  byweekday.value = [] // 清空选择，让用户自己选
+}
 </script>
 
 <template>
@@ -168,11 +161,11 @@ function setWeekdays() {
             <span>每天</span>
           </label>
           <label class="radio-item" @click="setWeekdays">
-            <input type="radio" :checked="freq === RRule.WEEKLY && byweekday.length === 5" />
+            <input type="radio" :checked="isExactlyWeekdays" />
             <span>工作日（周一至周五）</span>
           </label>
-          <label class="radio-item">
-            <input type="radio" :value="RRule.WEEKLY" v-model="freq" />
+          <label class="radio-item" @click="setWeekly">
+            <input type="radio" :checked="freq === RRule.WEEKLY && !isExactlyWeekdays" />
             <span>每周</span>
           </label>
           <label class="radio-item">
@@ -234,48 +227,36 @@ function setWeekdays() {
         </div>
       </section>
 
-      <!-- 高级选项 -->
-      <details class="advanced-options">
-        <summary>高级选项</summary>
-        <div class="form-section">
-          <label class="section-label">开始日期（可选）</label>
-          <input type="date" v-model="startDate" class="date-input" />
+      <!-- 过期行为 -->
+      <section class="form-section">
+        <label class="section-label">过期后的处理方式</label>
+        <div class="radio-group">
+          <label class="radio-item">
+            <input type="radio" value="CARRYOVER_TO_STAGING" v-model="expiryBehavior" />
+            <span>
+              <strong>结转到暂存区</strong>
+              <div class="radio-description">
+                如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）
+              </div>
+            </span>
+          </label>
+          <label class="radio-item">
+            <input type="radio" value="EXPIRE" v-model="expiryBehavior" />
+            <span>
+              <strong>自动过期</strong>
+              <div class="radio-description">
+                如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）
+              </div>
+            </span>
+          </label>
         </div>
-        <div class="form-section">
-          <label class="section-label">结束日期（可选）</label>
-          <input type="date" v-model="endDate" class="date-input" />
-        </div>
-        <div class="form-section">
-          <label class="section-label">过期后的处理方式</label>
-          <div class="radio-group">
-            <label class="radio-item">
-              <input type="radio" value="CARRYOVER_TO_STAGING" v-model="expiryBehavior" />
-              <span>
-                <strong>结转到暂存区</strong>
-                <div class="radio-description">
-                  如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）
-                </div>
-              </span>
-            </label>
-            <label class="radio-item">
-              <input type="radio" value="EXPIRE" v-model="expiryBehavior" />
-              <span>
-                <strong>自动过期</strong>
-                <div class="radio-description">
-                  如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）
-                </div>
-              </span>
-            </label>
-          </div>
-        </div>
-      </details>
+      </section>
 
-      <!-- 预览 -->
-      <div class="rule-preview">
-        <div class="preview-label">规则预览</div>
-        <div class="preview-content">{{ ruleDescription }}</div>
-        <div class="preview-code">{{ ruleString }}</div>
-      </div>
+      <!-- 结束日期 -->
+      <section class="form-section">
+        <label class="section-label">结束日期（可选）</label>
+        <input type="date" v-model="endDate" class="date-input" />
+      </section>
 
       <!-- 按钮 -->
       <div class="dialog-actions">
@@ -287,223 +268,271 @@ function setWeekdays() {
 </template>
 
 <style scoped>
+/* 模态框背景遮罩 */
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 50%);
+  background: var(--color-overlay-heavy);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
+/* 对话框主体 */
 .dialog-content {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 500px;
+  background: var(--color-background-content);
+  border: 1px solid var(--color-border-light);
+  border-radius: 0.8rem;
+  padding: 2.4rem;
+  max-width: 54rem;
   width: 90%;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-lg);
 }
 
+/* 标题 */
 h3 {
-  margin: 0 0 8px;
-  font-size: 1.5em;
-}
-
-.task-info {
-  color: var(--color-text-secondary);
-  font-size: 0.9em;
-  margin-bottom: 20px;
-}
-
-.form-section {
-  margin-bottom: 20px;
-}
-
-.section-label {
-  display: block;
+  margin: 0 0 0.8rem;
+  font-size: 1.8rem;
   font-weight: 600;
-  margin-bottom: 8px;
   color: var(--color-text-primary);
 }
 
+/* 任务信息提示 */
+.task-info {
+  color: var(--color-text-secondary);
+  font-size: 1.4rem;
+  margin-bottom: 2.4rem;
+  line-height: 1.5;
+}
+
+/* 表单区块 */
+.form-section {
+  margin-bottom: 2.4rem;
+}
+
+/* 区块标签 */
+.section-label {
+  display: block;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 1.2rem;
+  color: var(--color-text-secondary);
+}
+
+/* 单选组 */
 .radio-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.8rem;
 }
 
+/* 单选项 */
 .radio-item {
   display: flex;
-  align-items: center;
-  padding: 8px;
-  border-radius: 6px;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.2rem;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 0.6rem;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
 
 .radio-item:hover {
   background: var(--color-background-hover);
+  border-color: var(--color-border-hover);
 }
 
 .radio-item input[type='radio'] {
-  margin-right: 8px;
+  margin-top: 0.2rem;
+  cursor: pointer;
   flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 .radio-item span {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.4rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary);
 }
 
 .radio-description {
-  font-size: 0.85em;
+  font-size: 1.2rem;
   color: var(--color-text-tertiary);
   font-weight: normal;
-  line-height: 1.4;
+  line-height: 1.6;
 }
 
+/* 星期按钮组 */
 .weekday-buttons {
   display: flex;
-  gap: 8px;
+  gap: 0.8rem;
   flex-wrap: wrap;
 }
 
 .weekday-btn {
-  padding: 8px 16px;
-  border: 2px solid #ddd;
-  border-radius: 20px;
-  background: white;
+  padding: 0.8rem 1.6rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font-size: 1.4rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  user-select: none;
 }
 
 .weekday-btn:hover {
   border-color: var(--color-border-hover);
+  background: var(--color-background-hover);
 }
 
 .weekday-btn.active {
-  background: var(--color-background-accent);
-  color: var(--color-text-on-accent);
-  border-color: var(--color-background-accent);
+  background: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+  border-color: var(--color-button-primary-bg);
 }
 
+/* 间隔控件 */
 .interval-control {
-  margin-top: 12px;
+  margin-top: 1.2rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary);
 }
 
 .interval-input {
-  width: 60px;
-  padding: 4px 8px;
-  margin: 0 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  width: 6rem;
+  padding: 0.6rem 1rem;
+  margin: 0 0.8rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.4rem;
+  background: var(--color-background-input);
+  color: var(--color-text-primary);
+  font-size: 1.4rem;
   text-align: center;
+  transition: border-color 0.2s ease;
 }
 
+.interval-input:hover {
+  border-color: var(--color-border-input-hover);
+}
+
+.interval-input:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+/* 下拉选择框 */
 .select-input {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1em;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.6rem;
+  background: var(--color-background-input);
+  color: var(--color-text-primary);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+.select-input:hover {
+  border-color: var(--color-border-input-hover);
+  background: var(--color-background-input-hover);
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+/* 内联输入组 */
 .inline-inputs {
   display: flex;
-  gap: 12px;
+  gap: 1.2rem;
 }
 
 .inline-inputs .select-input {
   flex: 1;
 }
 
+/* 日期输入框 */
 .date-input {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-}
-
-.advanced-options {
-  margin: 20px 0;
-  padding: 16px;
-  background: var(--color-background-secondary);
-  border-radius: 8px;
-}
-
-.advanced-options summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--color-text-accent);
-}
-
-.rule-preview {
-  margin: 20px 0;
-  padding: 16px;
-  background: var(--color-background-secondary);
-  border-radius: 8px;
-}
-
-.preview-label {
-  font-weight: 600;
-  margin-bottom: 8px;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.6rem;
+  background: var(--color-background-input);
   color: var(--color-text-primary);
+  font-size: 1.4rem;
+  transition: all 0.2s ease;
 }
 
-.preview-content {
-  margin-bottom: 8px;
-  color: var(--color-text-secondary);
+.date-input:hover {
+  border-color: var(--color-border-input-hover);
+  background: var(--color-background-input-hover);
 }
 
-.preview-code {
-  font-family: 'Courier New', monospace;
-  font-size: 0.85em;
-  color: var(--color-text-secondary);
-  padding: 8px;
-  background: var(--color-background-primary);
-  border-radius: 4px;
-  word-break: break-all;
+.date-input:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus);
+  box-shadow: var(--shadow-focus);
 }
 
+/* 操作按钮组 */
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 1.2rem;
+  margin-top: 2.4rem;
+  padding-top: 2.4rem;
+  border-top: 1px solid var(--color-divider);
 }
 
+/* 按钮基础样式 */
 .btn-cancel,
 .btn-primary {
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 1em;
+  padding: 1rem 2.4rem;
+  border-radius: 0.6rem;
+  font-size: 1.4rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  border: none;
 }
 
+/* 取消按钮 */
 .btn-cancel {
-  background: var(--color-background-primary);
-  border: 1px solid var(--color-border-default);
+  background: var(--color-button-secondary-bg);
+  border: 1px solid var(--color-button-secondary-border);
   color: var(--color-text-secondary);
 }
 
 .btn-cancel:hover {
-  background: var(--color-background-hover);
+  background: var(--color-button-secondary-hover);
+  color: var(--color-text-primary);
 }
 
+/* 主要按钮 */
 .btn-primary {
-  background: var(--color-background-accent);
-  border: none;
-  color: var(--color-text-on-accent);
+  background: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
 }
 
 .btn-primary:hover {
-  background: var(--color-background-accent);
-  filter: brightness(0.9);
+  background: var(--color-button-primary-hover);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
 }
 </style>
