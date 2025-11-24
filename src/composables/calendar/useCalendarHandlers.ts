@@ -76,7 +76,7 @@ export function useCalendarHandlers(
         const el = highlights[highlights.length - 1]!
         const rect = el.getBoundingClientRect()
         anchorTop = rect.top // 修改：使用 rect.top 而不是居中，对齐上边缘
-        anchorLeft = rect.left - 10 // 修改：左侧预留1rem (10px) 间距
+        anchorLeft = rect.left - 12 // 修改：左侧预留1.2rem (12px) 间距
       }
     }
 

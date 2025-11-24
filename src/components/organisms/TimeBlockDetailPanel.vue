@@ -5,6 +5,10 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 const props = defineProps<{
   timeBlockId: string | null
+  panelPosition?: {
+    top: number
+    left: number
+  } | null
 }>()
 
 const emit = defineEmits<{
@@ -12,6 +16,17 @@ const emit = defineEmits<{
 }>()
 
 const timeBlockStore = useTimeBlockStore()
+
+// 动态计算面板位置
+const panelStyle = computed(() => {
+  const top = props.panelPosition?.top ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
+  const left = props.panelPosition?.left ?? (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)
+
+  return {
+    top: `${top}px`,
+    left: `${left}px`,
+  }
+})
 
 // 获取当前时间块
 const timeBlock = computed(() => {
@@ -55,7 +70,7 @@ function formatTimeRange(timeBlock: any) {
 </script>
 
 <template>
-  <div v-if="timeBlock" class="time-block-detail-panel">
+  <div v-if="timeBlock" class="time-block-detail-panel" :style="panelStyle">
     <div class="panel-header">
       <h3>时间块详情</h3>
       <button class="close-btn" @click="emit('close')">
@@ -110,9 +125,7 @@ function formatTimeRange(timeBlock: any) {
 <style scoped>
 .time-block-detail-panel {
   position: fixed;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  transform: translate(calc(-100% - 1.2rem), 0); /* 面板右边缘距离锚点左边缘1.2rem，上边缘与时间块上边缘对齐 */
   width: 28rem;
   max-height: 80vh;
   background-color: var(--color-background-content);

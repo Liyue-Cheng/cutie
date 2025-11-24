@@ -146,15 +146,14 @@ function updateDetailPanelPosition(anchorEl: HTMLElement | null) {
   detailPanelAnchorEl = anchorEl
   const rect = anchorEl.getBoundingClientRect()
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0
-  const centerY = rect.top + rect.height / 2
   const top =
     viewportHeight > 0
       ? clamp(
-          centerY,
+          rect.top,
           DETAIL_PANEL_VIEWPORT_PADDING,
           viewportHeight - DETAIL_PANEL_VIEWPORT_PADDING
         )
-      : centerY
+      : rect.top
   const left = rect.left - DETAIL_PANEL_GAP
 
   detailPanelPosition.value = {

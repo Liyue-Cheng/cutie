@@ -77,6 +77,12 @@ const popoverStyle = computed(() => {
   }
 })
 
+// 禁用滚轮事件
+function handleWheel(event: WheelEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 // 当对话框显示时，重置状态并聚焦输入框
 watch(
   () => props.show,
@@ -88,12 +94,15 @@ watch(
       inputRef.value?.focus()
 
       if (typeof document !== 'undefined') {
-        // 使用捕获阶段监听，优先于页面其他点击处理逻辑，避免“点透”
+        // 使用捕获阶段监听，优先于页面其他点击处理逻辑，避免"点透"
         document.addEventListener('mousedown', handleOutsideClick, true)
+        // 禁用鼠标滚轮
+        document.addEventListener('wheel', handleWheel, { passive: false, capture: true })
       }
     } else {
       if (typeof document !== 'undefined') {
         document.removeEventListener('mousedown', handleOutsideClick, true)
+        document.removeEventListener('wheel', handleWheel, { capture: true } as EventListenerOptions)
       }
     }
   }
@@ -102,6 +111,7 @@ watch(
 onBeforeUnmount(() => {
   if (typeof document !== 'undefined') {
     document.removeEventListener('mousedown', handleOutsideClick, true)
+    document.removeEventListener('wheel', handleWheel, { capture: true } as EventListenerOptions)
   }
 })
 
@@ -136,7 +146,7 @@ function handleCancel() {
 .create-dialog-popover {
   position: fixed;
   z-index: 10000;
-  transform: translate(calc(-100% - 1rem), 0); /* 对话框右边缘距离锚点左边缘1rem，上边缘与锚点对齐 */
+  transform: translate(calc(-100% - 1.2rem), 0); /* 对话框右边缘距离锚点左边缘1.2rem，上边缘与锚点对齐 */
 }
 
 .create-dialog {
