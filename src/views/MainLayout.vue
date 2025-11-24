@@ -108,7 +108,7 @@
 
   <!-- 右下角 AI 浮动按钮 -->
   <button class="ai-fab-button" type="button" title="AI 助手" @click="isAiDialogOpen = true">
-    <CuteIcon name="Sparkles" :size="20" />
+    <CuteIcon name="MessageCircle" :size="20" />
   </button>
 </template>
 
@@ -517,32 +517,35 @@ onMounted(() => {
   position: fixed;
   right: 2rem;
   bottom: 2rem;
-  width: 4.2rem;
-  height: 4.2rem;
-  border-radius: 999px;
-  border: none;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--color-border-light);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  box-shadow: 0 10px 25px rgb(0 0 0 / 20%);
+  background: var(--color-background-secondary);
+  color: var(--color-text-accent);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   z-index: 1100;
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
-    background 0.15s ease;
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .ai-fab-button:hover {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 14px 30px rgb(0 0 0 / 25%);
-  background: linear-gradient(135deg, #764ba2 0%, #b4637a 100%);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+  background: var(--color-background-hover);
+  border-color: var(--color-border-hover);
 }
 
 .ai-fab-button:active {
-  transform: translateY(0) scale(0.97);
-  box-shadow: 0 6px 16px rgb(0 0 0 / 18%);
+  transform: scale(0.95);
+  box-shadow: var(--shadow-sm);
+  background: var(--color-background-active);
 }
 </style>

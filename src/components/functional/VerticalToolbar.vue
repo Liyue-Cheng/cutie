@@ -12,15 +12,6 @@
       >
         <CuteIcon :name="config.icon" :size="24" />
       </button>
-      <!-- AI 聊天按钮 (可选，置底) -->
-      <button
-        v-if="showAiButton"
-        class="toolbar-button ai-button"
-        title="AI 助手"
-        @click="$emit('ai-click')"
-      >
-        <CuteIcon name="Sparkles" :size="24" />
-      </button>
     </div>
   </div>
 </template>
@@ -37,7 +28,6 @@ interface ViewConfig {
 interface Props {
   viewConfig: Record<string, ViewConfig>
   currentView: string
-  showAiButton?: boolean
 }
 
 defineProps<Props>()
@@ -45,7 +35,6 @@ defineProps<Props>()
 // Emits
 defineEmits<{
   'view-change': [viewKey: string]
-  'ai-click': []
 }>()
 </script>
 
@@ -108,18 +97,5 @@ defineEmits<{
 
 .toolbar-button:active {
   transform: scale(0.95);
-}
-
-/* AI 按钮特殊样式 */
-.toolbar-button.ai-button {
-  background-color: var(--rose-pine-iris, #907aa9);
-  color: var(--rose-pine-base, #faf4ed);
-  position: absolute;
-  bottom: 1rem;
-}
-
-.toolbar-button.ai-button:hover {
-  background-color: var(--rose-pine-love, #b4637a);
-  transform: scale(1.05);
 }
 </style>

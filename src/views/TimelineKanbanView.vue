@@ -12,7 +12,6 @@ import UpcomingColumn from '@/components/assembles/tasks/kanban/UpcomingColumn.v
 import TemplateKanbanColumn from '@/components/assembles/template/TemplateKanbanColumn.vue'
 import UnderConstruction from '@/components/organisms/UnderConstruction.vue'
 import TrashView from '@/views/TrashView.vue'
-import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
@@ -59,7 +58,6 @@ const kanbanRef = ref<InstanceType<typeof InfiniteDailyKanban> | null>(null)
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 const currentRightPaneView = ref<RightPaneView>('calendar') // 右侧面板当前视图
 const calendarZoom = ref<1 | 2 | 3>(1) // 日历缩放倍率
-const isAiChatOpen = ref(false) // AI 聊天对话框状态
 const showDatePicker = ref(false) // 日期选择器显示状态
 const selectedDate = ref('') // 选中的日期
 const calendarDays = ref<1 | 3>(1) // 🆕 日历显示天数（1天 or 3天）
@@ -173,11 +171,6 @@ function switchRightPaneView(view: string) {
     calendarDays.value = 1
     logger.info(LogTags.VIEW_HOME, 'Calendar auto-collapsed to 1 day', { view: viewKey })
   }
-}
-
-function openAiChat() {
-  logger.debug(LogTags.VIEW_HOME, 'Opening AI chat dialog')
-  isAiChatOpen.value = true
 }
 
 // 循环切换日历缩放倍率
@@ -408,9 +401,7 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
     <VerticalToolbar
       :view-config="viewConfig"
       :current-view="currentRightPaneView"
-      :show-ai-button="true"
       @view-change="switchRightPaneView"
-      @ai-click="openAiChat"
     />
     <TaskEditorModal
       v-if="uiStore.isEditorOpen"
@@ -419,7 +410,6 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
       @close="uiStore.closeEditor"
     />
     <GlobalRecurrenceEditDialog />
-    <AiChatDialog v-if="isAiChatOpen" @close="isAiChatOpen = false" />
   </div>
 </template>
 
