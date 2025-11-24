@@ -8,14 +8,14 @@
             :class="['type-button', { active: selectedType === 'task' }]"
             @click="selectedType = 'task'"
           >
-            <CuteIcon name="CheckSquare" :size="20" />
+            <CuteIcon name="CheckSquare" :size="18" />
             <span>Task</span>
           </button>
           <button
             :class="['type-button', { active: selectedType === 'event' }]"
             @click="selectedType = 'event'"
           >
-            <CuteIcon name="Calendar" :size="20" />
+            <CuteIcon name="Calendar" :size="18" />
             <span>Event</span>
           </button>
         </div>
@@ -136,7 +136,7 @@ function handleCancel() {
 .create-dialog-popover {
   position: fixed;
   z-index: 10000;
-  transform: translate(-100%, -50%); /* 在锚点左侧垂直居中展示 */
+  transform: translate(calc(-100% - 1rem), 0); /* 对话框右边缘距离锚点左边缘1rem，上边缘与锚点对齐 */
 }
 
 .create-dialog {
@@ -144,8 +144,7 @@ function handleCancel() {
   border: 1px solid var(--color-border-default, #dfdad9);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-lg);
-  width: 90%;
-  max-width: 45rem;
+  width: 32rem;
   padding: 2rem;
   display: flex;
   flex-direction: column;
@@ -165,8 +164,8 @@ function handleCancel() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.8rem;
-  padding: 1.6rem 2.4rem;
+  gap: 0.6rem;
+  padding: 1.2rem 1.6rem;
   border: 2px solid var(--color-border-default, #dfdad9);
   border-radius: 0.8rem;
   background-color: var(--color-background-primary, #fffaf3);
@@ -174,7 +173,7 @@ function handleCancel() {
   cursor: pointer;
   transition: all 0.2s ease;
   flex: 1;
-  min-width: 12rem;
+  min-width: 9rem;
 }
 
 .type-button:hover {
@@ -189,7 +188,7 @@ function handleCancel() {
 }
 
 .type-button span {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 600;
   line-height: 1;
 }
