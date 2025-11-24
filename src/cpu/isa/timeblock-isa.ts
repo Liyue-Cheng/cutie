@@ -4,11 +4,11 @@
  * 包含指令：
  * - time_block.create_from_task: 从任务创建时间块（带乐观更新）
  * - time_block.create: 创建空时间块（带乐观更新）
- * - time_block.update: 更新时间块
+ * - time_block.update: 更新时间块（带乐观更新）
  * - time_block.delete: 删除时间块
  *
  * 特点：
- * - create 操作使用乐观更新防止 UI 闪烁
+ * - create/update 操作使用乐观更新防止 UI 闪烁
  * - 使用 transactionProcessor 统一处理结果
  */
 
@@ -194,6 +194,53 @@ export const TimeBlockISA: ISADefinition = {
       resourceIdentifier: (payload) => [`time_block:${payload.id}`],
       priority: 6,
       timeout: 10000,
+    },
+    // 🔥 乐观更新配置
+    optimistic: {
+      enabled: true,
+      apply: (payload) => {
+        const timeBlockStore = useTimeBlockStore()
+        const timeBlock = timeBlockStore.getTimeBlockById_Mux(payload.id)
+
+        if (!timeBlock) {
+          return { id: payload.id, had_timeblock: false }
+        }
+
+        // 保存原始状态（用于回滚）
+        const snapshot = {
+          id: payload.id,
+          had_timeblock: true,
+          original_timeblock: JSON.parse(JSON.stringify(timeBlock)),
+        }
+
+        // 🔥 立即应用更新
+        const updatedTimeBlock: TimeBlockView = {
+          ...timeBlock,
+          // 只更新 payload.updates 中提供的字段
+          ...(payload.updates.title !== undefined && { title: payload.updates.title }),
+          ...(payload.updates.start_time !== undefined && { start_time: payload.updates.start_time }),
+          ...(payload.updates.end_time !== undefined && { end_time: payload.updates.end_time }),
+          ...(payload.updates.start_time_local !== undefined && {
+            start_time_local: payload.updates.start_time_local,
+          }),
+          ...(payload.updates.end_time_local !== undefined && {
+            end_time_local: payload.updates.end_time_local,
+          }),
+          ...(payload.updates.time_type !== undefined && { time_type: payload.updates.time_type }),
+          ...(payload.updates.is_all_day !== undefined && { is_all_day: payload.updates.is_all_day }),
+        }
+
+        timeBlockStore.addOrUpdateTimeBlock_mut(updatedTimeBlock)
+
+        return snapshot
+      },
+      rollback: (snapshot) => {
+        if (!snapshot.had_timeblock) return
+
+        const timeBlockStore = useTimeBlockStore()
+        // 🔥 恢复原始状态
+        timeBlockStore.addOrUpdateTimeBlock_mut(snapshot.original_timeblock)
+      },
     },
     request: {
       method: 'PATCH',
