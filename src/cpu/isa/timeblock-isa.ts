@@ -200,7 +200,7 @@ export const TimeBlockISA: ISADefinition = {
       enabled: true,
       apply: (payload) => {
         const timeBlockStore = useTimeBlockStore()
-        const timeBlock = timeBlockStore.getTimeBlockById_Mux(payload.id)
+        const timeBlock = timeBlockStore.getTimeBlockById(payload.id)
 
         if (!timeBlock) {
           return { id: payload.id, had_timeblock: false }
