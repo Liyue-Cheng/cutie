@@ -15,6 +15,7 @@ interface Props {
   isCompleted?: boolean // 任务是否已完成
   scheduleOutcome?: string | null // 日程的 outcome 状态
   scheduleDay?: string // 日程日期
+  isPreviewOnly?: boolean // 🆕 是否为纯预览模式（仅显示时间，隐藏标题和复选框）
 }
 
 const props = defineProps<Props>()
@@ -168,8 +169,8 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
       <!-- 时间范围（顶格） -->
       <div class="time-range">{{ timeRange }}</div>
 
-      <!-- 标题行：复选框 + 标题 -->
-      <div class="title-row">
+      <!-- 标题行：复选框 + 标题（预览模式下隐藏） -->
+      <div v-if="!isPreviewOnly" class="title-row">
         <CuteDualModeCheckbox
           v-if="taskId"
           class="event-checkbox"

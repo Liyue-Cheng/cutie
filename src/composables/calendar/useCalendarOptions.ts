@@ -21,7 +21,6 @@ import CalendarTaskEventContent from '@/components/assembles/calender/CalendarTa
 import CalendarTimeBlockEventContent from '@/components/assembles/calender/CalendarTimeBlockEventContent.vue'
 import CalendarTimeGridEventContent from '@/components/assembles/calender/CalendarTimeGridEventContent.vue'
 import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
-import CalendarSelectionPreview from '@/components/assembles/calender/CalendarSelectionPreview.vue'
 import { useTaskStore } from '@/stores/task'
 import { toLocalISOString } from '@/infra/utils/dateUtils'
 import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
@@ -144,11 +143,15 @@ export function useCalendarOptions(
 
         const startTime = arg.event.start ? toLocalISOString(arg.event.start) : ''
         const endTime = arg.event.end ? toLocalISOString(arg.event.end) : ''
+        const areaColor = getDefaultAreaColor()
 
-        // 使用自定义选区预览组件
-        const app = createApp(CalendarSelectionPreview, {
+        // 使用 CalendarTimeGridEventContent 的预览模式
+        const app = createApp(CalendarTimeGridEventContent, {
+          title: '', // 预览模式下不显示标题
+          areaColor,
           startTime,
           endTime,
+          isPreviewOnly: true, // 启用预览模式
         })
 
         app.mount(container)
