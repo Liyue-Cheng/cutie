@@ -136,7 +136,8 @@ export function useCalendarOptions(
       const isTimeGridView = arg.view.type.startsWith('timeGrid')
 
       // 🎯 selectMirror 选区预览渲染（仅显示时间，不显示标题）
-      if (arg.isMirror && isTimeGridView && !arg.event.allDay) {
+      // 注意：只处理纯选区镜像，不处理拖动事件的镜像（后者有 type 属性）
+      if (arg.isMirror && isTimeGridView && !arg.event.allDay && !extended?.type) {
         const container = document.createElement('div')
         container.style.width = '100%'
         container.style.height = '100%'
