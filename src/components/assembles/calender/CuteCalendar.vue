@@ -885,6 +885,7 @@ defineExpose({
   --fc-neutral-text-color: var(--color-text-secondary); /* 📝 次要文本颜色 */
   --fc-small-font-size: 1.1rem; /* 📏 小字体尺寸 */
   --fc-event-selected-overlay-color: transparent; /* ❌ 禁用事件选中覆盖 */
+  --fc-highlight-color: transparent; /* ❌ 禁用原生选区高亮，使用 selectMirror 自定义渲染 */
 
   /* 🔧 自定义缩放变量 - 支持动态时间槽高度调节 */
   --zoom-slot-height-1x: 0.75rem; /* 紧凑视图：10分钟=0.75rem, 1小时=4.5rem */
@@ -1524,15 +1525,5 @@ defineExpose({
   height: 0.5rem; /* 📏 圆点高度 */
   border-radius: 50%; /* ⭕ 完全圆形 */
   background-color: var(--color-primary, #4a90e2); /* 🎨 主色填充 */
-}
-
-/* ===============================================
- * 15. 时间选区高亮 - 使用主题默认AREA颜色
- * =============================================== */
-
-/* 🎨 选中时间段高亮样式 - 使用无AREA默认颜色 */
-.fc .fc-highlight {
-  background-color: var(--color-area-default) !important; /* 🎨 使用主题默认区域色 */
-  opacity: 0.3; /* 👻 半透明效果 */
 }
 </style>

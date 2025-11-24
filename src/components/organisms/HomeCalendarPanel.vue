@@ -320,6 +320,13 @@ async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: stri
 
     // 关闭对话框
     uiStore.closeTimeBlockCreateDialog()
+
+    // 清理日历中的选区高亮
+    const calendarComponent = calendarRef.value
+    if (calendarComponent?.calendarRef) {
+      const calendarApi = calendarComponent.calendarRef.getApi()
+      calendarApi?.unselect()
+    }
   } catch (error) {
     logger.error(
       LogTags.COMPONENT_CALENDAR,

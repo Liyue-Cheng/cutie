@@ -21,6 +21,7 @@ import CalendarTaskEventContent from '@/components/assembles/calender/CalendarTa
 import CalendarTimeBlockEventContent from '@/components/assembles/calender/CalendarTimeBlockEventContent.vue'
 import CalendarTimeGridEventContent from '@/components/assembles/calender/CalendarTimeGridEventContent.vue'
 import CalendarDueDateEventContent from '@/components/assembles/calender/CalendarDueDateEventContent.vue'
+import CalendarSelectionPreview from '@/components/assembles/calender/CalendarSelectionPreview.vue'
 import { useTaskStore } from '@/stores/task'
 import { toLocalISOString } from '@/infra/utils/dateUtils'
 import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
@@ -88,6 +89,7 @@ export function useCalendarOptions(
     weekends: true,
     editable: true,
     selectable: true,
+    selectMirror: true, // 启用选区镜像预览（类似 Google Calendar）
     eventResizableFromStart: true, // 允许从开始时间调整大小
 
     // 🆕 自定义视图：3天、5天、7天视图
@@ -132,6 +134,26 @@ export function useCalendarOptions(
       }
 
       const isTimeGridView = arg.view.type.startsWith('timeGrid')
+
+      // 🎯 selectMirror 选区预览渲染（仅显示时间，不显示标题）
+      if (arg.isMirror && isTimeGridView && !arg.event.allDay) {
+        const container = document.createElement('div')
+        container.style.width = '100%'
+        container.style.height = '100%'
+
+        const startTime = arg.event.start ? toLocalISOString(arg.event.start) : ''
+        const endTime = arg.event.end ? toLocalISOString(arg.event.end) : ''
+
+        // 使用自定义选区预览组件
+        const app = createApp(CalendarSelectionPreview, {
+          startTime,
+          endTime,
+        })
+
+        app.mount(container)
+        return { domNodes: [container] }
+      }
+
       const isPreviewEvent = Boolean(extended?.isPreview)
       const isTimeBlockEvent = extended?.type === 'timeblock'
 
