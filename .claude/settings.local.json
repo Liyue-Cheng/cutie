@@ -52,7 +52,8 @@
       "Bash(git commit:*)",
       "Bash(cat:*)",
       "Read(//c/Users/liyue/Desktop/projects/dashboard/kilocode/**)",
-      "WebFetch(domain:fullcalendar.io)"
+      "WebFetch(domain:fullcalendar.io)",
+      "WebFetch(domain:stackoverflow.com)"
     ],
     "deny": [],
     "ask": []
