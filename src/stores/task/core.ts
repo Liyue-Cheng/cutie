@@ -36,6 +36,50 @@ export function createTaskCore() {
   const { isLoading, error, withLoading } = createLoadingState()
 
   // ============================================================
+  // UTILITY FUNCTIONS - 工具函数
+  // ============================================================
+
+  /**
+   * 对循环任务进行去重，每个循环规则只保留最近的未完成任务
+   * @param tasks - 待处理的任务列表
+   * @returns 去重后的任务列表
+   */
+  function deduplicateRecurringTasks(tasks: TaskCard[]): TaskCard[] {
+    // 按 recurrence_id 分组
+    const recurrenceGroups = new Map<string, TaskCard[]>()
+    const nonRecurringTasks: TaskCard[] = []
+
+    for (const task of tasks) {
+      if (task.recurrence_id) {
+        const group = recurrenceGroups.get(task.recurrence_id) || []
+        group.push(task)
+        recurrenceGroups.set(task.recurrence_id, group)
+      } else {
+        nonRecurringTasks.push(task)
+      }
+    }
+
+    // 对每个循环规则，只保留最近的未完成任务
+    const filteredRecurringTasks: TaskCard[] = []
+    for (const [recurrenceId, groupTasks] of recurrenceGroups) {
+      // 过滤出未完成的任务
+      const incompleteTasks = groupTasks.filter((t) => !t.is_completed)
+
+      if (incompleteTasks.length > 0) {
+        // 按 recurrence_original_date 降序排序，取最新的一个
+        incompleteTasks.sort((a, b) => {
+          const dateA = a.recurrence_original_date || ''
+          const dateB = b.recurrence_original_date || ''
+          return dateB.localeCompare(dateA)
+        })
+        filteredRecurringTasks.push(incompleteTasks[0]!)
+      }
+    }
+
+    return [...nonRecurringTasks, ...filteredRecurringTasks]
+  }
+
+  // ============================================================
   // GETTERS - 动态过滤（所有视图的数据源）
   // ============================================================
 
@@ -238,11 +282,15 @@ export function createTaskCore() {
    * Mux: 根据项目 ID 获取任务列表（多路复用器）
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
+   * ✅ 循环任务去重：每个循环规则只保留最近的未完成任务
    * ✅ 纯函数，不调用 API
    */
   const getTasksByProject_Mux = computed(() => {
     return (projectId: string) => {
-      return allTasksArray.value.filter((task) => task.project_id === projectId && !task.is_deleted)
+      const projectTasks = allTasksArray.value.filter(
+        (task) => task.project_id === projectId && !task.is_deleted
+      )
+      return deduplicateRecurringTasks(projectTasks)
     }
   })
 
@@ -250,11 +298,15 @@ export function createTaskCore() {
    * Mux: 根据区域 ID 获取任务列表（多路复用器）
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
+   * ✅ 循环任务去重：每个循环规则只保留最近的未完成任务
    * ✅ 纯函数，不调用 API
    */
   const getTasksByArea_Mux = computed(() => {
     return (areaId: string) => {
-      return allTasksArray.value.filter((task) => task.area_id === areaId && !task.is_deleted)
+      const areaTasks = allTasksArray.value.filter(
+        (task) => task.area_id === areaId && !task.is_deleted
+      )
+      return deduplicateRecurringTasks(areaTasks)
     }
   })
 
@@ -423,46 +475,12 @@ export function createTaskCore() {
             const noProjectTasks = allTasksArray.value.filter(
               (task) => !task.project_id && !task.is_deleted
             )
-
-            // 按 recurrence_id 分组
-            const recurrenceGroups = new Map<string, TaskCard[]>()
-            const nonRecurringTasks: TaskCard[] = []
-
-            for (const task of noProjectTasks) {
-              if (task.recurrence_id) {
-                const group = recurrenceGroups.get(task.recurrence_id) || []
-                group.push(task)
-                recurrenceGroups.set(task.recurrence_id, group)
-              } else {
-                nonRecurringTasks.push(task)
-              }
-            }
-
-            // 对每个循环规则，只保留最近的未完成任务
-            const filteredRecurringTasks: TaskCard[] = []
-            for (const [recurrenceId, tasks] of recurrenceGroups) {
-              // 过滤出未完成的任务
-              const incompleteTasks = tasks.filter((t) => !t.is_completed)
-
-              if (incompleteTasks.length > 0) {
-                // 按 recurrence_original_date 降序排序，取最新的一个
-                incompleteTasks.sort((a, b) => {
-                  const dateA = a.recurrence_original_date || ''
-                  const dateB = b.recurrence_original_date || ''
-                  return dateB.localeCompare(dateA)
-                })
-                filteredRecurringTasks.push(incompleteTasks[0]!)
-              }
-            }
-
-            const tasks = [...nonRecurringTasks, ...filteredRecurringTasks]
+            const tasks = deduplicateRecurringTasks(noProjectTasks)
 
             logger.debug(LogTags.STORE_TASKS, 'Using no-project tasks', {
               viewKey,
               total: noProjectTasks.length,
               filtered: tasks.length,
-              recurring: filteredRecurringTasks.length,
-              nonRecurring: nonRecurringTasks.length,
             })
             return tasks
           }
@@ -504,25 +522,29 @@ export function createTaskCore() {
 
             if (sectionId === 'all') {
               // project::${projectId}::section::all - 项目无section任务
-              const tasks = allTasksArray.value.filter(
+              const noSectionTasks = allTasksArray.value.filter(
                 (task) => task.project_id === projectId && !task.section_id && !task.is_deleted
               )
+              const tasks = deduplicateRecurringTasks(noSectionTasks)
               logger.debug(LogTags.STORE_TASKS, 'Using project no-section tasks', {
                 viewKey,
                 projectId,
-                count: tasks.length,
+                total: noSectionTasks.length,
+                filtered: tasks.length,
               })
               return tasks
             } else {
               // project::${projectId}::section::${sectionId} - 特定section任务
-              const tasks = allTasksArray.value.filter(
+              const sectionTasks = allTasksArray.value.filter(
                 (task) => task.section_id === sectionId && !task.is_deleted
               )
+              const tasks = deduplicateRecurringTasks(sectionTasks)
               logger.debug(LogTags.STORE_TASKS, 'Using project section tasks', {
                 viewKey,
                 projectId,
                 sectionId,
-                count: tasks.length,
+                total: sectionTasks.length,
+                filtered: tasks.length,
               })
               return tasks
             }
