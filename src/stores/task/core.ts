@@ -419,10 +419,50 @@ export function createTaskCore() {
             return allTasks.value
           } else if (subtype === 'no-project') {
             // misc::no-project - 无项目任务
-            const tasks = allTasksArray.value.filter((task) => !task.project_id && !task.is_deleted)
+            // 🔥 对于循环任务，只显示每个循环规则的最近未完成任务
+            const noProjectTasks = allTasksArray.value.filter(
+              (task) => !task.project_id && !task.is_deleted
+            )
+
+            // 按 recurrence_id 分组
+            const recurrenceGroups = new Map<string, TaskCard[]>()
+            const nonRecurringTasks: TaskCard[] = []
+
+            for (const task of noProjectTasks) {
+              if (task.recurrence_id) {
+                const group = recurrenceGroups.get(task.recurrence_id) || []
+                group.push(task)
+                recurrenceGroups.set(task.recurrence_id, group)
+              } else {
+                nonRecurringTasks.push(task)
+              }
+            }
+
+            // 对每个循环规则，只保留最近的未完成任务
+            const filteredRecurringTasks: TaskCard[] = []
+            for (const [recurrenceId, tasks] of recurrenceGroups) {
+              // 过滤出未完成的任务
+              const incompleteTasks = tasks.filter((t) => !t.is_completed)
+
+              if (incompleteTasks.length > 0) {
+                // 按 recurrence_original_date 降序排序，取最新的一个
+                incompleteTasks.sort((a, b) => {
+                  const dateA = a.recurrence_original_date || ''
+                  const dateB = b.recurrence_original_date || ''
+                  return dateB.localeCompare(dateA)
+                })
+                filteredRecurringTasks.push(incompleteTasks[0]!)
+              }
+            }
+
+            const tasks = [...nonRecurringTasks, ...filteredRecurringTasks]
+
             logger.debug(LogTags.STORE_TASKS, 'Using no-project tasks', {
               viewKey,
-              count: tasks.length,
+              total: noProjectTasks.length,
+              filtered: tasks.length,
+              recurring: filteredRecurringTasks.length,
+              nonRecurring: nonRecurringTasks.length,
             })
             return tasks
           }
