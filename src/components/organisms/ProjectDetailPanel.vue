@@ -166,7 +166,7 @@ const handleEditSection = (sectionId: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg-primary);
+  background: var(--color-background-secondary);
   overflow: hidden;
 }
 
@@ -190,7 +190,7 @@ const handleEditSection = (sectionId: string) => {
 .project-header {
   flex-shrink: 0;
   padding: 2rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-default);
 }
 
 .header-left {
@@ -224,7 +224,7 @@ const handleEditSection = (sectionId: string) => {
   padding: 0.4rem 0.8rem;
   border-radius: 0.4rem;
   font-size: 1.2rem;
-  color: white;
+  color: var(--color-text-on-accent);
   font-weight: 500;
 }
 
@@ -235,7 +235,7 @@ const handleEditSection = (sectionId: string) => {
   padding: 0.4rem 0.8rem;
   border-radius: 0.4rem;
   font-size: 1.2rem;
-  background: var(--color-bg-tertiary);
+  background: var(--color-background-content);
   color: var(--color-text-secondary);
 }
 
@@ -249,9 +249,9 @@ const handleEditSection = (sectionId: string) => {
   align-items: center;
   gap: 0.6rem;
   padding: 0.8rem 1.2rem;
-  background: var(--color-bg-secondary);
+  background: var(--color-background-secondary);
   color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
   cursor: pointer;
   font-size: 1.4rem;
@@ -259,7 +259,7 @@ const handleEditSection = (sectionId: string) => {
 }
 
 .action-btn:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-background-hover);
 }
 
 .tasks-area {
@@ -302,7 +302,7 @@ const handleEditSection = (sectionId: string) => {
 }
 
 .icon-btn:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-background-hover);
   color: var(--color-text-primary);
 }
 

@@ -13,6 +13,7 @@
           'is-drag-target': isDragTargetDate(dateInfo.date),
         }"
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
+        @click="onDayHeaderClick(dateInfo.date)"
       >
         <span class="day-name">{{ dateInfo.dayName }}</span>
         <span class="date-number">{{ dateInfo.dateNumber }}</span>
@@ -105,6 +106,7 @@ const props = withDefaults(
 // ==================== Events ====================
 const emit = defineEmits<{
   'date-change': [date: string] // 日历显示日期变化事件
+  'month-date-click': [date: string] // 月视图日期点击事件
 }>()
 
 // 默认缩放倍率为 1
@@ -244,8 +246,19 @@ const viewTypeRef = computed(() => props.viewType)
 const monthViewFiltersRef = computed(() => props.monthViewFilters)
 const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef, monthViewFiltersRef)
 
+// 月视图日期点击回调
+function handleMonthDateClick(date: string) {
+  emit('month-date-click', date)
+}
+
+// 日期头部点击（周视图/多日视图）
+function onDayHeaderClick(date: string) {
+  emit('month-date-click', date)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Day header clicked', { date })
+}
+
 // 事件处理器
-const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
+const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId, handleMonthDateClick)
 
 function handleCalendarEventClick(clickInfo: EventClickArg) {
   handlers.handleEventClick(clickInfo)

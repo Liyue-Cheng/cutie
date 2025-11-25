@@ -168,6 +168,16 @@
 
             <!-- 右侧控制组 -->
             <div class="controls-right">
+              <!-- 缩放按钮（仅日历视图显示） -->
+              <button
+                v-if="props.currentRightPaneView === 'calendar'"
+                class="zoom-btn"
+                title="切换缩放"
+                @click="cycleZoom"
+              >
+                {{ calendarZoom }}x
+              </button>
+
               <!-- 天数选择器（仅 Recent 视图 + 日历视图时显示） -->
               <CuteDropdown
                 v-if="
@@ -185,16 +195,6 @@
                   </button>
                 </template>
               </CuteDropdown>
-
-              <!-- 缩放按钮（仅日历视图显示） -->
-              <button
-                v-if="props.currentRightPaneView === 'calendar'"
-                class="zoom-btn"
-                title="切换缩放"
-                @click="cycleZoom"
-              >
-                {{ calendarZoom }}x
-              </button>
 
               <!-- 月视图筛选菜单 -->
               <CuteDropdown
@@ -265,6 +265,7 @@
             :zoom="calendarZoom"
             :days="calendarDays"
             :month-view-filters="monthViewFilters"
+            @month-date-click="onMonthDateClick"
           />
         </div>
         <!-- 时间线视图 -->
@@ -334,6 +335,7 @@ const emit = defineEmits<{
   'enter-calendar-mode': []
   'exit-calendar-mode': []
   'update:calendarDays': [days: 1 | 3 | 5]
+  'date-click': [date: string]
 }>()
 
 // ==================== Stores ====================
@@ -444,6 +446,12 @@ function goToThisWeek() {
 function goToThisMonth() {
   calendarModeCurrentDate.value = getTodayDateString()
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Go to this month')
+}
+
+// 月视图日期点击处理
+function onMonthDateClick(date: string) {
+  emit('date-click', date)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Month date clicked', { date })
 }
 
 // ==================== 日历状态 ====================

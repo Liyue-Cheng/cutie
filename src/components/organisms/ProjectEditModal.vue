@@ -202,7 +202,7 @@ async function handleSubmit() {
   align-items: center;
   justify-content: space-between;
   padding: 1.6rem 2rem;
-  border-bottom: 1px solid var(--color-border-soft, rgb(87 82 121 / 8%));
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .dialog-header h3 {
@@ -253,7 +253,7 @@ async function handleSubmit() {
 }
 
 .required {
-  color: #e74c3c;
+  color: var(--color-danger);
 }
 
 .form-input,
@@ -300,7 +300,7 @@ async function handleSubmit() {
   justify-content: flex-end;
   gap: 1rem;
   padding: 1.6rem 2rem;
-  border-top: 1px solid var(--color-border-soft, rgb(87 82 121 / 8%));
+  border-top: 1px solid var(--color-border-light);
 }
 
 .cancel-button,
@@ -326,7 +326,7 @@ async function handleSubmit() {
 
 .submit-button {
   background-color: var(--color-button-primary-bg);
-  color: #fff;
+  color: var(--color-button-primary-text);
 }
 
 .submit-button:disabled {

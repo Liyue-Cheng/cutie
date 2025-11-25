@@ -4,7 +4,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import InfiniteAreaKanban from '@/components/organisms/InfiniteAreaKanban.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
-import InfiniteTimeline from '@/components/organisms/InfiniteTimeline.vue'
+import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
 import { useAreaStore } from '@/stores/area'
@@ -33,7 +33,7 @@ onMounted(async () => {
 
 // ==================== 状态 ====================
 const kanbanRef = ref<InstanceType<typeof InfiniteAreaKanban> | null>(null)
-const currentRightPaneView = ref<RightPaneView>('archive') // 右侧面板当前视图
+const currentRightPaneView = ref<RightPaneView>('timeline') // 右侧面板当前视图
 const kanbanCount = ref(0) // 看板数量
 
 // 获取看板数量
@@ -41,8 +41,8 @@ const displayKanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? kanban
 
 // 右侧面板视图配置
 const rightPaneViewConfig = {
-  archive: { icon: 'Archive', label: '已归档' },
   timeline: { icon: 'Clock', label: '时间线' },
+  archive: { icon: 'Archive', label: '已归档' },
 } as const
 
 // ==================== 事件处理 ====================
@@ -85,8 +85,8 @@ function handleKanbanCountChange(count: number) {
         <template #bottom>
           <!-- 已归档视图 -->
           <ArchiveColumn v-if="currentRightPaneView === 'archive'" />
-          <!-- 时间线视图 -->
-          <InfiniteTimeline v-else-if="currentRightPaneView === 'timeline'" />
+          <!-- 时间线视图（单栏模式） -->
+          <DoubleRowTimeline v-else-if="currentRightPaneView === 'timeline'" layout-mode="single" />
         </template>
       </TwoRowLayout>
     </div>
@@ -133,7 +133,6 @@ function handleKanbanCountChange(count: number) {
   flex: 1;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
-  box-shadow: inset -4px 0 12px -2px rgb(0 0 0 / 5%);
   position: relative;
 }
 

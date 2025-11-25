@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import TimelineDayCell from './TimelineDayCell.vue'
 import { useTaskStore } from '@/stores/task'
 import { useTimeBlockStore } from '@/stores/timeblock'
@@ -7,9 +7,12 @@ import type { TaskCard, TimeBlockView } from '@/types/dtos'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 import type { MonthViewFilters } from '@/composables/calendar/useCalendarEvents'
 
+type LayoutMode = 'auto' | 'single' | 'double'
+
 interface Props {
   currentMonth?: string // YYYY-MM，默认当前月
   monthViewFilters?: MonthViewFilters
+  layoutMode?: LayoutMode // 布局模式：auto=自适应, single=单栏, double=双栏
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -25,6 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
     showDueDates: true,
     showAllDayEvents: true,
   }),
+  layoutMode: 'auto',
 })
 
 const taskStore = useTaskStore()
@@ -43,6 +47,21 @@ interface DayData {
 const dayCells = ref<DayData[]>([])
 const timelineContainerRef = ref<HTMLElement | null>(null)
 const hasAutoScrolledToToday = ref(false)
+
+// 计算实际栏数（用于滚动逻辑）
+const effectiveColumns = computed(() => {
+  if (props.layoutMode === 'single') return 1
+  if (props.layoutMode === 'double') return 2
+  // auto模式下，通过container query确定
+  return 'auto' as const
+})
+
+// CSS类名计算
+const gridClass = computed(() => {
+  if (props.layoutMode === 'single') return 'timeline-grid-single'
+  if (props.layoutMode === 'double') return 'timeline-grid-double'
+  return 'timeline-grid-auto' // 自适应
+})
 
 function getDaysInMonth(yearMonth: string): number {
   const [yearStr, monthStr] = yearMonth.split('-')
@@ -161,23 +180,55 @@ async function scrollTodayIntoView(force = false) {
   const todayDay = dayCells.value.find((day) => day.isToday)
   if (!todayDay) return
 
-  const target = container.querySelector<HTMLElement>(
-    `.timeline-day-cell[data-date="${todayDay.date}"]`
-  )
-  if (!target) return
+  const todayIndex = dayCells.value.findIndex((day) => day.isToday)
+  if (todayIndex === -1) return
 
-  const containerRect = container.getBoundingClientRect()
-  const targetRect = target.getBoundingClientRect()
-  const nextTop = container.scrollTop + (targetRect.top - containerRect.top)
+  // 根据不同的布局模式计算滚动位置
+  const cols = effectiveColumns.value
 
-  container.scrollTo({ top: Math.max(nextTop, 0), behavior: 'auto' })
+  if (cols === 'auto') {
+    // 自适应模式：尝试通过DOM检测实际列数
+    const target = container.querySelector<HTMLElement>(
+      `.timeline-day-cell[data-date="${todayDay.date}"]`
+    )
+    if (!target) return
+
+    const containerRect = container.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const nextTop = container.scrollTop + (targetRect.top - containerRect.top)
+    container.scrollTo({ top: Math.max(nextTop - 20, 0), behavior: 'auto' })
+  } else if (cols === 1) {
+    // 单栏模式：直接滚动到目标元素
+    const target = container.querySelector<HTMLElement>(
+      `.timeline-day-cell[data-date="${todayDay.date}"]`
+    )
+    if (!target) return
+
+    const containerRect = container.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const nextTop = container.scrollTop + (targetRect.top - containerRect.top)
+    container.scrollTo({ top: Math.max(nextTop - 20, 0), behavior: 'auto' })
+  } else {
+    // 双栏模式：计算今天所在的行，滚动到该行
+    const rowIndex = Math.floor(todayIndex / 2)
+    const allCells = container.querySelectorAll<HTMLElement>('.timeline-day-cell')
+    const targetCell = allCells[rowIndex * 2] // 该行的第一个cell
+
+    if (!targetCell) return
+
+    const containerRect = container.getBoundingClientRect()
+    const targetRect = targetCell.getBoundingClientRect()
+    const nextTop = container.scrollTop + (targetRect.top - containerRect.top)
+    container.scrollTo({ top: Math.max(nextTop - 20, 0), behavior: 'auto' })
+  }
+
   hasAutoScrolledToToday.value = true
 }
 </script>
 
 <template>
   <div ref="timelineContainerRef" class="double-row-timeline">
-    <div class="timeline-grid">
+    <div :class="['timeline-grid', gridClass]">
       <TimelineDayCell
         v-for="day in dayCells"
         :key="day.date"
@@ -203,7 +254,8 @@ async function scrollTodayIntoView(force = false) {
   container-type: inline-size;
 }
 
-.timeline-grid {
+/* 自适应模式 - 根据container宽度自动切换 */
+.timeline-grid-auto {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
@@ -211,8 +263,24 @@ async function scrollTodayIntoView(force = false) {
 }
 
 @container (width <= 50rem) {
-  .timeline-grid {
+  .timeline-grid-auto {
     grid-template-columns: 1fr;
   }
+}
+
+/* 单栏模式 - 强制单栏 */
+.timeline-grid-single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  height: 100%;
+}
+
+/* 双栏模式 - 强制双栏 */
+.timeline-grid-double {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  height: 100%;
 }
 </style>

@@ -13,6 +13,7 @@
           :is-calendar-mode="true"
           @calendar-size-update="updateCalendarSize"
           @exit-calendar-mode="exitCalendarMode"
+          @date-click="onCalendarDateClick"
         />
       </div>
 
@@ -24,23 +25,33 @@
         @dblclick="resetPaneWidth"
       ></div>
 
-      <!-- 中栏：暂存区任务列表 -->
+      <!-- 中栏：根据选中的视图显示不同内容 -->
       <div class="middle-column">
-        <div class="staging-panel">
-          <div class="staging-header">
-            <span class="staging-title">暂存区</span>
-          </div>
-          <div class="staging-list-wrapper">
-            <StagingList />
-          </div>
-        </div>
+        <!-- 当天任务 -->
+        <DailyTaskPanel
+          v-if="calendarModeRightView === 'daily'"
+          v-model="calendarModeSelectedDate"
+        />
+        <!-- 暂存区 -->
+        <template v-else-if="calendarModeRightView === 'staging'">
+          <TwoRowLayout>
+            <template #top>
+              <div class="staging-header">
+                <span class="staging-title">暂存区</span>
+              </div>
+            </template>
+            <template #bottom>
+              <StagingList />
+            </template>
+          </TwoRowLayout>
+        </template>
       </div>
 
-      <!-- 右侧垂直图标栏 - 日历模式只显示暂存区 -->
+      <!-- 右侧垂直图标栏 -->
       <VerticalToolbar
         :view-config="calendarModeToolbarConfig"
-        current-view="staging"
-        @view-change="() => {}"
+        :current-view="calendarModeRightView"
+        @view-change="onCalendarModeRightViewChange"
       />
     </template>
 
@@ -98,13 +109,15 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
 import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
+import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
+import DailyTaskPanel from '@/components/organisms/DailyTaskPanel.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
@@ -112,12 +125,39 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 const route = useRoute()
+const router = useRouter()
 const registerStore = useRegisterStore()
 const uiStore = useUIStore()
 
 // ==================== 视图切换状态 ====================
-const currentView = ref<'recent' | 'staging' | 'projects'>('recent') // 当前左栏视图
-const isCalendarMode = ref(false) // 日历模式状态
+const currentView = ref<'recent' | 'staging' | 'projects' | 'calendar'>('recent') // 当前左栏视图
+
+// 日历模式 = 左栏显示日历
+const isCalendarMode = computed(() => currentView.value === 'calendar')
+
+// ==================== 日历模式右栏状态 ====================
+type CalendarModeRightView = 'daily' | 'staging'
+const calendarModeRightView = ref<CalendarModeRightView>('daily') // 默认显示当天任务
+const calendarModeSelectedDate = ref<string>(getTodayDateString()) // 当前选中的日期
+
+// 日历模式工具栏配置 - 当天任务在上，暂存区在下
+const calendarModeToolbarConfig = {
+  daily: { icon: 'CalendarDays', label: '当天任务' },
+  staging: { icon: 'Layers', label: '暂存区' },
+} as const
+
+// 日历模式右栏视图切换
+function onCalendarModeRightViewChange(viewKey: string) {
+  calendarModeRightView.value = viewKey as CalendarModeRightView
+  logger.info(LogTags.VIEW_HOME, 'Calendar mode right view changed', { viewKey })
+}
+
+// 日历日期点击处理（月视图）
+function onCalendarDateClick(date: string) {
+  calendarModeSelectedDate.value = date
+  calendarModeRightView.value = 'daily' // 切换到当天任务视图
+  logger.info(LogTags.VIEW_HOME, 'Calendar date clicked', { date })
+}
 
 // ==================== 右栏视图管理 ====================
 type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
@@ -153,11 +193,6 @@ const rightPaneViewConfig = computed(() => {
   return { ...fullRightPaneViewConfig }
 })
 
-// 日历模式工具栏配置 - 只显示暂存区
-const calendarModeToolbarConfig = {
-  staging: { icon: 'Layers', label: '暂存区' },
-} as const
-
 // 根据左栏视图获取默认的右栏视图
 function getDefaultRightPaneView(leftView: 'recent' | 'staging' | 'projects'): RightPaneView {
   switch (leftView) {
@@ -180,26 +215,14 @@ function switchRightPaneView(viewKey: string) {
 
 // 进入日历模式
 async function enterCalendarMode() {
-  isCalendarMode.value = true
+  router.push({ path: '/', query: { view: 'calendar' } })
   logger.info(LogTags.VIEW_HOME, 'Entered calendar mode')
-
-  // 自动调节到 2:1 比例
-  await nextTick()
-  if (shouldAutoAdjust()) {
-    animateToOptimalRatio()
-  }
 }
 
 // 退出日历模式
 async function exitCalendarMode() {
-  isCalendarMode.value = false
+  router.push({ path: '/', query: { view: 'recent' } })
   logger.info(LogTags.VIEW_HOME, 'Exited calendar mode')
-
-  // 自动调节回原来的比例
-  await nextTick()
-  if (shouldAutoAdjust()) {
-    animateToOptimalRatio()
-  }
 }
 
 // ==================== 日历天数联动状态 ====================
@@ -210,9 +233,12 @@ const calendarPanelRef = ref<InstanceType<typeof HomeCalendarPanel> | null>(null
 watch(
   () => route.query.view,
   async (newView) => {
-    let targetView: 'recent' | 'staging' | 'projects' = 'recent'
+    let targetView: 'recent' | 'staging' | 'projects' | 'calendar' = 'recent'
 
-    if (newView === 'staging') {
+    if (newView === 'calendar') {
+      targetView = 'calendar'
+      logger.info(LogTags.VIEW_HOME, 'Switched to Calendar mode')
+    } else if (newView === 'staging') {
       targetView = 'staging'
       logger.info(LogTags.VIEW_HOME, 'Switched to Staging view')
     } else if (newView === 'projects') {
@@ -228,17 +254,20 @@ watch(
 
     currentView.value = targetView
 
-    // 自动切换到该左栏视图的默认右栏视图（重要：处理组件初始化时的情况）
-    const defaultRightView = getDefaultRightPaneView(targetView)
-    if (currentRightPaneView.value !== defaultRightView) {
-      logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${targetView}' (from route)`)
-      currentRightPaneView.value = defaultRightView
-    }
+    // 日历模式不需要处理右栏视图（由 calendarModeRightView 管理）
+    if (targetView !== 'calendar') {
+      // 自动切换到该左栏视图的默认右栏视图（重要：处理组件初始化时的情况）
+      const defaultRightView = getDefaultRightPaneView(targetView)
+      if (currentRightPaneView.value !== defaultRightView) {
+        logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${targetView}' (from route)`)
+        currentRightPaneView.value = defaultRightView
+      }
 
-    // Recent 视图需要设置日历天数为3天
-    if (targetView === 'recent') {
-      calendarDays.value = 3
-      logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
+      // Recent 视图需要设置日历天数为3天
+      if (targetView === 'recent') {
+        calendarDays.value = 3
+        logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
+      }
     }
 
     // 立即调节布局比例（左栏切换不需要动画）
@@ -275,17 +304,20 @@ onMounted(async () => {
 watch(currentView, async (newView, oldView) => {
   logger.debug(LogTags.VIEW_HOME, 'Left view changed', { from: oldView, to: newView })
 
-  // 自动切换到该左栏视图的默认右栏视图
-  const defaultRightView = getDefaultRightPaneView(newView)
-  if (currentRightPaneView.value !== defaultRightView) {
-    logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${newView}'`)
-    currentRightPaneView.value = defaultRightView
-  }
+  // 日历模式不需要切换右栏视图（由 calendarModeRightView 管理）
+  if (newView !== 'calendar') {
+    // 自动切换到该左栏视图的默认右栏视图
+    const defaultRightView = getDefaultRightPaneView(newView)
+    if (currentRightPaneView.value !== defaultRightView) {
+      logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${newView}'`)
+      currentRightPaneView.value = defaultRightView
+    }
 
-  // Recent 视图需要设置日历天数为3天
-  if (newView === 'recent') {
-    calendarDays.value = 3
-    logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
+    // Recent 视图需要设置日历天数为3天
+    if (newView === 'recent') {
+      calendarDays.value = 3
+      logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
+    }
   }
 
   // 立即调节布局比例（左栏切换不需要动画）
@@ -693,30 +725,15 @@ onBeforeUnmount(() => {
 }
 
 /* ==================== 日历模式样式 ==================== */
-.staging-panel {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .staging-header {
   display: flex;
   align-items: center;
-  padding: 1.2rem 1.6rem;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .staging-title {
   font-size: 1.8rem;
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-.staging-list-wrapper {
-  flex: 1;
-  overflow: hidden;
-  padding: 0 0.8rem;
 }
 </style>

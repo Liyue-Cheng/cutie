@@ -23,7 +23,8 @@ import { useUIStore } from '@/stores/ui'
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
   currentDateRef: Ref<string | undefined>,
-  selectedTimeBlockId: Ref<string | null>
+  selectedTimeBlockId: Ref<string | null>,
+  onMonthDateClick?: (date: string) => void // 月视图日期点击回调
 ) {
   const contextMenu = useContextMenu()
   const taskStore = useTaskStore()
@@ -33,6 +34,16 @@ export function useCalendarHandlers(
    * 处理日期选择 - 打开创建对话框
    */
   async function handleDateSelect(selectInfo: DateSelectArg) {
+    // 检查是否是月视图
+    const isMonthView = selectInfo.view.type === 'dayGridMonth'
+
+    if (isMonthView && onMonthDateClick) {
+      // 月视图：触发日期点击回调，不弹出创建对话框
+      const dateStr = selectInfo.startStr.split('T')[0] // 获取 YYYY-MM-DD 格式
+      onMonthDateClick(dateStr)
+      return
+    }
+
     // ✅ 根据选择区域判断是否为全天事件
     const isAllDay = selectInfo.allDay
 

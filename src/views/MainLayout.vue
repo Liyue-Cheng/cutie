@@ -33,7 +33,7 @@
             <li class="nav-item-with-action">
               <div
                 class="nav-item-main"
-                @click="$router.push({ path: '/', query: { view: 'staging' } })"
+                @click="$router.push('/staging-kanban')"
               >
                 <CuteIcon name="Layers" :size="16" /><span>Staging</span>
               </div>
@@ -113,8 +113,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue' // 1. Import lifecycle hooks and ref
-import { getCurrentWindow, LogicalPosition, PhysicalPosition } from '@tauri-apps/api/window'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CutePane from '@/components/alias/CutePane.vue'
@@ -369,7 +369,7 @@ onMounted(() => {
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: var(--color-text-tertiary, #999);
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
 }
 
@@ -412,11 +412,11 @@ onMounted(() => {
 
 .sub-list li:hover {
   color: var(--color-text-primary);
-  background-color: rgb(0 0 0 / 5%);
+  background-color: var(--color-overlay-light);
 }
 
 .nav-group li:hover {
-  background-color: rgb(0 0 0 / 5%);
+  background-color: var(--color-overlay-light);
 }
 
 /* 带操作按钮的导航项 */
@@ -447,18 +447,18 @@ onMounted(() => {
   margin-right: 0.4rem;
   border-radius: 0.4rem;
   cursor: pointer;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary);
   opacity: 0;
   transition: all 0.15s ease;
 }
 
 .quick-add-button:hover {
-  background-color: var(--color-primary-bg, rgb(40 105 131 / 10%));
-  color: var(--color-primary, #286983);
+  background-color: var(--color-background-accent-light);
+  color: var(--color-text-accent);
 }
 
 .quick-add-button:active {
-  background-color: var(--color-primary-bg, rgb(40 105 131 / 15%));
+  background-color: var(--color-background-selected);
   transform: scale(0.95);
 }
 
@@ -477,7 +477,7 @@ onMounted(() => {
 }
 
 .section-header:hover {
-  background-color: rgb(0 0 0 / 5%);
+  background-color: var(--color-overlay-light);
 }
 
 .section-header .icon {
