@@ -1166,7 +1166,7 @@ async function handleDeleteRecurrence() {
 }
 
 .title-input:focus {
-  border-bottom-color: var(--color-button-primary-bg);
+  border-bottom-color: var(--color-border-default);
 }
 
 .title-input.completed {
@@ -1184,8 +1184,10 @@ async function handleDeleteRecurrence() {
 
 .recurrence-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex-direction: row; /* 改为横向排列 */
+  flex-wrap: wrap; /* 允许换行 */
+  align-items: baseline; /* 底部基线对齐 */
+  gap: 0.8rem; /* 增大间距 */
   overflow: hidden;
   flex: 1;
 }
@@ -1194,14 +1196,12 @@ async function handleDeleteRecurrence() {
   font-size: 1.6rem;
   font-weight: 500;
   color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .recurrence-expiry {
-  font-size: 1.2rem;
-  color: var(--color-text-tertiary);
+  font-size: 1.3rem; /* 稍小 */
+  font-weight: 400; /* 正常字重 */
+  color: var(--color-text-secondary); /* 次要文字颜色 */
 }
 
 .recurrence-actions {
@@ -1214,20 +1214,21 @@ async function handleDeleteRecurrence() {
 .status-badge {
   font-size: 1.2rem;
   font-weight: 600;
-  color: var(--color-text-tertiary);
   padding: 0.4rem 0.8rem;
   border-radius: 0.4rem;
-  background-color: var(--color-background-secondary);
   height: 2.8rem;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  /* 默认过期状态样式 */
+  color: var(--color-info-text);
+  background-color: var(--color-info-light);
 }
 
 .status-badge.active {
-  color: var(--color-success, #4caf50);
-  background-color: var(--color-success-bg, #e8f5e9);
+  color: var(--color-success-text);
+  background-color: var(--color-success-light);
 }
 
 .action-buttons {
