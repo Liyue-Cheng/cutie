@@ -3,101 +3,255 @@
     <TwoRowLayout>
       <template #top>
         <div class="calendar-controls">
-          <!-- 左侧：进入/退出日历模式按钮 + 年月显示 -->
-          <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-left-controls">
-            <!-- 日历模式：显示退出按钮 -->
-            <button
-              v-if="props.isCalendarMode"
-              class="calendar-mode-btn"
-              title="退出日历模式"
-              @click="emit('exit-calendar-mode')"
-            >
-              <CuteIcon name="ChevronsRight" :size="18" />
-            </button>
-            <!-- 普通模式：显示进入按钮 -->
-            <button
-              v-else
-              class="calendar-mode-btn"
-              title="进入日历模式"
-              @click="emit('enter-calendar-mode')"
-            >
-              <CuteIcon name="ChevronsLeft" :size="18" />
-            </button>
-            <div class="calendar-year-month">
-              {{ calendarYearMonth }}
-            </div>
-          </div>
+          <!-- ========== 日历模式控制栏 ========== -->
+          <template v-if="props.isCalendarMode">
+            <!-- 左侧：退出按钮 + 年月显示 + 导航 -->
+            <div class="calendar-left-controls">
+              <button
+                class="calendar-mode-btn"
+                title="退出日历模式"
+                @click="emit('exit-calendar-mode')"
+              >
+                <CuteIcon name="ChevronsRight" :size="18" />
+              </button>
 
-          <!-- 中间：占位 -->
-          <div class="spacer"></div>
+              <!-- 年月显示 -->
+              <div class="calendar-year-month">
+                {{ calendarYearMonth }}
+              </div>
 
-          <!-- 右侧控制组 -->
-          <div class="controls-right">
-            <!-- 缩放按钮（仅日历视图显示） -->
-            <button
-              v-if="props.currentRightPaneView === 'calendar'"
-              class="zoom-btn"
-              @click="cycleZoom"
-              title="切换缩放"
-            >
-              {{ calendarZoom }}x
-            </button>
+              <!-- 左右导航按钮 -->
+              <button class="control-btn nav-btn" title="上一周/月" @click="navigatePrevious">
+                <CuteIcon name="ChevronLeft" :size="16" />
+              </button>
+              <button class="control-btn nav-btn" title="下一周/月" @click="navigateNext">
+                <CuteIcon name="ChevronRight" :size="16" />
+              </button>
 
-            <!-- 月视图筛选菜单 -->
-            <CuteDropdown
-              v-if="
-                props.currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'
-              "
-              :close-on-select="false"
-            >
-              <template #trigger>
-                <button class="filter-btn">
-                  <span>筛选</span>
-                  <CuteIcon name="ChevronDown" :size="14" />
+              <!-- 本周按钮 + 日历选择器（仅周视图） -->
+              <div v-if="calendarModeViewType === 'week'" class="combined-btn-wrapper">
+                <button class="combined-btn-left" @click="goToThisWeek" title="回到本周">
+                  <span>本周</span>
                 </button>
-              </template>
-              <CuteDropdownItem @click.prevent>
-                <label class="filter-option">
-                  <CuteCheckbox
-                    :checked="monthViewFilters.showRecurringTasks"
-                    size="small"
-                    @update:checked="(val) => (monthViewFilters.showRecurringTasks = val)"
-                  />
-                  <span>循环任务</span>
-                </label>
-              </CuteDropdownItem>
-              <CuteDropdownItem @click.prevent>
-                <label class="filter-option">
-                  <CuteCheckbox
-                    :checked="monthViewFilters.showScheduledTasks"
-                    size="small"
-                    @update:checked="(val) => (monthViewFilters.showScheduledTasks = val)"
-                  />
-                  <span>已排期任务</span>
-                </label>
-              </CuteDropdownItem>
-              <CuteDropdownItem @click.prevent>
-                <label class="filter-option">
-                  <CuteCheckbox
-                    :checked="monthViewFilters.showDueDates"
-                    size="small"
-                    @update:checked="(val) => (monthViewFilters.showDueDates = val)"
-                  />
-                  <span>截止日期</span>
-                </label>
-              </CuteDropdownItem>
-              <CuteDropdownItem @click.prevent>
-                <label class="filter-option">
-                  <CuteCheckbox
-                    :checked="monthViewFilters.showAllDayEvents"
-                    size="small"
-                    @update:checked="(val) => (monthViewFilters.showAllDayEvents = val)"
-                  />
-                  <span>全天事件</span>
-                </label>
-              </CuteDropdownItem>
-            </CuteDropdown>
-          </div>
+                <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
+                  <CuteIcon name="CalendarDays" :size="16" />
+                </button>
+                <input
+                  ref="dateInputRef"
+                  type="date"
+                  v-model="calendarModeCurrentDate"
+                  class="date-input-hidden"
+                  @change="onDatePickerChange"
+                />
+              </div>
+
+              <!-- 本月按钮 + 日历选择器（仅月视图） -->
+              <div v-if="calendarModeViewType === 'month'" class="combined-btn-wrapper">
+                <button class="combined-btn-left" @click="goToThisMonth" title="回到本月">
+                  <span>本月</span>
+                </button>
+                <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
+                  <CuteIcon name="CalendarDays" :size="16" />
+                </button>
+                <input
+                  ref="dateInputRef"
+                  type="date"
+                  v-model="calendarModeCurrentDate"
+                  class="date-input-hidden"
+                  @change="onDatePickerChange"
+                />
+              </div>
+            </div>
+
+            <!-- 中间：占位 -->
+            <div class="spacer"></div>
+
+            <!-- 右侧控制组 -->
+            <div class="controls-right">
+              <!-- 缩放按钮（仅周视图） -->
+              <button
+                v-if="calendarModeViewType === 'week'"
+                class="zoom-btn"
+                title="切换缩放"
+                @click="cycleZoom"
+              >
+                {{ calendarZoom }}x
+              </button>
+
+              <!-- 月视图筛选菜单 -->
+              <CuteDropdown
+                v-if="calendarModeViewType === 'month'"
+                :close-on-select="false"
+              >
+                <template #trigger>
+                  <button class="filter-btn">
+                    <span>筛选</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
+                  </button>
+                </template>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showRecurringTasks"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showRecurringTasks = val)"
+                    />
+                    <span>循环任务</span>
+                  </label>
+                </CuteDropdownItem>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showScheduledTasks"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showScheduledTasks = val)"
+                    />
+                    <span>已排期任务</span>
+                  </label>
+                </CuteDropdownItem>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showDueDates"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showDueDates = val)"
+                    />
+                    <span>截止日期</span>
+                  </label>
+                </CuteDropdownItem>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showAllDayEvents"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showAllDayEvents = val)"
+                    />
+                    <span>全天事件</span>
+                  </label>
+                </CuteDropdownItem>
+              </CuteDropdown>
+
+              <!-- 周视图/月视图选择器 -->
+              <CuteDropdown
+                :model-value="calendarModeViewType"
+                :options="calendarModeViewOptions"
+                @update:model-value="onCalendarModeViewChange"
+              >
+                <template #trigger>
+                  <button class="day-count-trigger">
+                    <span>{{ calendarModeViewType === 'week' ? '周视图' : '月视图' }}</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
+                  </button>
+                </template>
+              </CuteDropdown>
+            </div>
+          </template>
+
+          <!-- ========== 普通模式控制栏 ========== -->
+          <template v-else>
+            <!-- 左侧：进入日历模式按钮 + 年月显示 -->
+            <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-left-controls">
+              <button
+                class="calendar-mode-btn"
+                title="进入日历模式"
+                @click="emit('enter-calendar-mode')"
+              >
+                <CuteIcon name="ChevronsLeft" :size="18" />
+              </button>
+              <div class="calendar-year-month">
+                {{ calendarYearMonth }}
+              </div>
+            </div>
+
+            <!-- 中间：占位 -->
+            <div class="spacer"></div>
+
+            <!-- 右侧控制组 -->
+            <div class="controls-right">
+              <!-- 天数选择器（仅 Recent 视图 + 日历视图时显示） -->
+              <CuteDropdown
+                v-if="
+                  props.leftViewType === 'recent' &&
+                  props.currentRightPaneView === 'calendar'
+                "
+                :model-value="props.calendarDays"
+                :options="dayCountOptions"
+                @update:model-value="onDayCountChange"
+              >
+                <template #trigger>
+                  <button class="day-count-trigger">
+                    <span>{{ props.calendarDays }}天</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
+                  </button>
+                </template>
+              </CuteDropdown>
+
+              <!-- 缩放按钮（仅日历视图显示） -->
+              <button
+                v-if="props.currentRightPaneView === 'calendar'"
+                class="zoom-btn"
+                title="切换缩放"
+                @click="cycleZoom"
+              >
+                {{ calendarZoom }}x
+              </button>
+
+              <!-- 月视图筛选菜单 -->
+              <CuteDropdown
+                v-if="
+                  props.currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'
+                "
+                :close-on-select="false"
+              >
+                <template #trigger>
+                  <button class="filter-btn">
+                    <span>筛选</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
+                  </button>
+                </template>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showRecurringTasks"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showRecurringTasks = val)"
+                    />
+                    <span>循环任务</span>
+                  </label>
+                </CuteDropdownItem>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showScheduledTasks"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showScheduledTasks = val)"
+                    />
+                    <span>已排期任务</span>
+                  </label>
+                </CuteDropdownItem>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showDueDates"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showDueDates = val)"
+                    />
+                    <span>截止日期</span>
+                  </label>
+                </CuteDropdownItem>
+                <CuteDropdownItem @click.prevent>
+                  <label class="filter-option">
+                    <CuteCheckbox
+                      :checked="monthViewFilters.showAllDayEvents"
+                      size="small"
+                      @update:checked="(val) => (monthViewFilters.showAllDayEvents = val)"
+                    />
+                    <span>全天事件</span>
+                  </label>
+                </CuteDropdownItem>
+              </CuteDropdown>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -106,7 +260,7 @@
         <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-wrapper">
           <CuteCalendar
             ref="calendarRef"
-            :current-date="currentCalendarDate"
+            :current-date="effectiveCurrentDate"
             :view-type="effectiveCalendarViewType"
             :zoom="calendarZoom"
             :days="calendarDays"
@@ -153,14 +307,14 @@ import CuteDropdown from '@/components/parts/CuteDropdown.vue'
 import CuteDropdownItem from '@/components/parts/CuteDropdownItem.vue'
 import TimeBlockCreateDialog from '@/components/organisms/TimeBlockCreateDialog.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
 import { useUIStore } from '@/stores/ui'
 import { pipeline } from '@/cpu'
 
 // Props
 interface Props {
   currentCalendarDate?: string
-  calendarDays?: 1 | 3 | 5 | 7
+  calendarDays?: 1 | 3 | 5
   leftViewType?: 'recent' | 'staging' | 'projects'
   currentRightPaneView?: 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
   isCalendarMode?: boolean
@@ -179,6 +333,7 @@ const emit = defineEmits<{
   'calendar-size-update': []
   'enter-calendar-mode': []
   'exit-calendar-mode': []
+  'update:calendarDays': [days: 1 | 3 | 5]
 }>()
 
 // ==================== Stores ====================
@@ -216,6 +371,81 @@ function handleTimeBlockDialogCancel() {
 // ==================== 右栏视图状态 ====================
 // 移除内部状态管理，使用从父组件传入的 currentRightPaneView
 
+// ==================== 天数选择器 ====================
+const dayCountOptions = [
+  { value: 1, label: '1天' },
+  { value: 3, label: '3天' },
+  { value: 5, label: '5天' },
+]
+
+function onDayCountChange(value: number) {
+  emit('update:calendarDays', value as 1 | 3 | 5)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Day count changed', { days: value })
+}
+
+// ==================== 日历模式状态 ====================
+const calendarModeViewType = ref<'week' | 'month'>('month') // 日历模式默认显示月视图
+const calendarModeCurrentDate = ref<string>(getTodayDateString()) // 日历模式的当前日期
+const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
+
+const calendarModeViewOptions = [
+  { value: 'week', label: '周视图' },
+  { value: 'month', label: '月视图' },
+]
+
+function onCalendarModeViewChange(value: string) {
+  calendarModeViewType.value = value as 'week' | 'month'
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar mode view changed', { view: value })
+}
+
+// 切换日期选择器
+function toggleDatePicker() {
+  if (dateInputRef.value) {
+    dateInputRef.value.showPicker()
+  }
+}
+
+// 日期选择器变化
+function onDatePickerChange() {
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Date picker changed', { date: calendarModeCurrentDate.value })
+}
+
+// 日历模式导航：上一周/月
+function navigatePrevious() {
+  const date = new Date(calendarModeCurrentDate.value)
+  if (calendarModeViewType.value === 'week') {
+    date.setDate(date.getDate() - 7)
+  } else {
+    date.setMonth(date.getMonth() - 1)
+  }
+  calendarModeCurrentDate.value = toDateString(date)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Navigate previous', { date: calendarModeCurrentDate.value })
+}
+
+// 日历模式导航：下一周/月
+function navigateNext() {
+  const date = new Date(calendarModeCurrentDate.value)
+  if (calendarModeViewType.value === 'week') {
+    date.setDate(date.getDate() + 7)
+  } else {
+    date.setMonth(date.getMonth() + 1)
+  }
+  calendarModeCurrentDate.value = toDateString(date)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Navigate next', { date: calendarModeCurrentDate.value })
+}
+
+// 跳转到本周
+function goToThisWeek() {
+  calendarModeCurrentDate.value = getTodayDateString()
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Go to this week')
+}
+
+// 跳转到本月
+function goToThisMonth() {
+  calendarModeCurrentDate.value = getTodayDateString()
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Go to this month')
+}
+
 // ==================== 日历状态 ====================
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
 const calendarZoom = ref<1 | 2 | 3>(1)
@@ -228,25 +458,39 @@ const monthViewFilters = ref({
   showAllDayEvents: true,
 })
 
-// 根据天数计算视图类型：7天显示本周视图，其他显示多天视图
+// 根据天数计算视图类型：总是显示多天视图
 const calendarViewType = computed(() => {
-  return props.calendarDays === 7 ? 'week' : 'day'
+  return 'day'
 })
 
-// 最终的日历视图类型：Staging 视图强制使用月视图，Projects 视图使用周视图
+// 最终的日历视图类型
 const effectiveCalendarViewType = computed(() => {
+  // 日历模式：使用日历模式的视图类型
+  if (props.isCalendarMode) {
+    return calendarModeViewType.value
+  }
+  // Staging 视图强制使用月视图
   if (props.leftViewType === 'staging') {
     return 'month'
   }
+  // Projects 视图使用周视图
   if (props.leftViewType === 'projects') {
     return 'week'
   }
   return calendarViewType.value
 })
 
+// 最终的当前日期
+const effectiveCurrentDate = computed(() => {
+  if (props.isCalendarMode) {
+    return calendarModeCurrentDate.value
+  }
+  return props.currentCalendarDate
+})
+
 // 格式化日历年月显示
 const calendarYearMonth = computed(() => {
-  const dateStr = props.currentCalendarDate
+  const dateStr = props.isCalendarMode ? calendarModeCurrentDate.value : props.currentCalendarDate
   if (!dateStr) return ''
 
   const date = new Date(dateStr)
@@ -442,6 +686,128 @@ defineExpose({
 
 .calendar-mode-btn:active {
   transform: scale(0.95);
+}
+
+/* 控制按钮（导航、本周、本月） */
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.control-btn:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+}
+
+.control-btn:active {
+  transform: scale(0.98);
+}
+
+/* 导航按钮 */
+.nav-btn {
+  width: 3.6rem;
+  padding: 0;
+}
+
+/* 合并按钮（本周/本月 + 日历） */
+.combined-btn-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 3.6rem;
+}
+
+.combined-btn-left,
+.combined-btn-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3.6rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.combined-btn-left {
+  gap: 0.6rem;
+  padding: 0 1.2rem;
+  border-radius: 0.6rem 0 0 0.6rem;
+  border-right: none;
+}
+
+.combined-btn-right {
+  width: 3.6rem;
+  padding: 0;
+  border-radius: 0 0.6rem 0.6rem 0;
+  border-left: 1px solid var(--color-border-default);
+}
+
+.combined-btn-left:hover,
+.combined-btn-right:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+  z-index: 1;
+}
+
+.combined-btn-left:active,
+.combined-btn-right:active {
+  transform: scale(0.98);
+}
+
+.date-input-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* 天数选择器触发器 */
+.day-count-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  min-width: 7rem;
+  white-space: nowrap;
+}
+
+.day-count-trigger:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
+}
+
+.day-count-trigger:active {
+  transform: scale(0.98);
 }
 
 /* 占位 */

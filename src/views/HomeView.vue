@@ -3,7 +3,7 @@
     <!-- ========== 日历模式布局 ========== -->
     <template v-if="isCalendarMode">
       <!-- 左栏：日历 -->
-      <div class="left-column calendar-mode-left">
+      <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
         <HomeCalendarPanel
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
@@ -50,7 +50,7 @@
       <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
         <RecentTaskPanel
           v-if="currentView === 'recent'"
-          v-model="calendarDays"
+          :model-value="calendarDays"
           @date-change="onRecentDateChange"
         />
         <StagingTaskPanel v-else-if="currentView === 'staging'" />
@@ -70,7 +70,7 @@
         <HomeCalendarPanel
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
-          :calendar-days="calendarDays"
+          v-model:calendar-days="calendarDays"
           :left-view-type="currentView"
           :current-right-pane-view="currentRightPaneView"
           @calendar-size-update="updateCalendarSize"
@@ -179,19 +179,31 @@ function switchRightPaneView(viewKey: string) {
 }
 
 // 进入日历模式
-function enterCalendarMode() {
+async function enterCalendarMode() {
   isCalendarMode.value = true
   logger.info(LogTags.VIEW_HOME, 'Entered calendar mode')
+
+  // 自动调节到 2:1 比例
+  await nextTick()
+  if (shouldAutoAdjust()) {
+    animateToOptimalRatio()
+  }
 }
 
 // 退出日历模式
-function exitCalendarMode() {
+async function exitCalendarMode() {
   isCalendarMode.value = false
   logger.info(LogTags.VIEW_HOME, 'Exited calendar mode')
+
+  // 自动调节回原来的比例
+  await nextTick()
+  if (shouldAutoAdjust()) {
+    animateToOptimalRatio()
+  }
 }
 
 // ==================== 日历天数联动状态 ====================
-const calendarDays = ref<1 | 3 | 5 | 7>(3) // 默认显示3天，与 RecentTaskPanel 联动
+const calendarDays = ref<1 | 3 | 5>(3) // 默认显示3天，由右栏日历控制
 const calendarPanelRef = ref<InstanceType<typeof HomeCalendarPanel> | null>(null)
 
 // 监听路由变化，切换视图
@@ -336,7 +348,10 @@ function calculateOptimalRatio(): number {
 
   let leftRatio: number
 
-  if (currentView.value === 'recent') {
+  // 日历模式：固定 2.7:1 比例
+  if (isCalendarMode.value) {
+    leftRatio = 0.73 // 2.7:1 比例
+  } else if (currentView.value === 'recent') {
     // Recent 视图：根据右栏类型确定比例
     if (currentRightPaneView.value === 'calendar') {
       // Calendar 视图：根据天数调整
@@ -347,9 +362,6 @@ function calculateOptimalRatio(): number {
         case 3:
         case 5:
           leftRatio = 0.4 // 4:6 比例
-          break
-        case 7:
-          leftRatio = 0.333 // 1:2 比例
           break
         default:
           leftRatio = 0.4
@@ -456,6 +468,11 @@ async function animateToOptimalRatio(instant: boolean = false) {
 
 // 检查是否需要自动调节
 function shouldAutoAdjust(): boolean {
+  // 日历模式：总是需要自动调节（固定 2:1 比例）
+  if (isCalendarMode.value) {
+    return true
+  }
+
   // Recent 视图：Calendar、Staging 或 Templates 时需要自动调节
   if (currentView.value === 'recent') {
     return (
@@ -676,11 +693,6 @@ onBeforeUnmount(() => {
 }
 
 /* ==================== 日历模式样式 ==================== */
-.calendar-mode-left {
-  flex: 1;
-  min-width: 0;
-}
-
 .staging-panel {
   width: 100%;
   height: 100%;
