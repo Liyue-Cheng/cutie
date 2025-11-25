@@ -120,10 +120,43 @@ const recurrenceDescription = computed(() => {
   if (!currentRecurrence.value) return null
   try {
     const rule = RRule.fromString(currentRecurrence.value.rule)
-    return rule.toText()
+    let text = rule.toText()
+
+    // 简单的汉化处理
+    const map: Record<string, string> = {
+      'every day': '每天',
+      'every week': '每周',
+      'every month': '每月',
+      'every year': '每年',
+    }
+
+    const lowerText = text.toLowerCase()
+    if (map[lowerText]) {
+      return map[lowerText]
+    }
+
+    return text
+      .replace(/^every day/i, '每天')
+      .replace(/^every week/i, '每周')
+      .replace(/^every month/i, '每月')
+      .replace(/^every year/i, '每年')
+      .replace(/ on /gi, ' ')
+      .replace(/until/gi, '直到')
   } catch (e) {
     return currentRecurrence.value.rule
   }
+})
+
+// 判断循环是否激活（根据end_date）
+const isRecurrenceActive = computed(() => {
+  if (!currentRecurrence.value) return false
+
+  // 如果没有结束日期，说明循环仍在激活状态
+  if (!currentRecurrence.value.end_date) return true
+
+  // 如果有结束日期，比较是否大于今天
+  const today = getTodayDateString()
+  return currentRecurrence.value.end_date > today
 })
 
 // 自动调整 textarea 高度
@@ -148,11 +181,15 @@ async function loadRecurrence() {
 
   // ✅ 修复：使用 task.recurrence_id 直接查找循环规则
   if (task.value.recurrence_id) {
-    // 🔥 使用CPU指令获取所有循环规则
-    await pipeline.dispatch('recurrence.fetch_all', {})
+    // 先尝试从 store 中获取，避免不必要的网络请求
+    let recurrence = recurrenceStore.getRecurrenceById(task.value.recurrence_id)
 
-    // 直接通过 recurrence_id 查找
-    const recurrence = recurrenceStore.getRecurrenceById(task.value.recurrence_id)
+    // 如果 store 中没有，再异步获取
+    if (!recurrence) {
+      await pipeline.dispatch('recurrence.fetch_all', {})
+      recurrence = recurrenceStore.getRecurrenceById(task.value.recurrence_id)
+    }
+
     if (recurrence) {
       currentRecurrence.value = recurrence
       logger.info(LogTags.COMPONENT_KANBAN, 'Loaded recurrence for task', {
@@ -173,6 +210,15 @@ async function loadRecurrence() {
 // 当弹窗打开时，获取任务详情
 onMounted(async () => {
   if (props.taskId) {
+    // 🔥 先尝试同步加载循环规则（如果store中已有数据）
+    const cardTask = taskStore.getTaskById_Mux(props.taskId)
+    if (cardTask?.recurrence_id) {
+      const recurrence = recurrenceStore.getRecurrenceById(cardTask.recurrence_id)
+      if (recurrence) {
+        currentRecurrence.value = recurrence
+      }
+    }
+
     const detail = (await taskStore.fetchTaskDetail_DMA(props.taskId)) as TaskDetail | null
     if (detail) {
       titleInput.value = detail.title
@@ -194,7 +240,7 @@ onMounted(async () => {
       await nextTick()
       initTextareaHeights()
 
-      // 加载循环规则
+      // 加载循环规则（如果store中没有，这会异步获取）
       await loadRecurrence()
     }
   }
@@ -204,6 +250,15 @@ watch(
   () => props.taskId,
   async (newTaskId) => {
     if (newTaskId) {
+      // 🔥 先尝试同步加载循环规则（如果store中已有数据）
+      const cardTask = taskStore.getTaskById_Mux(newTaskId)
+      if (cardTask?.recurrence_id) {
+        const recurrence = recurrenceStore.getRecurrenceById(cardTask.recurrence_id)
+        if (recurrence) {
+          currentRecurrence.value = recurrence
+        }
+      }
+
       const detail = (await taskStore.fetchTaskDetail_DMA(newTaskId)) as TaskDetail | null
       if (detail) {
         titleInput.value = detail.title
@@ -225,7 +280,7 @@ watch(
         await nextTick()
         initTextareaHeights()
 
-        // 加载循环规则
+        // 加载循环规则（如果store中没有，这会异步获取）
         await loadRecurrence()
       }
     }
@@ -352,7 +407,8 @@ async function handleAddSubtask() {
     sort_order: `subtask_${Date.now()}`,
   }
 
-  const updatedSubtasks = [...subtasks.value, newSubtask]
+  // 新子任务添加到最前面
+  const updatedSubtasks = [newSubtask, ...subtasks.value]
 
   await pipeline.dispatch('task.update', {
     id: props.taskId,
@@ -495,10 +551,10 @@ async function handleDeleteRecurrence() {
     @click.self="handleOverlayClick"
   >
     <CuteCard class="editor-card" @mousedown="handleCardMouseDown" @click.stop>
-      <div v-if="task" class="content-wrapper">
-        <!-- 第一栏：卡片标题栏 -->
-        <div class="card-header-row">
-          <div class="left-section">
+      <div v-if="task">
+        <!-- 卡片头部 -->
+        <div class="card-header">
+          <div class="header-left">
             <!-- 区域标签 -->
             <div class="area-tag-wrapper" @click="showAreaSelector = !showAreaSelector">
               <AreaTag
@@ -513,7 +569,7 @@ async function handleDeleteRecurrence() {
               </div>
             </div>
 
-            <!-- 简易区域选择器 -->
+            <!-- 区域选择器下拉 -->
             <div v-if="showAreaSelector" class="area-selector-dropdown">
               <div
                 v-for="area in Array.from(areaStore.areas.values())"
@@ -529,7 +585,7 @@ async function handleDeleteRecurrence() {
             </div>
           </div>
 
-          <div class="right-section">
+          <div class="header-right">
             <!-- 截止日期选择器 -->
             <div class="due-date-wrapper">
               <button class="due-date-button" @click="showDueDatePicker = !showDueDatePicker">
@@ -592,149 +648,175 @@ async function handleDeleteRecurrence() {
               <CuteIcon name="RefreshCw" :size="18" />
             </button>
 
-            <!-- × 按钮 -->
+            <!-- 关闭按钮 -->
             <button class="close-button" @click="handleClose">×</button>
           </div>
         </div>
 
-        <!-- 循环规则展示区 -->
-        <div v-if="currentRecurrence" class="recurrence-info-section">
-          <div class="recurrence-row">
-            <div class="recurrence-indicator">
-              <CuteIcon name="RefreshCw" :size="14" />
+        <!-- 主内容区 -->
+        <div class="card-body">
+          <!-- 任务标题区域 -->
+          <div class="section section-title">
+            <div class="section-icon">
+              <CuteDualModeCheckbox
+                :state="mainCheckboxState"
+                size="large"
+                @update:state="handleMainCheckboxChange"
+              />
             </div>
-            <div class="recurrence-main">
-              <div class="recurrence-top">
-                <span class="recurrence-label">循环规则</span>
+            <div class="section-body">
+              <input
+                v-model="titleInput"
+                class="title-input"
+                :class="{ completed: task.is_completed }"
+                @blur="updateTitle"
+                @keydown.enter="updateTitle"
+              />
+            </div>
+          </div>
+
+          <!-- 循环规则区域 -->
+          <div v-if="currentRecurrence" class="section section-recurrence">
+            <div class="section-icon">
+              <CuteIcon name="RefreshCw" :size="20" />
+            </div>
+            <div class="section-body">
+              <div class="recurrence-info">
                 <span class="recurrence-text">{{ recurrenceDescription }}</span>
-                <span class="status-badge" :class="{ active: currentRecurrence.is_active }">
-                  {{ currentRecurrence.is_active ? '激活' : '暂停' }}
+                <span v-if="currentRecurrence.end_date" class="recurrence-expiry">
+                  直到 {{ currentRecurrence.end_date }}
                 </span>
               </div>
+
+              <div class="recurrence-actions">
+                <span class="status-badge" :class="{ active: isRecurrenceActive }">
+                  {{ isRecurrenceActive ? '激活' : '过期' }}
+                </span>
+                <div class="action-buttons">
+                  <button
+                    v-if="(task as any)?.recurrence_original_date && !currentRecurrence.end_date"
+                    class="action-btn"
+                    @click="handleStopRepeating"
+                    title="停止重复"
+                  >
+                    <CuteIcon name="X" :size="16" />
+                  </button>
+                  <button
+                    v-if="currentRecurrence.end_date"
+                    class="action-btn"
+                    @click="handleExtendRecurrence"
+                    title="继续循环"
+                  >
+                    <CuteIcon name="Check" :size="16" />
+                  </button>
+                  <button
+                    class="action-btn danger"
+                    @click="handleDeleteRecurrence"
+                    title="删除规则"
+                  >
+                    <CuteIcon name="Trash2" :size="16" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 任务描述区域 -->
+          <div class="section section-note">
+            <div class="section-icon">
+              <CuteIcon name="FileText" :size="20" />
+            </div>
+            <div class="section-body">
               <div
-                v-if="currentRecurrence.start_date || currentRecurrence.end_date"
-                class="recurrence-dates"
+                v-if="!glanceNote && !isTitleEditing"
+                class="note-placeholder"
+                @click="isTitleEditing = true"
               >
-                <span v-if="currentRecurrence.start_date">{{ currentRecurrence.start_date }}</span>
-                <span v-if="currentRecurrence.start_date && currentRecurrence.end_date">至</span>
-                <span v-if="currentRecurrence.end_date">{{ currentRecurrence.end_date }}</span>
+                任务描述...
               </div>
-            </div>
-            <div class="recurrence-actions">
-              <button
-                v-if="(task as any)?.recurrence_original_date && !currentRecurrence.end_date"
-                class="action-btn"
-                @click="handleStopRepeating"
-                title="停止重复"
-              >
-                <CuteIcon name="X" :size="16" />
-              </button>
-              <button
-                v-if="currentRecurrence.end_date"
-                class="action-btn"
-                @click="handleExtendRecurrence"
-                title="继续循环"
-              >
-                <CuteIcon name="Check" :size="16" />
-              </button>
-              <button class="action-btn danger" @click="handleDeleteRecurrence" title="删除规则">
-                <CuteIcon name="Trash2" :size="16" />
-              </button>
+              <textarea
+                ref="glanceNoteTextarea"
+                v-model="glanceNote"
+                class="note-textarea"
+                placeholder="任务描述..."
+                rows="1"
+                @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
+                @blur="updateGlanceNote"
+              ></textarea>
             </div>
           </div>
-        </div>
 
-        <!-- 第二栏：任务标题栏 -->
-        <div class="title-row">
-          <CuteDualModeCheckbox
-            :state="mainCheckboxState"
-            size="large"
-            @update:state="handleMainCheckboxChange"
-          />
-          <input
-            v-model="titleInput"
-            class="title-input"
-            :class="{ completed: task.is_completed }"
-            @blur="updateTitle"
-            @keydown.enter="updateTitle"
-          />
-        </div>
-
-        <!-- 第三栏：Glance Note 区域 -->
-        <div class="note-area glance-note-area">
-          <div
-            v-if="!glanceNote && !isTitleEditing"
-            class="note-placeholder"
-            @click="isTitleEditing = true"
-          >
-            快速概览笔记...
-          </div>
-          <textarea
-            ref="glanceNoteTextarea"
-            v-model="glanceNote"
-            class="note-textarea"
-            placeholder="快速概览笔记..."
-            rows="1"
-            @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
-            @blur="updateGlanceNote"
-          ></textarea>
-        </div>
-
-        <!-- 分割线 -->
-        <div class="separator"></div>
-
-        <!-- 第四栏：子任务编辑区 -->
-        <div class="subtasks-section">
-          <div class="subtasks-header">子任务</div>
-          <draggable
-            v-model="subtasks"
-            item-key="id"
-            class="subtasks-list"
-            handle=".drag-handle"
-            @end="handleSubtaskReorder"
-          >
-            <template #item="{ element: subtask }">
-              <div class="subtask-item">
-                <div class="drag-handle">⋮⋮</div>
-                <CuteCheckbox
-                  :checked="subtask.is_completed"
-                  size="small"
-                  @update:checked="
-                    (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
-                  "
+          <!-- 子任务区域 -->
+          <div class="section section-subtasks">
+            <div class="section-header">
+              <div class="section-icon">
+                <CuteIcon name="List" :size="20" />
+              </div>
+              <span class="section-title-text">子任务</span>
+            </div>
+            <div class="section-body">
+              <div class="subtasks-input">
+                <input
+                  v-model="newSubtaskTitle"
+                  class="add-subtask-input"
+                  placeholder="添加子任务..."
+                  @keydown.enter="handleAddSubtask"
                 />
-                <span class="subtask-title" :class="{ completed: subtask.is_completed }">
-                  {{ subtask.title }}
-                </span>
-                <button class="delete-button" @click="handleDeleteSubtask(subtask.id)">×</button>
               </div>
-            </template>
-          </draggable>
-          <div class="add-subtask-form">
-            <input
-              v-model="newSubtaskTitle"
-              class="add-subtask-input"
-              placeholder="添加子任务..."
-              @keydown.enter="handleAddSubtask"
-            />
+              <draggable
+                v-model="subtasks"
+                item-key="id"
+                class="subtasks-list"
+                handle=".drag-handle"
+                @end="handleSubtaskReorder"
+              >
+                <template #item="{ element: subtask }">
+                  <div class="subtask-item">
+                    <div class="drag-handle">⋮⋮</div>
+                    <CuteCheckbox
+                      :checked="subtask.is_completed"
+                      size="small"
+                      @update:checked="
+                        (isChecked: boolean) => handleSubtaskStatusChange(subtask.id, isChecked)
+                      "
+                    />
+                    <span class="subtask-title" :class="{ completed: subtask.is_completed }">
+                      {{ subtask.title }}
+                    </span>
+                    <button class="delete-button" @click="handleDeleteSubtask(subtask.id)">
+                      ×
+                    </button>
+                  </div>
+                </template>
+              </draggable>
+            </div>
+          </div>
+
+          <!-- 详细笔记区域 -->
+          <div class="section section-note">
+            <div class="section-icon">
+              <CuteIcon name="FileText" :size="20" />
+            </div>
+            <div class="section-body">
+              <div v-if="!detailNote" class="note-placeholder">详细笔记...</div>
+              <textarea
+                ref="detailNoteTextarea"
+                v-model="detailNote"
+                class="note-textarea"
+                placeholder="详细笔记..."
+                rows="1"
+                @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
+                @blur="updateDetailNote"
+              ></textarea>
+            </div>
           </div>
         </div>
 
-        <!-- 分割线 -->
-        <div class="separator"></div>
-
-        <!-- 第五栏：细节笔记区 -->
-        <div class="note-area detail-note-area">
-          <div v-if="!detailNote" class="note-placeholder">详细笔记...</div>
-          <textarea
-            ref="detailNoteTextarea"
-            v-model="detailNote"
-            class="note-textarea"
-            placeholder="详细笔记..."
-            rows="1"
-            @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
-            @blur="updateDetailNote"
-          ></textarea>
+        <!-- 底栏 -->
+        <div class="card-footer">
+          <div class="footer-actions">
+            <button class="footer-button confirm-footer-button" @click="handleClose">完成</button>
+          </div>
         </div>
       </div>
     </CuteCard>
@@ -752,6 +834,7 @@ async function handleDeleteRecurrence() {
 </template>
 
 <style scoped>
+/* ==================== 模态框基础 ==================== */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -766,37 +849,38 @@ async function handleDeleteRecurrence() {
 }
 
 .editor-card {
-  width: 70rem;
+  width: 63rem;
   max-width: 90vw;
   max-height: 90vh;
-  padding: 2.5rem;
   border: 1px solid var(--color-border-default);
   background-color: var(--color-card-available);
   border-radius: 0.8rem;
   overflow-y: auto;
+  padding: 0; /* Override CuteCard's default 1.6rem padding */
 }
 
-.content-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* 第一栏：卡片标题栏 */
-.card-header-row {
+/* ==================== 卡片头部 ==================== */
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid var(--color-separator);
+  padding: 4.1rem 4.1rem 1.5rem; /* Top and horizontal +1.6rem, bottom unchanged */
+  border-bottom: 1px solid var(--color-border-default);
 }
 
-.left-section {
+.header-left {
   display: flex;
   align-items: center;
   position: relative;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* 区域标签 */
 .area-tag-wrapper {
   cursor: pointer;
   transition: opacity 0.2s;
@@ -804,6 +888,17 @@ async function handleDeleteRecurrence() {
 
 .area-tag-wrapper:hover {
   opacity: 0.7;
+}
+
+.no-area-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary);
+  padding: 0.4rem 0.8rem;
+  border: 1px dashed var(--color-border-default);
+  border-radius: 0.4rem;
 }
 
 .area-selector-dropdown {
@@ -836,25 +931,7 @@ async function handleDeleteRecurrence() {
   color: var(--color-text-tertiary);
 }
 
-.no-area-placeholder {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 1.2rem;
-  color: var(--color-text-tertiary);
-  padding: 0.4rem 0.8rem;
-  border: 1px dashed var(--color-border-default);
-  border-radius: 0.4rem;
-}
-
-/* ✅ 移除 .hash-symbol 样式，现在使用 CuteIcon 组件 */
-
-.right-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
+/* 截止日期按钮 */
 .due-date-wrapper {
   position: relative;
 }
@@ -988,6 +1065,7 @@ async function handleDeleteRecurrence() {
   background-color: var(--color-background-hover);
 }
 
+/* 循环按钮 */
 .recurrence-button {
   display: flex;
   align-items: center;
@@ -1011,8 +1089,8 @@ async function handleDeleteRecurrence() {
 
 .recurrence-button.active {
   border-color: var(--color-button-primary-bg);
-  color: var(--color-button-primary-bg);
-  background-color: var(--color-button-primary-hover);
+  color: white;
+  background-color: var(--color-button-primary-bg);
 }
 
 .recurrence-button.active:hover {
@@ -1020,115 +1098,7 @@ async function handleDeleteRecurrence() {
   color: white;
 }
 
-/* 循环规则展示区 */
-.recurrence-info-section {
-  padding: 1.2rem 1.5rem;
-  background: var(--color-background-hover);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-}
-
-.recurrence-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.recurrence-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 0.4rem;
-  background: transparent;
-  color: var(--color-text-accent);
-  flex-shrink: 0;
-}
-
-.recurrence-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.recurrence-top {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.recurrence-label {
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.recurrence-text {
-  font-size: 1.4rem;
-  color: var(--color-text-primary);
-}
-
-.status-badge {
-  padding: 0.2rem 0.6rem;
-  border-radius: 0.3rem;
-  font-size: 1.1rem;
-  font-weight: 500;
-  background: var(--color-background-soft, #e0e0e0);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-default);
-}
-
-.status-badge.active {
-  background: var(--color-success-bg, #e8f5e9);
-  color: var(--color-success, #4caf50);
-  border-color: var(--color-success, #4caf50);
-}
-
-.recurrence-dates {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 1.2rem;
-  color: var(--color-text-tertiary);
-}
-
-.recurrence-actions {
-  display: flex;
-  gap: 0.4rem;
-  flex-shrink: 0;
-}
-
-.recurrence-actions .action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.8rem;
-  height: 2.8rem;
-  padding: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.4rem;
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.recurrence-actions .action-btn:hover {
-  border-color: var(--color-button-primary-bg);
-  color: var(--color-button-primary-bg);
-  background: var(--color-background-hover);
-}
-
-.recurrence-actions .action-btn.danger:hover {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
+/* 关闭按钮 */
 .close-button {
   font-size: 3rem;
   line-height: 1;
@@ -1149,22 +1119,48 @@ async function handleDeleteRecurrence() {
   color: var(--color-text-primary);
 }
 
-/* 第二栏：任务标题栏 */
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+/* ==================== 主内容区 ==================== */
+.card-body {
+  padding: 0 4.1rem; /* Increased by 1.6rem to compensate for removed CuteCard padding */
 }
 
-.title-input {
+/* ==================== 统一Section样式 ==================== */
+.section {
+  display: flex;
+  align-items: center; /* 统一使用中线对齐 */
+  gap: 1rem;
+  padding: 1.7rem 0 0 0; /* 增加到 1.7rem */
+}
+
+/* 第一个section无特殊样式 */
+.section:first-child {
+  padding-top: 2.5rem; /* Increased for more breathing room */
+}
+
+.section-icon {
+  flex-shrink: 0;
+  width: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+}
+
+.section-body {
   flex: 1;
-  font-size: 2.4rem;
+  min-width: 0;
+}
+
+/* ==================== 任务标题区域 ==================== */
+.title-input {
+  width: 100%;
+  font-size: 2rem;
   font-weight: 600;
   color: var(--color-text-primary);
   background: transparent;
   border: none;
   outline: none;
-  padding: 0.5rem 0;
+  padding: 0;
   border-bottom: 2px solid transparent;
   transition: border-color 0.2s;
 }
@@ -1178,10 +1174,104 @@ async function handleDeleteRecurrence() {
   color: var(--color-text-secondary);
 }
 
-/* 笔记区域 */
-.note-area {
-  position: relative;
-  min-height: 4rem;
+/* ==================== 循环规则区域 ==================== */
+.section-recurrence .section-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.recurrence-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: hidden;
+  flex: 1;
+}
+
+.recurrence-text {
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recurrence-expiry {
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary);
+}
+
+.recurrence-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-shrink: 0;
+}
+
+.status-badge {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem;
+  background-color: var(--color-background-secondary);
+  height: 2.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.status-badge.active {
+  color: var(--color-success, #4caf50);
+  background-color: var(--color-success-bg, #e8f5e9);
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+  background: white;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.action-btn:hover {
+  border-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-bg);
+  background: white;
+}
+
+.action-btn.danger:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ==================== 笔记区域 ==================== */
+.section-note {
+  border-bottom: 1px solid var(--color-border-default);
+  align-items: flex-start; /* 笔记区域使用顶部对齐，因为是多行内容 */
+  padding-top: 0.7rem; /* 1.7rem - 1rem，补偿图标向下移动 */
+}
+
+.section-note .section-icon {
+  margin-top: 1rem; /* 对齐 textarea 的第一行文本：padding-top (1rem) */
 }
 
 .note-placeholder {
@@ -1189,7 +1279,7 @@ async function handleDeleteRecurrence() {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 1rem;
+  padding: 1rem 0;
   font-size: 1.5rem;
   color: var(--color-text-tertiary);
   cursor: text;
@@ -1205,16 +1295,13 @@ async function handleDeleteRecurrence() {
   border: none;
   outline: none;
   resize: none;
-  padding: 1rem;
+  padding: 1rem 0;
   border-radius: 0.4rem;
   overflow: hidden;
   min-height: 2rem;
 }
 
-.note-textarea:hover {
-  background: transparent;
-}
-
+.note-textarea:hover,
 .note-textarea:focus {
   background: transparent;
 }
@@ -1223,55 +1310,106 @@ async function handleDeleteRecurrence() {
   color: transparent;
 }
 
-/* 分割线 */
-.separator {
-  height: 1px;
-  background-color: var(--color-separator);
+.section-note .section-body {
+  position: relative;
+  min-height: 10rem;
 }
 
-/* 第四栏：子任务区 */
-.subtasks-section {
-  display: flex;
+/* ==================== 子任务区域 ==================== */
+.section-subtasks {
   flex-direction: column;
-  gap: 0.5rem;
+  align-items: stretch;
 }
 
-.subtasks-header {
-  font-size: 1.5rem;
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.section-title-text {
+  font-size: 1.6rem;
   font-weight: 600;
   color: var(--color-text-secondary);
+}
+
+.subtasks-input {
+  padding: 0.5rem 0;
+}
+
+.add-subtask-input {
+  width: 100%;
+  padding: 0.2rem 0;
+  font-size: 1.5rem;
+  border: none;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: all 0.2s;
+}
+
+.add-subtask-input::placeholder {
+  color: var(--color-text-tertiary);
 }
 
 .subtasks-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
 }
 
 .subtask-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
   border-radius: 0.4rem;
   transition: background-color 0.2s;
   cursor: move;
+  position: relative;
 }
 
 .subtask-item:hover {
-  background-color: var(--color-background-hover);
+  background-color: var(--color-background-hover, #f5f5f5);
 }
 
 .drag-handle {
+  position: absolute;
+  left: -2.8rem;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.8rem;
   cursor: grab;
   color: var(--color-text-tertiary);
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   line-height: 1;
   user-select: none;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+  border-radius: 0.4rem;
+}
+
+.drag-handle:hover {
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-hover, #f5f5f5);
 }
 
 .drag-handle:active {
   cursor: grabbing;
+  color: var(--color-text-primary);
+  transform: scale(0.95);
+}
+
+.subtask-item:hover .drag-handle {
+  opacity: 1;
 }
 
 .subtask-title {
@@ -1312,29 +1450,46 @@ async function handleDeleteRecurrence() {
   opacity: 1;
 }
 
-.add-subtask-form {
-  margin-top: 0.5rem;
+/* ==================== 底栏 ==================== */
+.card-footer {
+  padding: 1.5rem 4.1rem 3.1rem; /* Top unchanged, horizontal +1.6rem, bottom +1.6rem */
+  display: flex;
+  justify-content: flex-end;
 }
 
-.add-subtask-input {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.5rem;
-  border: 1px dashed var(--color-border-default);
-  border-radius: 0.4rem;
+.footer-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.footer-button {
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.6rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 8rem;
+}
+
+.cancel-footer-button {
   background-color: transparent;
   color: var(--color-text-primary);
-  transition: all 0.2s;
+  border: 1px solid var(--color-border-default);
 }
 
-.add-subtask-input:focus {
-  outline: none;
-  border-style: solid;
-  border-color: var(--color-button-primary-bg);
-  background-color: var(--color-background-hover);
+.cancel-footer-button:hover {
+  background-color: var(--color-background-hover, #f5f5f5);
+  border-color: var(--color-text-secondary);
 }
 
-.add-subtask-input::placeholder {
-  color: var(--color-text-tertiary);
+.confirm-footer-button {
+  background-color: var(--color-button-primary-bg);
+  color: white;
+  border: 1px solid var(--color-button-primary-bg);
+}
+
+.confirm-footer-button:hover {
+  background-color: var(--color-primary-dark, #1565c0);
 }
 </style>
