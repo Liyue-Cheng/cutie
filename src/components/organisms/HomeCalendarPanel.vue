@@ -3,9 +3,29 @@
     <TwoRowLayout>
       <template #top>
         <div class="calendar-controls">
-          <!-- 左侧：年月显示 -->
-          <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-year-month">
-            {{ calendarYearMonth }}
+          <!-- 左侧：进入/退出日历模式按钮 + 年月显示 -->
+          <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-left-controls">
+            <!-- 日历模式：显示退出按钮 -->
+            <button
+              v-if="props.isCalendarMode"
+              class="calendar-mode-btn"
+              title="退出日历模式"
+              @click="emit('exit-calendar-mode')"
+            >
+              <CuteIcon name="ChevronsRight" :size="18" />
+            </button>
+            <!-- 普通模式：显示进入按钮 -->
+            <button
+              v-else
+              class="calendar-mode-btn"
+              title="进入日历模式"
+              @click="emit('enter-calendar-mode')"
+            >
+              <CuteIcon name="ChevronsLeft" :size="18" />
+            </button>
+            <div class="calendar-year-month">
+              {{ calendarYearMonth }}
+            </div>
           </div>
 
           <!-- 中间：占位 -->
@@ -98,6 +118,7 @@
           v-else-if="props.currentRightPaneView === 'timeline'"
           :current-month="currentCalendarDate.slice(0, 7)"
           :month-view-filters="monthViewFilters"
+          layout-mode="auto"
         />
         <!-- Staging 视图 -->
         <StagingList v-else-if="props.currentRightPaneView === 'staging'" />
@@ -142,6 +163,7 @@ interface Props {
   calendarDays?: 1 | 3 | 5 | 7
   leftViewType?: 'recent' | 'staging' | 'projects'
   currentRightPaneView?: 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
+  isCalendarMode?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -149,11 +171,14 @@ const props = withDefaults(defineProps<Props>(), {
   calendarDays: 3,
   leftViewType: 'recent',
   currentRightPaneView: 'calendar',
+  isCalendarMode: false,
 })
 
 // Emits
 const emit = defineEmits<{
   'calendar-size-update': []
+  'enter-calendar-mode': []
+  'exit-calendar-mode': []
 }>()
 
 // ==================== Stores ====================
@@ -384,6 +409,39 @@ defineExpose({
   font-weight: 600;
   color: var(--color-text-primary);
   white-space: nowrap;
+}
+
+/* 左侧控制组 */
+.calendar-left-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+/* 日历模式按钮 */
+.calendar-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  padding: 0;
+  color: var(--color-text-tertiary);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-mode-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-default);
+}
+
+.calendar-mode-btn:active {
+  transform: scale(0.95);
 }
 
 /* 占位 */

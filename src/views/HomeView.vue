@@ -1,42 +1,90 @@
 <template>
   <div class="home-view">
-    <!-- 左栏 -->
-    <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-      <RecentTaskPanel
-        v-if="currentView === 'recent'"
-        v-model="calendarDays"
-        @date-change="onRecentDateChange"
+    <!-- ========== 日历模式布局 ========== -->
+    <template v-if="isCalendarMode">
+      <!-- 左栏：日历 -->
+      <div class="left-column calendar-mode-left">
+        <HomeCalendarPanel
+          ref="calendarPanelRef"
+          :current-calendar-date="currentCalendarDate"
+          :calendar-days="7"
+          left-view-type="staging"
+          current-right-pane-view="calendar"
+          :is-calendar-mode="true"
+          @calendar-size-update="updateCalendarSize"
+          @exit-calendar-mode="exitCalendarMode"
+        />
+      </div>
+
+      <!-- 可拖动的分割线 -->
+      <div
+        class="divider"
+        :class="{ 'auto-adjusting': isAutoAdjusting }"
+        @mousedown="startDragging"
+        @dblclick="resetPaneWidth"
+      ></div>
+
+      <!-- 中栏：暂存区任务列表 -->
+      <div class="middle-column">
+        <div class="staging-panel">
+          <div class="staging-header">
+            <span class="staging-title">暂存区</span>
+          </div>
+          <div class="staging-list-wrapper">
+            <StagingList />
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧垂直图标栏 - 日历模式只显示暂存区 -->
+      <VerticalToolbar
+        :view-config="calendarModeToolbarConfig"
+        current-view="staging"
+        @view-change="() => {}"
       />
-      <StagingTaskPanel v-else-if="currentView === 'staging'" />
-      <ProjectsPanel v-else-if="currentView === 'projects'" />
-    </div>
+    </template>
 
-    <!-- 可拖动的分割线 -->
-    <div
-      class="divider"
-      :class="{ 'auto-adjusting': isAutoAdjusting }"
-      @mousedown="startDragging"
-      @dblclick="resetPaneWidth"
-    ></div>
+    <!-- ========== 普通模式布局 ========== -->
+    <template v-else>
+      <!-- 左栏 -->
+      <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
+        <RecentTaskPanel
+          v-if="currentView === 'recent'"
+          v-model="calendarDays"
+          @date-change="onRecentDateChange"
+        />
+        <StagingTaskPanel v-else-if="currentView === 'staging'" />
+        <ProjectsPanel v-else-if="currentView === 'projects'" />
+      </div>
 
-    <!-- 中栏（原右栏）-->
-    <div class="middle-column">
-      <HomeCalendarPanel
-        ref="calendarPanelRef"
-        :current-calendar-date="currentCalendarDate"
-        :calendar-days="calendarDays"
-        :left-view-type="currentView"
-        :current-right-pane-view="currentRightPaneView"
-        @calendar-size-update="updateCalendarSize"
+      <!-- 可拖动的分割线 -->
+      <div
+        class="divider"
+        :class="{ 'auto-adjusting': isAutoAdjusting }"
+        @mousedown="startDragging"
+        @dblclick="resetPaneWidth"
+      ></div>
+
+      <!-- 中栏（原右栏）-->
+      <div class="middle-column">
+        <HomeCalendarPanel
+          ref="calendarPanelRef"
+          :current-calendar-date="currentCalendarDate"
+          :calendar-days="calendarDays"
+          :left-view-type="currentView"
+          :current-right-pane-view="currentRightPaneView"
+          @calendar-size-update="updateCalendarSize"
+          @enter-calendar-mode="enterCalendarMode"
+        />
+      </div>
+
+      <!-- 右侧垂直图标栏 -->
+      <VerticalToolbar
+        :view-config="rightPaneViewConfig"
+        :current-view="currentRightPaneView"
+        @view-change="switchRightPaneView"
       />
-    </div>
-
-    <!-- 右侧垂直图标栏 -->
-    <VerticalToolbar
-      :view-config="rightPaneViewConfig"
-      :current-view="currentRightPaneView"
-      @view-change="switchRightPaneView"
-    />
+    </template>
 
     <!-- 任务编辑器模态框挂载点 -->
     <TaskEditorModal
@@ -56,6 +104,7 @@ import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
 import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
+import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
@@ -68,6 +117,7 @@ const uiStore = useUIStore()
 
 // ==================== 视图切换状态 ====================
 const currentView = ref<'recent' | 'staging' | 'projects'>('recent') // 当前左栏视图
+const isCalendarMode = ref(false) // 日历模式状态
 
 // ==================== 右栏视图管理 ====================
 type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
@@ -103,6 +153,11 @@ const rightPaneViewConfig = computed(() => {
   return { ...fullRightPaneViewConfig }
 })
 
+// 日历模式工具栏配置 - 只显示暂存区
+const calendarModeToolbarConfig = {
+  staging: { icon: 'Layers', label: '暂存区' },
+} as const
+
 // 根据左栏视图获取默认的右栏视图
 function getDefaultRightPaneView(leftView: 'recent' | 'staging' | 'projects'): RightPaneView {
   switch (leftView) {
@@ -121,6 +176,18 @@ function getDefaultRightPaneView(leftView: 'recent' | 'staging' | 'projects'): R
 function switchRightPaneView(viewKey: string) {
   currentRightPaneView.value = viewKey as RightPaneView
   logger.info(LogTags.VIEW_HOME, 'Right pane view switched', { viewKey })
+}
+
+// 进入日历模式
+function enterCalendarMode() {
+  isCalendarMode.value = true
+  logger.info(LogTags.VIEW_HOME, 'Entered calendar mode')
+}
+
+// 退出日历模式
+function exitCalendarMode() {
+  isCalendarMode.value = false
+  logger.info(LogTags.VIEW_HOME, 'Exited calendar mode')
 }
 
 // ==================== 日历天数联动状态 ====================
@@ -606,5 +673,38 @@ onBeforeUnmount(() => {
 .divider:hover::after {
   opacity: 1;
   background-color: var(--color-text-secondary);
+}
+
+/* ==================== 日历模式样式 ==================== */
+.calendar-mode-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.staging-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.staging-header {
+  display: flex;
+  align-items: center;
+  padding: 1.2rem 1.6rem;
+  flex-shrink: 0;
+}
+
+.staging-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.staging-list-wrapper {
+  flex: 1;
+  overflow: hidden;
+  padding: 0 0.8rem;
 }
 </style>
