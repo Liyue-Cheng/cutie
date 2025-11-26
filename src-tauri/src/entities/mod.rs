@@ -58,7 +58,6 @@ pub use task::{
     ProjectSummary,
     ScheduleInfo,
     ScheduleRecord,
-    ScheduleStatus,
     SearchTasksQuery,
     // 值对象
     SourceInfo,

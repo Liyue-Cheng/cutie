@@ -1,5 +1,5 @@
 use crate::{
-    entities::{ScheduleStatus, Task, TaskCardDto},
+    entities::{Task, TaskCardDto},
     features::shared::TaskAssembler,
     infra::{
         core::{AppError, AppResult},
@@ -154,6 +154,8 @@ mod logic {
     }
 
     /// 组装单个任务的 TaskCard（包含完整的 schedules + time_blocks）
+    ///
+    /// schedule_status 已删除 - 前端根据 schedules 字段实时计算
     async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         // 1. 创建基础 TaskCard
         let mut card = TaskAssembler::task_to_card_basic(task);
@@ -162,10 +164,7 @@ mod logic {
         let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
         card.schedules = schedules;
 
-        // 3. 设置 schedule_status 为 staging
-        card.schedule_status = ScheduleStatus::Staging;
-
-        // 4. 填充 recurrence_expiry_behavior
+        // 3. 填充 recurrence_expiry_behavior
         TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
 
         Ok(card)

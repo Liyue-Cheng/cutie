@@ -8,7 +8,7 @@
 /// - 易于测试和维护
 use crate::entities::task::TaskScheduleDto;
 use crate::entities::{
-    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, ScheduleStatus, SubtaskDto, Task,
+    DueDateInfo, DueDateType, ProjectSummary, ScheduleInfo, SubtaskDto, Task,
     TaskCardDto, TaskDetailDto,
 };
 use crate::infra::core::AppResult;
@@ -22,8 +22,8 @@ impl TaskAssembler {
     ///
     /// 只填充可以直接从 Task 实体获取的字段
     /// 需要额外数据的字段保持默认值，调用者需要手动设置：
-    /// - schedule_status（需要从 Schedule 表判断）
     /// - schedule_info（需要从 Schedule 表计算）
+    /// - schedules（需要调用 assemble_schedules 填充，前端根据此字段判断是否已排期）
     pub fn task_to_card_basic(task: &Task) -> TaskCardDto {
         TaskCardDto {
             id: task.id,
@@ -33,7 +33,6 @@ impl TaskAssembler {
             is_archived: task.is_archived(),
             is_deleted: task.is_deleted(),
             deleted_at: task.deleted_at,
-            schedule_status: ScheduleStatus::Staging, // 默认 Staging，需要后续判断
             subtasks: task.subtasks.as_ref().map(|subtasks| {
                 subtasks
                     .iter()
@@ -387,11 +386,9 @@ impl TaskAssembler {
     #[allow(dead_code)]
     pub fn task_to_card_full(
         task: &Task,
-        schedule_status: ScheduleStatus,
         schedule_info: Option<ScheduleInfo>,
     ) -> TaskCardDto {
         let mut card = Self::task_to_card_basic(task);
-        card.schedule_status = schedule_status;
         card.schedule_info = schedule_info;
         card
     }
@@ -483,7 +480,8 @@ mod tests {
         assert_eq!(card.title, task.title);
         assert_eq!(card.glance_note, task.glance_note);
         assert!(!card.is_completed);
-        assert_eq!(card.schedule_status, ScheduleStatus::Staging);
+        // schedule_status 已删除，前端根据 schedules 字段实时计算
+        assert!(card.schedules.is_none()); // staging 任务无 schedules
         assert!(card.has_detail_note);
     }
 

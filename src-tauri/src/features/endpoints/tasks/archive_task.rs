@@ -218,33 +218,7 @@ mod logic {
         // 6. ✅ 在事务内填充 schedules 字段
         // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
-
-        // 7. ✅ 根据 schedules 设置正确的 schedule_status
-        use crate::entities::ScheduleStatus;
-        use chrono::Utc;
-        let today = Utc::now().date_naive();
-
-        let has_future_schedule = task_card
-            .schedules
-            .as_ref()
-            .map(|schedules| {
-                schedules.iter().any(|s| {
-                    if let Ok(schedule_date) =
-                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
-                    {
-                        schedule_date >= today
-                    } else {
-                        false
-                    }
-                })
-            })
-            .unwrap_or(false);
-
-        task_card.schedule_status = if has_future_schedule {
-            ScheduleStatus::Scheduled
-        } else {
-            ScheduleStatus::Staging
-        };
+        // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
         // 8. 构建统一的事务结果
         // ✅ HTTP 响应和 SSE 事件使用相同的数据结构

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    entities::{LinkedTaskSummary, ScheduleStatus, TimeBlock, TimeBlockViewDto},
+    entities::{LinkedTaskSummary, TimeBlock, TimeBlockViewDto},
     features::{
         shared::{repositories::TimeBlockRepository, TimeBlockConflictChecker},
         shared::{
@@ -454,12 +454,12 @@ mod logic {
 
         // 11. 组装更新后的 TaskCard（✅ area_id 已由 TaskAssembler 填充）
         let mut updated_task = TaskAssembler::task_to_card_basic(&task);
-        updated_task.schedule_status = ScheduleStatus::Scheduled; // 明确设置
 
         // 12. ✅ 填充 schedules 字段（事务已提交，使用 pool 查询）
         // ⚠️ 必须填充完整数据，否则前端筛选会失败！
         updated_task.schedules =
             TaskAssembler::assemble_schedules(app_state.db_pool(), request.task_id).await?;
+        // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
         // 13. 发送 SSE 事件（通知其他视图时间块已创建）
         use crate::features::shared::TransactionHelper;

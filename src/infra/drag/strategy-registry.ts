@@ -68,7 +68,6 @@ class StrategyRegistry {
       sourceView: session.source.viewId,
       targetZone,
       dragMode: session.dragMode,
-      taskStatus: session.object.data.schedule_status,
     })
 
     for (const strategy of this.sortedStrategies) {
@@ -96,7 +95,6 @@ class StrategyRegistry {
       sourceViewType: session.source.viewType,
       targetZone,
       dragMode: session.dragMode,
-      taskStatus: session.object.data.schedule_status,
     })
     console.log('📋 Available Strategies:', this.sortedStrategies.length)
     console.table(

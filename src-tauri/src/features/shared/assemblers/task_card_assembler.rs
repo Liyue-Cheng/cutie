@@ -3,7 +3,7 @@
 use sqlx::SqlitePool;
 
 use crate::{
-    entities::{ScheduleStatus, Task, TaskCardDto},
+    entities::{Task, TaskCardDto},
     features::shared::TaskAssembler,
     infra::core::AppResult,
 };
@@ -12,19 +12,15 @@ pub struct ViewTaskCardAssembler;
 
 impl ViewTaskCardAssembler {
     /// 为 Task 组装完整 TaskCard（包含 schedules 和 time_blocks）
+    ///
+    /// schedule_status 已删除 - 前端根据 schedules 字段实时计算：
+    /// - schedules 为 Some(_) 且非空 => scheduled
+    /// - schedules 为 None 或空 => staging
     pub async fn assemble_full(task: &Task, pool: &SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
         // 组装完整的 schedules（包含 time_blocks）
         let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
-
-        // 根据 schedules 设置 schedule_status
-        card.schedule_status = if schedules.is_some() {
-            ScheduleStatus::Scheduled
-        } else {
-            ScheduleStatus::Staging
-        };
-
         card.schedules = schedules;
 
         // 填充 recurrence_expiry_behavior
@@ -48,26 +44,5 @@ impl ViewTaskCardAssembler {
         TaskAssembler::fill_recurrence_expiry_behavior_batch(&mut task_cards, pool).await?;
 
         Ok(task_cards)
-    }
-
-    /// 组装 TaskCard 并明确设置 schedule_status（用于 planned 和 staging 视图）
-    pub async fn assemble_with_status(
-        task: &Task,
-        pool: &SqlitePool,
-        status: ScheduleStatus,
-    ) -> AppResult<TaskCardDto> {
-        let mut card = TaskAssembler::task_to_card_basic(task);
-
-        // 组装完整的 schedules（包含 time_blocks）
-        let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
-
-        // 明确设置 schedule_status
-        card.schedule_status = status;
-        card.schedules = schedules;
-
-        // 填充 recurrence_expiry_behavior
-        TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
-
-        Ok(card)
     }
 }

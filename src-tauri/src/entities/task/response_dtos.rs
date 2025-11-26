@@ -25,7 +25,7 @@ pub struct TaskCardDto {
     pub is_archived: bool,
     pub is_deleted: bool,
     pub deleted_at: Option<DateTime<Utc>>,
-    pub schedule_status: ScheduleStatus,
+    // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
     // --- 详细信息 ---
     pub subtasks: Option<Vec<SubtaskDto>>,
@@ -108,14 +108,6 @@ pub struct TaskDetailDto {
 }
 
 // --- 辅助结构体 ---
-
-/// 日程状态
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ScheduleStatus {
-    Scheduled,
-    Staging,
-}
 
 /// 子任务DTO
 #[derive(Debug, Clone, Serialize, Deserialize)]

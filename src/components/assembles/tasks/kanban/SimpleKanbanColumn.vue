@@ -89,7 +89,6 @@ const { displayItems } = useInteractDrag({
       displayItems.value.map((t) => ({
         id: t.id,
         title: t.title,
-        schedule_status: t.schedule_status,
       }))
     )
     console.log('📍 Drop Index:', dragPreviewState.value?.computed.dropIndex)
@@ -118,7 +117,6 @@ const { displayItems } = useInteractDrag({
       console.log('Session Source ViewKey:', session.source.viewKey)
       console.log('Session Source ViewType:', session.source.viewType)
       console.log('Target Zone:', props.viewKey)
-      console.log('Task Schedule Status:', session.object.data.schedule_status)
       console.log('Task Schedules:', session.object.data.schedules)
       console.groupEnd()
 

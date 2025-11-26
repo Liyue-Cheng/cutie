@@ -254,12 +254,7 @@ mod logic {
         // 11. ✅ 在事务内填充 schedules 字段
         // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
-
-        // 11.5. ✅ 根据 schedules 设置正确的 schedule_status
-        // staging 定义：今天和未来没有排期的任务，过去的排期不影响
-        // 返回暂存区操作删除了所有未来排期，所以这里应该是 Staging
-        use crate::entities::ScheduleStatus;
-        task_card.schedule_status = ScheduleStatus::Staging;
+        // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
         // 12. 构建统一的事务结果
         // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
