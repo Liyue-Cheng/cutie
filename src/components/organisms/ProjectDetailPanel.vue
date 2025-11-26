@@ -41,7 +41,7 @@
           />
           <h1 class="project-title">{{ project.name }}</h1>
           <button class="more-btn" @click="showMoreMenu">
-            <CuteIcon name="MoreHorizontal" :size="20" />
+            <CuteIcon name="Ellipsis" :size="20" />
           </button>
         </div>
 
