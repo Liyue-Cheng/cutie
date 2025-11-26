@@ -7,7 +7,7 @@
       @click="props.collapsible ? toggleCollapse() : undefined"
     >
       <div class="header-left">
-        <h3 class="task-bar-title">{{ title }}</h3>
+        <h3 class="task-bar-title" :style="titleStyle">{{ title }}</h3>
         <span class="task-count">{{ displayItems.length }}</span>
       </div>
       <CuteIcon
@@ -101,6 +101,7 @@ interface Props {
   collapsible?: boolean // 是否可折叠
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
   inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
+  titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -110,6 +111,7 @@ const props = withDefaults(defineProps<Props>(), {
   collapsible: true,
   hideDailyRecurringTasks: false,
   inputBorderStyle: 'dashed',
+  titleColor: '',
 })
 
 // Emits
@@ -162,6 +164,12 @@ const taskBarClasses = computed(() => ({
   collapsed: isCollapsed.value,
   'fill-vertical': props.fillRemainingSpace && !isCollapsed.value,
 }))
+
+// 标题样式
+const titleStyle = computed(() => {
+  if (!props.titleColor) return {}
+  return { color: props.titleColor }
+})
 
 // ==================== ViewMetadata 推导 ====================
 const effectiveViewMetadata = computed<ViewMetadata>(() => {
