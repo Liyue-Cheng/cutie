@@ -1,8 +1,7 @@
 <template>
   <ContextMenu>
     <MenuItem @click="handleAction('edit')">编辑模板</MenuItem>
-    <MenuDivider />
-    <MenuItem variant="danger" @click="handleAction('delete')">删除模板</MenuItem>
+    <MenuItem divider variant="danger" @click="handleAction('delete')">删除模板</MenuItem>
   </ContextMenu>
 </template>
 
@@ -10,7 +9,6 @@
 import { defineProps, defineEmits } from 'vue'
 import ContextMenu from '@/components/assembles/ContextMenu/shared/CuteContextMenu.vue'
 import MenuItem from '@/components/assembles/ContextMenu/shared/CuteMenuItem.vue'
-import MenuDivider from '@/components/assembles/ContextMenu/shared/CuteMenuDivider.vue'
 import type { Template } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'

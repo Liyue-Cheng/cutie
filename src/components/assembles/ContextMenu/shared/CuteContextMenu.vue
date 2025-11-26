@@ -7,17 +7,16 @@
 <script setup lang="ts">
 /**
  * CuteContextMenu - 统一的右键菜单容器组件
- * 
+ *
  * 特性：
  * - 使用语义化颜色变量
  * - 统一的阴影和圆角
- * - 防止 border 重叠的视觉问题
- * 
+ * - 分隔线通过 MenuItem/MenuSection 的 divider prop 实现（使用 border，渲染稳定）
+ *
  * 使用方式：
  * <CuteContextMenu>
  *   <CuteMenuItem @click="handleAction">操作1</CuteMenuItem>
- *   <CuteMenuDivider />
- *   <CuteMenuItem variant="danger" @click="handleDelete">删除</CuteMenuItem>
+ *   <CuteMenuItem divider variant="danger" @click="handleDelete">删除</CuteMenuItem>
  * </CuteContextMenu>
  */
 </script>

@@ -4,6 +4,7 @@
     :class="{
       'is-danger': variant === 'danger',
       'is-disabled': disabled,
+      'has-divider': divider,
     }"
     :disabled="disabled"
     @click="handleClick"
@@ -23,11 +24,13 @@ const props = withDefaults(
     iconSize?: number
     variant?: 'default' | 'danger'
     disabled?: boolean
+    divider?: boolean
   }>(),
   {
     iconSize: 14,
     variant: 'default',
     disabled: false,
+    divider: false,
   }
 )
 
@@ -93,6 +96,13 @@ function handleClick(event: MouseEvent) {
 .cute-menu-item.is-disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 分隔线 - 使用 border-top 替代独立的 divider 组件 */
+.cute-menu-item.has-divider {
+  margin-top: 0.4rem;
+  padding-top: calc(0.8rem + 0.4rem); /* 原 padding + 分隔线间距 */
+  border-top: 2px solid var(--color-border-light, #f0f);
 }
 
 .menu-item-text {

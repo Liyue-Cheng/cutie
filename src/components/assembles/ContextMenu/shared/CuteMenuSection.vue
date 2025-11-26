@@ -1,5 +1,5 @@
 <template>
-  <div class="cute-menu-section">
+  <div class="cute-menu-section" :class="{ 'has-divider': divider }">
     <div v-if="title" class="menu-section-title">{{ title }}</div>
     <slot />
   </div>
@@ -11,9 +11,15 @@
  *
  * 用于在菜单中创建带标题的分组
  */
-defineProps<{
-  title?: string
-}>()
+withDefaults(
+  defineProps<{
+    title?: string
+    divider?: boolean
+  }>(),
+  {
+    divider: false,
+  }
+)
 </script>
 
 <style scoped>
@@ -21,6 +27,13 @@ defineProps<{
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+/* 分隔线 - 使用 border-top */
+.cute-menu-section.has-divider {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 2px solid var(--color-border-light, #f0f);
 }
 
 .menu-section-title {

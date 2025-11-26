@@ -4,8 +4,7 @@
 
     <!-- 循环任务相关操作 -->
     <template v-if="isRecurringTask">
-      <MenuDivider />
-      <MenuSection title="Task recurrence:">
+      <MenuSection divider title="Task recurrence:">
         <MenuItem icon="Square" @click="handleAction('stop-repeating')">
           Stop repeating
         </MenuItem>
@@ -21,27 +20,26 @@
       </MenuSection>
     </template>
 
-    <MenuDivider />
-    <MenuItem icon="RotateCcw" @click="handleAction('return-to-staging')">
+    <MenuItem divider icon="RotateCcw" @click="handleAction('return-to-staging')">
       返回暂存区
     </MenuItem>
 
     <!-- 取消今日排期（只在日期视图显示） -->
-    <template v-if="showCancelSchedule">
-      <MenuDivider />
-      <MenuItem icon="CalendarX" @click="handleAction('cancel-today-schedule')">
-        取消今日排期
-      </MenuItem>
-    </template>
+    <MenuItem
+      v-if="showCancelSchedule"
+      divider
+      icon="CalendarX"
+      @click="handleAction('cancel-today-schedule')"
+    >
+      取消今日排期
+    </MenuItem>
 
-    <MenuDivider />
-    <MenuItem v-if="!task.is_archived" @click="handleAction('archive')">
+    <MenuItem v-if="!task.is_archived" divider @click="handleAction('archive')">
       归档任务
     </MenuItem>
-    <MenuItem v-else @click="handleAction('unarchive')">取消归档</MenuItem>
+    <MenuItem v-else divider @click="handleAction('unarchive')">取消归档</MenuItem>
 
-    <MenuDivider />
-    <MenuItem variant="danger" @click="handleAction('delete')">删除任务</MenuItem>
+    <MenuItem divider variant="danger" @click="handleAction('delete')">删除任务</MenuItem>
   </ContextMenu>
 </template>
 
@@ -54,7 +52,6 @@ import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
 import ContextMenu from '@/components/assembles/ContextMenu/shared/CuteContextMenu.vue'
 import MenuItem from '@/components/assembles/ContextMenu/shared/CuteMenuItem.vue'
-import MenuDivider from '@/components/assembles/ContextMenu/shared/CuteMenuDivider.vue'
 import MenuSection from '@/components/assembles/ContextMenu/shared/CuteMenuSection.vue'
 
 const props = defineProps<{
