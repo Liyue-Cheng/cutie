@@ -29,59 +29,62 @@
 
     <!-- 项目详情 -->
     <div v-else-if="project" class="project-detail">
-      <!-- 项目头部 - Things 3 风格 -->
-      <div class="project-header">
-        <!-- 第一行：进度环 + 标题 + 三点菜单 -->
-        <div class="header-title-row">
-          <CircularProgress
-            :completed="projectStats.completed"
-            :total="projectStats.total"
-            size="small"
-            hide-text
-          />
-          <h1 class="project-title">{{ project.name }}</h1>
-          <button class="more-btn" @click="showMoreMenu">
-            <CuteIcon name="Ellipsis" :size="20" />
-          </button>
+      <!-- 内容容器（限制宽度） -->
+      <div class="content-container">
+        <!-- 项目头部 - Things 3 风格 -->
+        <div class="project-header">
+          <!-- 第一行：进度环 + 标题 + 三点菜单 -->
+          <div class="header-title-row">
+            <CircularProgress
+              :completed="projectStats.completed"
+              :total="projectStats.total"
+              size="small"
+              hide-text
+            />
+            <h1 class="project-title">{{ project.name }}</h1>
+            <button class="more-btn" @click="showMoreMenu">
+              <CuteIcon name="Ellipsis" :size="20" />
+            </button>
+          </div>
+
+          <!-- 第二行：描述 -->
+          <div v-if="project.description" class="project-description">
+            {{ project.description }}
+          </div>
         </div>
 
-        <!-- 第二行：描述 -->
-        <div v-if="project.description" class="project-description">
-          {{ project.description }}
-        </div>
-      </div>
+        <!-- 任务列表区域 -->
+        <div class="tasks-area">
+          <!-- 无 section 的任务（即使没有任务也要显示） -->
+          <div class="task-section">
+            <TaskList
+              :key="`project-${project.id}-no-section`"
+              title="未分类任务"
+              :view-key="`project::${project.id}::section::all`"
+              title-color="var(--color-text-accent)"
+            />
+          </div>
 
-      <!-- 任务列表区域 -->
-      <div class="tasks-area">
-        <!-- 无 section 的任务（即使没有任务也要显示） -->
-        <div class="task-section">
-          <TaskList
-            :key="`project-${project.id}-no-section`"
-            title="未分类任务"
-            :view-key="`project::${project.id}::section::all`"
-            title-color="var(--color-text-accent)"
-          />
-        </div>
+          <!-- 各个 section 的任务 -->
+          <div v-for="section in sections" :key="section.id" class="task-section">
+            <TaskList
+              :title="section.title"
+              :view-key="`project::${project.id}::section::${section.id}`"
+              title-color="var(--color-text-accent)"
+            >
+              <template #title-actions>
+                <button class="icon-btn" @click="handleEditSection(section.id)">
+                  <CuteIcon name="Pencil" :size="14" />
+                </button>
+              </template>
+            </TaskList>
+          </div>
 
-        <!-- 各个 section 的任务 -->
-        <div v-for="section in sections" :key="section.id" class="task-section">
-          <TaskList
-            :title="section.title"
-            :view-key="`project::${project.id}::section::${section.id}`"
-            title-color="var(--color-text-accent)"
-          >
-            <template #title-actions>
-              <button class="icon-btn" @click="handleEditSection(section.id)">
-                <CuteIcon name="Pencil" :size="14" />
-              </button>
-            </template>
-          </TaskList>
-        </div>
-
-        <!-- 空状态 -->
-        <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
-          <p>暂无任务</p>
-          <p class="hint">从其他视图拖动任务到此项目，或点击"添加章节"组织任务</p>
+          <!-- 空状态 -->
+          <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
+            <p>暂无任务</p>
+            <p class="hint">从其他视图拖动任务到此项目，或点击"添加章节"组织任务</p>
+          </div>
         </div>
       </div>
     </div>
@@ -200,10 +203,21 @@ const showMoreMenu = () => {
   overflow: hidden;
 }
 
+/* 内容容器 - 限制宽度并居中 */
+.content-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 72rem;
+  height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
 /* Things 3 风格头部 */
 .project-header {
   flex-shrink: 0;
-  padding: 2rem 2rem 1.6rem;
+  padding: 3.2rem 1.6rem 1.6rem; /* 上边距增大，左右与 TaskList 对齐 */
 }
 
 .header-title-row {
@@ -251,7 +265,7 @@ const showMoreMenu = () => {
 .tasks-area {
   flex: 1;
   overflow-y: auto;
-  padding: 1.6rem;
+  padding: 0; /* 移除 padding，由 TaskList 自己控制 */
 }
 
 .task-section {
