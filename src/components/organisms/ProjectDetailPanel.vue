@@ -66,6 +66,7 @@
             :key="`project-${project.id}-no-section`"
             title="未分类任务"
             :view-key="`project::${project.id}::section::all`"
+            title-color="var(--color-text-accent)"
           />
         </div>
 
@@ -74,6 +75,7 @@
           <TaskList
             :title="section.title"
             :view-key="`project::${project.id}::section::${section.id}`"
+            title-color="var(--color-text-accent)"
           >
             <template #title-actions>
               <button class="icon-btn" @click="handleEditSection(section.id)">
