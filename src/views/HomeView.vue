@@ -259,7 +259,10 @@ watch(
       // 自动切换到该左栏视图的默认右栏视图（重要：处理组件初始化时的情况）
       const defaultRightView = getDefaultRightPaneView(targetView)
       if (currentRightPaneView.value !== defaultRightView) {
-        logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${targetView}' (from route)`)
+        logger.info(
+          LogTags.VIEW_HOME,
+          `Auto-switching right pane to default view '${defaultRightView}' for left view '${targetView}' (from route)`
+        )
         currentRightPaneView.value = defaultRightView
       }
 
@@ -309,7 +312,10 @@ watch(currentView, async (newView, oldView) => {
     // 自动切换到该左栏视图的默认右栏视图
     const defaultRightView = getDefaultRightPaneView(newView)
     if (currentRightPaneView.value !== defaultRightView) {
-      logger.info(LogTags.VIEW_HOME, `Auto-switching right pane to default view '${defaultRightView}' for left view '${newView}'`)
+      logger.info(
+        LogTags.VIEW_HOME,
+        `Auto-switching right pane to default view '${defaultRightView}' for left view '${newView}'`
+      )
       currentRightPaneView.value = defaultRightView
     }
 
@@ -366,7 +372,7 @@ let rafId: number | null = null
 // ==================== 自动宽度调节系统 ====================
 
 const TOOLBAR_WIDTH = 96 // 工具栏固定宽度 (6rem = 96px)
-const DIVIDER_WIDTH = 3   // 分割线宽度
+const DIVIDER_WIDTH = 3 // 分割线宽度
 
 // 根据视图模式计算最佳比例
 function calculateOptimalRatio(): number {
@@ -398,7 +404,10 @@ function calculateOptimalRatio(): number {
         default:
           leftRatio = 0.4
       }
-    } else if (currentRightPaneView.value === 'staging' || currentRightPaneView.value === 'templates') {
+    } else if (
+      currentRightPaneView.value === 'staging' ||
+      currentRightPaneView.value === 'templates'
+    ) {
       // Staging 和 Templates 视图：固定 1:1 比例
       leftRatio = 0.5
     } else {
@@ -491,7 +500,9 @@ async function animateToOptimalRatio(instant: boolean = false) {
       leftPaneWidth.value = targetWidth
       isAutoAdjusting.value = false
       updateCalendarSize()
-      logger.debug(LogTags.VIEW_HOME, 'Auto-adjustment animation completed', { finalWidth: targetWidth })
+      logger.debug(LogTags.VIEW_HOME, 'Auto-adjustment animation completed', {
+        finalWidth: targetWidth,
+      })
     }
   }
 
@@ -516,10 +527,7 @@ function shouldAutoAdjust(): boolean {
 
   // Staging 视图：Calendar 或 Timeline 时需要自动调节
   if (currentView.value === 'staging') {
-    return (
-      currentRightPaneView.value === 'calendar' ||
-      currentRightPaneView.value === 'timeline'
-    )
+    return currentRightPaneView.value === 'calendar' || currentRightPaneView.value === 'timeline'
   }
 
   // Projects 视图：无论右栏是什么都需要自动调节（固定3:1比例）
