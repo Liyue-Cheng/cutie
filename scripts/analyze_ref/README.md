@@ -36,13 +36,13 @@ pnpm analyze:components
 
 **运行命令：**
 ```powershell
-pwsh -ExecutionPolicy Bypass -File "script/find_unused_components.ps1"
+pwsh -ExecutionPolicy Bypass -File "scripts/find_unused_components.ps1"
 ```
 
 **可选参数：**
 ```powershell
 # 显示详细信息（包括已使用组件的引用位置）
-pwsh -ExecutionPolicy Bypass -File "script/find_unused_components.ps1" -Detailed
+pwsh -ExecutionPolicy Bypass -File "scripts/find_unused_components.ps1" -Detailed
 ```
 
 **输出文件：**
@@ -163,8 +163,8 @@ pnpm analyze:components
 ## 📝 自定义和扩展
 
 工具的源代码位于：
-- `script/analyze_component_references.ts` - 主分析工具
-- `script/find_unused_components.ps1` - PowerShell 简化版
+- `scripts/analyze_component_references.ts` - 主分析工具
+- `scripts/find_unused_components.ps1` - PowerShell 简化版
 
 你可以根据项目需求修改：
 - 添加更多的 import 模式识别

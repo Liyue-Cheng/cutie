@@ -9,8 +9,8 @@
     "preview": "vite preview",
     "docs:generate": "cd src-tauri && cargo run --bin doc-composer",
     "prebuild": "npm run docs:generate",
-    "analyze:components": "tsx script/analyze_component_references.ts",
-    "analyze:unused": "node script/find_unused_components.js"
+    "analyze:components": "tsx scripts/analyze_ref/analyze_component_references.ts",
+    "analyze:unused": "echo 'find_unused_components.ps1 已移除'"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.19",

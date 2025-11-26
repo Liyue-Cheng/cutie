@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+"""
+generate_loc_chart.py - 生成代码量变化折线图（HTML版本，无需matplotlib）
+
+用法:
+    python generate_loc_chart.py [--output chart.html]
+
+输入: scripts/loc_history.csv
+输出: scripts/loc_chart.html (或指定文件)
+"""
+
+import csv
+import sys
+import webbrowser
+from pathlib import Path
+from datetime import datetime
+
+# 路径配置
+SCRIPT_DIR = Path(__file__).parent
+INPUT_FILE = SCRIPT_DIR / "loc_history.csv"
+DEFAULT_OUTPUT = SCRIPT_DIR / "loc_chart.html"
+
+
+def load_data(file_path: Path) -> list[dict]:
+    """加载CSV数据"""
+    data = []
+    with open(file_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            data.append({
+                "date": row["date"],
+                "frontend_code": int(row["frontend_code"]),
+                "backend_code": int(row["backend_code"]),
+                "total_code": int(row["total_code"]),
+            })
+    return data
+
+
+def generate_html_chart(data: list[dict], output_path: Path):
+    """生成HTML折线图（使用Chart.js）"""
+
+    dates = [d["date"] for d in data]
+    frontend = [d["frontend_code"] for d in data]
+    backend = [d["backend_code"] for d in data]
+    total = [d["total_code"] for d in data]
+
+    # 计算统计信息
+    growth = data[-1]["total_code"] - data[0]["total_code"]
+    start_date = datetime.strptime(data[0]["date"], "%Y-%m-%d")
+    end_date = datetime.strptime(data[-1]["date"], "%Y-%m-%d")
+    days = (end_date - start_date).days
+    avg_daily = growth / days if days > 0 else 0
+
+    html = f'''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cutie 项目代码量变化</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        h1 {{
+            text-align: center;
+            margin-bottom: 10px;
+            color: #eb6f92;
+            font-size: 2rem;
+        }}
+        .subtitle {{
+            text-align: center;
+            color: #9ccfd8;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }}
+        .chart-container {{
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }}
+        .stats {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }}
+        .stat-card {{
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }}
+        .stat-card .value {{
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #f6c177;
+        }}
+        .stat-card .label {{
+            color: #908caa;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }}
+        .stat-card.total .value {{ color: #eb6f92; }}
+        .stat-card.frontend .value {{ color: #9ccfd8; }}
+        .stat-card.backend .value {{ color: #f6c177; }}
+        .stat-card.growth .value {{ color: #31748f; }}
+        .footer {{
+            text-align: center;
+            color: #6e6a86;
+            margin-top: 30px;
+            font-size: 0.85rem;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cutie 项目代码量变化</h1>
+        <p class="subtitle">{data[0]["date"]} ~ {data[-1]["date"]} | 共 {days} 天</p>
+
+        <div class="chart-container">
+            <canvas id="locChart"></canvas>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card total">
+                <div class="value">{data[-1]["total_code"]:,}</div>
+                <div class="label">当前总代码行数</div>
+            </div>
+            <div class="stat-card frontend">
+                <div class="value">{data[-1]["frontend_code"]:,}</div>
+                <div class="label">前端代码行数</div>
+            </div>
+            <div class="stat-card backend">
+                <div class="value">{data[-1]["backend_code"]:,}</div>
+                <div class="label">后端代码行数</div>
+            </div>
+            <div class="stat-card growth">
+                <div class="value">+{growth:,}</div>
+                <div class="label">总增长 (日均 +{avg_daily:.0f})</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Generated by collect_loc_history.py | 数据来源: git history + cloc
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('locChart').getContext('2d');
+
+        new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: {dates},
+                datasets: [
+                    {{
+                        label: '总计 (Total)',
+                        data: {total},
+                        borderColor: '#eb6f92',
+                        backgroundColor: 'rgba(235, 111, 146, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        pointHoverRadius: 6
+                    }},
+                    {{
+                        label: '前端 (Frontend)',
+                        data: {frontend},
+                        borderColor: '#9ccfd8',
+                        backgroundColor: 'rgba(156, 207, 216, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    }},
+                    {{
+                        label: '后端 (Backend)',
+                        data: {backend},
+                        borderColor: '#f6c177',
+                        backgroundColor: 'rgba(246, 193, 119, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    }}
+                ]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                interaction: {{
+                    intersect: false,
+                    mode: 'index'
+                }},
+                plugins: {{
+                    legend: {{
+                        position: 'top',
+                        labels: {{
+                            color: '#e0e0e0',
+                            font: {{ size: 13 }},
+                            padding: 20,
+                            usePointStyle: true
+                        }}
+                    }},
+                    tooltip: {{
+                        backgroundColor: 'rgba(26, 26, 46, 0.95)',
+                        titleColor: '#eb6f92',
+                        bodyColor: '#e0e0e0',
+                        borderColor: '#3a3a5a',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {{
+                            label: function(context) {{
+                                return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 行';
+                            }}
+                        }}
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        grid: {{
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        }},
+                        ticks: {{
+                            color: '#908caa',
+                            maxRotation: 45,
+                            minRotation: 45
+                        }}
+                    }},
+                    y: {{
+                        grid: {{
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        }},
+                        ticks: {{
+                            color: '#908caa',
+                            callback: function(value) {{
+                                return value.toLocaleString();
+                            }}
+                        }},
+                        beginAtZero: true
+                    }}
+                }}
+            }}
+        }});
+    </script>
+</body>
+</html>
+'''
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(f"图表已保存到: {output_path}")
+    return output_path
+
+
+def main():
+    # 解析参数
+    output_path = DEFAULT_OUTPUT
+    if "--output" in sys.argv:
+        idx = sys.argv.index("--output")
+        if idx + 1 < len(sys.argv):
+            output_path = Path(sys.argv[idx + 1])
+
+    # 检查输入文件
+    if not INPUT_FILE.exists():
+        print(f"错误: 找不到数据文件 {INPUT_FILE}")
+        print("请先运行: python collect_loc_history.py")
+        sys.exit(1)
+
+    # 加载数据
+    print(f"正在加载数据: {INPUT_FILE}")
+    data = load_data(INPUT_FILE)
+
+    if not data:
+        print("错误: 数据文件为空")
+        sys.exit(1)
+
+    print(f"已加载 {len(data)} 条记录")
+    print(f"时间范围: {data[0]['date']} ~ {data[-1]['date']}")
+
+    # 生成图表
+    chart_path = generate_html_chart(data, output_path)
+
+    # 尝试在浏览器中打开
+    try:
+        webbrowser.open(f"file://{chart_path.absolute()}")
+        print("已在浏览器中打开图表")
+    except Exception:
+        print(f"请手动打开: {chart_path.absolute()}")
+
+
+if __name__ == "__main__":
+    main()
