@@ -62,6 +62,7 @@
             <TaskStrip
               :task="task"
               :view-key="viewKey"
+              :display-mode="displayMode"
               @toggle-complete="toggleTaskComplete(task.id)"
               @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
             />
@@ -99,6 +100,7 @@ interface Props {
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
   inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
   titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
+  displayMode?: 'simple' | 'full' // 显示模式：简单/完整
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -109,6 +111,7 @@ const props = withDefaults(defineProps<Props>(), {
   hideDailyRecurringTasks: false,
   inputBorderStyle: 'dashed',
   titleColor: '',
+  displayMode: 'full',
 })
 
 // Emits

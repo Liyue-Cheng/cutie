@@ -19,6 +19,24 @@
         {{ task.title || '新任务' }}
       </div>
 
+      <!-- 简单模式：信息指示器 -->
+      <div v-if="displayMode === 'simple'" class="task-indicators">
+        <CuteIcon
+          v-if="task.glance_note"
+          name="FileText"
+          size="1.4rem"
+          class="indicator-icon"
+          title="有笔记"
+        />
+        <CuteIcon
+          v-if="hasSubtasks"
+          name="ListChecks"
+          size="1.4rem"
+          class="indicator-icon"
+          title="有子任务"
+        />
+      </div>
+
       <!-- 所属 Area 标签（移动到标题旁） -->
       <AreaTag
         v-if="area"
@@ -28,8 +46,8 @@
         size="normal"
       />
 
-      <!-- 即将到期列表：截止日期显示在标题栏最右边 -->
-      <div v-if="isInUpcomingList && task.due_date" class="due-date-inline">
+      <!-- 截止日期（始终在标题行显示） -->
+      <div v-if="task.due_date" class="due-date-inline">
         <span class="icon-wrapper">
           <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
           <CuteIcon
@@ -88,45 +106,16 @@
       </div>
     </div>
 
-    <!-- 概览笔记 -->
-    <div v-if="task.glance_note" class="task-note">
+    <!-- 概览笔记（仅完整模式显示） -->
+    <div v-if="displayMode === 'full' && task.glance_note" class="task-note">
       <span class="icon-wrapper">
         <CuteIcon name="FileText" size="1.4rem" />
       </span>
       <span class="note-text">{{ task.glance_note }}</span>
     </div>
 
-    <!-- 截止日期显示（仅在非即将到期列表中显示） -->
-    <div v-if="!isInUpcomingList && task.due_date" class="due-date-section">
-      <span class="icon-wrapper">
-        <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
-        <CuteIcon
-          v-if="task.due_date.type === 'HARD'"
-          name="Flag"
-          size="1.4rem"
-          :color="
-            task.due_date.is_overdue
-              ? 'var(--color-deadline-overdue)'
-              : 'var(--color-text-tertiary)'
-          "
-        />
-        <!-- 软截止：使用波浪号 -->
-        <span v-else class="soft-deadline-icon">~</span>
-      </span>
-
-      <span
-        class="due-date-text"
-        :class="{
-          overdue: task.due_date.is_overdue && task.due_date.type === 'HARD',
-          'hard-deadline': task.due_date.type === 'HARD',
-        }"
-      >
-        {{ formatDueDate(task.due_date.date) }}
-      </span>
-    </div>
-
-    <!-- 子任务显示区 -->
-    <div v-if="task.subtasks && task.subtasks.length > 0" class="subtasks-section">
+    <!-- 子任务显示区（仅完整模式显示） -->
+    <div v-if="displayMode === 'full' && hasSubtasks" class="subtasks-section">
       <div v-for="subtask in task.subtasks" :key="subtask.id" class="subtask-item">
         <CuteCheckbox
           :checked="subtask.is_completed"
@@ -163,9 +152,12 @@ import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCa
 interface Props {
   task: TaskCard
   viewKey?: string
+  displayMode?: 'simple' | 'full'
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  displayMode: 'full',
+})
 
 // Emits
 const emit = defineEmits<{
@@ -204,6 +196,11 @@ const area = computed(() => {
 // 判断是否在即将到期列表中
 const isInUpcomingList = computed(() => {
   return props.viewKey === 'misc::deadline' || props.viewKey?.startsWith('upcoming::')
+})
+
+// 是否有子任务
+const hasSubtasks = computed(() => {
+  return props.task.subtasks && props.task.subtasks.length > 0
 })
 
 // 判断是否在 daily view 中
@@ -474,7 +471,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 /* 当有其他内容时，标题栏需要底部间距 */
-.task-strip:has(.task-note, .due-date-section, .subtasks-section) .task-header {
+.task-strip:has(.task-note, .subtasks-section) .task-header {
   margin-bottom: 0.8rem;
 }
 
@@ -602,13 +599,17 @@ function onMouseDown(event: MouseEvent) {
   overflow-wrap: break-word;
 }
 
-/* 截止日期显示 */
-.due-date-section {
+/* 简单模式：信息指示器 */
+.task-indicators {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.8rem;
-  padding-left: 3rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.indicator-icon {
+  color: var(--color-text-tertiary, #f0f);
+  opacity: 0.7;
 }
 
 .soft-deadline-icon {
