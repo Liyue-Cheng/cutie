@@ -165,7 +165,7 @@ onMounted(async () => {
   display: flex;
   width: 100%;
   height: 100%;
-  background: var(--color-background-secondary);
+  background: var(--color-background-content, #f0f);
   gap: 1px;
 }
 
@@ -173,8 +173,8 @@ onMounted(async () => {
   width: 30%;
   min-width: 280px;
   height: 100%;
-  background: var(--color-background-secondary);
-  border-right: 1px solid var(--color-border-default);
+  background: var(--color-background-content, #f0f);
+  border-right: 1px solid var(--color-border-default, #f0f);
 }
 
 .project-detail-section {

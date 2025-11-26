@@ -246,7 +246,7 @@ const formatDate = (dateStr: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-background-secondary);
+  background: var(--color-background-content, #f0f);
 }
 
 .control-bar {
@@ -297,7 +297,7 @@ const formatDate = (dateStr: string) => {
   align-items: center;
   padding: 1.2rem;
   margin-bottom: 0.8rem;
-  background: var(--color-background-secondary);
+  background: var(--color-background-content, #f0f);
   border: 2px solid transparent;
   border-radius: 0.8rem;
   cursor: pointer;

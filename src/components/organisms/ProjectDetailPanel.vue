@@ -183,7 +183,7 @@ const showMoreMenu = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-background-secondary, #f0f);
+  background: var(--color-background-content, #f0f);
   overflow: hidden;
 }
 
