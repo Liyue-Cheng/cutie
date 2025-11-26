@@ -6,6 +6,8 @@
         :selected-id="selectedProjectId"
         @select-project="handleSelectProject"
         @create-project="handleCreateProject"
+        @edit-project="handleEditProject"
+        @add-section="handleAddSectionFromList"
       />
     </div>
 
@@ -116,6 +118,14 @@ const handleProjectUpdated = () => {
 
 // 创建章节
 const handleCreateSection = () => {
+  showCreateSectionModal.value = true
+}
+
+// 从列表右键菜单添加章节（需要先选中项目）
+const handleAddSectionFromList = (projectId: string) => {
+  // 先选中该项目
+  selectedProjectId.value = projectId
+  // 然后打开创建章节对话框
   showCreateSectionModal.value = true
 }
 

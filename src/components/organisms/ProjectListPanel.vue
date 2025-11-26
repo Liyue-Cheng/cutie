@@ -39,6 +39,7 @@
         }"
         :ref="(el) => setProjectDropzoneRef(project.id, el)"
         @click="emit('select-project', project.id)"
+        @contextmenu="showContextMenu(project, $event)"
       >
         <div class="project-row">
           <div class="project-left">
@@ -88,10 +89,12 @@ import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
+import { useContextMenu } from '@/composables/useContextMenu'
 import { interactManager, dragPreviewState, type DragSession } from '@/infra/drag-interact'
 import { logger, LogTags } from '@/infra/logging/logger'
 import CircularProgress from '@/components/parts/CircularProgress.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import ProjectCardMenu from '@/components/assembles/ContextMenu/ProjectCardMenu.vue'
 
 interface Props {
   selectedId?: string | null
@@ -102,6 +105,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'select-project': [id: string | null]
   'create-project': []
+  'edit-project': [id: string]
+  'add-section': [projectId: string]
 }>()
 
 const projectStore = useProjectStore()
@@ -109,6 +114,7 @@ const areaStore = useAreaStore()
 const taskStore = useTaskStore()
 const viewStore = useViewStore()
 const dragStrategy = useDragStrategy()
+const contextMenu = useContextMenu()
 
 const dropzoneElements = new Map<string, HTMLElement>()
 
@@ -238,6 +244,19 @@ const projectColor = (project: ProjectCard) => {
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+}
+
+// 右键菜单
+const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
+  contextMenu.show(
+    ProjectCardMenu,
+    {
+      project,
+      onEdit: () => emit('edit-project', project.id),
+      onAddSection: () => emit('add-section', project.id),
+    },
+    event
+  )
 }
 </script>
 
