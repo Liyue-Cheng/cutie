@@ -273,7 +273,7 @@
           v-else-if="props.currentRightPaneView === 'timeline'"
           :current-month="currentCalendarDate.slice(0, 7)"
           :month-view-filters="monthViewFilters"
-          layout-mode="auto"
+          :layout-mode="props.leftViewType === 'projects' ? 'single' : 'auto'"
         />
         <!-- Staging 视图 -->
         <StagingList v-else-if="props.currentRightPaneView === 'staging'" />
