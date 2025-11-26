@@ -65,7 +65,6 @@
           @date-change="onRecentDateChange"
         />
         <StagingTaskPanel v-else-if="currentView === 'staging'" />
-        <ProjectsPanel v-else-if="currentView === 'projects'" />
       </div>
 
       <!-- 可拖动的分割线 -->
@@ -112,7 +111,6 @@ import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
-import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
@@ -130,7 +128,7 @@ const registerStore = useRegisterStore()
 const uiStore = useUIStore()
 
 // ==================== 视图切换状态 ====================
-const currentView = ref<'recent' | 'staging' | 'projects' | 'calendar'>('recent') // 当前左栏视图
+const currentView = ref<'recent' | 'staging' | 'calendar'>('recent') // 当前左栏视图
 
 // 日历模式 = 左栏显示日历
 const isCalendarMode = computed(() => currentView.value === 'calendar')
@@ -181,12 +179,6 @@ const rightPaneViewConfig = computed(() => {
       timeline: fullRightPaneViewConfig.timeline,
       upcoming: fullRightPaneViewConfig.upcoming,
     }
-  } else if (currentView.value === 'projects') {
-    // Projects 视图：只保留 timeline 和 templates，timeline 在首位
-    return {
-      timeline: fullRightPaneViewConfig.timeline,
-      templates: fullRightPaneViewConfig.templates,
-    }
   }
 
   // Recent 视图：保持原有顺序，calendar 在首位
@@ -194,14 +186,12 @@ const rightPaneViewConfig = computed(() => {
 })
 
 // 根据左栏视图获取默认的右栏视图
-function getDefaultRightPaneView(leftView: 'recent' | 'staging' | 'projects'): RightPaneView {
+function getDefaultRightPaneView(leftView: 'recent' | 'staging'): RightPaneView {
   switch (leftView) {
     case 'recent':
       return 'calendar' // Recent 视图默认显示日历（3天视图）
     case 'staging':
       return 'calendar' // Staging 视图默认显示日历（月视图）
-    case 'projects':
-      return 'timeline' // Projects 视图默认显示时间线
     default:
       return 'calendar'
   }
@@ -233,7 +223,7 @@ const calendarPanelRef = ref<InstanceType<typeof HomeCalendarPanel> | null>(null
 watch(
   () => route.query.view,
   async (newView) => {
-    let targetView: 'recent' | 'staging' | 'projects' | 'calendar' = 'recent'
+    let targetView: 'recent' | 'staging' | 'calendar' = 'recent'
 
     if (newView === 'calendar') {
       targetView = 'calendar'
@@ -241,9 +231,6 @@ watch(
     } else if (newView === 'staging') {
       targetView = 'staging'
       logger.info(LogTags.VIEW_HOME, 'Switched to Staging view')
-    } else if (newView === 'projects') {
-      targetView = 'projects'
-      logger.info(LogTags.VIEW_HOME, 'Switched to Projects view')
     } else {
       targetView = 'recent'
       // 切换回 Recent 视图时，确保日历跳转到今天
@@ -424,9 +411,6 @@ function calculateOptimalRatio(): number {
       // 其他视图保持当前比例
       return leftPaneWidth.value
     }
-  } else if (currentView.value === 'projects') {
-    // Projects 视图：无论右栏是什么都是 3:1 比例
-    leftRatio = 0.75
   } else {
     // 未知视图保持当前比例
     return leftPaneWidth.value
@@ -528,11 +512,6 @@ function shouldAutoAdjust(): boolean {
   // Staging 视图：Calendar 或 Timeline 时需要自动调节
   if (currentView.value === 'staging') {
     return currentRightPaneView.value === 'calendar' || currentRightPaneView.value === 'timeline'
-  }
-
-  // Projects 视图：无论右栏是什么都需要自动调节（固定3:1比例）
-  if (currentView.value === 'projects') {
-    return true
   }
 
   return false

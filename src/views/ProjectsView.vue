@@ -1,43 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import InfiniteAreaKanban from '@/components/organisms/InfiniteAreaKanban.vue'
+import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
 import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
-import { useAreaStore } from '@/stores/area'
-import { useTaskStore } from '@/stores/task'
+import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 // ==================== 视图类型 ====================
-type RightPaneView = 'archive' | 'timeline'
+type RightPaneView = 'timeline' | 'archive'
 
 // ==================== Stores ====================
-const areaStore = useAreaStore()
-const taskStore = useTaskStore()
+const registerStore = useRegisterStore()
 const uiStore = useUIStore()
 
-// ==================== 初始化 ====================
-onMounted(async () => {
-  logger.info(LogTags.VIEW_STAGING, 'Initializing staging view, loading data...')
-  // 加载必要的数据
-  await Promise.all([areaStore.fetchAll(), taskStore.fetchAllIncompleteTasks_DMA()])
-  logger.info(LogTags.VIEW_STAGING, 'Staging view data loaded', {
-    areaCount: areaStore.allAreas.length,
-    taskCount: taskStore.incompleteTasks.length,
-  })
-})
-
 // ==================== 状态 ====================
-const kanbanRef = ref<InstanceType<typeof InfiniteAreaKanban> | null>(null)
-const currentRightPaneView = ref<RightPaneView>('timeline') // 右侧面板当前视图
-const kanbanCount = ref(0) // 看板数量
-
-// 获取看板数量
-const displayKanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? kanbanCount.value)
+const currentRightPaneView = ref<RightPaneView>('timeline')
 
 // 右侧面板视图配置
 const rightPaneViewConfig = {
@@ -45,33 +27,24 @@ const rightPaneViewConfig = {
   archive: { icon: 'Archive', label: '已归档' },
 } as const
 
+// ==================== 初始化 ====================
+onMounted(() => {
+  logger.info(LogTags.VIEW_HOME, 'ProjectsView mounted')
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'projects')
+})
+
 // ==================== 事件处理 ====================
 function switchRightPaneView(view: string) {
-  logger.debug(LogTags.VIEW_STAGING, 'Switching right pane view', { view })
+  logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
   currentRightPaneView.value = view as RightPaneView
-}
-
-function handleKanbanCountChange(count: number) {
-  kanbanCount.value = count
-  logger.debug(LogTags.VIEW_STAGING, 'Kanban count changed', { count })
 }
 </script>
 
 <template>
-  <div class="staging-view-container">
-    <!-- 主内容区域：Area 看板 -->
+  <div class="projects-view-container">
+    <!-- 主内容区域：项目面板 -->
     <div class="main-content-pane">
-      <TwoRowLayout>
-        <template #top>
-          <div class="kanban-header">
-            <h2>Staging 看板</h2>
-            <span class="kanban-count">{{ displayKanbanCount }} 个区域</span>
-          </div>
-        </template>
-        <template #bottom>
-          <InfiniteAreaKanban ref="kanbanRef" @kanban-count-change="handleKanbanCountChange" />
-        </template>
-      </TwoRowLayout>
+      <ProjectsPanel />
     </div>
 
     <!-- 右边栏：控制选项 -->
@@ -110,7 +83,7 @@ function handleKanbanCountChange(count: number) {
 </template>
 
 <style scoped>
-.staging-view-container {
+.projects-view-container {
   display: flex;
   height: 100%;
   width: 100%;
@@ -125,27 +98,6 @@ function handleKanbanCountChange(count: number) {
   min-width: 0;
   border-right: 1px solid var(--color-border-default, #f0f);
   position: relative;
-}
-
-.kanban-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0 1rem;
-  gap: 1rem;
-}
-
-.kanban-header h2 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary, #f0f);
-}
-
-.kanban-count {
-  font-size: 1.3rem;
-  color: var(--color-text-tertiary, #f0f);
 }
 
 /* ==================== 右边栏：控制面板 ==================== */

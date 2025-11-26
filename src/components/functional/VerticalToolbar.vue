@@ -46,8 +46,7 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   background-color: transparent;
-  border-left: 1px solid var(--color-border-default);
-  border-radius: 0 0.8rem 0.8rem 0;
+  border-left: 1px solid var(--color-border-light, #f0f);
 }
 
 .toolbar-content {
@@ -79,20 +78,20 @@ defineEmits<{
   border-radius: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-tertiary, #f0f);
   position: relative;
   flex-shrink: 0;
 }
 
 .toolbar-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  color: var(--color-text-secondary);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-secondary, #f0f);
 }
 
 /* 激活状态 */
 .toolbar-button.active {
-  background-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-base, #faf4ed);
+  background-color: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .toolbar-button:active {

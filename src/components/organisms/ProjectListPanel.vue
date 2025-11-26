@@ -309,7 +309,6 @@ const formatDate = (dateStr: string) => {
 }
 
 .project-card.active {
-  border-color: var(--color-text-accent);
   background: var(--color-background-active);
 }
 
@@ -350,13 +349,10 @@ const formatDate = (dateStr: string) => {
 }
 
 .project-card.no-project:hover {
-  border-color: var(--color-text-accent);
   background: var(--color-background-hover);
 }
 
 .project-card.no-project.active {
-  border-style: solid;
-  border-color: var(--color-text-accent);
   background: var(--color-background-active);
 }
 
@@ -437,11 +433,11 @@ const formatDate = (dateStr: string) => {
 
 .color-bar {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
   width: 4px;
-  border-radius: 0.8rem 0 0 0.8rem;
+  border-radius: 2px;
 }
 
 .empty-state {

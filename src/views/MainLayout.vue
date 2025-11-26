@@ -48,7 +48,7 @@
             <li @click="$router.push('/upcoming')">
               <CuteIcon name="CalendarClock" :size="16" /><span>Upcoming</span>
             </li>
-            <li @click="$router.push({ path: '/', query: { view: 'projects' } })">
+            <li @click="$router.push('/projects')">
               <CuteIcon name="Folder" :size="16" /><span>Projects</span>
             </li>
           </ul>

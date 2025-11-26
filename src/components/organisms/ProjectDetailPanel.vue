@@ -7,22 +7,23 @@
     </div>
 
     <!-- 无项目视图 -->
-    <div v-else-if="projectId === null" class="project-detail no-project-view">
-      <!-- 头部 -->
-      <div class="project-header">
-        <div class="header-left">
-          <h1 class="project-title">
+    <div v-else-if="projectId === null" class="project-detail">
+      <!-- 内容容器（限制宽度） -->
+      <div class="content-container">
+        <!-- 头部 -->
+        <div class="project-header">
+          <div class="header-title-row">
             <CuteIcon name="Inbox" :size="24" />
-            无项目
-          </h1>
+            <h1 class="project-title">无项目</h1>
+          </div>
           <div class="project-description">显示所有未分配到任何项目的任务</div>
         </div>
-      </div>
 
-      <!-- 任务列表区域 -->
-      <div class="tasks-area">
-        <div class="task-section">
-          <TaskList title="无项目任务" view-key="misc::no-project" />
+        <!-- 任务列表区域 -->
+        <div class="tasks-area">
+          <div class="task-section">
+            <TaskList title="无项目任务" view-key="misc::no-project" />
+          </div>
         </div>
       </div>
     </div>
