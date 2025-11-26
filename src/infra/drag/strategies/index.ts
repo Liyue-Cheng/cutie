@@ -11,6 +11,7 @@ export {
   dailyToStagingStrategy,
   dailyReorderStrategy,
   stagingReorderStrategy,
+  stagingCrossAreaStrategy,
 } from './task-scheduling'
 
 // 日历调度策略

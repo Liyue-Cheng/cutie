@@ -21,7 +21,7 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 | 视图名称     | Context Key        | 说明                       |
 | ------------ | ------------------ | -------------------------- |
 | All 任务     | `misc::all`        | 所有任务（包括已完成）     |
-| Staging 区   | `misc::staging`    | 未安排的任务               |
+| Staging 区   | `misc::staging`    | 未安排的任务（全部）       |
 | Planned      | `misc::planned`    | 已安排的任务               |
 | Incomplete   | `misc::incomplete` | 所有未完成任务             |
 | Completed    | `misc::completed`  | 已完成任务                 |
@@ -29,14 +29,30 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 | Template     | `misc::template`   | 模板列表                   |
 | 无项目任务池 | `misc::no-project` | 所有未分配到任何项目的任务 |
 
+**Staging 扩展格式**（按区域筛选）：
+
+| 视图名称              | Context Key 格式              | 说明                       |
+| --------------------- | ----------------------------- | -------------------------- |
+| 无区域 Staging        | `misc::staging::no-area`      | 未分配区域的 staging 任务  |
+| 指定区域 Staging      | `misc::staging::{area_uuid}`  | 指定区域的 staging 任务    |
+
 **示例**：
 
 ```javascript
+// 全部 staging 任务
 context_key: 'misc::staging'
 sorted_task_ids: '["uuid-1", "uuid-2", "uuid-3"]'
 
-context_key: 'misc::deadline'
+// 无区域的 staging 任务
+context_key: 'misc::staging::no-area'
 sorted_task_ids: '["uuid-4", "uuid-5"]'
+
+// 指定区域的 staging 任务
+context_key: 'misc::staging::a1b2c3d4-1234-5678-90ab-cdef12345678'
+sorted_task_ids: '["uuid-6", "uuid-7"]'
+
+context_key: 'misc::deadline'
+sorted_task_ids: '["uuid-8", "uuid-9"]'
 
 context_key: 'misc::template'
 sorted_task_ids: '["template-uuid-1", "template-uuid-2"]'

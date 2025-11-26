@@ -45,7 +45,7 @@ const kanbans = computed(() => {
     id: 'no-area',
     areaName: '无区域',
     areaColor: 'var(--color-text-tertiary)',
-    viewKey: 'misc::staging',
+    viewKey: 'misc::staging::no-area',
     isNoArea: true,
   }
 

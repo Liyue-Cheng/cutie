@@ -49,6 +49,11 @@ function buildLexoRankPayload(viewKey: string, order: string[], taskId: string) 
  * 1. 为现有任务创建日程 (schedule.create)
  * 2. 从 Staging 移除 (view.update_sorting)
  * 3. 插入到 Daily (view.update_sorting)
+ *
+ * 支持的 staging 格式：
+ * - misc::staging (全部)
+ * - misc::staging::no-area (无区域)
+ * - misc::staging::{areaId} (指定区域)
  */
 export const stagingToDailyStrategy: Strategy = {
   id: 'staging-to-daily',
@@ -56,7 +61,7 @@ export const stagingToDailyStrategy: Strategy = {
 
   conditions: {
     source: {
-      viewKey: 'misc::staging',
+      viewKey: /^misc::staging(::[\w-]+)?$/,
       objectType: 'task',
       taskStatus: 'staging',
     },
@@ -330,6 +335,11 @@ export const dailyToDailyStrategy: Strategy = {
  * 1. 返回暂存区 (task.return_to_staging) - 后端自动处理所有清理
  * 2. 从 Daily 移除 (view.update_sorting)
  * 3. 插入到 Staging (view.update_sorting)
+ *
+ * 支持的 staging 格式：
+ * - misc::staging (全部)
+ * - misc::staging::no-area (无区域)
+ * - misc::staging::{areaId} (指定区域)
  */
 export const dailyToStagingStrategy: Strategy = {
   id: 'daily-to-staging',
@@ -342,7 +352,7 @@ export const dailyToStagingStrategy: Strategy = {
       taskStatus: 'scheduled',
     },
     target: {
-      viewKey: 'misc::staging',
+      viewKey: /^misc::staging(::[\w-]+)?$/,
     },
     priority: 95,
   },
@@ -489,6 +499,13 @@ export const dailyReorderStrategy: Strategy = {
  *
  * 操作链：
  * 1. 更新 Staging 排序 (view.update_sorting)
+ *
+ * 支持的 staging 格式：
+ * - misc::staging (全部)
+ * - misc::staging::no-area (无区域)
+ * - misc::staging::{areaId} (指定区域)
+ *
+ * 注意：只处理同一 staging 视图内的重排序
  */
 export const stagingReorderStrategy: Strategy = {
   id: 'staging-reorder',
@@ -496,11 +513,15 @@ export const stagingReorderStrategy: Strategy = {
 
   conditions: {
     source: {
-      viewKey: 'misc::staging',
+      viewKey: /^misc::staging(::[\w-]+)?$/,
       objectType: 'task',
     },
     target: {
-      viewKey: 'misc::staging',
+      viewKey: /^misc::staging(::[\w-]+)?$/,
+      // 🔥 自定义检查：确保是同一个 staging 视图
+      customCheck: (targetZone: string, session) => {
+        return session.source.viewKey === targetZone
+      },
     },
     priority: 80,
   },
@@ -555,4 +576,104 @@ export const stagingReorderStrategy: Strategy = {
   },
 
   tags: ['scheduling', 'staging', 'reorder'],
+}
+
+/**
+ * 策略 6：Staging 跨区域移动
+ *
+ * 操作链：
+ * 1. 更新任务的 area_id (task.update)
+ * 2. 更新目标 Staging 排序 (task.update_sort_position)
+ *
+ * 支持的移动：
+ * - misc::staging::no-area → misc::staging::{areaId}
+ * - misc::staging::{areaId} → misc::staging::no-area
+ * - misc::staging::{areaId1} → misc::staging::{areaId2}
+ */
+export const stagingCrossAreaStrategy: Strategy = {
+  id: 'staging-cross-area',
+  name: 'Staging Cross-Area Move',
+
+  conditions: {
+    source: {
+      viewKey: /^misc::staging(::[\w-]+)?$/,
+      objectType: 'task',
+      taskStatus: 'staging',
+    },
+    target: {
+      viewKey: /^misc::staging(::[\w-]+)?$/,
+      // 🔥 自定义检查：确保是不同的 staging 视图（跨区域）
+      customCheck: (targetZone: string, session) => {
+        return session.source.viewKey !== targetZone
+      },
+    },
+    priority: 85, // 比 staging-reorder (80) 高，优先匹配跨区域
+  },
+
+  action: {
+    name: 'move_cross_area',
+    description: '在不同区域的暂存区之间移动任务',
+
+    async execute(ctx) {
+      // 类型守卫
+      if (!isTaskCard(ctx.draggedObject)) {
+        throw new Error('Expected task object')
+      }
+      const task = ctx.draggedObject
+
+      const operations: OperationRecord[] = []
+
+      try {
+        // 🎯 步骤 1: 解析目标区域 ID
+        // targetZone 格式: misc::staging::no-area 或 misc::staging::{areaId}
+        const targetParts = ctx.targetZone.split('::')
+        let targetAreaId: string | null = null
+
+        if (targetParts.length >= 3) {
+          const areaIdentifier = targetParts[2]
+          if (areaIdentifier !== 'no-area') {
+            targetAreaId = areaIdentifier!
+          }
+          // 'no-area' 时 targetAreaId 保持为 null
+        }
+
+        // 🎯 步骤 2: 更新任务的 area_id
+        const updatePayload = {
+          id: task.id,
+          updates: {
+            area_id: targetAreaId,
+          },
+        }
+        await pipeline.dispatch('task.update', updatePayload)
+        operations.push(createOperationRecord('update_task', ctx.targetViewId, updatePayload))
+
+        // 🎯 步骤 3: 更新目标 Staging 排序
+        const targetSorting = extractTaskIds(ctx.targetContext)
+        const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
+
+        const payload = buildLexoRankPayload(ctx.targetViewId, newTargetSorting, task.id)
+        if (payload) {
+          await pipeline.dispatch('task.update_sort_position', payload)
+          operations.push(createOperationRecord('update_sort_position', ctx.targetViewId, payload))
+        }
+
+        const targetAreaName = targetAreaId ? `area ${targetAreaId.slice(0, 8)}` : 'no-area'
+        return {
+          success: true,
+          message: `✅ Moved to ${targetAreaName} staging`,
+          operations,
+          affectedViews: [ctx.sourceViewId, ctx.targetViewId],
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `❌ Failed to move: ${error instanceof Error ? error.message : String(error)}`,
+          operations,
+          affectedViews: [ctx.sourceViewId, ctx.targetViewId],
+        }
+      }
+    },
+  },
+
+  tags: ['scheduling', 'staging', 'cross-area', 'multi-step'],
 }
