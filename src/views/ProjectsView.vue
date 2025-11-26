@@ -90,6 +90,7 @@ function switchRightPaneView(view: string) {
   background-color: var(--color-background-content, #f0f);
   border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
+  overflow: hidden;
 }
 
 /* ==================== 主内容区域 ==================== */
@@ -98,6 +99,8 @@ function switchRightPaneView(view: string) {
   min-width: 0;
   border-right: 1px solid var(--color-border-default, #f0f);
   position: relative;
+  border-radius: 0.8rem 0 0 0.8rem;
+  overflow: hidden;
 }
 
 /* ==================== 右边栏：控制面板 ==================== */
