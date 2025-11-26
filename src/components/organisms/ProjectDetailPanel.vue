@@ -29,32 +29,25 @@
 
     <!-- 项目详情 -->
     <div v-else-if="project" class="project-detail">
-      <!-- 项目头部 -->
+      <!-- 项目头部 - Things 3 风格 -->
       <div class="project-header">
-        <div class="header-left">
+        <!-- 第一行：进度环 + 标题 + 三点菜单 -->
+        <div class="header-title-row">
+          <CircularProgress
+            :completed="projectStats.completed"
+            :total="projectStats.total"
+            size="small"
+            hide-text
+          />
           <h1 class="project-title">{{ project.name }}</h1>
-          <div v-if="project.description" class="project-description">
-            {{ project.description }}
-          </div>
-          <div class="project-tags">
-            <span v-if="areaTag" class="area-tag" :style="{ backgroundColor: areaTag.color }">
-              {{ areaTag.name }}
-            </span>
-            <span v-if="project.due_date" class="due-date-tag">
-              <CuteIcon name="Calendar" :size="14" />
-              {{ formatDate(project.due_date) }}
-            </span>
-          </div>
+          <button class="more-btn" @click="showMoreMenu">
+            <CuteIcon name="MoreHorizontal" :size="20" />
+          </button>
         </div>
-        <div class="header-actions">
-          <button class="action-btn" @click="emit('edit-project', project.id)">
-            <CuteIcon name="Pencil" :size="16" />
-            编辑项目
-          </button>
-          <button class="action-btn" @click="emit('create-section')">
-            <CuteIcon name="Plus" :size="16" />
-            添加章节
-          </button>
+
+        <!-- 第二行：描述 -->
+        <div v-if="project.description" class="project-description">
+          {{ project.description }}
         </div>
       </div>
 
@@ -106,6 +99,7 @@ import { useProjectStore } from '@/stores/project'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CircularProgress from '@/components/parts/CircularProgress.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 
 interface Props {
@@ -142,6 +136,16 @@ const sections = computed(() => {
   return projectStore.getSectionsByProject(props.projectId)
 })
 
+// 计算项目进度统计
+const projectStats = computed(() => {
+  if (!props.projectId) return { completed: 0, total: 0 }
+  const projectTasks = taskStore.allTasks.filter(
+    (task) => task.project_id === props.projectId && !task.is_deleted
+  )
+  const completed = projectTasks.filter((task) => task.is_completed).length
+  return { completed, total: projectTasks.length }
+})
+
 // 检查是否有无 section 的任务
 const hasTasksWithoutSection = computed(() => {
   if (!props.projectId) return false
@@ -161,6 +165,13 @@ const formatDate = (dateStr: string) => {
 const handleEditSection = (sectionId: string) => {
   emit('edit-section', sectionId)
 }
+
+// 显示更多菜单（暂时触发编辑项目）
+const showMoreMenu = () => {
+  if (project.value) {
+    emit('edit-project', project.value.id)
+  }
+}
 </script>
 
 <style scoped>
@@ -168,7 +179,7 @@ const handleEditSection = (sectionId: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-background-secondary);
+  background: var(--color-background-secondary, #FF00FF);
   overflow: hidden;
 }
 
@@ -178,7 +189,7 @@ const handleEditSection = (sectionId: string) => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #FF00FF);
   gap: 1.2rem;
 }
 
@@ -189,79 +200,52 @@ const handleEditSection = (sectionId: string) => {
   overflow: hidden;
 }
 
+/* Things 3 风格头部 */
 .project-header {
   flex-shrink: 0;
-  padding: 2rem;
-  border-bottom: 1px solid var(--color-border-default);
+  padding: 2rem 2rem 1.6rem;
 }
 
-.header-left {
-  margin-bottom: 1.6rem;
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .project-title {
+  flex: 1;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #FF00FF);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.more-btn {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  font-size: 2.4rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 0.8rem;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  background: transparent;
+  color: var(--color-text-tertiary, #FF00FF);
+  border: none;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.more-btn:hover {
+  background: var(--color-background-hover, #FF00FF);
+  color: var(--color-text-primary, #FF00FF);
 }
 
 .project-description {
   font-size: 1.4rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 1.2rem;
+  color: var(--color-text-secondary, #FF00FF);
+  margin-top: 0.8rem;
+  padding-left: 3.4rem; /* 与标题对齐（进度环宽度 2.4rem + gap 1rem） */
   line-height: 1.6;
-}
-
-.project-tags {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.area-tag {
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.4rem;
-  font-size: 1.2rem;
-  color: var(--color-text-on-accent);
-  font-weight: 500;
-}
-
-.due-date-tag {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.4rem;
-  font-size: 1.2rem;
-  background: var(--color-background-content);
-  color: var(--color-text-secondary);
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.8rem;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.8rem 1.2rem;
-  background: var(--color-background-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  font-size: 1.4rem;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: var(--color-background-hover);
 }
 
 .tasks-area {
@@ -274,29 +258,10 @@ const handleEditSection = (sectionId: string) => {
   margin-bottom: 2.4rem;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.2rem;
-}
-
-.section-title {
-  font-size: 1.6rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.section-actions {
-  display: flex;
-  gap: 0.4rem;
-}
-
 .icon-btn {
   padding: 0.4rem;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #FF00FF);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -304,14 +269,14 @@ const handleEditSection = (sectionId: string) => {
 }
 
 .icon-btn:hover {
-  background: var(--color-background-hover);
-  color: var(--color-text-primary);
+  background: var(--color-background-hover, #FF00FF);
+  color: var(--color-text-primary, #FF00FF);
 }
 
 .no-tasks {
   text-align: center;
   padding: 4rem 2rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #FF00FF);
 }
 
 .no-tasks p {
@@ -320,6 +285,6 @@ const handleEditSection = (sectionId: string) => {
 
 .no-tasks .hint {
   font-size: 1.2rem;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-tertiary, #FF00FF);
 }
 </style>
