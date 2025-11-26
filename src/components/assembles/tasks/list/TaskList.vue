@@ -25,10 +25,7 @@
       <div
         v-if="showAddInput"
         class="task-input-wrapper"
-        :class="[
-          `border-${props.inputBorderStyle}`,
-          { focused: isInputFocused },
-        ]"
+        :class="[`border-${props.inputBorderStyle}`, { focused: isInputFocused }]"
       >
         <input
           ref="taskInputRef"
@@ -506,11 +503,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 /* 边框样式变体 */
 .task-input-wrapper.border-dashed {
-  border-bottom: 2px dashed var(--color-border-light, #FF00FF);
+  border-bottom: 2px dashed var(--color-border-light, #f0f);
 }
 
 .task-input-wrapper.border-solid {
-  border-bottom: 2px solid var(--color-border-light, #FF00FF);
+  border-bottom: 2px solid var(--color-border-light, #f0f);
 }
 
 .task-input-wrapper.border-none {
@@ -523,7 +520,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   padding-right: 3.4rem; /* 为按钮留空间 */
   font-size: 1.5rem;
   line-height: 1.4; /* 固定行高，避免中英文高度差异 */
-  color: var(--color-text-primary, #FF00FF);
+  color: var(--color-text-primary, #f0f);
   background-color: transparent;
   border: none;
   border-radius: 0;
@@ -533,11 +530,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-input::placeholder {
-  color: var(--color-text-tertiary, #FF00FF);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .task-input:focus {
-  background-color: var(--color-background-hover, #FF00FF);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .task-input:disabled {
@@ -555,8 +552,8 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-button-primary-bg, #FF00FF);
-  color: var(--color-button-primary-text, #FF00FF);
+  background-color: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -564,7 +561,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .add-task-btn:hover {
-  background-color: var(--color-button-primary-hover, #FF00FF);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 
 .add-task-btn:active {
@@ -574,11 +571,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 输入框聚焦时，+按钮无背景色 */
 .task-input-wrapper.focused .add-task-btn {
   background-color: transparent;
-  color: var(--color-text-accent, #FF00FF);
+  color: var(--color-text-accent, #f0f);
 }
 
 .task-input-wrapper.focused .add-task-btn:hover {
-  background-color: var(--color-background-accent-light, #FF00FF);
+  background-color: var(--color-background-accent-light, #f0f);
 }
 
 /* 任务列表容器（拖放接收区） */
