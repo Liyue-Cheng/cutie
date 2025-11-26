@@ -864,7 +864,7 @@ async function handleDeleteRecurrence() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4.1rem 4.1rem 1.5rem; /* Top and horizontal +1.6rem, bottom unchanged */
+  padding: 2rem 4.1rem;
   border-bottom: 1px solid var(--color-border-default);
 }
 
@@ -903,9 +903,8 @@ async function handleDeleteRecurrence() {
 
 .area-selector-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 0.5rem);
   left: 0;
-  margin-top: 0.5rem;
   background: var(--color-card-available);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
@@ -970,19 +969,23 @@ async function handleDeleteRecurrence() {
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
 }
 
 .picker-section {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  padding-top: 1.2rem;
+}
+
+.picker-section:first-child {
+  padding-top: 0;
 }
 
 .picker-label {
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-secondary);
+  padding-bottom: 0.6rem;
 }
 
 .date-input {
@@ -1024,7 +1027,7 @@ async function handleDeleteRecurrence() {
 .picker-actions {
   display: flex;
   gap: 0.8rem;
-  margin-top: 0.5rem;
+  padding-top: 0.5rem;
 }
 
 .action-button {
@@ -1106,7 +1109,7 @@ async function handleDeleteRecurrence() {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 0.4rem;
   width: 3rem;
   height: 3rem;
   display: flex;
@@ -1272,7 +1275,7 @@ async function handleDeleteRecurrence() {
 }
 
 .section-note .section-icon {
-  margin-top: 1rem; /* 对齐 textarea 的第一行文本：padding-top (1rem) */
+  padding-top: 1rem; /* 对齐 textarea 的第一行文本：padding-top (1rem) */
 }
 
 .note-placeholder {
@@ -1320,13 +1323,21 @@ async function handleDeleteRecurrence() {
 .section-subtasks {
   flex-direction: column;
   align-items: stretch;
+  gap: 0; /* 覆盖 .section 的 gap */
+}
+
+.section-subtasks .section-header {
+  padding-top: 0;
+}
+
+.section-subtasks .section-body {
+  padding-top: 1rem;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  margin-bottom: 1rem;
 }
 
 .section-title-text {
@@ -1377,9 +1388,8 @@ async function handleDeleteRecurrence() {
 .drag-handle {
   position: absolute;
   left: -2.8rem;
-  top: 0;
-  bottom: 0;
-  margin: auto 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1393,8 +1403,7 @@ async function handleDeleteRecurrence() {
   opacity: 0;
   transition:
     opacity 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    color 0.2s ease;
   border-radius: 0.4rem;
 }
 
@@ -1406,7 +1415,6 @@ async function handleDeleteRecurrence() {
 .drag-handle:active {
   cursor: grabbing;
   color: var(--color-text-primary);
-  transform: scale(0.95);
 }
 
 .subtask-item:hover .drag-handle {
@@ -1453,7 +1461,7 @@ async function handleDeleteRecurrence() {
 
 /* ==================== 底栏 ==================== */
 .card-footer {
-  padding: 1.5rem 4.1rem 3.1rem; /* Top unchanged, horizontal +1.6rem, bottom +1.6rem */
+  padding: 2rem 4.1rem;
   display: flex;
   justify-content: flex-end;
 }

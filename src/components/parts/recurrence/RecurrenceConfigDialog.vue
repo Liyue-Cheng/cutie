@@ -4,7 +4,6 @@ import { RRule, Frequency } from 'rrule'
 import type { TaskCard } from '@/types/dtos'
 import { useTemplateStore } from '@/stores/template'
 import { useRecurrenceStore } from '@/stores/recurrence'
-import { useViewStore } from '@/stores/view'
 import { pipeline } from '@/cpu'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
@@ -31,7 +30,6 @@ const expiryBehavior = ref<'CARRYOVER_TO_STAGING' | 'EXPIRE'>('CARRYOVER_TO_STAG
 
 const templateStore = useTemplateStore()
 const recurrenceStore = useRecurrenceStore()
-const viewStore = useViewStore()
 
 // 从 viewKey 提取日期（如果是 daily 类型）
 function extractDateFromViewKey(viewKey?: string): string | null {
