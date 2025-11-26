@@ -22,7 +22,14 @@
     <!-- 内容区（可折叠） -->
     <div v-if="!isCollapsed" class="task-bar-content">
       <!-- 任务输入框 -->
-      <div v-if="showAddInput" class="task-input-wrapper" :class="{ focused: isInputFocused }">
+      <div
+        v-if="showAddInput"
+        class="task-input-wrapper"
+        :class="[
+          `border-${props.inputBorderStyle}`,
+          { focused: isInputFocused },
+        ]"
+      >
         <input
           ref="taskInputRef"
           v-model="newTaskTitle"
@@ -93,6 +100,7 @@ interface Props {
   fillRemainingSpace?: boolean // 是否占满父容器剩余空间
   collapsible?: boolean // 是否可折叠
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
+  inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -101,6 +109,7 @@ const props = withDefaults(defineProps<Props>(), {
   fillRemainingSpace: false,
   collapsible: true,
   hideDailyRecurringTasks: false,
+  inputBorderStyle: 'dashed',
 })
 
 // Emits
@@ -484,17 +493,29 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 任务输入框 */
 .task-input-wrapper {
   position: relative;
-  margin-bottom: 1rem;
-  border-bottom: 2px dashed var(--color-border-light);
+  margin: 0 1.6rem 1rem; /* 左右 margin 与标题 padding 对齐 */
+}
+
+/* 边框样式变体 */
+.task-input-wrapper.border-dashed {
+  border-bottom: 2px dashed var(--color-border-light, #FF00FF);
+}
+
+.task-input-wrapper.border-solid {
+  border-bottom: 2px solid var(--color-border-light, #FF00FF);
+}
+
+.task-input-wrapper.border-none {
+  border-bottom: none;
 }
 
 .task-input {
   width: 100%;
-  padding: 0.8rem 1.6rem;
-  padding-right: 4rem;
+  padding: 0.8rem 0; /* 移除左右 padding，由 wrapper 的 margin 控制对齐 */
+  padding-right: 3.4rem; /* 为按钮留空间 */
   font-size: 1.5rem;
   line-height: 1.4; /* 固定行高，避免中英文高度差异 */
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #FF00FF);
   background-color: transparent;
   border: none;
   border-radius: 0;
@@ -504,11 +525,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-input::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-tertiary, #FF00FF);
 }
 
 .task-input:focus {
-  background-color: var(--color-background-hover);
+  background-color: var(--color-background-hover, #FF00FF);
 }
 
 .task-input:disabled {
@@ -518,7 +539,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .add-task-btn {
   position: absolute;
-  right: 0.6rem;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   width: 3rem;
@@ -526,8 +547,8 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-button-primary-bg);
-  color: var(--color-button-primary-text);
+  background-color: var(--color-button-primary-bg, #FF00FF);
+  color: var(--color-button-primary-text, #FF00FF);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -535,7 +556,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .add-task-btn:hover {
-  background-color: var(--color-button-primary-hover);
+  background-color: var(--color-button-primary-hover, #FF00FF);
 }
 
 .add-task-btn:active {
@@ -545,11 +566,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 输入框聚焦时，+按钮无背景色 */
 .task-input-wrapper.focused .add-task-btn {
   background-color: transparent;
-  color: var(--color-text-accent);
+  color: var(--color-text-accent, #FF00FF);
 }
 
 .task-input-wrapper.focused .add-task-btn:hover {
-  background-color: var(--color-background-accent-light);
+  background-color: var(--color-background-accent-light, #FF00FF);
 }
 
 /* 任务列表容器（拖放接收区） */
