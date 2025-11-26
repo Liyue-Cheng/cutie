@@ -4,120 +4,48 @@ import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
- * View Store V5.0 - 纯状态容器 (Frontend-as-a-CPU 架构)
+ * View Store V6.0 - Daily 视图刷新管理
  *
- * 📋 架构原则：
- * - ✅ State: 寄存器 (只存储数据)
- * - ✅ Mutations: 寄存器写入操作 (_mut 后缀)
- * - ✅ Getters: 导线/多路复用器 (_Mux 后缀)
- * - ❌ 不包含 API 调用（由 Command Handler 负责）
- * - ❌ 不包含业务逻辑（由 Command Handler 负责）
- *
- * 职责：
- * - 只管理视图的排序信息
- * - 不存储任务数据（由 TaskStore 负责）
- * - 不存储任务ID列表（过滤由 TaskStore getter 负责）
- * - 只存储排序权重（持久化由 Command Handler 负责）
- *
- * 数据流：
- * 1. 组件触发 LexoRank 指令 → pipeline.dispatch('task.update_sort_position', ...)
- * 2. EX 阶段乐观更新 → viewStore.updateSortingOptimistic_mut(...)
- * 3. EX 阶段调用 API
- * 4. 成功 → WB commit | 失败 → WB 回滚
+ * 📋 职责：
+ * - 管理已挂载的 daily 视图注册表
+ * - 提供 LexoRank 排序功能
+ * - 循环任务操作后刷新所有已挂载的 daily 视图
  */
 
 export const useViewStore = defineStore('view', () => {
   // ============================================================
-  // STATE - 只存储排序权重
+  // STATE
   // ============================================================
 
   /**
-   * 视图排序权重
-   * key: 视图标识 (如 'staging', 'planned', 'daily::2024-10-01')
-   * value: Map<taskId, weight>
-   */
-  const sortWeights = ref(new Map<string, Map<string, number>>())
-
-  /**
-   * 加载状态
-   */
-  const isLoading = ref(false)
-
-  /**
-   * 错误信息
-   */
-  const error = ref<string | null>(null)
-
-  /**
-   * 🆕 已挂载的 daily 视图注册表
+   * 已挂载的 daily 视图注册表
    * key: 'YYYY-MM-DD'
    * value: 引用计数（有多少列正在使用该日期）
    */
   const mountedDailyViews = ref(new Map<string, number>())
 
   /**
-   * 🆕 刷新防抖/节流状态
+   * 刷新防抖/节流状态
    */
   let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null
   let isRefreshing = ref(false)
 
   /**
-   * 🆕 刷新配置
+   * 刷新配置
    */
   const REFRESH_DEBOUNCE_DELAY = 300 // ms
 
   // ============================================================
-  // GETTERS (Wires / Multiplexers) - 只读数据选择
+  // GETTERS - LexoRank 排序
   // ============================================================
 
   /**
-   * 应用排序到任务列表 (Multiplexer)
+   * 应用 LexoRank 排序到任务列表
    * @param tasks 原始任务列表（已经过滤好的）
    * @param viewKey 视图标识
    * @returns 排序后的任务列表
-   *
-   * 性能优化：
-   * - 使用 Map 替代 indexOf，避免 O(n²) 复杂度
-   * - 预先构建索引，排序时 O(1) 查找
    */
   function applySorting(tasks: TaskCard[], viewKey: string): TaskCard[] {
-    const lexorankSorted = applyLexoRankSorting(tasks, viewKey)
-    if (lexorankSorted) {
-      return lexorankSorted
-    }
-
-    const weights = sortWeights.value.get(viewKey)
-
-    if (!weights || weights.size === 0) {
-      // 如果没有排序信息，保持原顺序
-      return tasks
-    }
-
-    // ✅ 性能优化：预先构建原顺序索引 Map（O(n)）
-    const originalIndexMap = new Map<string, number>()
-    tasks.forEach((task, index) => {
-      originalIndexMap.set(task.id, index)
-    })
-
-    // ✅ 排序时使用 Map 查找（O(1)），而不是 indexOf（O(n)）
-    const sorted = [...tasks].sort((a, b) => {
-      const weightA = weights.get(a.id) ?? Infinity
-      const weightB = weights.get(b.id) ?? Infinity
-
-      if (weightA === weightB) {
-        // O(1) 查找，而不是 O(n)
-        const indexA = originalIndexMap.get(a.id) ?? 0
-        const indexB = originalIndexMap.get(b.id) ?? 0
-        return indexA - indexB
-      }
-
-      return weightA - weightB
-    })
-
-    return sorted
-  }
-
-  function applyLexoRankSorting(tasks: TaskCard[], viewKey: string): TaskCard[] | null {
     const tasksWithRank: Array<{ task: TaskCard; rank: string }> = []
     const tasksWithoutRank: Array<{ task: TaskCard; originalIndex: number }> = []
 
@@ -130,8 +58,9 @@ export const useViewStore = defineStore('view', () => {
       }
     })
 
+    // 如果没有任何任务有 rank，保持原顺序
     if (tasksWithRank.length === 0) {
-      return null
+      return tasks
     }
 
     tasksWithRank.sort((a, b) => a.rank.localeCompare(b.rank))
@@ -141,66 +70,6 @@ export const useViewStore = defineStore('view', () => {
       ...tasksWithoutRank.map((entry) => entry.task),
       ...tasksWithRank.map((entry) => entry.task),
     ]
-  }
-
-  /**
-   * 获取当前视图的排序ID列表（用于持久化）
-   * @param viewKey 视图标识
-   * @param tasks 当前任务列表
-   * @returns 排序后的任务ID数组
-   */
-  function getSortedTaskIds(viewKey: string, tasks: TaskCard[]): string[] {
-    const sorted = applySorting(tasks, viewKey)
-    return sorted.map((t) => t.id)
-  }
-
-  // ============================================================
-  // MUTATIONS (Register Write Operations) - 纯状态更新
-  // ============================================================
-
-  /**
-   * 🔥 乐观更新排序（立即更新本地状态）
-   * @param viewKey 视图标识
-   * @param orderedTaskIds 新的任务ID顺序
-   *
-   * ⚠️ 此函数只更新本地状态，不调用 API
-   * ⚠️ 应由 Command Handler 调用
-   */
-  function updateSortingOptimistic_mut(viewKey: string, orderedTaskIds: string[]): void {
-    // 构建权重映射
-    const weights = new Map<string, number>()
-    orderedTaskIds.forEach((id, index) => {
-      weights.set(id, index)
-    })
-
-    // 更新本地状态
-    const newMap = new Map(sortWeights.value)
-    newMap.set(viewKey, weights)
-    sortWeights.value = newMap
-
-    logger.debug(LogTags.STORE_VIEW, 'Optimistic sorting update applied', {
-      viewKey,
-      taskCount: orderedTaskIds.length,
-    })
-  }
-
-  /**
-   * 清除指定视图的排序
-   * @param viewKey 视图标识
-   */
-  function clearSorting(viewKey: string) {
-    const newMap = new Map(sortWeights.value)
-    newMap.delete(viewKey)
-    sortWeights.value = newMap
-    logger.debug(LogTags.STORE_VIEW, 'Cleared sorting for view', { viewKey })
-  }
-
-  /**
-   * 清除所有排序
-   */
-  function clearAllSorting() {
-    sortWeights.value = new Map()
-    logger.debug(LogTags.STORE_VIEW, 'Cleared all sorting')
   }
 
   // ============================================================
@@ -231,7 +100,6 @@ export const useViewStore = defineStore('view', () => {
    * - 🚀 并发刷新：使用 Promise.all 同时刷新所有日期
    * - ⏱️ 防抖机制：300ms 内的重复调用会被合并
    * - 🔒 防重入：正在刷新时的新调用会被忽略
-   * - 📊 详细日志：记录刷新过程和结果统计
    */
   async function refreshAllMountedDailyViews() {
     // 🔒 防重入：如果正在刷新，直接返回
@@ -285,7 +153,6 @@ export const useViewStore = defineStore('view', () => {
     const refreshPromises = dates.map(async (date) => {
       const dateStartTime = performance.now()
       try {
-        // 使用 refreshDailyTasks_DMA 进行替换式刷新
         await taskStore.refreshDailyTasks_DMA(date)
 
         const duration = performance.now() - dateStartTime
@@ -308,7 +175,6 @@ export const useViewStore = defineStore('view', () => {
       }
     })
 
-    // 等待所有刷新完成
     const results = await Promise.all(refreshPromises)
 
     // 统计结果
@@ -323,14 +189,8 @@ export const useViewStore = defineStore('view', () => {
       failureCount,
       totalDuration: `${totalDuration.toFixed(1)}ms`,
       avgDuration: `${avgDuration.toFixed(1)}ms`,
-      results: results.map((r) => ({
-        date: r.date,
-        success: r.success,
-        duration: `${r.duration.toFixed(1)}ms`,
-      })),
     })
 
-    // 如果有失败的刷新，记录警告
     if (failureCount > 0) {
       const failedDates = results.filter((r) => !r.success).map((r) => r.date)
       logger.warn(LogTags.STORE_VIEW, 'Some daily views failed to refresh', {
@@ -342,10 +202,6 @@ export const useViewStore = defineStore('view', () => {
 
   /**
    * 立即刷新所有已挂载的 daily 视图（绕过防抖，用于紧急情况）
-   *
-   * 使用场景：
-   * - 用户手动触发的刷新操作
-   * - 关键业务操作后需要立即看到结果
    */
   async function refreshAllMountedDailyViewsImmediately() {
     // 取消现有的防抖定时器
@@ -360,7 +216,6 @@ export const useViewStore = defineStore('view', () => {
         LogTags.STORE_VIEW,
         'Waiting for current refresh to complete before immediate refresh'
       )
-      // 简单的轮询等待，实际项目中可以用更优雅的方式
       while (isRefreshing.value) {
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
@@ -376,29 +231,13 @@ export const useViewStore = defineStore('view', () => {
   }
 
   return {
-    // ============================================================
-    // STATE (Registers) - 只读状态
-    // ============================================================
-    sortWeights,
-    isLoading,
-    error,
+    // STATE
     isRefreshing,
 
-    // ============================================================
-    // GETTERS (Wires / Multiplexers) - 数据选择
-    // ============================================================
+    // GETTERS
     applySorting,
-    getSortedTaskIds,
 
-    // ============================================================
-    // MUTATIONS (Register Write Operations) - 状态更新
-    // ============================================================
-    updateSortingOptimistic_mut, // 🔥 乐观更新（由 Command Handler 调用）
-    clearSorting,
-    clearAllSorting,
-    // ============================================================
     // Daily 视图注册与刷新
-    // ============================================================
     registerDailyView,
     unregisterDailyView,
     refreshAllMountedDailyViews,
