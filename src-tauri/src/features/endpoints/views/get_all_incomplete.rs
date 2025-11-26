@@ -6,7 +6,7 @@ use axum::{
 use chrono::NaiveDate;
 
 use crate::{
-    entities::{ScheduleStatus, Task, TaskCardDto},
+    entities::{Task, TaskCardDto},
     features::shared::{RecurrenceInstantiationService, TaskAssembler},
     infra::{
         core::{AppError, AppResult},
@@ -89,9 +89,7 @@ GET /api/views/all-incomplete
 2.  遍历每个任务，调用 `assemble_task_card` 进行组装：
     - 调用 `TaskAssembler::task_to_card_basic` 创建基础 TaskCard
     - 调用 `TaskAssembler::assemble_schedules` 查询完整的 schedules（包含 time_blocks）
-    - 根据 schedules 是否存在动态设置 `schedule_status`：
-      - 如果 `schedules.is_some()` → `ScheduleStatus::Scheduled`
-      - 否则 → `ScheduleStatus::Staging`
+    - schedule_status 已删除，前端根据 schedules 字段实时计算
 3.  对任务列表按 `id` 降序排序（保证稳定的显示顺序）。
 4.  返回 `200 OK` 和任务列表（`Vec<TaskCardDto>`）。
 
@@ -100,7 +98,6 @@ GET /api/views/all-incomplete
 - **数据库中没有未完成任务:** 返回空数组 `[]`（200 OK）。
 - **所有任务都已完成或已删除:** 返回空数组 `[]`（200 OK）。
 - **任务数量很大:** 当前无分页机制，可能返回大量数据（性能考虑，建议添加分页）。
-- **未完成任务的 schedule_status:** 根据实际 schedules 情况动态设置（staging 或 scheduled）。
 
 ## 7. 预期副作用 (Expected Side Effects)
 
@@ -236,19 +233,13 @@ mod logic {
     }
 
     /// 组装单个任务的 TaskCard（包含完整的 schedules + time_blocks）
+    ///
+    /// schedule_status 已删除 - 前端根据 schedules 字段实时计算
     async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
         // 组装完整的 schedules（包含 time_blocks）
         let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
-
-        // 根据 schedules 判断 schedule_status
-        card.schedule_status = if schedules.is_some() {
-            ScheduleStatus::Scheduled
-        } else {
-            ScheduleStatus::Staging
-        };
-
         card.schedules = schedules;
 
         Ok(card)

@@ -31,14 +31,25 @@ const isTaskDragging = computed(() => {
 
 // ==================== Area 看板系统 ====================
 interface AreaKanban {
-  id: string // Area ID
+  id: string // Area ID，'no-area' 表示无区域
   areaName: string
   areaColor: string
-  viewKey: string // misc::staging::${areaId}
+  viewKey: string // misc::staging::${areaId} 或 misc::staging (无区域)
+  isNoArea?: boolean // 是否为"无区域"看板
 }
 
-// 计算属性：基于 Areas 生成看板列表
+// 计算属性：基于 Areas 生成看板列表，始终包含"无区域"看板
 const kanbans = computed(() => {
+  // 首先添加"无区域"看板
+  const noAreaKanban: AreaKanban = {
+    id: 'no-area',
+    areaName: '无区域',
+    areaColor: 'var(--color-text-tertiary)',
+    viewKey: 'misc::staging',
+    isNoArea: true,
+  }
+
+  // 然后添加各个 Area 的看板
   const areaKanbans: AreaKanban[] = areaStore.allAreas.map((area) => ({
     id: area.id,
     areaName: area.name,
@@ -46,16 +57,26 @@ const kanbans = computed(() => {
     viewKey: `misc::staging::${area.id}`,
   }))
 
+  const allKanbans = [noAreaKanban, ...areaKanbans]
+
   logger.debug(LogTags.COMPONENT_KANBAN, 'Generated area kanbans', {
-    count: areaKanbans.length,
-    areas: areaKanbans.map((k) => ({ id: k.id, name: k.areaName })),
+    count: allKanbans.length,
+    areas: allKanbans.map((k) => ({ id: k.id, name: k.areaName })),
   })
 
-  return areaKanbans
+  return allKanbans
 })
 
 // 为每个看板生成 ViewMetadata
 function getKanbanMetadata(kanban: AreaKanban): ViewMetadata {
+  if (kanban.isNoArea) {
+    return {
+      type: 'misc',
+      id: kanban.viewKey,
+      config: {},
+      label: '无区域 - Staging',
+    }
+  }
   return {
     type: 'area',
     id: kanban.viewKey,
@@ -199,18 +220,11 @@ kanbanCountWatcher.value // 触发初始计算
     @mouseleave="handleMouseLeave"
   >
     <div class="area-kanban-track" :style="{ width: `${trackWidth}rem` }">
-      <div v-if="kanbans.length === 0" class="empty-state">
-        <div class="empty-content">
-          <div class="empty-icon">📋</div>
-          <h3>暂无 Area</h3>
-          <p>请先创建一些 Area 来管理你的任务</p>
-        </div>
-      </div>
       <SimpleKanbanColumn
         v-for="kanban in kanbans"
         :key="kanban.id"
         :title="kanban.areaName"
-        :subtitle="'Staging 任务'"
+        :subtitle="kanban.isNoArea ? '待安排任务' : '待安排任务'"
         :view-key="kanban.viewKey"
         :view-metadata="getKanbanMetadata(kanban)"
         :show-add-input="true"
@@ -240,44 +254,11 @@ kanbanCountWatcher.value // 触发初始计算
 
 .area-kanban-track {
   display: flex;
+  justify-content: center; /* 居中排列 */
   gap: 0; /* 无间隔，由看板自身 padding 填补 */
   height: 100%;
   padding: 0 1rem;
   min-height: 100%;
-}
-
-/* 空状态样式 */
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  min-height: 40rem;
-}
-
-.empty-content {
-  text-align: center;
-  padding: 4rem;
-  color: var(--color-text-tertiary);
-}
-
-.empty-icon {
-  font-size: 6rem;
-  margin-bottom: 2rem;
-  opacity: 0.6;
-}
-
-.empty-content h3 {
-  font-size: 2.4rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
-  color: var(--color-text-secondary);
-}
-
-.empty-content p {
-  font-size: 1.5rem;
-  margin: 0;
-  line-height: 1.6;
+  min-width: 100%; /* 确保至少占满容器宽度，使居中生效 */
 }
 </style>

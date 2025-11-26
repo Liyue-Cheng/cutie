@@ -292,30 +292,7 @@ mod logic {
 
         // ✅ 填充 schedules 字段（必须在 SSE 之前）
         task_card.schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
-
-        // 根据 schedules 设置正确的 schedule_status
-        let local_today = now.date_naive();
-        let has_future_schedule = task_card
-            .schedules
-            .as_ref()
-            .map(|schedules| {
-                schedules.iter().any(|s| {
-                    if let Ok(schedule_date) =
-                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
-                    {
-                        schedule_date >= local_today
-                    } else {
-                        false
-                    }
-                })
-            })
-            .unwrap_or(false);
-
-        task_card.schedule_status = if has_future_schedule {
-            crate::entities::ScheduleStatus::Scheduled
-        } else {
-            crate::entities::ScheduleStatus::Staging
-        };
+        // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
         // 11. 组装更新后的时间块数据（用于SSE事件）
         let updated_time_block = TimeBlockRepository::find_by_id(pool, block_id).await?;

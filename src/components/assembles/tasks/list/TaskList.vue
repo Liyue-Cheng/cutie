@@ -7,7 +7,7 @@
       @click="props.collapsible ? toggleCollapse() : undefined"
     >
       <div class="header-left">
-        <h3 class="task-bar-title">{{ title }}</h3>
+        <h3 class="task-bar-title" :style="titleStyle">{{ title }}</h3>
         <span class="task-count">{{ displayItems.length }}</span>
       </div>
       <CuteIcon
@@ -22,7 +22,11 @@
     <!-- 内容区（可折叠） -->
     <div v-if="!isCollapsed" class="task-bar-content">
       <!-- 任务输入框 -->
-      <div v-if="showAddInput" class="task-input-wrapper" :class="{ focused: isInputFocused }">
+      <div
+        v-if="showAddInput"
+        class="task-input-wrapper"
+        :class="[`border-${props.inputBorderStyle}`, { focused: isInputFocused }]"
+      >
         <input
           ref="taskInputRef"
           v-model="newTaskTitle"
@@ -93,6 +97,8 @@ interface Props {
   fillRemainingSpace?: boolean // 是否占满父容器剩余空间
   collapsible?: boolean // 是否可折叠
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
+  inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
+  titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -101,6 +107,8 @@ const props = withDefaults(defineProps<Props>(), {
   fillRemainingSpace: false,
   collapsible: true,
   hideDailyRecurringTasks: false,
+  inputBorderStyle: 'dashed',
+  titleColor: '',
 })
 
 // Emits
@@ -153,6 +161,12 @@ const taskBarClasses = computed(() => ({
   collapsed: isCollapsed.value,
   'fill-vertical': props.fillRemainingSpace && !isCollapsed.value,
 }))
+
+// 标题样式
+const titleStyle = computed(() => {
+  if (!props.titleColor) return {}
+  return { color: props.titleColor }
+})
 
 // ==================== ViewMetadata 推导 ====================
 const effectiveViewMetadata = computed<ViewMetadata>(() => {
@@ -426,7 +440,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-bar-header:hover {
-  background-color: rgb(0 0 0 / 3%);
+  background-color: var(--color-overlay-light);
 }
 
 /* 不可折叠的标题栏 */
@@ -458,6 +472,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
+  line-height: 1.4; /* 固定行高，避免中英文高度差异 */
 }
 
 .task-count {
@@ -469,8 +484,9 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   padding: 0 0.6rem;
   font-size: 1.2rem;
   font-weight: 600;
+  line-height: 1; /* 固定行高 */
   color: var(--color-text-secondary);
-  background-color: var(--color-background-secondary, #f5f5f5);
+  background-color: var(--color-background-secondary);
   border-radius: 1rem;
 }
 
@@ -482,16 +498,29 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 任务输入框 */
 .task-input-wrapper {
   position: relative;
-  margin-bottom: 1rem;
-  border-bottom: 2px dashed rgb(0 0 0 / 15%);
+  margin: 0 1.6rem 1rem; /* 左右 margin 与标题 padding 对齐 */
+}
+
+/* 边框样式变体 */
+.task-input-wrapper.border-dashed {
+  border-bottom: 2px dashed var(--color-border-light, #f0f);
+}
+
+.task-input-wrapper.border-solid {
+  border-bottom: 2px solid var(--color-border-light, #f0f);
+}
+
+.task-input-wrapper.border-none {
+  border-bottom: none;
 }
 
 .task-input {
   width: 100%;
-  padding: 0.8rem 1.6rem;
-  padding-right: 4rem;
+  padding: 0.8rem 0; /* 移除左右 padding，由 wrapper 的 margin 控制对齐 */
+  padding-right: 3.4rem; /* 为按钮留空间 */
   font-size: 1.5rem;
-  color: var(--color-text-primary);
+  line-height: 1.4; /* 固定行高，避免中英文高度差异 */
+  color: var(--color-text-primary, #f0f);
   background-color: transparent;
   border: none;
   border-radius: 0;
@@ -501,11 +530,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-input::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .task-input:focus {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .task-input:disabled {
@@ -515,7 +544,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .add-task-btn {
   position: absolute;
-  right: 0.6rem;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   width: 3rem;
@@ -523,8 +552,8 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-primary, #4a90e2);
-  color: white;
+  background-color: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -532,7 +561,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .add-task-btn:hover {
-  background-color: var(--color-primary-hover, #357abd);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 
 .add-task-btn:active {
@@ -542,11 +571,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 /* 输入框聚焦时，+按钮无背景色 */
 .task-input-wrapper.focused .add-task-btn {
   background-color: transparent;
-  color: var(--color-primary, #4a90e2);
+  color: var(--color-text-accent, #f0f);
 }
 
 .task-input-wrapper.focused .add-task-btn:hover {
-  background-color: rgb(74 144 226 / 10%);
+  background-color: var(--color-background-accent-light, #f0f);
 }
 
 /* 任务列表容器（拖放接收区） */

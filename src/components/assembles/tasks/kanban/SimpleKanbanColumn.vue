@@ -12,17 +12,23 @@ import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 import { dragPreviewState } from '@/infra/drag-interact/preview-state'
 
-const props = defineProps<{
-  title: string
-  subtitle?: string
-  showAddInput?: boolean
-  viewKey: string // 🔥 必需：所有看板都必须提供 viewKey
-  viewMetadata?: ViewMetadata // 可选：可自动推导
-  isExpired?: boolean // 🆕 是否过期（用于灰度显示）
-  isCalendarDate?: boolean // 🆕 是否是当前日历日期（用于日历图标长显）
-  disableTitleClick?: boolean // 🆕 禁用标题点击
-  hideCalendarIcon?: boolean // 🆕 隐藏日历图标
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    subtitle?: string
+    showAddInput?: boolean
+    viewKey: string // 🔥 必需：所有看板都必须提供 viewKey
+    viewMetadata?: ViewMetadata // 可选：可自动推导
+    isExpired?: boolean // 🆕 是否过期（用于灰度显示）
+    isCalendarDate?: boolean // 🆕 是否是当前日历日期（用于日历图标长显）
+    disableTitleClick?: boolean // 🆕 禁用标题点击（默认禁用，仅 daily 视图启用）
+    hideCalendarIcon?: boolean // 🆕 隐藏日历图标（默认隐藏，仅 daily 视图显示）
+  }>(),
+  {
+    disableTitleClick: true, // 默认禁用标题点击
+    hideCalendarIcon: true, // 默认隐藏日历图标
+  }
+)
 
 const emit = defineEmits<{
   'title-click': [date: string] // 标题点击事件，传递日期
@@ -83,7 +89,6 @@ const { displayItems } = useInteractDrag({
       displayItems.value.map((t) => ({
         id: t.id,
         title: t.title,
-        schedule_status: t.schedule_status,
       }))
     )
     console.log('📍 Drop Index:', dragPreviewState.value?.computed.dropIndex)
@@ -112,7 +117,6 @@ const { displayItems } = useInteractDrag({
       console.log('Session Source ViewKey:', session.source.viewKey)
       console.log('Session Source ViewType:', session.source.viewType)
       console.log('Target Zone:', props.viewKey)
-      console.log('Task Schedule Status:', session.object.data.schedule_status)
       console.log('Task Schedules:', session.object.data.schedules)
       console.groupEnd()
 
@@ -418,6 +422,7 @@ function handleTitleClick() {
   margin: 0;
   color: var(--color-text-primary);
   transition: color 0.2s ease;
+  line-height: 1.4; /* 固定行高，避免中英文高度差异 */
 }
 
 .title-row.clickable:hover .title {
@@ -455,6 +460,7 @@ function handleTitleClick() {
   color: var(--color-text-secondary);
   margin: 0;
   flex: 1;
+  line-height: 1.4; /* 固定行高，避免中英文高度差异 */
 }
 
 .sort-button {

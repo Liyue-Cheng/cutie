@@ -29,64 +29,62 @@
 
     <!-- 项目详情 -->
     <div v-else-if="project" class="project-detail">
-      <!-- 项目头部 -->
-      <div class="project-header">
-        <div class="header-left">
-          <h1 class="project-title">{{ project.name }}</h1>
+      <!-- 内容容器（限制宽度） -->
+      <div class="content-container">
+        <!-- 项目头部 - Things 3 风格 -->
+        <div class="project-header">
+          <!-- 第一行：进度环 + 标题 + 三点菜单 -->
+          <div class="header-title-row">
+            <CircularProgress
+              :completed="projectStats.completed"
+              :total="projectStats.total"
+              size="small"
+              hide-text
+            />
+            <h1 class="project-title">{{ project.name }}</h1>
+            <button class="more-btn" @click="showMoreMenu">
+              <CuteIcon name="Ellipsis" :size="20" />
+            </button>
+          </div>
+
+          <!-- 第二行：描述 -->
           <div v-if="project.description" class="project-description">
             {{ project.description }}
           </div>
-          <div class="project-tags">
-            <span v-if="areaTag" class="area-tag" :style="{ backgroundColor: areaTag.color }">
-              {{ areaTag.name }}
-            </span>
-            <span v-if="project.due_date" class="due-date-tag">
-              <CuteIcon name="Calendar" :size="14" />
-              {{ formatDate(project.due_date) }}
-            </span>
+        </div>
+
+        <!-- 任务列表区域 -->
+        <div class="tasks-area">
+          <!-- 无 section 的任务（即使没有任务也要显示） -->
+          <div class="task-section">
+            <TaskList
+              :key="`project-${project.id}-no-section`"
+              title="未分类任务"
+              :view-key="`project::${project.id}::section::all`"
+              title-color="var(--color-text-accent)"
+            />
           </div>
-        </div>
-        <div class="header-actions">
-          <button class="action-btn" @click="emit('edit-project', project.id)">
-            <CuteIcon name="Pencil" :size="16" />
-            编辑项目
-          </button>
-          <button class="action-btn" @click="emit('create-section')">
-            <CuteIcon name="Plus" :size="16" />
-            添加章节
-          </button>
-        </div>
-      </div>
 
-      <!-- 任务列表区域 -->
-      <div class="tasks-area">
-        <!-- 无 section 的任务（即使没有任务也要显示） -->
-        <div class="task-section">
-          <TaskList
-            :key="`project-${project.id}-no-section`"
-            title="未分类任务"
-            :view-key="`project::${project.id}::section::all`"
-          />
-        </div>
+          <!-- 各个 section 的任务 -->
+          <div v-for="section in sections" :key="section.id" class="task-section">
+            <TaskList
+              :title="section.title"
+              :view-key="`project::${project.id}::section::${section.id}`"
+              title-color="var(--color-text-accent)"
+            >
+              <template #title-actions>
+                <button class="icon-btn" @click="handleEditSection(section.id)">
+                  <CuteIcon name="Pencil" :size="14" />
+                </button>
+              </template>
+            </TaskList>
+          </div>
 
-        <!-- 各个 section 的任务 -->
-        <div v-for="section in sections" :key="section.id" class="task-section">
-          <TaskList
-            :title="section.title"
-            :view-key="`project::${project.id}::section::${section.id}`"
-          >
-            <template #title-actions>
-              <button class="icon-btn" @click="handleEditSection(section.id)">
-                <CuteIcon name="Pencil" :size="14" />
-              </button>
-            </template>
-          </TaskList>
-        </div>
-
-        <!-- 空状态 -->
-        <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
-          <p>暂无任务</p>
-          <p class="hint">从其他视图拖动任务到此项目，或点击"添加章节"组织任务</p>
+          <!-- 空状态 -->
+          <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
+            <p>暂无任务</p>
+            <p class="hint">从其他视图拖动任务到此项目，或点击"添加章节"组织任务</p>
+          </div>
         </div>
       </div>
     </div>
@@ -104,6 +102,7 @@ import { useProjectStore } from '@/stores/project'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import CircularProgress from '@/components/parts/CircularProgress.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 
 interface Props {
@@ -140,6 +139,16 @@ const sections = computed(() => {
   return projectStore.getSectionsByProject(props.projectId)
 })
 
+// 计算项目进度统计
+const projectStats = computed(() => {
+  if (!props.projectId) return { completed: 0, total: 0 }
+  const projectTasks = taskStore.allTasks.filter(
+    (task) => task.project_id === props.projectId && !task.is_deleted
+  )
+  const completed = projectTasks.filter((task) => task.is_completed).length
+  return { completed, total: projectTasks.length }
+})
+
 // 检查是否有无 section 的任务
 const hasTasksWithoutSection = computed(() => {
   if (!props.projectId) return false
@@ -159,6 +168,13 @@ const formatDate = (dateStr: string) => {
 const handleEditSection = (sectionId: string) => {
   emit('edit-section', sectionId)
 }
+
+// 显示更多菜单（暂时触发编辑项目）
+const showMoreMenu = () => {
+  if (project.value) {
+    emit('edit-project', project.value.id)
+  }
+}
 </script>
 
 <style scoped>
@@ -166,7 +182,7 @@ const handleEditSection = (sectionId: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg-primary);
+  background: var(--color-background-secondary, #f0f);
   overflow: hidden;
 }
 
@@ -176,7 +192,7 @@ const handleEditSection = (sectionId: string) => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #f0f);
   gap: 1.2rem;
 }
 
@@ -187,114 +203,78 @@ const handleEditSection = (sectionId: string) => {
   overflow: hidden;
 }
 
-.project-header {
-  flex-shrink: 0;
-  padding: 2rem;
-  border-bottom: 1px solid var(--color-border);
+/* 内容容器 - 限制宽度并居中 */
+.content-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 60rem;
+  height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
 }
 
-.header-left {
-  margin-bottom: 1.6rem;
+/* Things 3 风格头部 */
+.project-header {
+  flex-shrink: 0;
+  padding: 7rem 1.6rem 4rem; /* 上边距增大，左右与 TaskList 对齐 */
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .project-title {
+  flex: 1;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #f0f);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.more-btn {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  font-size: 2.4rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 0.8rem;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  background: transparent;
+  color: var(--color-text-tertiary, #f0f);
+  border: none;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.more-btn:hover {
+  background: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .project-description {
   font-size: 1.4rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 1.2rem;
+  color: var(--color-text-secondary, #f0f);
+  margin-top: 0.8rem;
   line-height: 1.6;
-}
-
-.project-tags {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.area-tag {
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.4rem;
-  font-size: 1.2rem;
-  color: white;
-  font-weight: 500;
-}
-
-.due-date-tag {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.4rem;
-  font-size: 1.2rem;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.8rem;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.8rem 1.2rem;
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  font-size: 1.4rem;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: var(--color-bg-hover);
 }
 
 .tasks-area {
   flex: 1;
   overflow-y: auto;
-  padding: 1.6rem;
+  padding: 0; /* 移除 padding，由 TaskList 自己控制 */
 }
 
 .task-section {
   margin-bottom: 2.4rem;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.2rem;
-}
-
-.section-title {
-  font-size: 1.6rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.section-actions {
-  display: flex;
-  gap: 0.4rem;
-}
-
 .icon-btn {
   padding: 0.4rem;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #f0f);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -302,14 +282,14 @@ const handleEditSection = (sectionId: string) => {
 }
 
 .icon-btn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  background: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .no-tasks {
   text-align: center;
   padding: 4rem 2rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .no-tasks p {
@@ -318,6 +298,6 @@ const handleEditSection = (sectionId: string) => {
 
 .no-tasks .hint {
   font-size: 1.2rem;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-tertiary, #f0f);
 }
 </style>

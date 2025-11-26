@@ -636,15 +636,11 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     // 更新时间块
     addOrUpdateTimeBlock(timeBlock)
 
-    // ✅ 关键：更新任务（schedule_status 已变化）
+    // ✅ 关键：更新任务（schedules 已变化）
     if (updatedTask) {
       const { useTaskStore } = await import('@/stores/task')
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask_mut(updatedTask)
-      logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated task schedule_status', {
-        taskId: updatedTask.id,
-        scheduleStatus: updatedTask.schedule_status,
-      })
     }
   }
 
@@ -706,15 +702,11 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
     // 直接使用 payload 中的完整数据（包括更新后的 area_id）
     addOrUpdateTimeBlock(timeBlock)
 
-    // ✅ 关键：更新任务（schedule_status 已变化）
+    // ✅ 关键：更新任务（schedules 已变化）
     if (updatedTask) {
       const { useTaskStore } = await import('@/stores/task')
       const taskStore = useTaskStore()
       taskStore.addOrUpdateTask_mut(updatedTask)
-      logger.debug(LogTags.STORE_TIMEBLOCK, 'Updated task schedule_status', {
-        taskId: updatedTask.id,
-        scheduleStatus: updatedTask.schedule_status,
-      })
     }
   }
 

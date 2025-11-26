@@ -439,7 +439,7 @@ function onMouseDown(event: MouseEvent) {
 
 <style scoped>
 .task-strip {
-  background-color: var(--color-background-content);
+  background-color: transparent;
   border: none;
   border-radius: 0;
   padding: 0.8rem 1.6rem;
@@ -459,7 +459,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .task-strip:hover {
-  background-color: var(--color-background-hover);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .task-strip.completed {

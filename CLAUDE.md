@@ -11,6 +11,7 @@ This file provides guidance to Claude Code when working with this codebase.
 - [CABC Documentation Standard](#cabc-documentation-standard)
 - [Backend Development](#backend-development)
 - [Frontend Development](#frontend-development)
+- [CSS Variables & Theming](#css-variables--theming)
 - [Key Concepts](#key-concepts)
 - [Data Schema & Coupling](#data-schema--coupling)
 - [Development Workflows](#development-workflows)
@@ -23,6 +24,7 @@ This file provides guidance to Claude Code when working with this codebase.
 **Cutie**: Task management desktop app with **CPU-inspired frontend architecture**
 
 **Tech Stack:**
+
 - **Frontend**: Vue 3 + TypeScript + Vite + CPU Pipeline System
 - **Backend**: Rust + Tauri (Axum HTTP server)
 - **Database**: SQLite (migrations in `src-tauri/migrations/`)
@@ -37,6 +39,7 @@ This file provides guidance to Claude Code when working with this codebase.
 ## Development Commands
 
 **⚠️ CRITICAL: DO NOT START DEV SERVERS**
+
 - **NEVER run `pnpm dev`, `pnpm tauri dev`, or `cargo run`** - Already running
 - Package manager: **pnpm** only
 
@@ -57,6 +60,7 @@ cargo clippy
 ## Architecture
 
 ### Backend: Feature-Sliced Architecture
+
 ```
 src-tauri/src/
 ├── entities/                # Domain models & DTOs
@@ -67,12 +71,14 @@ src-tauri/src/
 ```
 
 **Key Principles:**
+
 - **SFC**: Each endpoint = standalone file
 - **Write Serialization**: Use `AppState::acquire_write_permit()`
 - **Event-Driven**: Emit SSE for real-time updates
 - **TransactionHelper**: For all DB transactions
 
 ### Frontend: CPU Pipeline (5-stage)
+
 ```
 Components → pipeline.dispatch('type', payload)
     ↓
@@ -82,6 +88,7 @@ IF (Instruction Fetch) → SCH (Scheduler) → EX (Execute) → RES (Response) �
 **Benefits**: Sequential: 3s → Parallel: 1s (3x speedup)
 
 **Directory Structure:**
+
 ```
 src/
 ├── cpu/                     # Pipeline system
@@ -99,6 +106,7 @@ src/
 **CABC (Cutie API Behavior Contract)** - Required for ALL endpoints.
 
 **8 Required Sections:**
+
 1. **Endpoint Signature** - Precise signature
 2. **High-Level Behavior** - User story + core logic
 3. **Input/Output Specification** - Request/response schemas
@@ -113,6 +121,7 @@ src/
 ## Backend Development
 
 ### SFC Pattern (Single File Component)
+
 ```rust
 // --- CABC Documentation ---
 // --- Dependencies ---
@@ -127,20 +136,25 @@ pub async fn handle(State(app_state): State<AppState>, Json(request): Json<Reque
 ```
 
 ### Shared Resources Reference
+
 **⚠️ Check before implementing to avoid duplication!**
 
 **Cross-Feature** (`features/shared/`):
+
 - `TransactionHelper`: `begin()`, `commit()`
 - `AreaRepository`
 
 **Tasks** (`features/tasks/shared/`):
+
 - `TaskRepository`, `TaskScheduleRepository`, `TaskTimeBlockLinkRepository`
 - `TaskAssembler`, `LinkedTaskAssembler`, `TimeBlockAssembler`
 
 **TimeBlocks** (`features/time_blocks/shared/`):
+
 - `TimeBlockRepository`, `TimeBlockConflictChecker`
 
 ### AppState Methods
+
 ```rust
 // ✅ Correct
 let id = app_state.id_generator().new_uuid();
@@ -149,11 +163,13 @@ let pool = app_state.db_pool();
 ```
 
 ### Critical: SSE & HTTP Data Consistency
+
 **⚠️ SSE events and HTTP responses MUST return identical data!**
 
 Pattern: Transaction → Commit → Fill complete data → Emit SSE → Return response
 
 ### Database Schema
+
 - **Schema location**: `src-tauri/migrations/20241001000000_initial_schema.sql`
 - **Tables**: `tasks`, `areas`, `task_schedules`, `time_blocks`, `orderings`, `projects`, `view_preferences`
 
@@ -162,6 +178,7 @@ Pattern: Transaction → Commit → Fill complete data → Emit SSE → Return r
 ## Frontend Development
 
 ### CPU Pipeline Usage
+
 ```typescript
 import { pipeline } from '@/cpu'
 
@@ -171,6 +188,7 @@ pipeline.dispatch('task.update', { id: taskId, title: 'Updated' })
 ```
 
 ### Store Pattern V4.0: RTL Hardware Design
+
 ```typescript
 // Store = Register File
 export const useTaskStore = defineStore('task', () => {
@@ -185,14 +203,19 @@ export const useTaskStore = defineStore('task', () => {
   const addOrUpdateTask_mut = (task: TaskCard) => tasks.value.set(task.id, task)
 
   // DMA transfers
-  const fetchAllTasks_DMA = async () => { /* bulk loading */ }
+  const fetchAllTasks_DMA = async () => {
+    /* bulk loading */
+  }
 
   // EVENT HANDLING (SSE interrupts)
-  const initEventSubscriptions = () => { /* SSE handlers */ }
+  const initEventSubscriptions = () => {
+    /* SSE handlers */
+  }
 })
 ```
 
 **Store Structure:**
+
 ```
 stores/{feature}/
 ├── index.ts         # Composition root
@@ -203,6 +226,7 @@ stores/{feature}/
 ```
 
 ### Component Architecture
+
 ```
 src/components/
 ├── parts/          # Atoms (CuteButton, CuteIcon)
@@ -212,8 +236,10 @@ src/components/
 ```
 
 ### Debugging
+
 **CPU Debug View**: `/cpu-debug` route
 **Browser Console**:
+
 ```javascript
 cpuPipeline.help()
 cpuPipeline.dispatch('debug.fetch_baidu', {})
@@ -223,9 +249,58 @@ appLogger.filterByTag(['API', 'CPU'])
 
 ---
 
+## CSS Variables & Theming
+
+### ⚠️ CRITICAL: Magenta Fallback Rule
+
+**All CSS variables MUST use `#f0f` (magenta) as fallback to expose missing variables immediately.**
+
+```css
+/* ❌ WRONG: Normal fallback hides the problem */
+color: var(--color-text-primary, #333);
+background: var(--color-background-hover, rgba(0, 0, 0, 0.05));
+
+/* ✅ CORRECT: Magenta instantly reveals missing variables */
+color: var(--color-text-primary, #f0f);
+background: var(--color-background-hover, #f0f);
+```
+
+**Why Magenta?**
+
+- Extremely unnatural - never appears in normal UI design
+- High contrast on both light and dark backgrounds
+- Instantly recognizable as "something is wrong"
+- Easy to search in codebase: `grep "#f0f"`
+
+### Variable Naming Convention
+
+All color variables are defined in `src/styles/rose-pine-themes.css` and `src/style.css`.
+
+**Common categories:**
+
+- `--color-text-*`: Text colors (primary, secondary, tertiary, accent)
+- `--color-background-*`: Background colors (primary, secondary, hover, active)
+- `--color-border-*`: Border colors (default, light, strong)
+- `--color-button-*`: Button colors (primary-bg, primary-text, primary-hover)
+
+### Line Height Rule
+
+**Always set `line-height: 1.4` on text elements to prevent Chinese/English height inconsistency.**
+
+```css
+/* ✅ Prevents layout shifts between Chinese and English text */
+.title {
+  font-size: 1.6rem;
+  line-height: 1.4;
+}
+```
+
+---
+
 ## Key Concepts
 
 **Status:**
+
 - Completed: `completed_at` has value
 - Incomplete: `completed_at` IS NULL
 - Archived: `archived_at` has value
@@ -233,11 +308,13 @@ appLogger.filterByTag(['API', 'CPU'])
 **Valid Schedule:** Schedule with `scheduled_date` >= today
 
 **View Filtering:**
+
 - **Staging**: incomplete + not archived + NO valid schedule
 - **Daily**: not archived + has schedule for today
 - **Past/Future Date**: not archived + has schedule for that date
 
 **Core Business Events:**
+
 - **Task Completion**: Set `completed_at`, complete subtasks, set outcome, truncate time_block, delete future schedules
 - **Task Reopen**: Set `completed_at` = NULL, set outcome = PRESENCE_LOGGED
 - **Create Schedule**: Create schedule, auto-complete if past date
@@ -252,12 +329,15 @@ appLogger.filterByTag(['API', 'CPU'])
 **⚠️ Modifying data structures has cascading effects!**
 
 **Data Flow:**
+
 ```
 Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DTO → Store → Components
 ```
 
 ### Adding a Field Checklist
+
 **Backend:**
+
 - [ ] Schema: Add column in migration
 - [ ] Entity: Update model.rs (struct + TryFrom)
 - [ ] DTOs: Update response_dtos.rs & request_dtos.rs
@@ -266,6 +346,7 @@ Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DT
 - [ ] Cross-feature check: `grep -rn "DtoName {" src-tauri/src/features`
 
 **Frontend:**
+
 - [ ] DTOs: Update src/types/dtos.ts
 - [ ] Store: Update payload types
 - [ ] Components: Update UI
@@ -275,6 +356,7 @@ Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DT
 ## Development Workflows
 
 ### Adding New Endpoint
+
 1. Check shared resources
 2. Create SFC endpoint file with CABC docs
 3. Register route in mod.rs
@@ -282,6 +364,7 @@ Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DT
 5. Test API, SSE, UI, data consistency
 
 ### Adding Field to Entity
+
 1. Update schema (migration, delete old DB)
 2. Update entity (model.rs)
 3. Update DTOs (response & request)
@@ -292,6 +375,7 @@ Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DT
 8. Test end-to-end
 
 ### Creating New Feature
+
 1. Schema (create tables)
 2. Entities (model.rs, DTOs)
 3. Feature module (endpoints/, shared/, mod.rs)
@@ -305,6 +389,7 @@ Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DT
 ## Quick Reference
 
 ### Pre-Development Checklist
+
 - [ ] Read schema: `src-tauri/migrations/*.sql`
 - [ ] Check shared resources
 - [ ] Use TransactionHelper for transactions
@@ -313,12 +398,14 @@ Database Schema → Backend Entity → Backend DTO → Assembler → Frontend DT
 - [ ] Never modify shared resources in features
 
 ### Testing Checklist
+
 - [ ] `cargo check` - no errors
 - [ ] `cargo clippy` - no warnings
 - [ ] Test API, SSE, UI manually
 - [ ] Check database directly
 
 ### Useful Commands
+
 ```bash
 # Find DTO usages
 grep -rn "TaskCardDto {" src-tauri/src/features
@@ -334,6 +421,7 @@ rm src-tauri/*.db*
 ```
 
 ### Important Notes
+
 - **Port Discovery**: Frontend listens for `sidecar-port-discovered` event
 - **Type Generation**: Rust `#[derive(TS)]` generates TypeScript types
 - **Development Folder**: `develop/` is experimental - DO NOT use in production

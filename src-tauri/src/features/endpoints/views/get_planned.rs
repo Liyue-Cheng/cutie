@@ -5,7 +5,7 @@ use axum::{
 };
 
 use crate::{
-    entities::{ScheduleStatus, Task, TaskCardDto},
+    entities::{Task, TaskCardDto},
     features::shared::TaskAssembler,
     infra::{
         core::{AppError, AppResult},
@@ -154,15 +154,14 @@ mod logic {
     }
 
     /// 组装单个任务的 TaskCard（包含完整的 schedules + time_blocks）
+    ///
+    /// schedule_status 已删除 - 前端根据 schedules 字段实时计算
     async fn assemble_task_card(task: &Task, pool: &sqlx::SqlitePool) -> AppResult<TaskCardDto> {
         let mut card = TaskAssembler::task_to_card_basic(task);
 
         // 组装完整的 schedules（包含 time_blocks）
         let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
         card.schedules = schedules;
-
-        // 明确设置为 scheduled
-        card.schedule_status = ScheduleStatus::Scheduled;
 
         Ok(card)
     }

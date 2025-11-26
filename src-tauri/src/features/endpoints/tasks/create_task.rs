@@ -10,7 +10,7 @@ use axum::{
 use std::collections::HashMap;
 
 use crate::{
-    entities::{CreateTaskRequest, ScheduleStatus, Task, TaskCardDto},
+    entities::{CreateTaskRequest, Task, TaskCardDto},
     features::shared::{repositories::TaskRepository, TaskAssembler},
     infra::{
         core::{AppError, AppResult},
@@ -175,7 +175,6 @@ pub async fn handle(
                 target: "ENDPOINT:TASKS:create_task",
                 task_id = %task_card.id,
                 title = %task_card.title,
-                schedule_status = ?task_card.schedule_status,
                 "Task created successfully"
             );
             created_response(task_card).into_response()
@@ -275,7 +274,7 @@ mod logic {
 
         // 7. 组装返回的 TaskCardDto（✅ area_id 已由 TaskAssembler 填充）
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
-        task_card.schedule_status = ScheduleStatus::Staging;
+        // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
         // 8. ✅ 填充 schedules 字段（新任务应该是 None）
         task_card.schedules =

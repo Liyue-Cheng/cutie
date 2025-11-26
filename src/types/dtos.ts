@@ -12,11 +12,6 @@
 export type ID = string
 
 /**
- * 日程状态：任务是否被安排到日历
- */
-export type ScheduleStatus = 'scheduled' | 'staging'
-
-/**
  * 截止日期类型
  */
 export type DueDateType = 'SOFT' | 'HARD'
@@ -55,7 +50,7 @@ export interface TaskCard {
   is_archived: boolean
   is_deleted: boolean
   deleted_at: string | null // ISO 8601 UTC 字符串，null 表示未删除
-  schedule_status: ScheduleStatus
+  // schedule_status 已删除 - 根据 schedules 实时计算
 
   // --- 详细信息 ---
   subtasks: Array<{
@@ -342,9 +337,10 @@ export type DragObject = TaskCard | Template | TimeBlockView
 
 /**
  * 类型守卫：检查是否为 TaskCard
+ * 通过检查 TaskCard 特有的字段来判断（schedules 字段是 TaskCard 特有的）
  */
 export function isTaskCard(obj: DragObject): obj is TaskCard {
-  return obj && typeof obj === 'object' && 'schedule_status' in obj
+  return obj && typeof obj === 'object' && 'schedules' in obj
 }
 
 /**

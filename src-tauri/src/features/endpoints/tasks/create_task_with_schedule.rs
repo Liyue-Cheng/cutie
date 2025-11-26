@@ -14,7 +14,7 @@ use axum::{
 use std::collections::HashMap;
 
 use crate::{
-    entities::{ScheduleStatus, Task, TaskCardDto},
+    entities::{Task, TaskCardDto},
     features::shared::{
         repositories::TaskRepository, repositories::TaskScheduleRepository, TaskAssembler,
     },
@@ -366,33 +366,7 @@ mod logic {
 
         // 9. ✅ 在事务内填充 schedules 字段
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
-
-        // 10. ✅ 根据 schedules 设置正确的 schedule_status
-        // staging 定义：今天和未来没有排期的任务，过去的排期不影响
-        use chrono::Utc;
-        let today = Utc::now().date_naive();
-
-        let has_future_schedule = task_card
-            .schedules
-            .as_ref()
-            .map(|schedules| {
-                schedules.iter().any(|s| {
-                    if let Ok(schedule_date) =
-                        chrono::NaiveDate::parse_from_str(&s.scheduled_day, "%Y-%m-%d")
-                    {
-                        schedule_date >= today
-                    } else {
-                        false
-                    }
-                })
-            })
-            .unwrap_or(false);
-
-        task_card.schedule_status = if has_future_schedule {
-            ScheduleStatus::Scheduled
-        } else {
-            ScheduleStatus::Staging
-        };
+        // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
         // 11. 写入领域事件到 outbox
         use crate::infra::events::{

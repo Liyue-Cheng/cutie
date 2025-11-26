@@ -246,7 +246,7 @@ const formatDate = (dateStr: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg-primary);
+  background: var(--color-background-secondary);
 }
 
 .control-bar {
@@ -254,7 +254,7 @@ const formatDate = (dateStr: string) => {
   align-items: center;
   justify-content: space-between;
   padding: 1.2rem 1.6rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-default);
   flex-shrink: 0;
   min-height: 60px;
 }
@@ -271,8 +271,8 @@ const formatDate = (dateStr: string) => {
   align-items: center;
   gap: 0.6rem;
   padding: 0.6rem 1.2rem;
-  background: #4a90e2;
-  color: white;
+  background: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
   border: none;
   border-radius: 0.6rem;
   cursor: pointer;
@@ -297,7 +297,7 @@ const formatDate = (dateStr: string) => {
   align-items: center;
   padding: 1.2rem;
   margin-bottom: 0.8rem;
-  background: var(--color-bg-secondary);
+  background: var(--color-background-secondary);
   border: 2px solid transparent;
   border-radius: 0.8rem;
   cursor: pointer;
@@ -305,18 +305,18 @@ const formatDate = (dateStr: string) => {
 }
 
 .project-card:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-background-hover);
 }
 
 .project-card.active {
-  border-color: var(--color-primary);
-  background: var(--color-bg-active);
+  border-color: var(--color-text-accent);
+  background: var(--color-background-active);
 }
 
 .project-card.drop-target {
-  border-color: var(--color-primary);
-  background: var(--color-bg-hover);
-  box-shadow: 0 0 0 2px rgb(74 144 226 / 25%);
+  border-color: var(--color-text-accent);
+  background: var(--color-background-hover);
+  box-shadow: var(--shadow-focus);
 }
 
 .project-row {
@@ -345,19 +345,19 @@ const formatDate = (dateStr: string) => {
 }
 
 .project-card.no-project {
-  border: 2px dashed var(--color-border);
+  border: 2px dashed var(--color-border-default);
   background: transparent;
 }
 
 .project-card.no-project:hover {
-  border-color: var(--color-primary);
-  background: var(--color-bg-hover);
+  border-color: var(--color-text-accent);
+  background: var(--color-background-hover);
 }
 
 .project-card.no-project.active {
   border-style: solid;
-  border-color: var(--color-primary);
-  background: var(--color-bg-active);
+  border-color: var(--color-text-accent);
+  background: var(--color-background-active);
 }
 
 .no-project-icon {
@@ -367,7 +367,7 @@ const formatDate = (dateStr: string) => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--color-bg-secondary);
+  background: var(--color-background-secondary);
   color: var(--color-text-secondary);
   flex-shrink: 0;
 }
@@ -396,7 +396,7 @@ const formatDate = (dateStr: string) => {
 }
 
 .project-card.drop-target .project-name {
-  color: var(--color-primary);
+  color: var(--color-text-accent);
 }
 
 .project-meta {
@@ -431,8 +431,8 @@ const formatDate = (dateStr: string) => {
 }
 
 .status-badge.completed {
-  background: #dcfce7;
-  color: #16a34a;
+  background: var(--color-success-light);
+  color: var(--color-success-text);
 }
 
 .color-bar {

@@ -599,14 +599,11 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   border: 1px solid var(--color-border-default);
   background-color: var(--color-card-available);
   border-radius: 0.4rem;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+  transition: box-shadow 0.2s;
   cursor: pointer;
 }
 
 .task-card:hover {
-  border-color: var(--color-border-hover);
   box-shadow: var(--shadow-md);
 }
 

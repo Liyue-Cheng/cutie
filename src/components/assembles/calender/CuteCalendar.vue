@@ -1,5 +1,5 @@
 <template>
-  <div class="calendar-container" :class="`zoom-${currentZoom}x`">
+  <div class="calendar-container" :class="[`zoom-${currentZoom}x`, viewTypeClass]">
     <!-- 自定义日期头部 -->
     <div v-if="displayDates.length > 0" class="custom-day-headers">
       <div class="time-axis-placeholder" :style="{ width: timeAxisWidth + 'px' }"></div>
@@ -13,10 +13,12 @@
           'is-drag-target': isDragTargetDate(dateInfo.date),
         }"
         :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
+        @click="onDayHeaderClick(dateInfo.date)"
       >
         <span class="day-name">{{ dateInfo.dayName }}</span>
-        <span class="date-number">{{ dateInfo.dateNumber }}</span>
-        <span v-if="dateInfo.isToday" class="today-badge">
+        <span class="date-number" :class="{ 'is-today': dateInfo.isToday }">{{ dateInfo.dateNumber }}</span>
+        <!-- 单日/多日视图：完整今天徽章 -->
+        <span v-if="dateInfo.isToday && props.viewType === 'day'" class="today-badge">
           <span class="today-dot"></span>今天
         </span>
         <!-- 拖动预览指示器 -->
@@ -105,10 +107,14 @@ const props = withDefaults(
 // ==================== Events ====================
 const emit = defineEmits<{
   'date-change': [date: string] // 日历显示日期变化事件
+  'month-date-click': [date: string] // 月视图日期点击事件
 }>()
 
 // 默认缩放倍率为 1
 const currentZoom = computed(() => props.zoom ?? 1)
+
+// 视图类型 class（用于 CSS 样式区分）
+const viewTypeClass = computed(() => `view-type-${props.viewType}`)
 
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
@@ -244,8 +250,19 @@ const viewTypeRef = computed(() => props.viewType)
 const monthViewFiltersRef = computed(() => props.monthViewFilters)
 const { calendarEvents } = useCalendarEvents(drag.previewEvent, viewTypeRef, monthViewFiltersRef)
 
+// 月视图日期点击回调
+function handleMonthDateClick(date: string) {
+  emit('month-date-click', date)
+}
+
+// 日期头部点击（周视图/多日视图）
+function onDayHeaderClick(date: string) {
+  emit('month-date-click', date)
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Day header clicked', { date })
+}
+
 // 事件处理器
-const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId)
+const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId, handleMonthDateClick)
 
 function handleCalendarEventClick(clickInfo: EventClickArg) {
   handlers.handleEventClick(clickInfo)
@@ -1472,20 +1489,20 @@ defineExpose({
 
 /* 🖱️ 日期头部悬停效果 */
 .custom-day-header:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 3%)); /* 🎨 悬停背景 */
+  background-color: var(--color-background-hover); /* 🎨 悬停背景 */
 }
 
 /* 🎯 拖拽目标状态 */
 .custom-day-header.is-drag-target {
-  background-color: var(--color-primary-bg, rgb(74 144 226 / 15%)); /* 🎨 主色背景 */
-  border-color: var(--color-primary, #4a90e2); /* 🎨 主色边框 */
+  background-color: var(--color-background-accent-light); /* 🎨 强调背景 */
+  border-color: var(--color-text-accent); /* 🎨 强调边框 */
 }
 
 /* 📍 拖拽预览指示器 */
 .drag-preview-indicator {
   font-size: 1.6rem; /* 📏 指示器大小 */
   font-weight: 600; /* 📝 加粗 */
-  color: var(--color-primary, #4a90e2); /* 🎨 主色 */
+  color: var(--color-text-accent); /* 🎨 强调色 */
   line-height: 1; /* 📏 紧凑行高 */
 }
 
@@ -1493,17 +1510,31 @@ defineExpose({
 .custom-day-header .day-name {
   font-size: 1.2rem; /* 📏 日期名字体 */
   font-weight: 600; /* 📝 加粗 */
-  color: var(--color-text-secondary, #666); /* 🎨 次要文字色 */
+  color: var(--color-text-secondary); /* 🎨 次要文字色 */
   text-transform: uppercase; /* 🔤 大写转换 */
+  line-height: 1.4; /* 📏 固定行高，避免中英文高度差异 */
 }
 
 .custom-day-header .date-number {
   font-size: 1.4rem; /* 📏 日期数字字体 */
   font-weight: 500; /* 📝 中等字重 */
-  color: var(--color-text-primary, #333); /* 🎨 主要文字色 */
+  color: var(--color-text-primary); /* 🎨 主要文字色 */
+  line-height: 1.4; /* 📏 固定行高，避免中英文高度差异 */
 }
 
-/* 🌟 今日徽章 */
+/* 🌟 周视图今天日期数字 - 圆角矩形背景 */
+.calendar-container.view-type-week .custom-day-header .date-number.is-today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.6rem;
+  font-weight: 600;
+  color: var(--color-text-on-accent);
+  background-color: var(--color-calendar-today);
+  border-radius: 0.4rem;
+}
+
+/* 🌟 今日徽章（仅单日/多日视图显示） */
 .custom-day-header .today-badge {
   display: inline-flex; /* 🎪 内联弹性布局 */
   align-items: center; /* ⬆️ 垂直居中 */
@@ -1512,8 +1543,8 @@ defineExpose({
   margin-left: 0.4rem; /* 📏 左边距 */
   font-size: 1.1rem; /* 📏 徽章字体 */
   font-weight: 600; /* 📝 加粗 */
-  color: var(--color-primary, #4a90e2); /* 🎨 主色文字 */
-  background-color: var(--color-primary-bg, rgb(74 144 226 / 10%)); /* 🎨 主色背景 */
+  color: var(--color-text-accent); /* 🎨 强调文字色 */
+  background-color: var(--color-background-accent-light); /* 🎨 强调背景 */
   border-radius: 1rem; /* ⭕ 胶囊形状 */
   line-height: 1.4; /* 📏 舒适行高 */
 }
@@ -1523,6 +1554,6 @@ defineExpose({
   width: 0.5rem; /* 📏 圆点宽度 */
   height: 0.5rem; /* 📏 圆点高度 */
   border-radius: 50%; /* ⭕ 完全圆形 */
-  background-color: var(--color-primary, #4a90e2); /* 🎨 主色填充 */
+  background-color: var(--color-text-accent); /* 🎨 强调色填充 */
 }
 </style>

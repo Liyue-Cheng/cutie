@@ -30,20 +30,6 @@
                 @change="onDateChange"
               />
             </div>
-
-            <!-- 天数选择器（CuteDropdown） -->
-            <CuteDropdown
-              v-model="dayCount"
-              :options="dayCountOptions.map((c) => ({ value: c, label: `${c}天` }))"
-              @change="onDayCountChange"
-            >
-              <template #trigger>
-                <button class="day-count-trigger">
-                  <span>{{ dayCount }}天</span>
-                  <CuteIcon name="ChevronDown" :size="14" />
-                </button>
-              </template>
-            </CuteDropdown>
           </div>
 
           <!-- 右侧筛选菜单 -->
@@ -132,7 +118,6 @@ const getValidDateString = (): string => {
 
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
 const dayCount = ref(props.modelValue) // 显示的天数
-const dayCountOptions = [1, 3, 5, 7] // 可选的天数选项
 const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
 
 // 筛选菜单状态
@@ -243,13 +228,6 @@ function onDateChange() {
   })
 
   // 预加载选择日期范围的任务
-  loadDateRangeTasks()
-}
-
-// 下拉菜单变化处理
-function onDayCountChange() {
-  emit('update:modelValue', dayCount.value) // 通知父组件
-  logger.info(LogTags.VIEW_HOME, 'Day count changed', { dayCount: dayCount.value })
   loadDateRangeTasks()
 }
 
@@ -421,32 +399,6 @@ onMounted(async () => {
 .nav-btn {
   width: 3.6rem;
   padding: 0;
-}
-
-/* 天数选择器触发器 */
-.day-count-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.3rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
-  min-width: 8rem;
-  white-space: nowrap;
-}
-
-.day-count-trigger:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border-color: var(--color-border-hover, var(--color-border-default));
 }
 
 /* ==================== 筛选下拉菜单 ==================== */
