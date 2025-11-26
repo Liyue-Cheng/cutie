@@ -8,7 +8,7 @@
         class="toolbar-button"
         :class="{ active: currentView === viewKey }"
         :title="config.label"
-        @click="$emit('view-change', viewKey)"
+        @click="handleClick(viewKey)"
       >
         <CuteIcon :name="config.icon" :size="24" />
       </button>
@@ -17,6 +17,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 
 // Props
@@ -27,15 +28,59 @@ interface ViewConfig {
 
 interface Props {
   viewConfig: Record<string, ViewConfig>
-  currentView: string
+  currentView: string | null // null 表示收起状态
+  allowCollapse?: boolean // 是否允许再次点击收起，默认 false
+  defaultView?: string | null // 默认视图，null 表示默认收起（仅 allowCollapse 为 true 时有效）
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  allowCollapse: false,
+  defaultView: undefined, // undefined 表示使用第一个视图
+})
 
 // Emits
-defineEmits<{
-  'view-change': [viewKey: string]
+const emit = defineEmits<{
+  'view-change': [viewKey: string | null]
 }>()
+
+// 计算第一个视图 key
+const firstViewKey = computed(() => {
+  const keys = Object.keys(props.viewConfig)
+  return keys.length > 0 ? keys[0] : null
+})
+
+// 计算实际的默认视图
+const resolvedDefaultView = computed(() => {
+  if (props.defaultView !== undefined) {
+    // 如果不允许收起，defaultView 不能为 null
+    if (!props.allowCollapse && props.defaultView === null) {
+      return firstViewKey.value
+    }
+    return props.defaultView
+  }
+  return firstViewKey.value
+})
+
+// 点击处理
+function handleClick(viewKey: string) {
+  if (props.currentView === viewKey) {
+    // 再次点击已激活图标
+    if (props.allowCollapse) {
+      emit('view-change', null) // 收起
+    }
+    // 不允许收起时不触发事件
+  } else {
+    emit('view-change', viewKey) // 切换视图
+  }
+}
+
+// 初始化时触发默认视图
+onMounted(() => {
+  // 如果当前没有选中视图，触发默认视图
+  if (props.currentView === null && resolvedDefaultView.value !== null) {
+    emit('view-change', resolvedDefaultView.value)
+  }
+})
 </script>
 
 <style scoped>

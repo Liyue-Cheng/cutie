@@ -19,7 +19,7 @@ const registerStore = useRegisterStore()
 const uiStore = useUIStore()
 
 // ==================== 状态 ====================
-const currentRightPaneView = ref<RightPaneView>('timeline')
+const currentRightPaneView = ref<RightPaneView | null>(null)
 
 // 右侧面板视图配置
 const rightPaneViewConfig = {
@@ -34,9 +34,9 @@ onMounted(() => {
 })
 
 // ==================== 事件处理 ====================
-function switchRightPaneView(view: string) {
+function switchRightPaneView(view: string | null) {
   logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
-  currentRightPaneView.value = view as RightPaneView
+  currentRightPaneView.value = view as RightPaneView | null
 }
 </script>
 
@@ -48,7 +48,7 @@ function switchRightPaneView(view: string) {
     </div>
 
     <!-- 右边栏：控制选项 -->
-    <div class="right-control-pane">
+    <div v-if="currentRightPaneView" class="right-control-pane">
       <TwoRowLayout>
         <template #top>
           <div class="right-pane-header">
@@ -68,6 +68,8 @@ function switchRightPaneView(view: string) {
     <VerticalToolbar
       :view-config="rightPaneViewConfig"
       :current-view="currentRightPaneView"
+      :allow-collapse="true"
+      :default-view="null"
       @view-change="switchRightPaneView"
     />
 
