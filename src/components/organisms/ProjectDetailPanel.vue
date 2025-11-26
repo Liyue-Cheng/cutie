@@ -182,7 +182,7 @@ const showMoreMenu = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-background-secondary, #FF00FF);
+  background: var(--color-background-secondary, #f0f);
   overflow: hidden;
 }
 
@@ -192,7 +192,7 @@ const showMoreMenu = () => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--color-text-secondary, #FF00FF);
+  color: var(--color-text-secondary, #f0f);
   gap: 1.2rem;
 }
 
@@ -208,7 +208,7 @@ const showMoreMenu = () => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 72rem;
+  max-width: 60rem;
   height: 100%;
   margin: 0 auto;
   overflow: hidden;
@@ -217,7 +217,7 @@ const showMoreMenu = () => {
 /* Things 3 风格头部 */
 .project-header {
   flex-shrink: 0;
-  padding: 3.2rem 1.6rem 1.6rem; /* 上边距增大，左右与 TaskList 对齐 */
+  padding: 7rem 1.6rem 4rem; /* 上边距增大，左右与 TaskList 对齐 */
 }
 
 .header-title-row {
@@ -230,7 +230,7 @@ const showMoreMenu = () => {
   flex: 1;
   font-size: 2.2rem;
   font-weight: 700;
-  color: var(--color-text-primary, #FF00FF);
+  color: var(--color-text-primary, #f0f);
   margin: 0;
   line-height: 1.4;
 }
@@ -242,7 +242,7 @@ const showMoreMenu = () => {
   width: 3.2rem;
   height: 3.2rem;
   background: transparent;
-  color: var(--color-text-tertiary, #FF00FF);
+  color: var(--color-text-tertiary, #f0f);
   border: none;
   border-radius: 0.6rem;
   cursor: pointer;
@@ -250,15 +250,14 @@ const showMoreMenu = () => {
 }
 
 .more-btn:hover {
-  background: var(--color-background-hover, #FF00FF);
-  color: var(--color-text-primary, #FF00FF);
+  background: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .project-description {
   font-size: 1.4rem;
-  color: var(--color-text-secondary, #FF00FF);
+  color: var(--color-text-secondary, #f0f);
   margin-top: 0.8rem;
-  padding-left: 3.4rem; /* 与标题对齐（进度环宽度 2.4rem + gap 1rem） */
   line-height: 1.6;
 }
 
@@ -275,7 +274,7 @@ const showMoreMenu = () => {
 .icon-btn {
   padding: 0.4rem;
   background: transparent;
-  color: var(--color-text-secondary, #FF00FF);
+  color: var(--color-text-secondary, #f0f);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -283,14 +282,14 @@ const showMoreMenu = () => {
 }
 
 .icon-btn:hover {
-  background: var(--color-background-hover, #FF00FF);
-  color: var(--color-text-primary, #FF00FF);
+  background: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .no-tasks {
   text-align: center;
   padding: 4rem 2rem;
-  color: var(--color-text-secondary, #FF00FF);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .no-tasks p {
@@ -299,6 +298,6 @@ const showMoreMenu = () => {
 
 .no-tasks .hint {
   font-size: 1.2rem;
-  color: var(--color-text-tertiary, #FF00FF);
+  color: var(--color-text-tertiary, #f0f);
 }
 </style>
