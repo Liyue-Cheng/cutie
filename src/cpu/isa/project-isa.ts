@@ -336,4 +336,40 @@ export const ProjectISA: ISADefinition = {
       projectStore.removeSection_mut(payload.id)
     },
   },
+
+  'project_section.reorder': {
+    meta: {
+      description: '重排序 ProjectSection',
+      category: 'project',
+      resourceIdentifier: (payload) => [`project_section:${payload.section_id}`],
+      priority: 6,
+      timeout: 5000,
+    },
+
+    validate: async (payload) => {
+      if (!payload.project_id?.trim()) {
+        console.warn('❌ Project ID 不能为空')
+        return false
+      }
+      if (!payload.section_id?.trim()) {
+        console.warn('❌ Section ID 不能为空')
+        return false
+      }
+      return true
+    },
+
+    request: {
+      method: 'POST',
+      url: (payload) => `/projects/${payload.project_id}/sections/${payload.section_id}/reorder`,
+      body: (payload) => ({
+        prev_section_id: payload.prev_section_id ?? null,
+        next_section_id: payload.next_section_id ?? null,
+      }),
+    },
+
+    commit: async (result: ProjectSection) => {
+      const projectStore = useProjectStore()
+      projectStore.addOrUpdateSection_mut(result)
+    },
+  },
 }

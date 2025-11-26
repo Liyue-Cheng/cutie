@@ -33,4 +33,8 @@ pub fn create_routes() -> Router<AppState> {
             "/:project_id/sections/:id",
             delete(endpoints::delete_section),
         )
+        .route(
+            "/:project_id/sections/:id/reorder",
+            post(endpoints::reorder_section),
+        )
 }

@@ -8,6 +8,7 @@ pub mod update_project;
 pub mod create_section;
 pub mod delete_section;
 pub mod list_sections;
+pub mod reorder_section;
 pub mod update_section;
 
 // 导出 handle 函数
@@ -20,4 +21,5 @@ pub use update_project::handle as update_project;
 pub use create_section::handle as create_section;
 pub use delete_section::handle as delete_section;
 pub use list_sections::handle as list_sections;
+pub use reorder_section::handle as reorder_section;
 pub use update_section::handle as update_section;

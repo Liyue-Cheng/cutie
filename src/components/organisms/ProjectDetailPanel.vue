@@ -55,7 +55,7 @@
         </div>
 
         <!-- 任务列表区域 -->
-        <div class="tasks-area">
+        <div class="tasks-area" @dragover="onContainerDragOver">
           <!-- 无 section 的任务（即使没有任务也要显示） -->
           <div class="task-section">
             <TaskList
@@ -66,20 +66,38 @@
             />
           </div>
 
-          <!-- 各个 section 的任务 -->
-          <div v-for="section in sections" :key="section.id" class="task-section">
-            <TaskList
-              :title="section.title"
-              :view-key="`project::${project.id}::section::${section.id}`"
-              title-color="var(--color-text-accent)"
+          <!-- 各个 section 的任务（支持拖放排序） -->
+          <template v-for="(section, index) in sections" :key="section.id">
+            <!-- 拖放指示线（在元素之前） -->
+            <div v-if="dropTargetIndex === index" class="section-drop-indicator" />
+
+            <div
+              class="task-section is-draggable"
+              :class="{ 'is-dragging': draggingSection?.id === section.id }"
+              draggable="true"
+              @dragstart="onDragStart(section, index, $event)"
+              @dragover="onSectionDragOver($event, index)"
+              @dragleave="onSectionDragLeave($event)"
             >
-              <template #title-actions>
-                <button class="icon-btn" @click="handleEditSection(section.id)">
-                  <CuteIcon name="Pencil" :size="14" />
-                </button>
-              </template>
-            </TaskList>
-          </div>
+              <TaskList
+                :title="section.title"
+                :view-key="`project::${project.id}::section::${section.id}`"
+                title-color="var(--color-text-accent)"
+              >
+                <template #title-actions>
+                  <button class="icon-btn drag-handle" @mousedown.stop>
+                    <CuteIcon name="GripVertical" :size="14" />
+                  </button>
+                  <button class="icon-btn" @click="handleEditSection(section.id)">
+                    <CuteIcon name="Pencil" :size="14" />
+                  </button>
+                </template>
+              </TaskList>
+            </div>
+          </template>
+
+          <!-- 末尾拖放指示线 -->
+          <div v-if="dropTargetIndex === sections.length" class="section-drop-indicator" />
 
           <!-- 空状态 -->
           <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
@@ -105,6 +123,8 @@ import { useTaskStore } from '@/stores/task'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CircularProgress from '@/components/parts/CircularProgress.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
+import { useSectionDrag } from '@/composables/drag/useSectionDrag'
+import { pipeline } from '@/cpu'
 
 interface Props {
   projectId?: string | null
@@ -157,6 +177,28 @@ const hasTasksWithoutSection = computed(() => {
     (task) => task.project_id === props.projectId && !task.section_id && !task.is_deleted
   )
   return tasks.length > 0
+})
+
+// Section 拖放排序
+const {
+  draggingSection,
+  dropTargetIndex,
+  onDragStart,
+  onSectionDragOver,
+  onSectionDragLeave,
+  onContainerDragOver,
+} = useSectionDrag({
+  sections,
+  onReorder: async (sectionId, prevId, nextId) => {
+    if (!props.projectId) return
+
+    await pipeline.dispatch('project_section.reorder', {
+      project_id: props.projectId,
+      section_id: sectionId,
+      prev_section_id: prevId,
+      next_section_id: nextId,
+    })
+  },
 })
 
 // 格式化日期
@@ -285,6 +327,20 @@ const showMoreMenu = () => {
 .icon-btn:hover {
   background: var(--color-background-hover, #f0f);
   color: var(--color-text-primary, #f0f);
+}
+
+/* 拖拽把手 */
+.icon-btn.drag-handle {
+  cursor: grab;
+  opacity: 0.5;
+}
+
+.icon-btn.drag-handle:hover {
+  opacity: 1;
+}
+
+.icon-btn.drag-handle:active {
+  cursor: grabbing;
 }
 
 .no-tasks {

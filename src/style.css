@@ -857,9 +857,91 @@ a:hover {
   text-overflow: ellipsis;
 }
 
+/* ============================================
+   10. Section 拖拽样式
+   ============================================ */
+
+/* 幽灵元素 - 简化的标题栏 */
+.section-drag-ghost {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+
+  /* 外观 */
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1.2rem;
+  background: var(--color-background-primary, #faf4ed);
+  border: 2px solid var(--rose-pine-foam, #56949f);
+  border-radius: 0.8rem;
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 15%),
+    0 0 0 1px var(--rose-pine-foam, #56949f);
+
+  /* 半透明 */
+  opacity: 0.9;
+
+  /* 防止选中 */
+  user-select: none;
+}
+
+.section-drag-ghost .ghost-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.section-drag-ghost .ghost-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #575279);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* 拖动指示线 */
+.section-drop-indicator {
+  height: 3px;
+  background: var(--rose-pine-foam, #56949f);
+  border-radius: 2px;
+  margin: 0.4rem 0;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 0 8px var(--rose-pine-foam, #56949f);
+  animation: section-drop-pulse 1s ease-in-out infinite;
+}
+
+@keyframes section-drop-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* 正在拖动的源 Section */
+.task-section.is-dragging {
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+
+/* Section 拖拽把手样式 */
+.task-section.is-draggable {
+  cursor: grab;
+}
+
+.task-section.is-draggable:active {
+  cursor: grabbing;
+}
 
 /* ============================================
-   10. 实用工具类
+   11. 实用工具类
    ============================================ */
 
 /* 文本颜色工具类 */
