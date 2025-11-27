@@ -26,7 +26,7 @@ export function createEventHandlers(core: ReturnType<typeof createUserSettingsCo
       interruptHandler.on('user_settings.batch_updated', handleBatchUpdated)
       interruptHandler.on('user_settings.reset', handleSettingsReset)
 
-      logger.info(LogTags.STORE, 'UserSettings event subscriptions initialized (v4.0 - via INT)')
+      logger.info(LogTags.STORE_USER_SETTINGS, 'UserSettings event subscriptions initialized (v4.0 - via INT)')
     })
   }
 
@@ -38,12 +38,12 @@ export function createEventHandlers(core: ReturnType<typeof createUserSettingsCo
       const setting: UserSettingDto = event.payload
       core.addOrUpdateSetting_mut(setting)
 
-      logger.info(LogTags.STORE, 'Setting updated from SSE', {
+      logger.info(LogTags.STORE_USER_SETTINGS, 'Setting updated from SSE', {
         key: setting.setting_key,
       })
     } catch (error) {
       logger.error(
-        LogTags.STORE,
+        LogTags.STORE_USER_SETTINGS,
         'Failed to process setting updated event',
         error instanceof Error ? error : new Error(String(error)),
         {
@@ -63,12 +63,12 @@ export function createEventHandlers(core: ReturnType<typeof createUserSettingsCo
 
       core.addOrUpdateBatch_mut(settings)
 
-      logger.info(LogTags.STORE, 'Batch settings updated from SSE', {
+      logger.info(LogTags.STORE_USER_SETTINGS, 'Batch settings updated from SSE', {
         count: settings.length,
       })
     } catch (error) {
       logger.error(
-        LogTags.STORE,
+        LogTags.STORE_USER_SETTINGS,
         'Failed to process batch updated event',
         error instanceof Error ? error : new Error(String(error)),
         {
@@ -88,12 +88,12 @@ export function createEventHandlers(core: ReturnType<typeof createUserSettingsCo
 
       core.replaceAll_mut(settings)
 
-      logger.info(LogTags.STORE, 'Settings reset from SSE', {
+      logger.info(LogTags.STORE_USER_SETTINGS, 'Settings reset from SSE', {
         count: settings.length,
       })
     } catch (error) {
       logger.error(
-        LogTags.STORE,
+        LogTags.STORE_USER_SETTINGS,
         'Failed to process settings reset event',
         error instanceof Error ? error : new Error(String(error)),
         {

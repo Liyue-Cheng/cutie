@@ -293,19 +293,40 @@ impl AppConfig {
 
     /// 获取默认数据目录
     fn default_data_dir() -> PathBuf {
-        if let Some(data_dir) = dirs::data_dir() {
-            data_dir.join("cutie")
-        } else {
+        // ✅ Debug 和 Release 使用不同的数据目录
+        #[cfg(debug_assertions)]
+        {
+            // Debug 模式：使用项目根目录下的 data 文件夹（方便开发调试）
             PathBuf::from("./data")
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            // Release 模式：使用系统应用数据目录（生产环境）
+            if let Some(data_dir) = dirs::data_dir() {
+                data_dir.join("cutie")
+            } else {
+                // 如果无法获取系统目录，回退到项目目录
+                PathBuf::from("./data")
+            }
         }
     }
 
     /// 获取默认配置目录
     fn default_config_dir() -> PathBuf {
-        if let Some(config_dir) = dirs::config_dir() {
-            config_dir.join("cutie")
-        } else {
+        // ✅ Debug 和 Release 使用不同的配置目录
+        #[cfg(debug_assertions)]
+        {
+            // Debug 模式：使用项目根目录下的 config 文件夹
             PathBuf::from("./config")
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            // Release 模式：使用系统配置目录
+            if let Some(config_dir) = dirs::config_dir() {
+                config_dir.join("cutie")
+            } else {
+                PathBuf::from("./config")
+            }
         }
     }
 

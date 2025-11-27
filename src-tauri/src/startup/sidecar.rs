@@ -212,6 +212,15 @@ pub async fn run_sidecar() -> Result<(), AppError> {
         "Configuration loaded successfully"
     );
 
+    // 输出数据库路径信息
+    let db_path = config.database_path();
+    tracing::info!(
+        target: "STARTUP:database",
+        database_path = %db_path.display(),
+        build_mode = if cfg!(debug_assertions) { "debug" } else { "release" },
+        "Database path configured"
+    );
+
     // 初始化数据库
     let db_pool = crate::startup::database::initialize_database(&config).await?;
     tracing::info!("Database initialized successfully");

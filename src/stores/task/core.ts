@@ -61,7 +61,7 @@ export function createTaskCore() {
 
     // 对每个循环规则，只保留最近的未完成任务
     const filteredRecurringTasks: TaskCard[] = []
-    for (const [recurrenceId, groupTasks] of recurrenceGroups) {
+    for (const [_recurrenceId, groupTasks] of recurrenceGroups) {
       // 过滤出未完成的任务
       const incompleteTasks = groupTasks.filter((t) => !t.is_completed)
 

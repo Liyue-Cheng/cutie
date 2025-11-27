@@ -7,7 +7,7 @@
         <HomeCalendarPanel
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
-          :calendar-days="7"
+          :calendar-days="5"
           left-view-type="staging"
           current-right-pane-view="calendar"
           :is-calendar-mode="true"
@@ -85,7 +85,7 @@
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
           v-model:calendar-days="calendarDays"
-          :left-view-type="currentView"
+          :left-view-type="currentView === 'calendar' ? 'recent' : currentView"
           :current-right-pane-view="currentRightPaneView"
           @calendar-size-update="updateCalendarSize"
           @enter-calendar-mode="enterCalendarMode"
@@ -150,7 +150,8 @@ const calendarModeToolbarConfig = {
 } as const
 
 // 日历模式右栏视图切换
-function onCalendarModeRightViewChange(viewKey: string) {
+function onCalendarModeRightViewChange(viewKey: string | null) {
+  if (!viewKey) return
   calendarModeRightView.value = viewKey as CalendarModeRightView
   logger.info(LogTags.VIEW_HOME, 'Calendar mode right view changed', { viewKey })
 }
@@ -203,7 +204,8 @@ function getDefaultRightPaneView(leftView: 'recent' | 'staging'): RightPaneView 
 }
 
 // 切换右栏视图
-function switchRightPaneView(viewKey: string) {
+function switchRightPaneView(viewKey: string | null) {
+  if (!viewKey) return
   currentRightPaneView.value = viewKey as RightPaneView
   logger.info(LogTags.VIEW_HOME, 'Right pane view switched', { viewKey })
 }

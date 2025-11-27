@@ -46,7 +46,8 @@ const rightPaneViewConfig = {
 } as const
 
 // ==================== 事件处理 ====================
-function switchRightPaneView(view: string) {
+function switchRightPaneView(view: string | null) {
+  if (!view) return
   logger.debug(LogTags.VIEW_STAGING, 'Switching right pane view', { view })
   currentRightPaneView.value = view as RightPaneView
 }

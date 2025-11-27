@@ -134,7 +134,8 @@ function forceCalendarRefresh() {
   requestAnimationFrame(resize)
 }
 
-function switchRightPaneView(view: string) {
+function switchRightPaneView(view: string | null) {
+  if (!view) return
   const viewKey = view as RightPaneView
   logger.debug(LogTags.VIEW_HOME, 'Switching right pane view', { view })
 
