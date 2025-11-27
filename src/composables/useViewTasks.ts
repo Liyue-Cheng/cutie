@@ -109,8 +109,8 @@ export function useViewTasks(viewKey: string) {
             case 'archive':
               baseTasks = taskStore.archivedTasks
               break
-            case 'upcoming':
-              baseTasks = taskStore.upcomingTasks
+            case 'deadline':
+              baseTasks = taskStore.deadlineTasks
               break
             default:
               logger.warn(LogTags.STORE_VIEW, 'Unknown misc viewKey', { viewKey })

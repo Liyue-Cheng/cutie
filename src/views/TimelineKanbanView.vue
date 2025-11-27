@@ -8,7 +8,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingColumn from '@/components/assembles/tasks/kanban/StagingColumn.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
-import UpcomingColumn from '@/components/assembles/tasks/kanban/UpcomingColumn.vue'
+import DeadlineColumn from '@/components/assembles/tasks/kanban/DeadlineColumn.vue'
 import TemplateKanbanColumn from '@/components/assembles/template/TemplateKanbanColumn.vue'
 import UnderConstruction from '@/components/organisms/UnderConstruction.vue'
 import TrashView from '@/views/TrashView.vue'
@@ -23,7 +23,7 @@ import { pipeline } from '@/cpu'
 type RightPaneView =
   | 'calendar'
   | 'staging'
-  | 'upcoming'
+  | 'deadline'
   | 'templates'
   | 'projects'
   | 'polling'
@@ -68,7 +68,7 @@ const isRightPaneCollapsed = ref(true) // 🆕 右边栏是否收起（默认收
 const viewConfig = {
   calendar: { icon: 'Calendar', label: '日历' },
   staging: { icon: 'Layers', label: 'Staging' },
-  upcoming: { icon: 'Clock', label: '即将到期' },
+  deadline: { icon: 'Clock', label: '截止日期' },
   templates: { icon: 'FileText', label: '模板' },
   projects: { icon: 'FolderKanban', label: '项目' },
   polling: { icon: 'ListChecks', label: '轮询' },
@@ -370,8 +370,8 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
           />
           <!-- Staging 视图 -->
           <StagingColumn v-else-if="currentRightPaneView === 'staging'" />
-          <!-- Upcoming 视图 -->
-          <UpcomingColumn v-else-if="currentRightPaneView === 'upcoming'" />
+          <!-- Deadline 视图 -->
+          <DeadlineColumn v-else-if="currentRightPaneView === 'deadline'" />
           <!-- 模板视图 -->
           <TemplateKanbanColumn v-else-if="currentRightPaneView === 'templates'" />
           <!-- 其他视图（开发中） -->

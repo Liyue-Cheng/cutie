@@ -2,6 +2,7 @@
   <div class="task-bar" :class="taskBarClasses" ref="taskBarRef">
     <!-- 标题栏 -->
     <div
+      ref="headerRef"
       class="task-bar-header"
       :class="{ 'non-collapsible': !props.collapsible }"
       @click="props.collapsible ? toggleCollapse() : undefined"
@@ -10,13 +11,17 @@
         <h3 class="task-bar-title" :style="titleStyle">{{ title }}</h3>
         <span class="task-count">{{ displayItems.length }}</span>
       </div>
-      <CuteIcon
-        v-if="props.collapsible"
-        name="ChevronDown"
-        :size="16"
-        class="collapse-icon"
-        :class="{ rotated: isCollapsed }"
-      />
+      <div class="header-right">
+        <!-- 标题栏操作按钮插槽 -->
+        <slot name="title-actions" />
+        <CuteIcon
+          v-if="props.collapsible"
+          name="ChevronDown"
+          :size="16"
+          class="collapse-icon"
+          :class="{ rotated: isCollapsed }"
+        />
+      </div>
     </div>
 
     <!-- 内容区（可折叠） -->
@@ -55,6 +60,7 @@
               {
                 'is-preview': (task as any)._isPreview === true,
                 'drag-compact': (task as any)._dragCompact === true,
+                'fading-out': fadingTasks.has(task.id),
               },
             ]"
             :data-task-id="task.id"
@@ -65,6 +71,7 @@
               :display-mode="displayMode"
               @toggle-complete="toggleTaskComplete(task.id)"
               @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
+              @completing="onTaskCompleting"
             />
           </div>
           <div v-if="displayItems.length === 0" key="empty-state" class="empty-state">
@@ -79,6 +86,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ViewMetadata } from '@/types/drag'
+import type { TaskCard } from '@/types/dtos'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TaskStrip from './TaskStrip.vue'
 import { useViewTasks } from '@/composables/useViewTasks'
@@ -98,6 +106,7 @@ interface Props {
   fillRemainingSpace?: boolean // 是否占满父容器剩余空间
   collapsible?: boolean // 是否可折叠
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
+  hideCompleted?: boolean // 是否隐藏已完成任务
   inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
   titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
   displayMode?: 'simple' | 'full' // 显示模式：简单/完整
@@ -109,6 +118,7 @@ const props = withDefaults(defineProps<Props>(), {
   fillRemainingSpace: false,
   collapsible: true,
   hideDailyRecurringTasks: false,
+  hideCompleted: false,
   inputBorderStyle: 'dashed',
   titleColor: '',
   displayMode: 'full',
@@ -125,30 +135,66 @@ const { tasks } = useViewTasks(props.viewKey)
 // 获取循环规则 store
 const recurrenceStore = useRecurrenceStore()
 
-// 过滤任务：如果启用了隐藏每日循环任务，则过滤掉 FREQ=DAILY 的任务
+// 🔥 淡出任务缓存：用于在任务消失后仍能显示淡出动画
+// 利用 sort_positions 来保持正确的排序位置
+interface FadingTask {
+  task: TaskCard // 任务快照（包含 sort_positions）
+}
+const fadingTasks = ref<Map<string, FadingTask>>(new Map())
+
+// 过滤任务：根据配置过滤已完成和每日循环任务
 const filteredTasks = computed(() => {
-  if (!props.hideDailyRecurringTasks) {
-    return tasks.value
+  let result = [...tasks.value]
+
+  // 1. 添加淡出任务（如果不在原始列表中）
+  for (const [taskId, { task }] of fadingTasks.value) {
+    if (!result.find((t) => t.id === taskId)) {
+      result.push(task)
+    }
   }
 
-  return tasks.value.filter((task) => {
-    // 如果任务没有循环规则，保留
-    if (!task.recurrence_id) {
-      return true
-    }
-
-    // 获取循环规则
-    const recurrence = recurrenceStore.getRecurrenceById(task.recurrence_id)
-    if (!recurrence) {
-      return true // 如果找不到规则，保留任务（安全起见）
-    }
-
-    // 检查是否是每日循环（FREQ=DAILY）
-    const isDailyRecurrence = recurrence.rule.includes('FREQ=DAILY')
-
-    // 如果是每日循环，过滤掉（返回 false）；否则保留
-    return !isDailyRecurrence
+  // 2. 按 sort_positions 排序（利用现有排序系统保持位置）
+  result.sort((a, b) => {
+    const posA = a.sort_positions?.[props.viewKey] || ''
+    const posB = b.sort_positions?.[props.viewKey] || ''
+    return posA.localeCompare(posB)
   })
+
+  // 3. 过滤已完成任务（但保留淡出中的任务）
+  if (props.hideCompleted) {
+    result = result.filter((task) => {
+      // 如果任务未完成，保留
+      if (!task.is_completed) return true
+      // 如果任务正在淡出，也暂时保留
+      if (fadingTasks.value.has(task.id)) return true
+      // 其他已完成任务，过滤掉
+      return false
+    })
+  }
+
+  // 4. 过滤每日循环任务
+  if (props.hideDailyRecurringTasks) {
+    result = result.filter((task) => {
+      // 如果任务没有循环规则，保留
+      if (!task.recurrence_id) {
+        return true
+      }
+
+      // 获取循环规则
+      const recurrence = recurrenceStore.getRecurrenceById(task.recurrence_id)
+      if (!recurrence) {
+        return true // 如果找不到规则，保留任务（安全起见）
+      }
+
+      // 检查是否是每日循环（FREQ=DAILY）
+      const isDailyRecurrence = recurrence.rule.includes('FREQ=DAILY')
+
+      // 如果是每日循环，过滤掉（返回 false）；否则保留
+      return !isDailyRecurrence
+    })
+  }
+
+  return result
 })
 
 // State
@@ -159,6 +205,12 @@ const taskBarRef = ref<HTMLElement | null>(null)
 const taskListRef = ref<HTMLElement | null>(null)
 const taskInputRef = ref<HTMLInputElement | null>(null)
 const isInputFocused = ref(false)
+const headerRef = ref<HTMLElement | null>(null)
+
+// 暴露标题栏 ref 给父组件（用于 Section 拖拽）
+defineExpose({
+  headerRef,
+})
 
 const taskBarClasses = computed(() => ({
   collapsed: isCollapsed.value,
@@ -237,6 +289,28 @@ const { displayItems } = useInteractDrag({
 // Methods
 function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value
+}
+
+// 🔥 处理任务完成事件：缓存任务快照并延迟消失
+function onTaskCompleting(taskId: string) {
+  // 找到任务
+  const task = tasks.value.find((t) => t.id === taskId)
+
+  if (task) {
+    // 缓存任务快照（包含 sort_positions，用于保持排序位置）
+    const newMap = new Map(fadingTasks.value)
+    newMap.set(taskId, {
+      task: { ...task, is_completed: true },
+    })
+    fadingTasks.value = newMap
+  }
+
+  // 延迟后从缓存中移除，任务会自然消失
+  setTimeout(() => {
+    const newMap = new Map(fadingTasks.value)
+    newMap.delete(taskId)
+    fadingTasks.value = newMap
+  }, 800)
 }
 
 async function addTask() {
@@ -459,6 +533,12 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .collapse-icon {

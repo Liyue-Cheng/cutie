@@ -149,7 +149,7 @@
 
           <!-- ========== 普通模式控制栏 ========== -->
           <template v-else>
-            <!-- 左侧：进入日历模式按钮 + 年月显示 -->
+            <!-- 左侧：进入日历模式按钮 + 年月显示（日历视图） -->
             <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-left-controls">
               <button
                 class="calendar-mode-btn"
@@ -158,6 +158,13 @@
               >
                 <CuteIcon name="ChevronsLeft" :size="18" />
               </button>
+              <div class="calendar-year-month">
+                {{ calendarYearMonth }}
+              </div>
+            </div>
+
+            <!-- 左侧：年月显示（时间线视图） -->
+            <div v-else-if="props.currentRightPaneView === 'timeline'" class="calendar-left-controls">
               <div class="calendar-year-month">
                 {{ calendarYearMonth }}
               </div>

@@ -45,6 +45,21 @@
               <CuteDropdownItem @click.prevent>
                 <label class="filter-option">
                   <CuteCheckbox
+                    :checked="showCompletedTasks"
+                    size="small"
+                    @update:checked="
+                      (val) => {
+                        showCompletedTasks = val
+                        onFilterChange()
+                      }
+                    "
+                  />
+                  <span>显示已完成任务</span>
+                </label>
+              </CuteDropdownItem>
+              <CuteDropdownItem @click.prevent>
+                <label class="filter-option">
+                  <CuteCheckbox
                     :checked="showDailyRecurringTasks"
                     size="small"
                     @update:checked="
@@ -71,6 +86,7 @@
             :view-key="dateInfo.viewKey"
             :fill-remaining-space="index === dateList.length - 1"
             :hide-daily-recurring-tasks="!showDailyRecurringTasks"
+            :hide-completed="!showCompletedTasks"
           />
         </div>
       </template>
@@ -121,6 +137,7 @@ const dayCount = ref(props.modelValue) // 显示的天数
 const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
 
 // 筛选菜单状态
+const showCompletedTasks = ref(true) // 默认显示已完成任务
 const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
 
 // 监听 props 变化
@@ -234,6 +251,7 @@ function onDateChange() {
 // 筛选选项变化
 function onFilterChange() {
   logger.info(LogTags.VIEW_HOME, 'Filter changed', {
+    showCompletedTasks: showCompletedTasks.value,
     showDailyRecurringTasks: showDailyRecurringTasks.value,
   })
   // 筛选状态已通过 prop 传递给 TaskList 组件
@@ -451,6 +469,7 @@ onMounted(async () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  padding: 1rem;
 }
 
 /* 最后一个TaskList延展到底部，避免拖动到底部空白区域时闪烁 */

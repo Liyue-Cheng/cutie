@@ -1,15 +1,15 @@
 <template>
-  <div class="upcoming-list">
+  <div class="deadline-list">
     <!-- 标题栏（不可折叠） -->
-    <div class="upcoming-header">
+    <div class="deadline-header">
       <div class="header-left">
-        <h3 class="upcoming-title">即将到期</h3>
+        <h3 class="deadline-title">截止日期</h3>
         <span class="task-count">{{ allTasks.length }}</span>
       </div>
     </div>
 
     <!-- 内容区 -->
-    <div class="upcoming-content">
+    <div class="deadline-content">
       <!-- 逾期 -->
       <div v-if="groupedTasks.overdue.length > 0" class="task-group">
         <div class="group-header" @click="toggleGroup('overdue')">
@@ -168,8 +168,8 @@ function toggleGroup(group: keyof typeof collapsedGroups) {
   collapsedGroups[group] = !collapsedGroups[group]
 }
 
-// 获取所有即将到期的任务
-const allTasks = computed(() => taskStore.upcomingTasks)
+// 获取所有有截止日期的任务
+const allTasks = computed(() => taskStore.deadlineTasks)
 
 // 按时间范围分组
 const groupedTasks = computed(() => {
@@ -237,7 +237,7 @@ const groupedTasks = computed(() => {
 </script>
 
 <style scoped>
-.upcoming-list {
+.deadline-list {
   width: 100%;
   height: 100%;
   display: flex;
@@ -246,7 +246,7 @@ const groupedTasks = computed(() => {
 }
 
 /* 标题栏 */
-.upcoming-header {
+.deadline-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -261,7 +261,7 @@ const groupedTasks = computed(() => {
   gap: 0.8rem;
 }
 
-.upcoming-title {
+.deadline-title {
   font-size: 1.6rem;
   font-weight: 600;
   color: var(--color-text-primary);
@@ -283,7 +283,7 @@ const groupedTasks = computed(() => {
 }
 
 /* 内容区 */
-.upcoming-content {
+.deadline-content {
   flex: 1;
   overflow-y: auto;
   display: flex;

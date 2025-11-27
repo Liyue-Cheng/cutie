@@ -19,7 +19,7 @@
         <span class="date-number" :class="{ 'is-today': dateInfo.isToday }">{{ dateInfo.dateNumber }}</span>
         <!-- 单日/多日视图：完整今天徽章 -->
         <span v-if="dateInfo.isToday && props.viewType === 'day'" class="today-badge">
-          <span class="today-dot"></span>今天
+          今天
         </span>
         <!-- 拖动预览指示器 -->
         <span v-if="isDragTargetDate(dateInfo.date)" class="drag-preview-indicator">+</span>
@@ -1468,6 +1468,7 @@ defineExpose({
 /* ⏰ 时间轴占位符 */
 .time-axis-placeholder {
   flex-shrink: 0; /* 🚫 不收缩 */
+  height: 100%; /* 📏 继承容器高度 */
   border-right: 1px solid var(--color-border-default); /* 🔲 右边框 */
 }
 
@@ -1508,7 +1509,7 @@ defineExpose({
 
 /* 📝 日期头部文字元素 */
 .custom-day-header .day-name {
-  font-size: 1.2rem; /* 📏 日期名字体 */
+  font-size: 1.4rem; /* 📏 日期名字体 */
   font-weight: 600; /* 📝 加粗 */
   color: var(--color-text-secondary); /* 🎨 次要文字色 */
   text-transform: uppercase; /* 🔤 大写转换 */
@@ -1516,7 +1517,7 @@ defineExpose({
 }
 
 .custom-day-header .date-number {
-  font-size: 1.4rem; /* 📏 日期数字字体 */
+  font-size: 1.6rem; /* 📏 日期数字字体 */
   font-weight: 500; /* 📝 中等字重 */
   color: var(--color-text-primary); /* 🎨 主要文字色 */
   line-height: 1.4; /* 📏 固定行高，避免中英文高度差异 */
@@ -1538,22 +1539,13 @@ defineExpose({
 .custom-day-header .today-badge {
   display: inline-flex; /* 🎪 内联弹性布局 */
   align-items: center; /* ⬆️ 垂直居中 */
-  gap: 0.3rem; /* 📏 内部间距 */
   padding: 0.2rem 0.6rem; /* 📐 徽章内边距 */
   margin-left: 0.4rem; /* 📏 左边距 */
-  font-size: 1.1rem; /* 📏 徽章字体 */
+  font-size: 1.3rem; /* 📏 徽章字体 */
   font-weight: 600; /* 📝 加粗 */
   color: var(--color-text-accent); /* 🎨 强调文字色 */
   background-color: var(--color-background-accent-light); /* 🎨 强调背景 */
   border-radius: 1rem; /* ⭕ 胶囊形状 */
   line-height: 1.4; /* 📏 舒适行高 */
-}
-
-/* 🔴 今日指示圆点 */
-.custom-day-header .today-dot {
-  width: 0.5rem; /* 📏 圆点宽度 */
-  height: 0.5rem; /* 📏 圆点高度 */
-  border-radius: 50%; /* ⭕ 完全圆形 */
-  background-color: var(--color-text-accent); /* 🎨 强调色填充 */
 }
 </style>

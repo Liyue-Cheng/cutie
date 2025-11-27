@@ -77,7 +77,11 @@
 
       <!-- 中栏（原右栏）-->
       <div class="middle-column">
+        <!-- Upcoming 竖排视图 -->
+        <UpcomingVerticalPanel v-if="currentRightPaneView === 'upcoming'" />
+        <!-- 日历视图 -->
         <HomeCalendarPanel
+          v-else
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
           v-model:calendar-days="calendarDays"
@@ -112,6 +116,7 @@ import { useRoute, useRouter } from 'vue-router'
 import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
+import UpcomingVerticalPanel from '@/components/organisms/UpcomingVerticalPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
@@ -397,6 +402,9 @@ function calculateOptimalRatio(): number {
     ) {
       // Staging 和 Templates 视图：固定 1:1 比例
       leftRatio = 0.5
+    } else if (currentRightPaneView.value === 'upcoming') {
+      // Upcoming 视图：固定 1:1 比例
+      leftRatio = 0.5
     } else {
       // 其他视图保持当前比例
       return leftPaneWidth.value
@@ -406,6 +414,8 @@ function calculateOptimalRatio(): number {
     if (currentRightPaneView.value === 'calendar') {
       leftRatio = 0.25 // 1:3 比例
     } else if (currentRightPaneView.value === 'timeline') {
+      leftRatio = 0.5 // 50:50 比例
+    } else if (currentRightPaneView.value === 'upcoming') {
       leftRatio = 0.5 // 50:50 比例
     } else {
       // 其他视图保持当前比例
@@ -500,18 +510,23 @@ function shouldAutoAdjust(): boolean {
     return true
   }
 
-  // Recent 视图：Calendar、Staging 或 Templates 时需要自动调节
+  // Recent 视图：Calendar、Staging、Templates 或 Upcoming 时需要自动调节
   if (currentView.value === 'recent') {
     return (
       currentRightPaneView.value === 'calendar' ||
       currentRightPaneView.value === 'staging' ||
-      currentRightPaneView.value === 'templates'
+      currentRightPaneView.value === 'templates' ||
+      currentRightPaneView.value === 'upcoming'
     )
   }
 
-  // Staging 视图：Calendar 或 Timeline 时需要自动调节
+  // Staging 视图：Calendar、Timeline 或 Upcoming 时需要自动调节
   if (currentView.value === 'staging') {
-    return currentRightPaneView.value === 'calendar' || currentRightPaneView.value === 'timeline'
+    return (
+      currentRightPaneView.value === 'calendar' ||
+      currentRightPaneView.value === 'timeline' ||
+      currentRightPaneView.value === 'upcoming'
+    )
   }
 
   return false

@@ -902,6 +902,22 @@ a:hover {
   line-height: 1.4;
 }
 
+/* 克隆的标题栏幽灵元素（虚化效果） */
+.section-drag-ghost.section-drag-ghost-cloned {
+  /* 重置内部样式 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.6rem;
+  border-radius: 0.6rem;
+
+  /* 虚化效果 */
+  opacity: 0.85;
+  filter: blur(0.5px);
+  transform: scale(1.02);
+  transition: none;
+}
+
 /* 拖动指示线 */
 .section-drop-indicator {
   height: 3px;

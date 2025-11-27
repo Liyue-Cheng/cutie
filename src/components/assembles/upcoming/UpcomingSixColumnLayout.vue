@@ -81,67 +81,80 @@ function getColumnTotalCount(column: ColumnData): number {
     @mouseleave="handleMouseLeave"
   >
     <!-- 时间范围栏 -->
-    <div v-for="column in columns" :key="column.key" class="time-column">
-      <div class="column-header">
-        <h3 class="column-title">{{ column.title }}</h3>
-        <span class="column-count">{{ getColumnTotalCount(column) }}</span>
-      </div>
-      <div class="column-content">
-        <!-- 截止日期任务组 -->
-        <div v-if="column.dueDate.length > 0" class="task-group">
-          <div class="group-header">
-            <span>截止日期</span>
-            <span class="group-count">{{ column.dueDate.length }}</span>
+    <div v-for="column in columns" :key="column.key" class="time-column-wrapper">
+      <div class="time-column">
+        <!-- 内容容器（限制宽度） -->
+        <div class="content-container">
+          <!-- 头部 -->
+          <div class="column-header">
+            <div class="header-title-row">
+              <h3 class="column-title">{{ column.title }}</h3>
+              <span class="column-count">{{ getColumnTotalCount(column) }}</span>
+            </div>
           </div>
-          <TransitionGroup name="task-list" tag="div" class="group-tasks">
-            <TaskStrip
-              v-for="task in column.dueDate"
-              :key="task.id"
-              :task="task"
-              :view-key="`upcoming::${column.key}::dueDate`"
-              @completing="handleTaskCompleting"
-            />
-          </TransitionGroup>
-        </div>
 
-        <!-- 循环任务组 -->
-        <div v-if="column.recurrence.length > 0" class="task-group">
-          <div class="group-header">
-            <span>循环任务</span>
-            <span class="group-count">{{ column.recurrence.length }}</span>
+          <!-- 任务列表区域 -->
+          <div class="tasks-area">
+            <!-- 截止日期任务组 -->
+            <div v-if="column.dueDate.length > 0" class="task-section">
+              <div class="section-header">
+                <span>截止日期</span>
+                <span class="section-count">{{ column.dueDate.length }}</span>
+              </div>
+              <TransitionGroup name="task-list" tag="div" class="section-tasks">
+                <TaskStrip
+                  v-for="task in column.dueDate"
+                  :key="task.id"
+                  :task="task"
+                  :view-key="`upcoming::${column.key}::dueDate`"
+                  display-mode="simple"
+                  @completing="handleTaskCompleting"
+                />
+              </TransitionGroup>
+            </div>
+
+            <!-- 循环任务组 -->
+            <div v-if="column.recurrence.length > 0" class="task-section">
+              <div class="section-header">
+                <span>循环任务</span>
+                <span class="section-count">{{ column.recurrence.length }}</span>
+              </div>
+              <TransitionGroup name="task-list" tag="div" class="section-tasks">
+                <TaskStrip
+                  v-for="task in column.recurrence"
+                  :key="task.id"
+                  :task="task"
+                  :view-key="`upcoming::${column.key}::recurrence`"
+                  display-mode="simple"
+                  @completing="handleTaskCompleting"
+                />
+              </TransitionGroup>
+            </div>
+
+            <!-- 排期任务组 -->
+            <div v-if="column.scheduled.length > 0" class="task-section">
+              <div class="section-header">
+                <span>排期任务</span>
+                <span class="section-count">{{ column.scheduled.length }}</span>
+              </div>
+              <TransitionGroup name="task-list" tag="div" class="section-tasks">
+                <TaskStrip
+                  v-for="task in column.scheduled"
+                  :key="task.id"
+                  :task="task"
+                  :view-key="`upcoming::${column.key}::scheduled`"
+                  display-mode="simple"
+                  @completing="handleTaskCompleting"
+                />
+              </TransitionGroup>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="getColumnTotalCount(column) === 0" class="empty-state">
+              <CuteIcon name="Check" :size="40" />
+              <p>暂无任务</p>
+            </div>
           </div>
-          <TransitionGroup name="task-list" tag="div" class="group-tasks">
-            <TaskStrip
-              v-for="task in column.recurrence"
-              :key="task.id"
-              :task="task"
-              :view-key="`upcoming::${column.key}::recurrence`"
-              @completing="handleTaskCompleting"
-            />
-          </TransitionGroup>
-        </div>
-
-        <!-- 排期任务组 -->
-        <div v-if="column.scheduled.length > 0" class="task-group">
-          <div class="group-header">
-            <span>排期任务</span>
-            <span class="group-count">{{ column.scheduled.length }}</span>
-          </div>
-          <TransitionGroup name="task-list" tag="div" class="group-tasks">
-            <TaskStrip
-              v-for="task in column.scheduled"
-              :key="task.id"
-              :task="task"
-              :view-key="`upcoming::${column.key}::scheduled`"
-              @completing="handleTaskCompleting"
-            />
-          </TransitionGroup>
-        </div>
-
-        <!-- 空状态 -->
-        <div v-if="getColumnTotalCount(column) === 0" class="empty-column">
-          <CuteIcon name="Check" :size="40" />
-          <p>暂无任务</p>
         </div>
       </div>
     </div>
@@ -152,7 +165,6 @@ function getColumnTotalCount(column: ColumnData): number {
 /* ==================== 6栏容器 ==================== */
 .columns-container {
   display: flex;
-  gap: 1.6rem;
   padding: 2rem;
   overflow: auto hidden;
   height: 100%;
@@ -177,98 +189,117 @@ function getColumnTotalCount(column: ColumnData): number {
   background: var(--color-border-strong);
 }
 
+/* ==================== 时间栏外包装 ==================== */
+.time-column-wrapper {
+  flex: 0 0 auto;
+  padding-left: 1.6rem;
+  padding-right: 1.6rem;
+  border-right: 2px dashed var(--color-border-default, #f0f);
+}
+
+.time-column-wrapper:first-child {
+  padding-left: 0;
+}
+
+.time-column-wrapper:last-child {
+  padding-right: 0;
+  border-right: none;
+}
+
 /* ==================== 时间栏 ==================== */
 .time-column {
-  flex: 0 0 32rem;
+  width: 32rem;
   min-width: 32rem;
-  background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 }
 
+/* 内容容器 - 限制宽度并居中 */
+.content-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 头部 */
 .column-header {
+  flex-shrink: 0;
+  padding: 2rem 1.6rem 1.6rem;
+}
+
+.header-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 1.6rem 2rem;
-  border-bottom: 1px solid var(--color-border-default);
-  background-color: var(--color-background-secondary);
-  flex-shrink: 0;
+  gap: 1rem;
 }
 
 .column-title {
   margin: 0;
-  font-size: 1.6rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
 }
 
 .column-count {
   font-size: 1.3rem;
-  color: var(--color-text-tertiary);
-  background-color: var(--color-background-hover);
+  color: var(--color-text-tertiary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
   padding: 0.4rem 0.8rem;
   border-radius: 0.4rem;
 }
 
-.column-content {
+/* 任务列表区域 */
+.tasks-area {
   flex: 1;
   overflow-y: auto;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
 }
 
-/* ==================== 任务分组 ==================== */
-.task-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+/* 任务分组 */
+.task-section {
+  margin-bottom: 2.4rem;
 }
 
-.group-header {
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.8rem 1.2rem;
-  background-color: var(--color-background-secondary);
-  font-size: 1.2rem;
+  padding: 0.8rem 0;
+  margin: 0 1.6rem 1rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border-light);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  color: var(--color-text-accent, #f0f);
+  line-height: 1.4;
+  border-bottom: 2px solid var(--color-border-light, #f0f);
 }
 
-.group-count {
+.section-count {
   font-size: 1.1rem;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-tertiary, #f0f);
 }
 
-.group-tasks {
+.section-tasks {
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
-/* ==================== 空状态 ==================== */
-.empty-column {
+/* 空状态 */
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
-  color: var(--color-text-tertiary);
+  padding: 4rem 2rem;
+  color: var(--color-text-tertiary, #f0f);
   gap: 1rem;
 }
 
-.empty-column p {
+.empty-state p {
   margin: 0;
   font-size: 1.4rem;
 }

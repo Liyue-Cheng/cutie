@@ -3,7 +3,7 @@
  *
  * 设计：
  * - 源位置：保留原Section，降低透明度
- * - 幽灵元素：只显示Section标题栏（轻量简洁）
+ * - 幽灵元素：克隆标题栏并添加虚化效果
  * - 目标位置：指示线显示插入位置
  *
  * 使用原生 HTML5 Drag API + 自定义幽灵元素
@@ -27,8 +27,13 @@ export interface UseSectionDragReturn {
   draggingIndex: Ref<number>
   /** 目标插入位置索引 */
   dropTargetIndex: Ref<number | null>
-  /** 拖动开始事件处理器 */
-  onDragStart: (section: ProjectSection, index: number, event: DragEvent) => void
+  /** 拖动开始事件处理器（需要传入标题栏元素） */
+  onDragStart: (
+    section: ProjectSection,
+    index: number,
+    event: DragEvent,
+    headerElement?: HTMLElement | null
+  ) => void
   /** 拖动经过事件处理器 */
   onSectionDragOver: (event: DragEvent, index: number) => void
   /** 拖动离开事件处理器 */
@@ -56,31 +61,48 @@ export function useSectionDrag(options: UseSectionDragOptions): UseSectionDragRe
   // ========== 幽灵元素管理 ==========
 
   /**
-   * 创建简化的标题栏幽灵元素
+   * 创建标题栏克隆作为幽灵元素（带虚化效果）
    */
-  function createGhost(section: ProjectSection, event: DragEvent) {
+  function createGhost(
+    section: ProjectSection,
+    event: DragEvent,
+    headerElement?: HTMLElement | null
+  ) {
     // 移除旧的幽灵元素
     removeGhost()
 
-    // 创建幽灵元素
-    ghostElement = document.createElement('div')
-    ghostElement.className = 'section-drag-ghost'
+    // 如果提供了标题栏元素，克隆它
+    if (headerElement) {
+      ghostElement = headerElement.cloneNode(true) as HTMLElement
+      ghostElement.className = 'section-drag-ghost section-drag-ghost-cloned'
 
-    // 使用简化的标题栏内容
-    ghostElement.innerHTML = `
-      <span class="ghost-icon">📁</span>
-      <span class="ghost-title">${escapeHtml(section.title)}</span>
-    `
+      // 获取原始尺寸
+      const rect = headerElement.getBoundingClientRect()
+      ghostElement.style.width = `${rect.width}px`
 
-    // 获取拖动源元素的位置
-    const target = event.target as HTMLElement
-    const sectionHeader = target.closest('.section-header') || target
-    const rect = sectionHeader.getBoundingClientRect()
+      // 计算鼠标偏移量
+      mouseOffset = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      }
+    } else {
+      // 兜底：创建简化的标题栏幽灵元素
+      ghostElement = document.createElement('div')
+      ghostElement.className = 'section-drag-ghost'
+      ghostElement.innerHTML = `
+        <span class="ghost-icon">📁</span>
+        <span class="ghost-title">${escapeHtml(section.title)}</span>
+      `
 
-    // 计算鼠标偏移量（让幽灵跟随自然）
-    mouseOffset = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      // 获取拖动源元素的位置
+      const target = event.target as HTMLElement
+      const sectionHeader = target.closest('.task-bar-header') || target
+      const rect = sectionHeader.getBoundingClientRect()
+
+      mouseOffset = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      }
     }
 
     // 设置初始位置
@@ -95,7 +117,10 @@ export function useSectionDrag(options: UseSectionDragOptions): UseSectionDragRe
     emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs='
     event.dataTransfer?.setDragImage(emptyImg, 0, 0)
 
-    logger.debug(LogTags.DRAG_CROSS_VIEW, '[SectionDrag] Ghost created', { title: section.title })
+    logger.debug(LogTags.DRAG_CROSS_VIEW, '[SectionDrag] Ghost created', {
+      title: section.title,
+      cloned: !!headerElement,
+    })
   }
 
   /**
@@ -126,7 +151,12 @@ export function useSectionDrag(options: UseSectionDragOptions): UseSectionDragRe
   /**
    * 拖动开始
    */
-  function onDragStart(section: ProjectSection, index: number, event: DragEvent) {
+  function onDragStart(
+    section: ProjectSection,
+    index: number,
+    event: DragEvent,
+    headerElement?: HTMLElement | null
+  ) {
     // 设置状态
     draggingSection.value = section
     draggingIndex.value = index
@@ -138,7 +168,7 @@ export function useSectionDrag(options: UseSectionDragOptions): UseSectionDragRe
     }
 
     // 创建幽灵元素
-    createGhost(section, event)
+    createGhost(section, event, headerElement)
 
     // 添加全局事件监听器
     documentDragOverHandler = (e: DragEvent) => {

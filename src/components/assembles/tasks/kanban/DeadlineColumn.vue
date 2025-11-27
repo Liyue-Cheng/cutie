@@ -12,25 +12,15 @@ const taskStore = useTaskStore()
 const uiStore = useUIStore()
 
 // 获取所有有截止日期的任务，按截止日期排序
-const upcomingTasks = computed(() => {
-  const tasksWithDueDate = taskStore.allTasks.filter(
-    (task) => task.due_date && !task.is_archived && !task.is_completed
-  )
-
-  // 按截止日期排序（最近的在前）
-  return tasksWithDueDate.sort((a, b) => {
-    const dateA = new Date(a.due_date!.date).getTime()
-    const dateB = new Date(b.due_date!.date).getTime()
-    return dateA - dateB
-  })
-})
+// 使用 store 的 deadlineTasks 以获得循环任务去重
+const deadlineTasks = computed(() => taskStore.deadlineTasks)
 
 // 任务总数
-const taskCount = computed(() => upcomingTasks.value.length)
+const taskCount = computed(() => deadlineTasks.value.length)
 
 // 过期任务数量
 const overdueCount = computed(() => {
-  return upcomingTasks.value.filter((task) => task.due_date?.is_overdue).length
+  return deadlineTasks.value.filter((task) => task.due_date?.is_overdue).length
 })
 
 function handleOpenEditor(task: TaskCard) {
@@ -59,23 +49,23 @@ function handleDrop(event: DragEvent) {
 </script>
 
 <template>
-  <div class="upcoming-column">
+  <div class="deadline-column">
     <div class="column-header">
       <div class="header-title">
-        <h3>即将到期</h3>
+        <h3>截止日期</h3>
         <span class="task-count">{{ taskCount }}</span>
       </div>
       <div v-if="overdueCount > 0" class="overdue-badge">{{ overdueCount }} 个已逾期</div>
     </div>
 
     <div class="column-content" @dragover="handleDragOver" @drop="handleDrop">
-      <div v-if="upcomingTasks.length === 0" class="empty-state">
+      <div v-if="deadlineTasks.length === 0" class="empty-state">
         <p>没有设置截止日期的任务</p>
       </div>
 
       <div v-else class="tasks-list">
         <div
-          v-for="task in upcomingTasks"
+          v-for="task in deadlineTasks"
           :key="task.id"
           class="task-wrapper"
           draggable="true"
@@ -93,7 +83,7 @@ function handleDrop(event: DragEvent) {
 </template>
 
 <style scoped>
-.upcoming-column {
+.deadline-column {
   display: flex;
   flex-direction: column;
   height: 100%;

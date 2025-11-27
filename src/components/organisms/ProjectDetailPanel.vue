@@ -74,18 +74,22 @@
             <div
               class="task-section is-draggable"
               :class="{ 'is-dragging': draggingSection?.id === section.id }"
-              draggable="true"
-              @dragstart="onDragStart(section, index, $event)"
               @dragover="onSectionDragOver($event, index)"
               @dragleave="onSectionDragLeave($event)"
             >
               <TaskList
+                :ref="(el) => setTaskListRef(section.id, el)"
                 :title="section.title"
                 :view-key="`project::${project.id}::section::${section.id}`"
                 title-color="var(--color-text-accent)"
               >
                 <template #title-actions>
-                  <button class="icon-btn drag-handle" @mousedown.stop>
+                  <button
+                    class="icon-btn drag-handle"
+                    draggable="true"
+                    @dragstart="handleDragStart(section, index, $event)"
+                    @mousedown.stop
+                  >
                     <CuteIcon name="GripVertical" :size="14" />
                   </button>
                   <button class="icon-btn" @click="handleEditSection(section.id)">
@@ -116,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type ComponentPublicInstance } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
@@ -125,6 +129,7 @@ import CircularProgress from '@/components/parts/CircularProgress.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import { useSectionDrag } from '@/composables/drag/useSectionDrag'
 import { pipeline } from '@/cpu'
+import type { ProjectSection } from '@/types/dtos'
 
 interface Props {
   projectId?: string | null
@@ -179,6 +184,17 @@ const hasTasksWithoutSection = computed(() => {
   return tasks.length > 0
 })
 
+// TaskList ref 存储（用于获取标题栏元素）
+const taskListRefs = new Map<string, ComponentPublicInstance | null>()
+
+function setTaskListRef(sectionId: string, el: ComponentPublicInstance | null) {
+  if (el) {
+    taskListRefs.set(sectionId, el)
+  } else {
+    taskListRefs.delete(sectionId)
+  }
+}
+
 // Section 拖放排序
 const {
   draggingSection,
@@ -200,6 +216,13 @@ const {
     })
   },
 })
+
+// 处理拖动开始（获取标题栏元素）
+function handleDragStart(section: ProjectSection, index: number, event: DragEvent) {
+  const taskListInstance = taskListRefs.get(section.id)
+  const headerElement = (taskListInstance as any)?.headerRef as HTMLElement | null
+  onDragStart(section, index, event, headerElement)
+}
 
 // 格式化日期
 const formatDate = (dateStr: string) => {
