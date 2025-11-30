@@ -37,7 +37,7 @@
           <TwoRowLayout>
             <template #top>
               <div class="staging-header">
-                <span class="staging-title">暂存区</span>
+                <span class="staging-title">{{ $t('toolbar.staging') }}</span>
               </div>
             </template>
             <template #bottom>
@@ -144,10 +144,16 @@ const calendarModeRightView = ref<CalendarModeRightView>('daily') // 默认显�
 const calendarModeSelectedDate = ref<string>(getTodayDateString()) // 当前选中的日期
 
 // 日历模式工具栏配置 - 当天任务在上，暂存区在下
-const calendarModeToolbarConfig = {
-  daily: { icon: 'CalendarDays', label: '当天任务' },
-  staging: { icon: 'Layers', label: '暂存区' },
-} as const
+// 注意：这些配置对象会在 script setup 中使用，无法直接使用 $t()
+// 需要在 computed 中使用 useI18n
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+const calendarModeToolbarConfig = computed(() => ({
+  daily: { icon: 'CalendarDays' as const, label: t('toolbar.dailyTasks') },
+  staging: { icon: 'Layers' as const, label: t('toolbar.staging') },
+}))
 
 // 日历模式右栏视图切换
 function onCalendarModeRightViewChange(viewKey: string | null) {
@@ -168,27 +174,28 @@ type RightPaneView = 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeli
 const currentRightPaneView = ref<RightPaneView>('calendar')
 
 // 完整的右栏视图配置
-const fullRightPaneViewConfig = {
-  calendar: { icon: 'Calendar', label: '日历' },
-  timeline: { icon: 'Clock', label: '时间线' },
-  staging: { icon: 'Layers', label: 'Staging' },
-  upcoming: { icon: 'CalendarClock', label: 'Upcoming' },
-  templates: { icon: 'FileText', label: 'Templates' },
-} as const
+const fullRightPaneViewConfig = computed(() => ({
+  calendar: { icon: 'Calendar' as const, label: t('toolbar.calendar') },
+  timeline: { icon: 'Clock' as const, label: t('toolbar.timeline') },
+  staging: { icon: 'Layers' as const, label: t('toolbar.staging') },
+  upcoming: { icon: 'CalendarClock' as const, label: t('toolbar.upcoming') },
+  templates: { icon: 'FileText' as const, label: t('toolbar.templates') },
+}))
 
 // 根据左栏视图动态计算右栏视图配置
 const rightPaneViewConfig = computed(() => {
+  const config = fullRightPaneViewConfig.value
   if (currentView.value === 'staging') {
     // Staging 视图：移除右栏的 staging 和 templates，保持 calendar 在首位
     return {
-      calendar: fullRightPaneViewConfig.calendar,
-      timeline: fullRightPaneViewConfig.timeline,
-      upcoming: fullRightPaneViewConfig.upcoming,
+      calendar: config.calendar,
+      timeline: config.timeline,
+      upcoming: config.upcoming,
     }
   }
 
   // Recent 视图：保持原有顺序，calendar 在首位
-  return { ...fullRightPaneViewConfig }
+  return { ...config }
 })
 
 // 根据左栏视图获取默认的右栏视图
@@ -366,7 +373,7 @@ let rafId: number | null = null
 // ==================== 自动宽度调节系统 ====================
 
 const TOOLBAR_WIDTH = 96 // 工具栏固定宽度 (6rem = 96px)
-const DIVIDER_WIDTH = 3 // 分割线宽度
+const DIVIDER_WIDTH = 1 // 分割线宽度
 
 // 根据视图模式计算最佳比例
 function calculateOptimalRatio(): number {
@@ -651,7 +658,7 @@ onBeforeUnmount(() => {
   display: flex;
   overflow: hidden;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-light);
   border-radius: 0.8rem;
 }
 
@@ -678,7 +685,7 @@ onBeforeUnmount(() => {
 
 /* 分割线 */
 .divider {
-  width: 3px;
+  width: 1px;
   height: 100%;
   background-color: var(--color-border-light);
   cursor: col-resize;

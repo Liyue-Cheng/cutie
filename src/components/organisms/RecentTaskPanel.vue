@@ -4,31 +4,48 @@
       <template #top>
         <div class="recent-controls">
           <div class="controls-left">
-            <!-- 左右导航按钮 -->
-            <button class="control-btn nav-btn" @click="navigatePrevious" title="上一天">
-              <CuteIcon name="ChevronLeft" :size="16" />
-            </button>
-            <button class="control-btn nav-btn" @click="navigateNext" title="下一天">
-              <CuteIcon name="ChevronRight" :size="16" />
+            <!-- 日期导航按钮 -->
+            <button class="date-nav-trigger" @click="toggleDatePanel">
+              <CuteIcon name="CalendarDays" :size="16" />
+              <span class="date-display">{{ currentDateDisplay }}</span>
+              <CuteIcon name="ChevronDown" :size="14" />
             </button>
 
-            <!-- 今天/日历合并按钮 -->
-            <div class="combined-btn-wrapper">
-              <!-- 左半边：今天 -->
-              <button class="combined-btn-left" @click="goToToday" title="回到今天">
-                <span>今天</span>
-              </button>
-              <!-- 右半边：日历选择器 -->
-              <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
-                <CuteIcon name="CalendarDays" :size="16" />
-              </button>
-              <input
-                ref="dateInputRef"
-                type="date"
-                v-model="selectedDate"
-                class="date-input-hidden"
-                @change="onDateChange"
-              />
+            <!-- 日期导航面板 -->
+            <div v-if="showDatePanel" class="date-nav-panel" ref="datePanelRef">
+              <div class="panel-header">
+                <span class="panel-title">选择日期</span>
+              </div>
+
+              <div class="panel-body">
+                <!-- 导航控制 -->
+                <div class="nav-row">
+                  <button class="panel-nav-btn" @click="navigatePrevious" title="上一页">
+                    <CuteIcon name="ChevronLeft" :size="16" />
+                  </button>
+                  <span class="current-range">{{ dateRangeDisplay }}</span>
+                  <button class="panel-nav-btn" @click="navigateNext" title="下一页">
+                    <CuteIcon name="ChevronRight" :size="16" />
+                  </button>
+                </div>
+
+                <!-- 日期输入 -->
+                <div class="date-input-row">
+                  <label class="date-label">起始日期</label>
+                  <input
+                    type="date"
+                    v-model="selectedDate"
+                    class="date-input"
+                    @change="onDateChange"
+                  />
+                </div>
+
+                <!-- 今天按钮 -->
+                <button class="today-btn" @click="goToToday">
+                  <CuteIcon name="Calendar" :size="16" />
+                  <span>回到今天</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -95,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -134,11 +151,39 @@ const getValidDateString = (): string => {
 
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
 const dayCount = ref(props.modelValue) // 显示的天数
-const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
+const showDatePanel = ref(false) // 日期导航面板显示状态
+const datePanelRef = ref<HTMLElement | null>(null) // 日期面板引用
 
 // 筛选菜单状态
 const showCompletedTasks = ref(true) // 默认显示已完成任务
 const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
+
+// 当前日期显示（用于触发按钮）
+const currentDateDisplay = computed(() => {
+  const today = getValidDateString()
+  if (selectedDate.value === today) {
+    return '今天'
+  }
+  const date = parseDateString(selectedDate.value)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${month}月${day}日`
+})
+
+// 日期范围显示（用于面板内）
+const dateRangeDisplay = computed(() => {
+  const startDate = parseDateString(selectedDate.value)
+  const endDate = parseDateString(shiftDate(selectedDate.value, dayCount.value - 1))
+  const startMonth = startDate.getMonth() + 1
+  const startDay = startDate.getDate()
+  const endMonth = endDate.getMonth() + 1
+  const endDay = endDate.getDate()
+
+  if (startMonth === endMonth) {
+    return `${startMonth}月${startDay}日 - ${endDay}日`
+  }
+  return `${startMonth}月${startDay}日 - ${endMonth}月${endDay}日`
+})
 
 // 监听 props 变化
 watch(
@@ -214,6 +259,7 @@ function formatDateLabel(dateString: string, today: string): string {
 function goToToday() {
   selectedDate.value = getValidDateString()
   logger.info(LogTags.VIEW_HOME, 'Navigate to today', { date: selectedDate.value })
+  showDatePanel.value = false
 }
 
 // 导航到上一天
@@ -230,10 +276,18 @@ function navigateNext() {
   loadDateRangeTasks()
 }
 
-// 切换日期选择器
-function toggleDatePicker() {
-  if (dateInputRef.value) {
-    dateInputRef.value.showPicker()
+// 切换日期面板
+function toggleDatePanel() {
+  showDatePanel.value = !showDatePanel.value
+}
+
+// 点击外部关闭面板
+function handleClickOutside(event: MouseEvent) {
+  if (datePanelRef.value && !datePanelRef.value.contains(event.target as Node)) {
+    const trigger = (event.target as Element).closest('.date-nav-trigger')
+    if (!trigger) {
+      showDatePanel.value = false
+    }
   }
 }
 
@@ -291,8 +345,16 @@ function shiftDate(baseDate: string, offsetDays: number): string {
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Initializing RecentTaskPanel component...')
 
+  // 添加点击外部关闭面板的监听器
+  document.addEventListener('click', handleClickOutside)
+
   // 加载日期范围的任务
   await loadDateRangeTasks()
+})
+
+// 清理
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -316,6 +378,7 @@ onMounted(async () => {
 }
 
 .controls-left {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1.2rem;
@@ -327,96 +390,169 @@ onMounted(async () => {
   gap: 1.2rem;
 }
 
-/* 今天按钮 */
-.control-btn {
+/* ==================== 日期导航触发按钮 ==================== */
+.date-nav-trigger {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
+  gap: 0.8rem;
   height: 3.6rem;
   padding: 0 1.2rem;
   font-size: 1.4rem;
   font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
 }
 
-.control-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
+.date-nav-trigger:hover {
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
-.control-btn:active {
+.date-nav-trigger:active {
   transform: scale(0.98);
 }
 
-/* 合并按钮（今天 + 日历） */
-.combined-btn-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: 3.6rem;
+.date-display {
+  line-height: 1.4;
 }
 
-.combined-btn-left,
-.combined-btn-right {
+/* ==================== 日期导航面板 ==================== */
+.date-nav-panel {
+  position: absolute;
+  top: calc(100% + 0.8rem);
+  left: 0;
+  z-index: 100;
+  min-width: 24rem;
+  background-color: var(--color-background-primary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.8rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 1.2rem 1.6rem;
+  border-bottom: 1px solid var(--color-border-light, #f0f);
+}
+
+.panel-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+}
+
+.panel-body {
+  padding: 1.2rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+/* 导航行 */
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.panel-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 3.6rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
+  width: 3.2rem;
+  height: 3.2rem;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
 }
 
-.combined-btn-left {
+.panel-nav-btn:hover {
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+}
+
+.panel-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.current-range {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+}
+
+/* 日期输入行 */
+.date-input-row {
+  display: flex;
+  flex-direction: column;
   gap: 0.6rem;
+}
+
+.date-label {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #f0f);
+  line-height: 1.4;
+}
+
+.date-input {
+  width: 100%;
+  height: 3.6rem;
+  padding: 0 1rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.date-input:hover {
+  border-color: var(--color-border-hover, #f0f);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary, #f0f);
+}
+
+/* 今天按钮 */
+.today-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 3.6rem;
   padding: 0 1.2rem;
-  border-radius: 0.6rem 0 0 0.6rem;
-  border-right: none;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.combined-btn-right {
-  width: 3.6rem;
-  padding: 0;
-  border-radius: 0 0.6rem 0.6rem 0;
-  border-left: 1px solid var(--color-border-default);
+.today-btn:hover {
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
-.combined-btn-left:hover,
-.combined-btn-right:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
-  z-index: 1;
-}
-
-.combined-btn-left:active,
-.combined-btn-right:active {
+.today-btn:active {
   transform: scale(0.98);
-}
-
-.date-input-hidden {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
-}
-
-/* 导航按钮 */
-.nav-btn {
-  width: 3.6rem;
-  padding: 0;
 }
 
 /* ==================== 筛选下拉菜单 ==================== */
@@ -429,9 +565,9 @@ onMounted(async () => {
   padding: 0 1.2rem;
   font-size: 1.4rem;
   font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -440,8 +576,8 @@ onMounted(async () => {
 }
 
 .filter-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
 .filter-btn:active {
@@ -454,7 +590,7 @@ onMounted(async () => {
   gap: 0.8rem;
   width: 100%;
   font-size: 1.4rem;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #f0f);
   cursor: pointer;
   user-select: none;
 }
