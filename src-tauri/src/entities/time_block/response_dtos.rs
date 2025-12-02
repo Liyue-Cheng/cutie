@@ -38,8 +38,12 @@ pub struct TimeBlockViewDto {
     // --- 关联的任务摘要 ---
     pub linked_tasks: Vec<LinkedTaskSummary>,
 
-    // --- 其他元信息 ---
+    // --- 循环相关字段 ---
     pub is_recurring: bool,
+    /// 循环规则ID（通过 time_block_recurrence_links 表关联）
+    pub recurrence_id: Option<Uuid>,
+    /// 循环原始日期 (YYYY-MM-DD)
+    pub recurrence_original_date: Option<String>,
 }
 
 /// 关联任务摘要

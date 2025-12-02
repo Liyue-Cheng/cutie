@@ -175,9 +175,15 @@ fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
 
             #[cfg(target_os = "windows")]
             {
+                use std::os::windows::process::CommandExt;
                 use std::process::Command;
+
+                // CREATE_NO_WINDOW flag to prevent console window from appearing
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+
                 match Command::new("taskkill")
                     .args(&["/F", "/PID", &process_pid.to_string()])
+                    .creation_flags(CREATE_NO_WINDOW)
                     .output()
                 {
                     Ok(output) => {

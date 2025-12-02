@@ -7,6 +7,7 @@ pub mod projects;
 pub mod recurrences;
 pub mod tasks;
 pub mod templates;
+pub mod time_block_recurrences;
 pub mod time_blocks;
 pub mod trash;
 pub mod user_settings;

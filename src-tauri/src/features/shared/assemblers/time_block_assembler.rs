@@ -1,6 +1,6 @@
 /// TimeBlock 相关 DTO 装配器
 /// 用于事件载荷中的完整 TimeBlock 数据组装
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -54,7 +54,10 @@ impl TimeBlockAssembler {
                 let linked_tasks =
                     LinkedTaskAssembler::get_for_time_block(&mut **tx, *block_id).await?;
 
-                // 3. 组装 TimeBlockViewDto（✅ area_id 已直接从 block 获取）
+                // 3. 查询循环规则ID（从 time_block_recurrence_links 表）
+                let recurrence_id = Self::get_recurrence_id_in_tx(&mut **tx, *block_id).await?;
+
+                // 4. 组装 TimeBlockViewDto（✅ area_id 已直接从 block 获取）
                 let view = TimeBlockViewDto {
                     id: block.id,
                     start_time: block.start_time,
@@ -70,6 +73,8 @@ impl TimeBlockAssembler {
                     area_id: block.area_id,
                     linked_tasks,
                     is_recurring: block.recurrence_rule.is_some(),
+                    recurrence_id,
+                    recurrence_original_date: block.recurrence_original_date,
                 };
 
                 result.push(view);
@@ -84,7 +89,10 @@ impl TimeBlockAssembler {
         block: &TimeBlock,
         pool: &SqlitePool,
     ) -> AppResult<TimeBlockViewDto> {
-        // 1. 创建基础视图（✅ area_id 已直接从 block 获取）
+        // 1. 查询循环规则ID
+        let recurrence_id = Self::get_recurrence_id(pool, block.id).await?;
+
+        // 2. 创建基础视图（✅ area_id 已直接从 block 获取）
         let mut view = TimeBlockViewDto {
             id: block.id,
             start_time: block.start_time,
@@ -100,11 +108,41 @@ impl TimeBlockAssembler {
             area_id: block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: block.recurrence_rule.is_some(),
+            recurrence_id,
+            recurrence_original_date: block.recurrence_original_date.clone(),
         };
 
-        // 2. 获取关联的任务
+        // 3. 获取关联的任务
         view.linked_tasks = LinkedTaskAssembler::get_for_time_block(pool, block.id).await?;
 
         Ok(view)
+    }
+
+    /// 从 time_block_recurrence_links 表查询循环规则ID（事务版本）
+    async fn get_recurrence_id_in_tx<'e, E>(
+        executor: E,
+        time_block_id: Uuid,
+    ) -> AppResult<Option<Uuid>>
+    where
+        E: Executor<'e, Database = Sqlite>,
+    {
+        let query = r#"
+            SELECT recurrence_id
+            FROM time_block_recurrence_links
+            WHERE time_block_id = ?
+        "#;
+
+        let result: Option<(String,)> = sqlx::query_as(query)
+            .bind(time_block_id.to_string())
+            .fetch_optional(executor)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        Ok(result.and_then(|(id,)| Uuid::parse_str(&id).ok()))
+    }
+
+    /// 从 time_block_recurrence_links 表查询循环规则ID
+    async fn get_recurrence_id(pool: &SqlitePool, time_block_id: Uuid) -> AppResult<Option<Uuid>> {
+        Self::get_recurrence_id_in_tx(pool, time_block_id).await
     }
 }

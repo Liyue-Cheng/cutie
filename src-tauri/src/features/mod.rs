@@ -20,6 +20,7 @@ pub mod projects;
 pub mod recurrences;
 pub mod tasks;
 pub mod templates;
+pub mod time_block_recurrences;
 pub mod time_blocks;
 pub mod trash;
 pub mod user_settings;
@@ -44,6 +45,7 @@ pub fn create_api_router() -> Router<AppState> {
         .nest("/recurrences", recurrences::create_routes())
         .nest("/tasks", tasks::create_routes())
         .nest("/templates", templates::create_routes())
+        .nest("/time-block-recurrences", time_block_recurrences::create_routes())
         .nest("/time-blocks", time_blocks::create_routes())
         .nest("/trash", trash::create_routes())
         .nest("/user-settings", endpoints::user_settings::create_routes())

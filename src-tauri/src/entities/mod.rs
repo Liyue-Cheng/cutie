@@ -15,6 +15,9 @@ pub mod task;
 pub mod task_recurrence;
 pub mod template;
 pub mod time_block;
+pub mod time_block_recurrence;
+pub mod time_block_recurrence_link;
+pub mod time_block_template;
 pub mod transaction_result;
 pub mod user_setting;
 
@@ -84,6 +87,22 @@ pub use task_recurrence::{
 pub use time_block::{
     CreateTimeBlockRequest, LinkedTaskSummary, TimeBlock, TimeBlockRow, TimeBlockViewDto,
     UpdateTimeBlockRequest,
+};
+
+// TimeBlockRecurrence 相关类型
+pub use time_block_recurrence::{
+    CreateTimeBlockRecurrenceRequest, EditTimeBlockRecurrenceRequest, TimeBlockRecurrence,
+    TimeBlockRecurrenceDetailDto, TimeBlockRecurrenceDto, TimeBlockRecurrenceEditResultDto,
+    TimeBlockRecurrenceRow, TimeBlockTemplateInfo, UpdateTimeBlockRecurrenceRequest,
+};
+
+// TimeBlockRecurrenceLink 相关类型
+pub use time_block_recurrence_link::{TimeBlockRecurrenceLink, TimeBlockRecurrenceLinkRow};
+
+// TimeBlockTemplate 相关类型
+pub use time_block_template::{
+    CreateTimeBlockTemplateRequest, TimeBlockTemplate, TimeBlockTemplateDto, TimeBlockTemplateRow,
+    UpdateTimeBlockTemplateRequest,
 };
 
 // TransactionResult 相关类型

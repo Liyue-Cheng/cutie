@@ -59,6 +59,23 @@ fn run_tauri_with_sidecar() {
     std::thread::spawn(move || {
         let current_pid = std::process::id();
 
+        #[cfg(target_os = "windows")]
+        let mut child = {
+            use std::os::windows::process::CommandExt;
+            // CREATE_NO_WINDOW flag to prevent console window from appearing in release builds
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            Command::new(std::env::current_exe().unwrap())
+                .arg(SIDECAR_ARG)
+                .env("CUTIE_PARENT_PID", current_pid.to_string())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .expect("Failed to start sidecar process")
+        };
+
+        #[cfg(not(target_os = "windows"))]
         let mut child = Command::new(std::env::current_exe().unwrap())
             .arg(SIDECAR_ARG)
             .env("CUTIE_PARENT_PID", current_pid.to_string()) // 传递父进程 PID

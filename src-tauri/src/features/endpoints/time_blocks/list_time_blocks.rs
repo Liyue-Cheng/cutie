@@ -1,19 +1,24 @@
 /// 获取时间块列表 API - 单文件组件
 ///
 /// 支持按日期范围查询时间块
+/// 自动实例化循环时间块
 use axum::{
     extract::{Query, State},
     response::{IntoResponse, Response},
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, NaiveDate, NaiveTime, TimeZone, Utc};
 use serde::Deserialize;
 
 use crate::{
     entities::{TimeBlock, TimeBlockViewDto},
-    features::{
-        shared::assemblers::LinkedTaskAssembler, shared::repositories::TimeBlockRepository,
+    features::shared::{
+        assemblers::LinkedTaskAssembler, repositories::TimeBlockRepository,
+        TimeBlockRecurrenceInstantiationService,
     },
-    infra::{core::AppResult, http::error_handler::success_response},
+    infra::{
+        core::{AppError, AppResult, DbError},
+        http::error_handler::success_response,
+    },
     startup::AppState,
 };
 
@@ -207,29 +212,81 @@ mod logic {
         let pool = app_state.db_pool();
 
         // 1. 解析时间范围
-        let start_time = query
-            .start_date
-            .as_ref()
-            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-            .map(|dt| dt.with_timezone(&Utc));
+        // 🔥 支持两种格式：
+        // - RFC3339 格式（如 "2025-11-28T00:00:00Z"）
+        // - 纯日期格式（如 "2025-11-28"，按本地时间约定处理）
+        let start_time = query.start_date.as_ref().and_then(|s| {
+            // 先尝试 RFC3339 格式
+            if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+                return Some(dt.with_timezone(&Utc));
+            }
+            // 再尝试纯日期格式（YYYY-MM-DD），转换为本地当天 00:00:00
+            if let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                let local_datetime = date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                if let Some(local) = Local.from_local_datetime(&local_datetime).single() {
+                    return Some(local.with_timezone(&Utc));
+                }
+            }
+            None
+        });
 
-        let end_time = query
-            .end_date
-            .as_ref()
-            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-            .map(|dt| dt.with_timezone(&Utc));
+        let end_time = query.end_date.as_ref().and_then(|s| {
+            // 先尝试 RFC3339 格式
+            if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+                return Some(dt.with_timezone(&Utc));
+            }
+            // 再尝试纯日期格式（YYYY-MM-DD），转换为本地当天 23:59:59
+            if let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                let local_datetime = date.and_time(NaiveTime::from_hms_opt(23, 59, 59).unwrap());
+                if let Some(local) = Local.from_local_datetime(&local_datetime).single() {
+                    return Some(local.with_timezone(&Utc));
+                }
+            }
+            None
+        });
 
-        // 2. 查询时间块（✅ 使用共享 Repository）
+        // 2. 🔄 实例化循环时间块（如果有日期范围）
+        if let (Some(start), Some(end)) = (start_time, end_time) {
+            // 🔥 重要：从 UTC 时间转换为本地时间，再提取日期
+            // 这是因为循环时间块的链接表 (time_block_recurrence_links) 存储的是本地日期
+            // 参考：docs/TIME_CONVENTION.md - 用户意图时间使用本地时间
+            let start_local = start.with_timezone(&Local);
+            let end_local = end.with_timezone(&Local);
+            let start_date = start_local.date_naive();
+            let end_date = end_local.date_naive();
+
+            // 为范围内的每一天实例化循环时间块
+            let mut current_date = start_date;
+            while current_date <= end_date {
+                if let Err(e) = TimeBlockRecurrenceInstantiationService::instantiate_for_date(
+                    pool,
+                    app_state.id_generator().as_ref(),
+                    app_state.clock().as_ref(),
+                    &current_date,
+                )
+                .await
+                {
+                    tracing::warn!(
+                        "🔄 [LIST_TIME_BLOCKS] Failed to instantiate recurrences for {}: {:?}",
+                        current_date,
+                        e
+                    );
+                }
+                current_date = current_date.succ_opt().unwrap_or(current_date);
+            }
+        }
+
+        // 3. 查询时间块（✅ 使用共享 Repository）
         let time_blocks = TimeBlockRepository::find_in_range(pool, start_time, end_time).await?;
 
-        // 3. 为每个时间块组装视图模型
+        // 4. 为每个时间块组装视图模型
         let mut result = Vec::new();
         for block in time_blocks {
             let view = assemble_time_block_view(&block, pool).await?;
             result.push(view);
         }
 
-        // 4. 按 start_time 排序
+        // 5. 按 start_time 排序
         result.sort_by(|a, b| a.start_time.cmp(&b.start_time));
 
         Ok(result)
@@ -240,7 +297,10 @@ mod logic {
         block: &TimeBlock,
         pool: &sqlx::SqlitePool,
     ) -> AppResult<TimeBlockViewDto> {
-        // 1. 创建基础视图（✅ area_id 已直接从 block 获取）
+        // 1. 查询循环规则ID（从 time_block_recurrence_links 表）
+        let recurrence_id = get_recurrence_id(pool, block.id).await?;
+
+        // 2. 创建基础视图（✅ area_id 已直接从 block 获取）
         let mut view = TimeBlockViewDto {
             id: block.id,
             start_time: block.start_time,
@@ -256,12 +316,34 @@ mod logic {
             area_id: block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: block.recurrence_rule.is_some(),
+            recurrence_id,
+            recurrence_original_date: block.recurrence_original_date.clone(),
         };
 
-        // 2. 获取关联的任务（✅ 使用共享 Assembler）
+        // 3. 获取关联的任务（✅ 使用共享 Assembler）
         view.linked_tasks = LinkedTaskAssembler::get_for_time_block(pool, block.id).await?;
 
         Ok(view)
+    }
+
+    /// 从 time_block_recurrence_links 表查询循环规则ID
+    async fn get_recurrence_id(
+        pool: &sqlx::SqlitePool,
+        time_block_id: uuid::Uuid,
+    ) -> AppResult<Option<uuid::Uuid>> {
+        let query = r#"
+            SELECT recurrence_id
+            FROM time_block_recurrence_links
+            WHERE time_block_id = ?
+        "#;
+
+        let result: Option<(String,)> = sqlx::query_as(query)
+            .bind(time_block_id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        Ok(result.and_then(|(id,)| uuid::Uuid::parse_str(&id).ok()))
     }
 }
 

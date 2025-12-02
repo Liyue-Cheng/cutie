@@ -480,6 +480,9 @@ mod logic {
         let updated_block = TimeBlockRepository::find_by_id(app_state.db_pool(), id).await?;
 
         // 13. 组装返回的 TimeBlockViewDto（✅ area_id 已直接从 updated_block 获取）
+        // 查询循环规则ID
+        let recurrence_id = get_recurrence_id(app_state.db_pool(), id).await?;
+
         let mut time_block_view = TimeBlockViewDto {
             id: updated_block.id,
             start_time: updated_block.start_time,
@@ -495,6 +498,8 @@ mod logic {
             area_id: updated_block.area_id,
             linked_tasks: Vec::new(),
             is_recurring: updated_block.recurrence_rule.is_some(),
+            recurrence_id,
+            recurrence_original_date: updated_block.recurrence_original_date,
         };
 
         // 14. 获取关联的任务摘要（✅ 使用共享 Assembler）
@@ -514,6 +519,28 @@ mod logic {
                 crate::entities::TimeBlockSideEffects::empty()
             },
         })
+    }
+
+    /// 从 time_block_recurrence_links 表查询循环规则ID
+    async fn get_recurrence_id(
+        pool: &sqlx::SqlitePool,
+        time_block_id: Uuid,
+    ) -> AppResult<Option<Uuid>> {
+        use crate::infra::core::DbError;
+
+        let query = r#"
+            SELECT recurrence_id
+            FROM time_block_recurrence_links
+            WHERE time_block_id = ?
+        "#;
+
+        let result: Option<(String,)> = sqlx::query_as(query)
+            .bind(time_block_id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        Ok(result.and_then(|(id,)| Uuid::parse_str(&id).ok()))
     }
 }
 

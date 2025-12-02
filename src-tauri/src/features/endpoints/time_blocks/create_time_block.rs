@@ -345,6 +345,8 @@ mod logic {
             area_id: time_block.area_id,
             linked_tasks: Vec::new(), // 🔧 纯时间块不关联任务
             is_recurring: time_block.recurrence_rule.is_some(),
+            recurrence_id: None, // 新创建的时间块无循环ID
+            recurrence_original_date: time_block.recurrence_original_date,
         };
 
         Ok(crate::entities::TimeBlockTransactionResult {

@@ -450,6 +450,8 @@ mod logic {
                 is_completed: task.is_completed(),
             }],
             is_recurring: false,
+            recurrence_id: None,
+            recurrence_original_date: None,
         };
 
         // 11. 组装更新后的 TaskCard（✅ area_id 已由 TaskAssembler 填充）

@@ -314,7 +314,9 @@ mod logic {
                 title: task.title.clone(),
                 is_completed: task.is_completed(),
             }],
-            is_recurring: false,
+            is_recurring: updated_time_block.recurrence_rule.is_some(),
+            recurrence_id: None, // TODO: 从 time_block_recurrence_links 查询
+            recurrence_original_date: updated_time_block.recurrence_original_date,
         };
 
         // 12. 发布 SSE 事件（包含完整的时间块数据和受影响的任务）

@@ -5,6 +5,10 @@ use uuid::Uuid;
 
 use crate::infra::core::{AppError, AppResult, DbError};
 
+/// 是否启用冲突检查
+/// TODO: 将来可改为从配置读取
+const CONFLICT_CHECK_ENABLED: bool = false;
+
 pub struct TimeBlockConflictChecker;
 
 impl TimeBlockConflictChecker {
@@ -24,6 +28,7 @@ impl TimeBlockConflictChecker {
     /// # 返回
     /// - `Ok(true)`: 有冲突
     /// - `Ok(false)`: 无冲突
+    #[allow(unused_variables)]
     pub async fn check_in_tx(
         tx: &mut Transaction<'_, Sqlite>,
         start_time: &DateTime<Utc>,
@@ -31,6 +36,12 @@ impl TimeBlockConflictChecker {
         is_all_day: bool,
         exclude_id: Option<Uuid>,
     ) -> AppResult<bool> {
+        // 🔧 BYPASS: 冲突检查已禁用，允许时间块重叠
+        // 将 CONFLICT_CHECK_ENABLED 改为 true 可重新启用冲突检查
+        if !CONFLICT_CHECK_ENABLED {
+            return Ok(false);
+        }
+
         // 全天事件不与任何事件冲突
         if is_all_day {
             return Ok(false);

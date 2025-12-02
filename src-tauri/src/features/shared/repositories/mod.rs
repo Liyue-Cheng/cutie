@@ -24,7 +24,10 @@ pub mod task_schedule_repository;
 pub mod task_sort_repository;
 pub mod task_time_block_link_repository;
 pub mod template_sort_repository;
+pub mod time_block_recurrence_link_repository;
+pub mod time_block_recurrence_repository;
 pub mod time_block_repository;
+pub mod time_block_template_repository;
 
 // 重新导出常用类型
 
@@ -45,4 +48,7 @@ pub use task_schedule_repository::TaskScheduleRepository;
 pub use task_sort_repository::TaskSortRepository;
 pub use task_time_block_link_repository::TaskTimeBlockLinkRepository;
 pub use template_sort_repository::TemplateSortRepository;
+pub use time_block_recurrence_link_repository::TimeBlockRecurrenceLinkRepository;
+pub use time_block_recurrence_repository::TimeBlockRecurrenceRepository;
 pub use time_block_repository::TimeBlockRepository;
+pub use time_block_template_repository::TimeBlockTemplateRepository;

@@ -263,7 +263,7 @@ mod database {
         updated_at: DateTime<Utc>,
     ) -> AppResult<()> {
         let mut updates = Vec::new();
-        let mut params: Vec<Box<dyn sqlx::Encode<'_, Sqlite> + Send>> = Vec::new();
+        let params: Vec<Box<dyn sqlx::Encode<'_, Sqlite> + Send>> = Vec::new();
 
         if request.title.is_some() {
             updates.push("title = ?");

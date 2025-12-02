@@ -4,8 +4,10 @@
 pub mod ai_classification_service;
 pub mod conflict_checker;
 pub mod recurrence_instantiation_service;
+pub mod time_block_recurrence_service;
 
 // 重新导出常用类型 - 明确导出，避免通配符
 pub use ai_classification_service::AiClassificationService;
 pub use conflict_checker::TimeBlockConflictChecker;
 pub use recurrence_instantiation_service::RecurrenceInstantiationService;
+pub use time_block_recurrence_service::TimeBlockRecurrenceInstantiationService;

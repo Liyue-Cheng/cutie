@@ -28,7 +28,9 @@ pub mod validators;
 
 pub use repositories::{
     AreaRepository, TaskRecurrenceLinkRepository, TaskRecurrenceRepository, TaskRepository,
-    TaskScheduleRepository, TaskTimeBlockLinkRepository, TimeBlockRepository, TransactionHelper,
+    TaskScheduleRepository, TaskTimeBlockLinkRepository, TimeBlockRecurrenceLinkRepository,
+    TimeBlockRecurrenceRepository, TimeBlockRepository, TimeBlockTemplateRepository,
+    TransactionHelper,
 };
 
 // ==================== 数据组装层（Assemblers）====================
@@ -43,6 +45,7 @@ pub use assemblers::{
 
 pub use services::{
     AiClassificationService, RecurrenceInstantiationService, TimeBlockConflictChecker,
+    TimeBlockRecurrenceInstantiationService,
 };
 
 // ==================== 验证器层（Validators）====================
