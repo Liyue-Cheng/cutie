@@ -37,7 +37,7 @@
           v-model="newTaskTitle"
           type="text"
           class="task-input"
-          placeholder="添加新任务..."
+          :placeholder="$t('task.action.addNewTask')"
           :disabled="isCreatingTask"
           @keydown.enter="addTask"
           @focus="isInputFocused = true"
@@ -69,13 +69,14 @@
               :task="task"
               :view-key="viewKey"
               :display-mode="displayMode"
+              :show-estimated-duration="showEstimatedDuration"
               @toggle-complete="toggleTaskComplete(task.id)"
               @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
               @completing="onTaskCompleting"
             />
           </div>
           <div v-if="displayItems.length === 0" key="empty-state" class="empty-state">
-            <p>暂无任务</p>
+            <p>{{ $t('task.label.noTasks') }}</p>
           </div>
         </TransitionGroup>
       </div>
@@ -110,6 +111,7 @@ interface Props {
   inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
   titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
   displayMode?: 'simple' | 'full' // 显示模式：简单/完整
+  showEstimatedDuration?: boolean // 是否显示预期时间指示器
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -122,6 +124,7 @@ const props = withDefaults(defineProps<Props>(), {
   inputBorderStyle: 'dashed',
   titleColor: '',
   displayMode: 'full',
+  showEstimatedDuration: true,
 })
 
 // Emits

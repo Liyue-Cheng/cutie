@@ -104,6 +104,7 @@
             :fill-remaining-space="index === dateList.length - 1"
             :hide-daily-recurring-tasks="!showDailyRecurringTasks"
             :hide-completed="!showCompletedTasks"
+            :show-estimated-duration="false"
           />
         </div>
       </template>

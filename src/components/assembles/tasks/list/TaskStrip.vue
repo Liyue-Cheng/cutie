@@ -75,8 +75,8 @@
         </span>
       </div>
 
-      <!-- Daily view：显示预期时间 -->
-      <div v-if="isInDailyView" class="estimated-duration-wrapper">
+      <!-- Daily view：显示预期时间（可选） -->
+      <div v-if="isInDailyView && showEstimatedDuration" class="estimated-duration-wrapper">
         <button class="estimated-duration" @click.stop="toggleTimePicker">
           {{ formattedDuration }}
         </button>
@@ -153,10 +153,12 @@ interface Props {
   task: TaskCard
   viewKey?: string
   displayMode?: 'simple' | 'full'
+  showEstimatedDuration?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   displayMode: 'full',
+  showEstimatedDuration: true,
 })
 
 // Emits
