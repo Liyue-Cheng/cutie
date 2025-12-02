@@ -16,7 +16,7 @@
       <!-- 上栏：标题栏 -->
       <template #top>
         <div class="upcoming-header">
-          <h2 class="header-title">upcoming横向</h2>
+          <h2 class="header-title">{{ $t('upcoming.title.horizontal') }}</h2>
           <span class="task-count">{{ totalTaskCount }}</span>
         </div>
       </template>
@@ -63,8 +63,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
   overflow: hidden;
 }
 

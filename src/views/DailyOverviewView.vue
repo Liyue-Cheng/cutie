@@ -57,7 +57,7 @@ onMounted(async () => {
       <!-- 顶部：标题区 -->
       <template #top>
         <div class="overview-header">
-          <h2 class="overview-title">今天想做些什么有趣的事？</h2>
+          <h2 class="overview-title">{{ $t('view.dailyOverview.greeting') }}</h2>
         </div>
       </template>
 
@@ -69,7 +69,7 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="CloudSun" :size="18" />
-                <span>Weather</span>
+                <span>{{ $t('view.dailyOverview.weather') }}</span>
               </div>
             </div>
             <div class="card-body weather-body">
@@ -85,7 +85,7 @@ onMounted(async () => {
                 <span>💨 8 km/h</span>
                 <span>💧 62%</span>
               </div>
-              <p class="weather-hint">天气数据暂为示意，后续可接入真实天气 API</p>
+              <p class="weather-hint">{{ $t('view.dailyOverview.weatherHint') }}</p>
             </div>
           </CutePane>
 
@@ -94,7 +94,7 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="RefreshCw" :size="18" />
-                <span>Daily recurring</span>
+                <span>{{ $t('view.dailyOverview.dailyRecurring') }}</span>
               </div>
               <span class="card-count">{{ dailyRecurringTasks.length }}</span>
             </div>
@@ -107,7 +107,7 @@ onMounted(async () => {
                   :view-key="dailyViewKey"
                 />
                 <div v-if="dailyRecurringTasks.length === 0" class="empty-state">
-                  <p>今天没有每日循环任务</p>
+                  <p>{{ $t('view.dailyOverview.noDailyRecurring') }}</p>
                 </div>
               </div>
             </div>
@@ -118,12 +118,12 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="Check" :size="18" />
-                <span>Today's tasks</span>
+                <span>{{ $t('view.dailyOverview.todaysTasks') }}</span>
               </div>
             </div>
             <div class="card-body tasks-list-card-body">
               <TaskList
-                title="Today's tasks"
+                :title="$t('view.dailyOverview.todaysTasks')"
                 :view-key="dailyViewKey"
                 :hide-daily-recurring-tasks="true"
                 :fill-remaining-space="true"
@@ -137,7 +137,7 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="Calendar" :size="18" />
-                <span>Today</span>
+                <span>{{ $t('time.today') }}</span>
               </div>
               <span class="card-subtitle">{{ today }}</span>
             </div>
@@ -156,8 +156,6 @@ onMounted(async () => {
   width: 100%;
   height: 100%;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
   overflow: hidden;
 }
 

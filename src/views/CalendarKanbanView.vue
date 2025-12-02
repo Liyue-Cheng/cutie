@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
@@ -15,6 +16,7 @@ import { logger, LogTags } from '@/infra/logging/logger'
 type CenterPaneView = 'staging' | 'archive'
 
 // ==================== Stores ====================
+const { t } = useI18n()
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
 
@@ -34,10 +36,10 @@ const calendarViewType = ref<'week' | 'month'>('week') // 日历视图类型（�
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null) // 日历组件引用
 
 // 视图配置
-const viewConfig = {
-  staging: { icon: 'Layers', label: 'Staging' },
-  archive: { icon: 'Archive', label: '归档' },
-} as const
+const viewConfig = computed(() => ({
+  staging: { icon: 'Layers' as const, label: t('toolbar.staging') },
+  archive: { icon: 'Archive' as const, label: t('toolbar.archive') },
+}))
 
 // ==================== 事件处理 ====================
 function switchCenterView(view: CenterPaneView) {
@@ -87,13 +89,13 @@ function goToToday() {
           <div class="calendar-header">
             <!-- 左侧：日期导航 -->
             <div class="calendar-nav">
-              <button class="nav-btn" @click="goToPrevious" title="上一周/月">
+              <button class="nav-btn" @click="goToPrevious" :title="$t('calendar.action.previous')">
                 <CuteIcon name="ChevronLeft" :size="20" />
               </button>
               <button class="nav-today" @click="goToToday">
-                {{ calendarViewType === 'week' ? 'This Week' : 'This Month' }}
+                {{ calendarViewType === 'week' ? $t('time.thisWeek') : $t('time.thisMonth') }}
               </button>
-              <button class="nav-btn" @click="goToNext" title="下一周/月">
+              <button class="nav-btn" @click="goToNext" :title="$t('calendar.action.next')">
                 <CuteIcon name="ChevronRight" :size="20" />
               </button>
             </div>
@@ -109,13 +111,13 @@ function goToToday() {
                   :class="['view-type-btn', { active: calendarViewType === 'week' }]"
                   @click="calendarViewType = 'week'"
                 >
-                  周视图
+                  {{ $t('calendar.view.week') }}
                 </button>
                 <button
                   :class="['view-type-btn', { active: calendarViewType === 'month' }]"
                   @click="calendarViewType = 'month'"
                 >
-                  月视图
+                  {{ $t('calendar.view.month') }}
                 </button>
               </div>
               <!-- 日历缩放按钮（仅在周视图显示） -->
@@ -143,7 +145,7 @@ function goToToday() {
       <TwoRowLayout>
         <template #top>
           <div class="center-pane-header">
-            <h3>{{ viewConfig[currentCenterView].label }}</h3>
+            <h3>{{ viewConfig[currentCenterView]?.label }}</h3>
           </div>
         </template>
         <template #bottom>
@@ -191,8 +193,6 @@ function goToToday() {
   height: 100%;
   width: 100%;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
 }
 
 /* ==================== 左侧日历面板 ==================== */

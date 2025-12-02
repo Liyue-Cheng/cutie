@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
@@ -21,11 +21,15 @@ const uiStore = useUIStore()
 // ==================== 状态 ====================
 const currentRightPaneView = ref<RightPaneView | null>(null)
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 // 右侧面板视图配置
-const rightPaneViewConfig = {
-  timeline: { icon: 'Clock', label: '时间线' },
-  archive: { icon: 'Archive', label: '已归档' },
-} as const
+const rightPaneViewConfig = computed(() => ({
+  timeline: { icon: 'Clock' as const, label: t('toolbar.timeline') },
+  archive: { icon: 'Archive' as const, label: t('toolbar.archive') },
+}))
 
 // ==================== 初始化 ====================
 onMounted(() => {
@@ -90,8 +94,6 @@ function switchRightPaneView(view: string | null) {
   height: 100%;
   width: 100%;
   background-color: var(--color-background-content, #f0f);
-  border: 1px solid var(--color-border-default, #f0f);
-  border-radius: 0.8rem;
   overflow: hidden;
 }
 
@@ -101,7 +103,6 @@ function switchRightPaneView(view: string | null) {
   min-width: 0;
   border-right: 1px solid var(--color-border-default, #f0f);
   position: relative;
-  border-radius: 0.8rem 0 0 0.8rem;
   overflow: hidden;
 }
 

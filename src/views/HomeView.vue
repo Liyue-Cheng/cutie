@@ -658,8 +658,6 @@ onBeforeUnmount(() => {
   display: flex;
   overflow: hidden;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-light);
-  border-radius: 0.8rem;
 }
 
 /* 左、中、右栏 */

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import InfiniteAreaKanban from '@/components/organisms/InfiniteAreaKanban.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
@@ -16,6 +17,7 @@ import { logger, LogTags } from '@/infra/logging/logger'
 type RightPaneView = 'archive' | 'timeline'
 
 // ==================== Stores ====================
+const { t } = useI18n()
 const areaStore = useAreaStore()
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
@@ -40,10 +42,10 @@ const kanbanCount = ref(0) // 看板数量
 const displayKanbanCount = computed(() => kanbanRef.value?.kanbanCount ?? kanbanCount.value)
 
 // 右侧面板视图配置
-const rightPaneViewConfig = {
-  timeline: { icon: 'Clock', label: '时间线' },
-  archive: { icon: 'Archive', label: '已归档' },
-} as const
+const rightPaneViewConfig = computed(() => ({
+  timeline: { icon: 'Clock' as const, label: t('toolbar.timeline') },
+  archive: { icon: 'Archive' as const, label: t('toolbar.archive') },
+}))
 
 // ==================== 事件处理 ====================
 function switchRightPaneView(view: string | null) {
@@ -65,8 +67,8 @@ function handleKanbanCountChange(count: number) {
       <TwoRowLayout>
         <template #top>
           <div class="kanban-header">
-            <h2>Staging 看板</h2>
-            <span class="kanban-count">{{ displayKanbanCount }} 个区域</span>
+            <h2>{{ $t('view.staging.title') }}</h2>
+            <span class="kanban-count">{{ $t('view.staging.areaCount', { n: displayKanbanCount }) }}</span>
           </div>
         </template>
         <template #bottom>
@@ -116,8 +118,6 @@ function handleKanbanCountChange(count: number) {
   height: 100%;
   width: 100%;
   background-color: var(--color-background-content, #f0f);
-  border: 1px solid var(--color-border-default, #f0f);
-  border-radius: 0.8rem;
 }
 
 /* ==================== 主内容区域 ==================== */

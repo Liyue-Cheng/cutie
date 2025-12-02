@@ -28,52 +28,49 @@
         <div class="sidebar-content">
           <ul class="nav-group">
             <li @click="$router.push({ path: '/', query: { view: 'recent' } })">
-              <CuteIcon name="Clock" :size="16" /><span>Recent</span>
+              <CuteIcon name="Clock" :size="16" /><span>{{ $t('nav.recent') }}</span>
             </li>
             <li class="nav-item-with-action">
-              <div
-                class="nav-item-main"
-                @click="$router.push('/staging-kanban')"
-              >
-                <CuteIcon name="Layers" :size="16" /><span>Staging</span>
+              <div class="nav-item-main" @click="$router.push('/staging-kanban')">
+                <CuteIcon name="Layers" :size="16" /><span>{{ $t('nav.staging') }}</span>
               </div>
               <button
                 class="quick-add-button"
                 @click.stop="showQuickAddDialog = true"
-                title="快速添加任务"
+                :title="$t('nav.quickAddTask')"
               >
                 <CuteIcon name="Plus" :size="14" />
               </button>
             </li>
             <li @click="$router.push('/upcoming')">
-              <CuteIcon name="CalendarClock" :size="16" /><span>Upcoming</span>
+              <CuteIcon name="CalendarClock" :size="16" /><span>{{ $t('nav.upcoming') }}</span>
             </li>
             <li @click="$router.push('/projects')">
-              <CuteIcon name="Folder" :size="16" /><span>Projects</span>
+              <CuteIcon name="Folder" :size="16" /><span>{{ $t('nav.projects') }}</span>
             </li>
           </ul>
 
           <div class="section-divider">
-            <span class="divider-label">DAILY ROUTINES</span>
+            <span class="divider-label">{{ $t('nav.section.dailyRoutines') }}</span>
           </div>
           <ul class="nav-group">
             <li @click="$router.push('/daily-overview')">
-              <CuteIcon name="Calendar" :size="16" /><span>Daily overview</span>
+              <CuteIcon name="Calendar" :size="16" /><span>{{ $t('nav.dailyOverview') }}</span>
             </li>
             <li @click="$router.push('/daily-shutdown')">
-              <CuteIcon name="BookOpen" :size="16" /><span>Daily shutdown</span>
+              <CuteIcon name="BookOpen" :size="16" /><span>{{ $t('nav.dailyShutdown') }}</span>
             </li>
           </ul>
 
           <div class="section-divider">
-            <span class="divider-label">KANBAN</span>
+            <span class="divider-label">{{ $t('nav.section.kanban') }}</span>
           </div>
           <ul class="nav-group">
             <li @click="$router.push('/timeline-kanban')">
-              <CuteIcon name="LayoutGrid" :size="16" /><span>Timeline Kanban</span>
+              <CuteIcon name="LayoutGrid" :size="16" /><span>{{ $t('nav.timelineKanban') }}</span>
             </li>
             <li @click="$router.push('/calendar-kanban')">
-              <CuteIcon name="CalendarDays" :size="16" /><span>Calendar Kanban</span>
+              <CuteIcon name="CalendarDays" :size="16" /><span>{{ $t('nav.calendarKanban') }}</span>
             </li>
           </ul>
         </div>
@@ -81,15 +78,15 @@
           <ul class="nav-group">
             <li @click="isAreaManagerOpen = !isAreaManagerOpen">
               <CuteIcon name="Tag" :size="16" />
-              <span>Areas</span>
+              <span>{{ $t('nav.areas') }}</span>
             </li>
             <li @click="isRecurrenceManagerOpen = true">
               <CuteIcon name="RefreshCw" :size="16" />
-              <span>循环任务</span>
+              <span>{{ $t('nav.recurrence') }}</span>
             </li>
             <li @click="isSettingsOpen = true">
               <CuteIcon name="Settings" :size="16" />
-              <span>{{ $t('sidebar.settings') }}</span>
+              <span>{{ $t('nav.settings') }}</span>
             </li>
           </ul>
         </div>
@@ -113,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window'
 import CuteButton from '@/components/parts/CuteButton.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -246,7 +243,6 @@ onBeforeUnmount(() => {
   if (isDragging) {
     handleMouseUp()
   }
-  document.body.classList.remove(themeClassName)
 })
 
 const isAreaManagerOpen = ref(false)
@@ -254,20 +250,6 @@ const isRecurrenceManagerOpen = ref(false)
 const isSettingsOpen = ref(false)
 const showQuickAddDialog = ref(false)
 const isAiDialogOpen = ref(false)
-
-const themeClassName = 'theme-temp-susamacopy'
-
-// 立即应用主题类名，避免初始渲染时的样式闪烁
-document.body.classList.add(themeClassName)
-
-// 2. Use onMounted hook
-// onMounted is executed after the component is mounted to the DOM
-onMounted(() => {
-  // 确保主题类名已应用（防御性编程）
-  if (!document.body.classList.contains(themeClassName)) {
-    document.body.classList.add(themeClassName)
-  }
-})
 </script>
 
 <style scoped>
@@ -498,11 +480,15 @@ onMounted(() => {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  /* 内容区边框和圆角（从各 View 移至此处统一管理） */
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.8rem;
+  background-color: var(--color-background-content, #f0f);
+  overflow: hidden;
 
   /* 🔧 关键：防止子视图撑破主内容区域 */
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
 }
 
 .main-content-pane > :deep(*) {

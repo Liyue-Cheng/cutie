@@ -190,8 +190,6 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   height: 100%;
   width: 100%;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
 }
 
 /* ==================== 上栏标题 ==================== */

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import InfiniteDailyKanban from '@/components/organisms/InfiniteDailyKanban.vue'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import GlobalRecurrenceEditDialog from '@/components/parts/recurrence/GlobalRecurrenceEditDialog.vue'
@@ -32,6 +33,7 @@ type RightPaneView =
   | 'deleted'
 
 // ==================== Stores ====================
+const { t } = useI18n()
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
 const registerStore = useRegisterStore()
@@ -65,17 +67,17 @@ const isRightPaneCollapsed = ref(true) // 🆕 右边栏是否收起（默认收
 // 🗑️ 移除 currentCalendarDate - 现在使用 register store
 
 // 视图配置
-const viewConfig = {
-  calendar: { icon: 'Calendar', label: '日历' },
-  staging: { icon: 'Layers', label: 'Staging' },
-  deadline: { icon: 'Clock', label: '截止日期' },
-  templates: { icon: 'FileText', label: '模板' },
-  projects: { icon: 'FolderKanban', label: '项目' },
-  polling: { icon: 'ListChecks', label: '轮询' },
-  completed: { icon: 'CheckCheck', label: '已完成' },
-  archive: { icon: 'Archive', label: '归档' },
-  deleted: { icon: 'Trash2', label: '最近删除' },
-} as const
+const viewConfig = computed(() => ({
+  calendar: { icon: 'Calendar' as const, label: t('toolbar.calendar') },
+  staging: { icon: 'Layers' as const, label: t('toolbar.staging') },
+  deadline: { icon: 'Clock' as const, label: t('toolbar.deadline') },
+  templates: { icon: 'FileText' as const, label: t('toolbar.templates') },
+  projects: { icon: 'FolderKanban' as const, label: t('toolbar.projects') },
+  polling: { icon: 'ListChecks' as const, label: t('toolbar.polling') },
+  completed: { icon: 'CheckCheck' as const, label: t('toolbar.completed') },
+  archive: { icon: 'Archive' as const, label: t('toolbar.archive') },
+  deleted: { icon: 'Trash2' as const, label: t('toolbar.deleted') },
+}))
 
 // ==================== 事件处理 ====================
 // 🗑️ 移除 handleOpenEditor - 由 KanbanTaskCard 直接调用 UI Store
@@ -288,13 +290,13 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
       <TwoRowLayout>
         <template #top>
           <div class="kanban-header">
-            <button class="filter-button" title="筛选">
+            <button class="filter-button" :title="$t('common.action.filter')">
               <CuteIcon name="ListFilter" :size="16" />
-              <span>筛选</span>
+              <span>{{ $t('common.action.filter') }}</span>
             </button>
             <div class="date-navigation">
               <div class="today-group">
-                <button class="today-button" @click="goToToday">今天</button>
+                <button class="today-button" @click="goToToday">{{ $t('time.today') }}</button>
                 <button
                   class="expand-button"
                   :class="{ active: showDatePicker }"
@@ -340,17 +342,17 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
                 class="days-toggle-btn"
                 :class="{ active: calendarDays === 3 }"
                 @click="toggleCalendarDays"
-                :title="calendarDays === 1 ? '切换到3天视图' : '切换到1天视图'"
+                :title="calendarDays === 1 ? $t('calendar.action.switchTo3Days') : $t('calendar.action.switchTo1Day')"
               >
                 <CuteIcon name="Columns3" :size="16" />
               </button>
             </div>
             <!-- 日历导航按钮 -->
             <div v-if="currentRightPaneView === 'calendar'" class="calendar-nav-buttons">
-              <button class="nav-btn" title="上一天">
+              <button class="nav-btn" :title="$t('calendar.action.previous')">
                 <CuteIcon name="ChevronLeft" :size="16" />
               </button>
-              <button class="nav-btn" title="下一天">
+              <button class="nav-btn" :title="$t('calendar.action.next')">
                 <CuteIcon name="ChevronRight" :size="16" />
               </button>
             </div>
@@ -358,7 +360,7 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
             <div v-if="currentRightPaneView === 'calendar'" class="calendar-zoom-controls">
               <button class="zoom-toggle-btn" @click="cycleZoom">{{ calendarZoom }}x</button>
             </div>
-            <h3 v-else>{{ viewConfig[currentRightPaneView].label }}</h3>
+            <h3 v-else>{{ viewConfig[currentRightPaneView]?.label }}</h3>
           </div>
         </template>
         <template #bottom>
@@ -420,8 +422,6 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
   height: 100%;
   width: 100%;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
 }
 
 .main-content-pane {

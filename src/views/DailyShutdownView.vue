@@ -46,7 +46,7 @@ onMounted(async () => {
       <!-- 顶部：标题 -->
       <template #top>
         <div class="shutdown-header">
-          <h2 class="shutdown-title">Daily shutdown</h2>
+          <h2 class="shutdown-title">{{ $t('view.dailyShutdown.title') }}</h2>
         </div>
       </template>
 
@@ -58,12 +58,12 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="Circle" :size="18" />
-                <span>Today · Incomplete</span>
+                <span>{{ $t('view.dailyShutdown.todayIncomplete') }}</span>
               </div>
             </div>
             <div class="card-body kanban-card-body">
               <SimpleKanbanColumn
-                title="Today · Incomplete"
+                :title="$t('view.dailyShutdown.todayIncomplete')"
                 :subtitle="today"
                 :view-key="todayIncompleteViewKey"
                 :show-add-input="false"
@@ -77,12 +77,12 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="Check" :size="18" />
-                <span>Today · Completed</span>
+                <span>{{ $t('view.dailyShutdown.todayCompleted') }}</span>
               </div>
             </div>
             <div class="card-body kanban-card-body">
               <SimpleKanbanColumn
-                title="Today · Completed"
+                :title="$t('view.dailyShutdown.todayCompleted')"
                 :subtitle="today"
                 :view-key="todayCompletedViewKey"
                 :show-add-input="false"
@@ -96,13 +96,13 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="CalendarDays" :size="18" />
-                <span>Tomorrow</span>
+                <span>{{ $t('view.dailyShutdown.tomorrow') }}</span>
               </div>
               <span class="card-subtitle">{{ tomorrow }}</span>
             </div>
             <div class="card-body kanban-card-body">
               <SimpleKanbanColumn
-                title="Tomorrow"
+                :title="$t('view.dailyShutdown.tomorrow')"
                 :subtitle="tomorrow"
                 :view-key="tomorrowViewKey"
                 :show-add-input="true"
@@ -116,13 +116,13 @@ onMounted(async () => {
             <div class="card-header">
               <div class="card-title">
                 <CuteIcon name="Sparkles" :size="18" />
-                <span>今日小仪式</span>
+                <span>{{ $t('view.dailyShutdown.ritual') }}</span>
               </div>
             </div>
             <div class="card-body ritual-card-body">
               <UnderConstruction
-                title="今日小仪式"
-                description="收尾小仪式正在设计中，未来会在这里帮助你温柔结束这一天。"
+                :title="$t('view.dailyShutdown.ritual')"
+                :description="$t('view.dailyShutdown.ritualDesc')"
               />
             </div>
           </CutePane>
@@ -137,8 +137,6 @@ onMounted(async () => {
   width: 100%;
   height: 100%;
   background-color: var(--color-background-content);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.8rem;
   overflow: hidden;
 }
 
