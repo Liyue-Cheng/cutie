@@ -17,6 +17,7 @@ import type { ViewMetadata } from '@/types/drag'
 import type { DragObject, DragObjectType, TaskCard } from '@/types/dtos'
 import type { DragData } from '@/infra/drag-interact/types'
 import { makeDragDecision } from '@/services/dragDecisionService'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 /**
  * useInteractDrag 配置选项
@@ -153,7 +154,8 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
         const targetDate = targetViewKey.startsWith('daily::') ? targetViewKey.split('::')[1] : null
 
         if (sourceDate && targetDate) {
-          const today = new Date().toISOString().split('T')[0]!
+          // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+          const today = getTodayDateString()
           const decision = makeDragDecision(
             draggedObject as any as TaskCard,
             sourceDate,

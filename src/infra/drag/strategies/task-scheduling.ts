@@ -20,6 +20,7 @@ import {
 } from './strategy-utils'
 import { pipeline } from '@/cpu'
 import { isTaskCard } from '@/types/dtos'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 function isLexoRankView(viewKey: string): boolean {
   return Boolean(viewKey)
@@ -200,7 +201,8 @@ export const dailyToDailyStrategy: Strategy = {
         }
 
         // 🔹 获取今天的日期
-        const today = new Date().toISOString().split('T')[0]!
+        // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+        const today = getTodayDateString()
 
         // 🔹 判断是否是"过去 → 今天/未来"的场景
         const isFromPast = sourceDate < today

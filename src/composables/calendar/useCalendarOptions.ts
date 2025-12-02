@@ -64,12 +64,92 @@ export function useCalendarOptions(
   const calendarOptions = reactive({
     plugins,
     headerToolbar: false as false, // 移除标题栏
-    dayHeaders: false, // 移除日期列头部
+    dayHeaders: true, // 启用日期列头部（用于自定义头部内容）
     dayHeaderFormat: {
       weekday: 'short' as const,
       month: 'numeric' as const,
       day: 'numeric' as const,
     }, // 🆕 日期头部格式
+    // 自定义日期头部内容：使用与 CuteCalendar 中相同的视觉结构
+    // 这样头部与下方网格共享同一套列宽，保证像素级对齐
+    dayHeaderContent: (arg: any) => {
+      const viewType = String(arg.view?.type ?? '')
+
+      // ==================== 多日 / 周视图头部（TimeGrid 系列）====================
+      if (viewType.startsWith('timeGrid')) {
+        const date: Date = arg.date
+
+        const year = date.getFullYear()
+        const month = date.getMonth() + 1
+        const day = date.getDate()
+
+        const yyyy = String(year)
+        const mm = String(month).padStart(2, '0')
+        const dd = String(day).padStart(2, '0')
+        const dateStr = `${yyyy}-${mm}-${dd}`
+
+        const today = new Date()
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+          2,
+          '0'
+        )}-${String(today.getDate()).padStart(2, '0')}`
+        const isToday = dateStr === todayStr
+        const isWeekView = viewType === 'timeGridWeek'
+
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const dayName = dayNames[date.getDay()] ?? arg.text
+
+        // 根容器：沿用 .custom-day-header 的样式
+        const container = document.createElement('div')
+        container.className = 'custom-day-header'
+        container.setAttribute('data-date', dateStr)
+
+        const dayNameSpan = document.createElement('span')
+        dayNameSpan.className = 'day-name'
+        dayNameSpan.textContent = dayName
+        container.appendChild(dayNameSpan)
+
+        const dateSpan = document.createElement('span')
+        dateSpan.className = 'date-number'
+        if (isToday) {
+          dateSpan.classList.add('is-today')
+        }
+        dateSpan.textContent = `${month}/${day}`
+        container.appendChild(dateSpan)
+
+        // 单日/多日视图：今天显示徽章（复用原来的“今天”标记）
+        // 周视图不显示今天徽章，只通过数字高亮区分
+        if (isToday && !isWeekView) {
+          const badge = document.createElement('span')
+          badge.className = 'today-badge'
+          badge.textContent = ' 今天 '
+          container.appendChild(badge)
+        }
+
+        return { domNodes: [container] }
+      }
+
+      // ==================== 月视图头部（DayGridMonth）====================
+      if (viewType === 'dayGridMonth') {
+        const date: Date = arg.date
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const dayName = dayNames[date.getDay()] ?? arg.text
+
+        const container = document.createElement('div')
+        container.className = 'custom-day-header custom-day-header--month'
+
+        const dayNameSpan = document.createElement('span')
+        dayNameSpan.className = 'day-name'
+        dayNameSpan.textContent = dayName
+        container.appendChild(dayNameSpan)
+
+        // 月视图标题栏只显示周标签，不显示日期数字
+        return { domNodes: [container] }
+      }
+
+      // 其他视图使用默认文本
+      return arg.text
+    },
     initialView,
     firstDay: 1, // ✅ 一周从周一开始（0=周日, 1=周一）
     allDaySlot: true, // ✅ 启用全日槽位

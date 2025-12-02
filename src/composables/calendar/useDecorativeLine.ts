@@ -6,6 +6,7 @@
 
 import { ref, watch, nextTick, onMounted, onUnmounted, type Ref } from 'vue'
 import type FullCalendar from '@fullcalendar/vue3'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 export function useDecorativeLine(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -22,7 +23,8 @@ export function useDecorativeLine(
     if (!calendarRef.value) return
 
     // 获取当前显示的日期字符串（YYYY-MM-DD）
-    const displayDate = currentDate.value || new Date().toISOString().split('T')[0]
+    // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+    const displayDate = currentDate.value || getTodayDateString()
 
     // 查找当前日期的单元格
     const calendarEl = calendarRef.value.$el as HTMLElement
