@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTrashStore } from '@/stores/trash'
 import KanbanTaskCard from '@/components/assembles/tasks/kanban/KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 
+const { t } = useI18n()
 const trashStore = useTrashStore()
 
 onMounted(async () => {
@@ -26,7 +28,7 @@ const taskCount = computed(() => trashStore.trashedTaskCount)
 
 // 格式化删除时间
 function formatDeletedAt(deletedAt: string | null): string {
-  if (!deletedAt) return '未知时间'
+  if (!deletedAt) return t('time.unknown')
 
   const date = new Date(deletedAt)
   const now = new Date()
@@ -35,10 +37,10 @@ function formatDeletedAt(deletedAt: string | null): string {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return '刚刚'
-  if (diffMins < 60) return `${diffMins} 分钟前`
-  if (diffHours < 24) return `${diffHours} 小时前`
-  if (diffDays < 7) return `${diffDays} 天前`
+  if (diffMins < 1) return t('time.justNow')
+  if (diffMins < 60) return t('time.minutesAgo', { n: diffMins })
+  if (diffHours < 24) return t('time.hoursAgo', { n: diffHours })
+  if (diffDays < 7) return t('time.daysAgo', { n: diffDays })
 
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
@@ -49,7 +51,7 @@ function formatDeletedAt(deletedAt: string | null): string {
 
 // 恢复任务
 async function handleRestore(task: TaskCard) {
-  if (!confirm(`确定要恢复任务"${task.title}"吗？`)) return
+  if (!confirm(t('confirm.restoreTask', { title: task.title }))) return
 
   try {
     await trashStore.restoreTask(task.id)
@@ -61,13 +63,13 @@ async function handleRestore(task: TaskCard) {
       error instanceof Error ? error : new Error(String(error)),
       { taskId: task.id }
     )
-    alert('恢复失败，请重试')
+    alert(t('message.error.restoreFailed'))
   }
 }
 
 // 彻底删除任务
 async function handlePermanentlyDelete(task: TaskCard) {
-  if (!confirm(`确定要彻底删除任务"${task.title}"吗？此操作不可恢复！`)) return
+  if (!confirm(t('confirm.permanentDeleteTask', { title: task.title }))) return
 
   try {
     await trashStore.permanentlyDeleteTask(task.id)
@@ -79,27 +81,27 @@ async function handlePermanentlyDelete(task: TaskCard) {
       error instanceof Error ? error : new Error(String(error)),
       { taskId: task.id }
     )
-    alert('删除失败，请重试')
+    alert(t('message.error.deleteFailed'))
   }
 }
 
 // 清空回收站
 async function handleEmptyTrash() {
-  if (!confirm('确定要清空回收站吗？这将彻底删除所有任务，此操作不可恢复！')) {
+  if (!confirm(t('confirm.emptyTrash'))) {
     return
   }
 
   try {
     const deletedCount = await trashStore.emptyTrash({ olderThanDays: 0 })
     logger.info(LogTags.VIEW_TRASH, 'Trash emptied', { deletedCount })
-    alert(`已清空回收站，删除了 ${deletedCount} 个任务`)
+    alert(t('message.success.trashEmptied', { count: deletedCount }))
   } catch (error) {
     logger.error(
       LogTags.VIEW_TRASH,
       'Failed to empty trash',
       error instanceof Error ? error : new Error(String(error))
     )
-    alert('清空失败，请重试')
+    alert(t('message.error.emptyTrashFailed'))
   }
 }
 
@@ -114,24 +116,24 @@ function handleOpenEditor() {
   <div class="trash-column">
     <div class="column-header">
       <div class="header-title">
-        <h3>回收站</h3>
+        <h3>{{ $t('trash.title') }}</h3>
         <span class="task-count">{{ taskCount }}</span>
       </div>
       <button v-if="taskCount > 0" class="empty-trash-btn" @click="handleEmptyTrash">
-        清空回收站
+        {{ $t('trash.action.empty') }}
       </button>
     </div>
 
     <div class="column-content">
       <div v-if="trashStore.trashedTaskCount === 0" class="empty-state">
-        <p>回收站是空的</p>
+        <p>{{ $t('trash.empty.message') }}</p>
       </div>
 
       <div v-else class="tasks-list">
         <div v-for="task in trashStore.allTrashedTasks" :key="task.id" class="task-wrapper">
           <!-- 删除时间指示器 -->
           <div class="deleted-time-indicator">
-            <span class="deleted-time-text">删除于 {{ formatDeletedAt(task.deleted_at) }}</span>
+            <span class="deleted-time-text">{{ $t('trash.label.deletedAt', { time: formatDeletedAt(task.deleted_at) }) }}</span>
           </div>
 
           <!-- 任务卡片 -->
@@ -155,11 +157,11 @@ function handleOpenEditor() {
           <div class="task-actions">
             <button class="action-btn restore-btn" @click="handleRestore(task)">
               <span class="btn-icon">↩</span>
-              <span class="btn-text">恢复</span>
+              <span class="btn-text">{{ $t('trash.action.restore') }}</span>
             </button>
             <button class="action-btn delete-btn" @click="handlePermanentlyDelete(task)">
               <span class="btn-icon">🗑</span>
-              <span class="btn-text">彻底删除</span>
+              <span class="btn-text">{{ $t('trash.action.permanentDelete') }}</span>
             </button>
           </div>
         </div>

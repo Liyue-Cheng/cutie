@@ -6,6 +6,7 @@
 
 import type { DragSession, StrategyCondition, SourceCondition, TargetCondition } from './types'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 /**
  * 判断策略是否匹配当前拖放操作
@@ -106,14 +107,15 @@ function matchSource(condition: SourceCondition, session: DragSession): boolean 
     const statuses = Array.isArray(condition.taskStatus)
       ? condition.taskStatus
       : [condition.taskStatus]
-    
+
     // 🔥 实时计算任务状态
     const task = session.object.data as any
-    const today = new Date().toISOString().split('T')[0]!
+    // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+    const today = getTodayDateString()
     const hasFutureOrTodaySchedule =
       task.schedules?.some((schedule: any) => schedule.scheduled_day >= today) ?? false
     const actualStatus = hasFutureOrTodaySchedule ? 'scheduled' : 'staging'
-    
+
     if (!statuses.includes(actualStatus)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Source taskStatus not matched', {
         expected: statuses,
@@ -181,11 +183,12 @@ function matchTarget(
   if (condition.acceptsStatus && session.object.type === 'task') {
     // 🔥 实时计算任务状态
     const task = session.object.data as any
-    const today = new Date().toISOString().split('T')[0]!
+    // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+    const today = getTodayDateString()
     const hasFutureOrTodaySchedule =
       task.schedules?.some((schedule: any) => schedule.scheduled_day >= today) ?? false
     const actualStatus = hasFutureOrTodaySchedule ? 'scheduled' : 'staging'
-    
+
     if (!condition.acceptsStatus.includes(actualStatus)) {
       logger.debug(LogTags.DRAG_STRATEGY, 'Target acceptsStatus not matched', {
         acceptsStatus: condition.acceptsStatus,

@@ -68,12 +68,23 @@ export function useMidnightRefresh() {
         const startDate = new Date(centerDate.getFullYear(), centerDate.getMonth() - 1, 1)
         const endDate = new Date(centerDate.getFullYear(), centerDate.getMonth() + 2, 0)
 
+        // 🔥 使用本地日期格式（YYYY-MM-DD），符合 TIME_CONVENTION.md 规范
+        const formatDate = (d: Date) => {
+          const y = d.getFullYear()
+          const m = String(d.getMonth() + 1).padStart(2, '0')
+          const day = String(d.getDate()).padStart(2, '0')
+          return `${y}-${m}-${day}`
+        }
+
+        const startDateStr = formatDate(startDate)
+        const endDateStr = formatDate(endDate)
+
         logger.debug(LogTags.COMPONENT_CALENDAR, 'Refreshing time blocks after midnight', {
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: startDateStr,
+          endDate: endDateStr,
         })
 
-        await timeBlockStore.fetchTimeBlocksForRange(startDate.toISOString(), endDate.toISOString())
+        await timeBlockStore.fetchTimeBlocksForRange(startDateStr, endDateStr)
       }
 
       // 2. 刷新今天的任务数据（如果有DMA缓存）

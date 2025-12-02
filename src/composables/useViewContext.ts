@@ -6,6 +6,7 @@
 
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 /**
  * 获取当前视图上下文
@@ -33,7 +34,8 @@ export function useViewContext() {
           return `daily::${params.date}`
         }
         // 如果没有日期参数，使用今天
-        return `daily::${new Date().toISOString().split('T')[0]}`
+        // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+        return `daily::${getTodayDateString()}`
 
       case 'staging':
         return 'misc::staging'

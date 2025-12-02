@@ -5,6 +5,7 @@
  */
 
 import type { TaskCard } from '@/types/dtos'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 /**
  * 计算任务的调度状态
@@ -18,7 +19,8 @@ export function getTaskScheduleStatus(task: TaskCard): 'scheduled' | 'staging' {
     return 'staging'
   }
 
-  const today = new Date().toISOString().split('T')[0]!
+  // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+  const today = getTodayDateString()
   const hasFutureOrTodaySchedule = task.schedules.some(
     (schedule) => schedule.scheduled_day >= today
   )

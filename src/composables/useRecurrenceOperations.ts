@@ -4,14 +4,11 @@ import { useUIStore } from '@/stores/ui'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 interface RecurrenceCleanupOptions {
   removeAfterDateExclusive?: string | null
   removeFromDateInclusive?: string | null
-}
-
-function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0]!
 }
 
 /**

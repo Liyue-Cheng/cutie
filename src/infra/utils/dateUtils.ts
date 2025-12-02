@@ -242,6 +242,15 @@ export function getNowLocalISOString(): string {
 }
 
 /**
+ * 获取当前时间的本地 ISO 字符串（精确到分钟）
+ *
+ * @returns YYYY-MM-DDTHH:mm
+ */
+export function getNowLocalISOStringMinutes(): string {
+  return getNowLocalISOString().slice(0, 16)
+}
+
+/**
  * 解析本地 ISO 字符串为 Date 对象
  *
  * ⚠️ 用于解析后端返回的本地时间字符串

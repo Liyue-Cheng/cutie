@@ -14,6 +14,7 @@ import {
   transactionProcessor,
   type TaskTransactionResult,
 } from '@/infra/transaction/transactionProcessor'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 interface UpdateSortPositionResponse {
   task_id: string
@@ -372,7 +373,8 @@ export const TaskISA: ISADefinition = {
 
         // 🔥 立即清除所有当前和未来的日程
         // 返回暂存区操作会删除所有 >= today 的日程，只保留过去的
-        const today = new Date().toISOString().split('T')[0]
+        // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+        const today = getTodayDateString()
         const pastSchedules =
           task.schedules?.filter((schedule) => schedule.scheduled_day < today) || []
 

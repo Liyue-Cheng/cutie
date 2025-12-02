@@ -7,6 +7,7 @@ import { DebugISA } from './debug-isa'
 import { TaskISA } from './task-isa'
 import { ScheduleISA } from './schedule-isa'
 import { TimeBlockISA } from './timeblock-isa'
+import { TimeBlockRecurrenceISA } from './timeblock-recurrence-isa'
 import { TemplateISA } from './template-isa'
 import { RecurrenceISA } from './recurrence-isa'
 import { UserSettingsISA } from './user-settings-isa'
@@ -21,6 +22,7 @@ export const ISA: ISADefinition = {
   ...TaskISA,
   ...ScheduleISA,
   ...TimeBlockISA,
+  ...TimeBlockRecurrenceISA,
   ...TemplateISA,
   ...RecurrenceISA,
   ...UserSettingsISA,

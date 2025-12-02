@@ -4,6 +4,7 @@ import type { TimeBlockView, TimeType } from '@/types/dtos'
 import { getEventSubscriber } from '@/infra/events/events'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/stores/shared'
+import { extractDateFromUtc } from '@/infra/utils/dateUtils'
 
 /**
  * TimeBlock Store
@@ -123,7 +124,8 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
       // date: YYYY-MM-DD 字符串，直接比较日期部分
       return Array.from(timeBlocks.value.values())
         .filter((block) => {
-          const blockDate = block.start_time.split('T')[0] // 提取 YYYY-MM-DD
+          // ⚠️ 使用 extractDateFromUtc() 从 UTC 时间提取本地日期，符合 TIME_CONVENTION.md
+          const blockDate = extractDateFromUtc(block.start_time)
           return blockDate === date
         })
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
@@ -421,7 +423,9 @@ export const useTimeBlockStore = defineStore('timeblock', () => {
    * 删除时间块
    * API: DELETE /time-blocks/:id
    */
-  async function deleteTimeBlock(id: string): Promise<{ updated_tasks?: import('@/types/dtos').TaskCard[] } | null> {
+  async function deleteTimeBlock(
+    id: string
+  ): Promise<{ updated_tasks?: import('@/types/dtos').TaskCard[] } | null> {
     isLoading.value = true
     error.value = null
 

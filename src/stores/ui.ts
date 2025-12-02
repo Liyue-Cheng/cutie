@@ -71,6 +71,18 @@ export const useUIStore = defineStore('ui', () => {
    */
   const isTimeBlockCreateDialogOpen = computed(() => timeBlockCreateContext.value !== null)
 
+  /**
+   * 时间块循环编辑对话框上下文
+   */
+  interface TimeBlockRecurrenceEditContext {
+    recurrenceId: string
+  }
+
+  const timeBlockRecurrenceEditContext = ref<TimeBlockRecurrenceEditContext | null>(null)
+  const isTimeBlockRecurrenceEditDialogOpen = computed(
+    () => timeBlockRecurrenceEditContext.value !== null
+  )
+
   // ==================== 操作方法 ====================
 
   /**
@@ -150,6 +162,25 @@ export const useUIStore = defineStore('ui', () => {
     logger.info(LogTags.STORE_UI, 'Closing time block create dialog')
   }
 
+  /**
+   * 打开时间块循环编辑对话框
+   */
+  function openTimeBlockRecurrenceEditDialog(recurrenceId: string) {
+    timeBlockRecurrenceEditContext.value = { recurrenceId }
+    logger.info(LogTags.STORE_UI, 'Opening time block recurrence edit dialog', { recurrenceId })
+  }
+
+  /**
+   * 关闭时间块循环编辑对话框
+   */
+  function closeTimeBlockRecurrenceEditDialog() {
+    const previous = timeBlockRecurrenceEditContext.value
+    timeBlockRecurrenceEditContext.value = null
+    logger.info(LogTags.STORE_UI, 'Closing time block recurrence edit dialog', {
+      recurrenceId: previous?.recurrenceId,
+    })
+  }
+
   return {
     // 任务编辑器状态
     editorTaskId,
@@ -163,6 +194,8 @@ export const useUIStore = defineStore('ui', () => {
     // 时间块创建对话框状态
     timeBlockCreateContext,
     isTimeBlockCreateDialogOpen,
+    timeBlockRecurrenceEditContext,
+    isTimeBlockRecurrenceEditDialogOpen,
 
     // 操作方法
     openEditor,
@@ -171,5 +204,7 @@ export const useUIStore = defineStore('ui', () => {
     closeRecurrenceEditDialog,
     openTimeBlockCreateDialog,
     closeTimeBlockCreateDialog,
+    openTimeBlockRecurrenceEditDialog,
+    closeTimeBlockRecurrenceEditDialog,
   }
 })

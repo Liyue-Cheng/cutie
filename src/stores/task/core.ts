@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import type { TaskCard, TaskDetail } from '@/types/dtos'
 import { updateMapItem, removeMapItem, createLoadingState } from '@/stores/shared'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 /**
  * Task Store 核心状态管理
@@ -111,7 +112,8 @@ export function createTaskCore() {
    *    - 排除 EXPIRE 类型且已过期的循环任务
    */
   const stagingTasks = computed(() => {
-    const today = new Date().toISOString().split('T')[0]!
+    // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+    const today = getTodayDateString()
 
     return allTasksArray.value.filter((task) => {
       // 基础状态检查
@@ -151,7 +153,8 @@ export function createTaskCore() {
    * ✅ 实时计算：根据 schedules 数组判断，不依赖 schedule_status
    */
   const plannedTasks = computed(() => {
-    const today = new Date().toISOString().split('T')[0]!
+    // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+    const today = getTodayDateString()
 
     return allTasksArray.value.filter((task) => {
       // 基础过滤：未完成 + 未删除
@@ -228,7 +231,8 @@ export function createTaskCore() {
    * @deprecated 使用 plannedTasks（只含未完成）
    */
   const scheduledTasks = computed(() => {
-    const today = new Date().toISOString().split('T')[0]!
+    // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+    const today = getTodayDateString()
 
     return allTasksArray.value.filter((task) => {
       if (task.is_deleted) return false
@@ -342,7 +346,8 @@ export function createTaskCore() {
           if (subtype === 'staging') {
             if (identifier === 'no-area') {
               // misc::staging::no-area - 无区域的 staging 任务
-              const today = new Date().toISOString().split('T')[0]!
+              // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+              const today = getTodayDateString()
               const filteredTasks = allTasksArray.value.filter((task) => {
                 // 基础检查：必须没有 area_id
                 if (task.area_id || task.is_completed || task.is_archived || task.is_deleted) {
@@ -379,7 +384,8 @@ export function createTaskCore() {
               return filteredTasks
             } else if (identifier) {
               // misc::staging::${areaId} - 指定 area 的 staging 任务
-              const today = new Date().toISOString().split('T')[0]!
+              // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
+              const today = getTodayDateString()
               const filteredTasks = allTasksArray.value.filter((task) => {
                 // 基础检查
                 if (

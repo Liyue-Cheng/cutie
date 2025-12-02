@@ -200,8 +200,10 @@ export interface TimeBlockView {
     is_completed: boolean
   }>
 
-  // --- 其他元信息 ---
+  // --- 循环相关字段 ---
   is_recurring: boolean
+  recurrence_id: string | null // 循环规则ID（通过 time_block_recurrence_links 表关联）
+  recurrence_original_date: string | null // 循环原始日期 (YYYY-MM-DD)
 }
 
 /**
@@ -317,6 +319,109 @@ export interface UpdateTaskRecurrencePayload {
   timezone?: string | null // 三态：undefined=不更新, null=清空, string=设置值
   expiry_behavior?: 'CARRYOVER_TO_STAGING' | 'EXPIRE' // 过期行为
   is_active?: boolean
+}
+
+// --- Time Block Recurrence Types ---
+
+/**
+ * TimeBlockRecurrence (时间块循环规则)
+ *
+ * 用途: 定义时间块循环规则，系统将根据 RRULE 标准规则自动生成时间块实例
+ */
+export interface TimeBlockRecurrence {
+  id: string
+  template_id: string
+  rule: string // RRULE 标准字符串
+  time_type: TimeType
+  start_date: string | null
+  end_date: string | null
+  timezone: string | null
+  skip_conflicts: boolean // 遇到冲突时是否跳过
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  template?: TimeBlockTemplateInfo | null
+}
+
+/**
+ * TimeBlockTemplateInfo (时间块模板简要信息)
+ */
+export interface TimeBlockTemplateInfo {
+  id: string
+  title: string | null
+  glance_note_template?: string | null
+  detail_note_template?: string | null
+  duration_minutes: number
+  start_time_local: string // HH:MM:SS
+  is_all_day: boolean
+  area_id: string | null
+}
+
+/**
+ * CreateTimeBlockRecurrencePayload (创建时间块循环规则的请求载荷)
+ */
+export interface CreateTimeBlockRecurrencePayload {
+  // 模板信息
+  title?: string | null
+  glance_note_template?: string | null
+  detail_note_template?: string | null
+  duration_minutes: number
+  start_time_local: string // HH:MM:SS
+  time_type?: TimeType
+  is_all_day?: boolean
+  area_id?: string | null
+
+  // 循环规则信息
+  rule: string
+  start_date?: string | null
+  end_date?: string | null
+  timezone?: string | null
+  skip_conflicts?: boolean
+
+  // 源时间块（可选）
+  source_time_block_id?: string
+}
+
+/**
+ * UpdateTimeBlockRecurrencePayload (更新时间块循环规则的请求载荷)
+ */
+export interface UpdateTimeBlockRecurrencePayload {
+  rule?: string
+  time_type?: TimeType
+  start_date?: string | null
+  end_date?: string | null
+  timezone?: string | null
+  skip_conflicts?: boolean
+  is_active?: boolean
+}
+
+/**
+ * EditTimeBlockRecurrencePayload (编辑时间块循环规则的请求载荷)
+ */
+export interface EditTimeBlockRecurrencePayload {
+  id: string
+  rule?: string
+  end_date?: string | null
+  timezone?: string | null
+  skip_conflicts?: boolean
+  time_type?: TimeType
+  title?: string | null
+  glance_note_template?: string | null
+  detail_note_template?: string | null
+  duration_minutes?: number
+  is_all_day?: boolean
+  area_id?: string | null
+  local_now: string
+  delete_future_instances?: boolean
+}
+
+/**
+ * TimeBlockRecurrenceEditResult (编辑循环规则响应)
+ */
+export interface TimeBlockRecurrenceEditResult {
+  recurrence: TimeBlockRecurrence
+  deleted_time_block_ids: string[]
+  deleted_count: number
 }
 
 // --- Drag & Drop Type System ---
