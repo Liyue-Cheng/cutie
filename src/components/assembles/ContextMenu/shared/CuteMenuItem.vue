@@ -17,10 +17,11 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import type { IconName } from '@/types/icons'
 
 const props = withDefaults(
   defineProps<{
-    icon?: string
+    icon?: IconName
     iconSize?: number
     variant?: 'default' | 'danger'
     disabled?: boolean

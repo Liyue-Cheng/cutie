@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
 import { useRecurrenceStore } from '@/stores/recurrence'
@@ -31,6 +32,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 
+const { t } = useI18n()
 const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 const recurrenceStore = useRecurrenceStore()
@@ -511,7 +513,7 @@ async function handleStopRepeating() {
 async function handleExtendRecurrence() {
   if (!currentRecurrence.value) return
 
-  if (confirm('确定继续此循环吗？将清除结束日期，继续生成新任务。')) {
+  if (confirm(t('confirm.resumeRecurrence'))) {
     try {
       // 🔥 使用CPU指令更新循环规则
       await pipeline.dispatch('recurrence.update', {
@@ -523,7 +525,7 @@ async function handleExtendRecurrence() {
       // ✅ 视图刷新由 CPU 指令的 commit 阶段统一处理
     } catch (error) {
       console.error('Failed to extend recurrence:', error)
-      alert('操作失败，请重试')
+      alert(t('message.error.operationFailed'))
     }
   }
 }
@@ -531,14 +533,14 @@ async function handleExtendRecurrence() {
 async function handleDeleteRecurrence() {
   if (!currentRecurrence.value) return
 
-  if (confirm('确定删除这个循环规则吗？已生成的任务不会被删除。')) {
+  if (confirm(t('confirm.deleteRecurrence', { rule: recurrenceDescription.value || '' }))) {
     try {
       await recurrenceOps.deleteAllInstancesAndStop(currentRecurrence.value.id)
       currentRecurrence.value = null
       await loadRecurrence()
     } catch (error) {
       console.error('Failed to delete recurrence:', error)
-      alert('删除失败，请重试')
+      alert(t('message.error.deleteFailed'))
     }
   }
 }
@@ -565,7 +567,7 @@ async function handleDeleteRecurrence() {
               />
               <div v-else class="no-area-placeholder">
                 <CuteIcon name="Hash" :size="16" />
-                <span>无区域</span>
+                <span>{{ $t('task.label.noArea') }}</span>
               </div>
             </div>
 
@@ -580,7 +582,7 @@ async function handleDeleteRecurrence() {
                 <AreaTag :name="area.name" :color="area.color" size="small" />
               </div>
               <div class="area-option" @click="updateArea(null)">
-                <span class="no-area-text">清除区域</span>
+                <span class="no-area-text">{{ $t('area.action.clearArea') }}</span>
               </div>
             </div>
           </div>
@@ -592,47 +594,49 @@ async function handleDeleteRecurrence() {
                 <span v-if="task.due_date">
                   {{ task.due_date.date }}
                 </span>
-                <span v-else class="placeholder">设置截止日期</span>
+                <span v-else class="placeholder">{{ $t('dueDate.setDueDate') }}</span>
               </button>
 
               <!-- 截止日期选择器弹窗 -->
               <div v-if="showDueDatePicker" class="due-date-picker-popup" @click.stop>
                 <div class="picker-section">
-                  <label class="picker-label">日期</label>
+                  <label class="picker-label">{{ $t('dueDate.label.date') }}</label>
                   <input type="date" v-model="dueDateInput" class="date-input" />
                 </div>
 
                 <div class="picker-section">
-                  <label class="picker-label">类型</label>
+                  <label class="picker-label">{{ $t('dueDate.label.type') }}</label>
                   <div class="deadline-type-buttons">
                     <button
                       class="type-button"
                       :class="{ active: dueDateType === 'SOFT' }"
                       @click="dueDateType = 'SOFT'"
                     >
-                      软截止
+                      {{ $t('dueDate.type.soft') }}
                     </button>
                     <button
                       class="type-button"
                       :class="{ active: dueDateType === 'HARD' }"
                       @click="dueDateType = 'HARD'"
                     >
-                      硬截止
+                      {{ $t('dueDate.type.hard') }}
                     </button>
                   </div>
                 </div>
 
                 <div class="picker-actions">
-                  <button class="action-button save-button" @click="saveDueDate">保存</button>
+                  <button class="action-button save-button" @click="saveDueDate">
+                    {{ $t('common.action.save') }}
+                  </button>
                   <button
                     v-if="task.due_date"
                     class="action-button clear-button"
                     @click="clearDueDate"
                   >
-                    清除
+                    {{ $t('common.action.clear') }}
                   </button>
                   <button class="action-button cancel-button" @click="showDueDatePicker = false">
-                    取消
+                    {{ $t('common.action.cancel') }}
                   </button>
                 </div>
               </div>
@@ -643,7 +647,9 @@ async function handleDeleteRecurrence() {
               class="recurrence-button"
               :class="{ active: currentRecurrence }"
               @click="openRecurrenceDialog"
-              :title="currentRecurrence ? '查看循环规则' : '设置为循环任务'"
+              :title="
+                currentRecurrence ? $t('recurrence.title.edit') : $t('recurrence.title.config')
+              "
             >
               <CuteIcon name="RefreshCw" :size="18" />
             </button>
@@ -684,20 +690,24 @@ async function handleDeleteRecurrence() {
               <div class="recurrence-info">
                 <span class="recurrence-text">{{ recurrenceDescription }}</span>
                 <span v-if="currentRecurrence.end_date" class="recurrence-expiry">
-                  直到 {{ currentRecurrence.end_date }}
+                  {{ $t('recurrence.label.end') }}: {{ currentRecurrence.end_date }}
                 </span>
               </div>
 
               <div class="recurrence-actions">
                 <span class="status-badge" :class="{ active: isRecurrenceActive }">
-                  {{ isRecurrenceActive ? '激活' : '过期' }}
+                  {{
+                    isRecurrenceActive
+                      ? $t('recurrence.status.active')
+                      : $t('recurrence.status.expired')
+                  }}
                 </span>
                 <div class="action-buttons">
                   <button
                     v-if="(task as any)?.recurrence_original_date && !currentRecurrence.end_date"
                     class="action-btn"
                     @click="handleStopRepeating"
-                    title="停止重复"
+                    :title="$t('recurrence.action.stopRepeating')"
                   >
                     <CuteIcon name="X" :size="16" />
                   </button>
@@ -705,14 +715,14 @@ async function handleDeleteRecurrence() {
                     v-if="currentRecurrence.end_date"
                     class="action-btn"
                     @click="handleExtendRecurrence"
-                    title="继续循环"
+                    :title="$t('recurrence.action.continue')"
                   >
                     <CuteIcon name="Check" :size="16" />
                   </button>
                   <button
                     class="action-btn danger"
                     @click="handleDeleteRecurrence"
-                    title="删除规则"
+                    :title="$t('recurrence.action.deleteRule')"
                   >
                     <CuteIcon name="Trash2" :size="16" />
                   </button>
@@ -732,13 +742,13 @@ async function handleDeleteRecurrence() {
                 class="note-placeholder"
                 @click="isTitleEditing = true"
               >
-                任务描述...
+                {{ $t('task.placeholder.description') }}
               </div>
               <textarea
                 ref="glanceNoteTextarea"
                 v-model="glanceNote"
                 class="note-textarea"
-                placeholder="任务描述..."
+                :placeholder="$t('task.placeholder.description')"
                 rows="1"
                 @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
                 @blur="updateGlanceNote"
@@ -752,14 +762,14 @@ async function handleDeleteRecurrence() {
               <div class="section-icon">
                 <CuteIcon name="List" :size="20" />
               </div>
-              <span class="section-title-text">子任务</span>
+              <span class="section-title-text">{{ $t('task.label.subtasks') }}</span>
             </div>
             <div class="section-body">
               <div class="subtasks-input">
                 <input
                   v-model="newSubtaskTitle"
                   class="add-subtask-input"
-                  placeholder="添加子任务..."
+                  :placeholder="$t('task.placeholder.addSubtask')"
                   @keydown.enter="handleAddSubtask"
                 />
               </div>
@@ -798,12 +808,14 @@ async function handleDeleteRecurrence() {
               <CuteIcon name="FileText" :size="20" />
             </div>
             <div class="section-body">
-              <div v-if="!detailNote" class="note-placeholder">详细笔记...</div>
+              <div v-if="!detailNote" class="note-placeholder">
+                {{ $t('task.placeholder.detailNote') }}
+              </div>
               <textarea
                 ref="detailNoteTextarea"
                 v-model="detailNote"
                 class="note-textarea"
-                placeholder="详细笔记..."
+                :placeholder="$t('task.placeholder.detailNote')"
                 rows="1"
                 @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
                 @blur="updateDetailNote"
@@ -815,7 +827,9 @@ async function handleDeleteRecurrence() {
         <!-- 底栏 -->
         <div class="card-footer">
           <div class="footer-actions">
-            <button class="footer-button confirm-footer-button" @click="handleClose">完成</button>
+            <button class="footer-button confirm-footer-button" @click="handleClose">
+              {{ $t('task.button.done') }}
+            </button>
           </div>
         </div>
       </div>
@@ -1132,7 +1146,7 @@ async function handleDeleteRecurrence() {
   display: flex;
   align-items: center; /* 统一使用中线对齐 */
   gap: 1rem;
-  padding: 1.7rem 0 0 0; /* 增加到 1.7rem */
+  padding: 1.7rem 0 0; /* 增加到 1.7rem */
 }
 
 /* 第一个section无特殊样式 */
@@ -1187,8 +1201,7 @@ async function handleDeleteRecurrence() {
 
 .recurrence-info {
   display: flex;
-  flex-direction: row; /* 改为横向排列 */
-  flex-wrap: wrap; /* 允许换行 */
+  flex-flow: row wrap; /* 改为横向排列 */ /* 允许换行 */
   align-items: baseline; /* 底部基线对齐 */
   gap: 0.8rem; /* 增大间距 */
   overflow: hidden;
@@ -1224,6 +1237,7 @@ async function handleDeleteRecurrence() {
   align-items: center;
   justify-content: center;
   line-height: 1;
+
   /* 默认过期状态样式 */
   color: var(--color-info-text);
   background-color: var(--color-info-light);
@@ -1326,18 +1340,18 @@ async function handleDeleteRecurrence() {
   gap: 0; /* 覆盖 .section 的 gap */
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
 .section-subtasks .section-header {
   padding-top: 0;
 }
 
 .section-subtasks .section-body {
   padding-top: 1rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
 }
 
 .section-title-text {

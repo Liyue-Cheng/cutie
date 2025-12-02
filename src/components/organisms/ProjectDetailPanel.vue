@@ -3,7 +3,7 @@
     <!-- 空状态（未选择任何项） -->
     <div v-if="projectId === undefined" class="empty-state">
       <CuteIcon name="Folder" :size="48" />
-      <p>请选择一个项目</p>
+      <p>{{ $t('project.empty.selectProject') }}</p>
     </div>
 
     <!-- 无项目视图 -->
@@ -14,15 +14,15 @@
         <div class="project-header">
           <div class="header-title-row">
             <CuteIcon name="Inbox" :size="24" />
-            <h1 class="project-title">无项目</h1>
+            <h1 class="project-title">{{ $t('project.title.noProject') }}</h1>
           </div>
-          <div class="project-description">显示所有未分配到任何项目的任务</div>
+          <div class="project-description">{{ $t('project.label.unassignedToProject') }}</div>
         </div>
 
         <!-- 任务列表区域 -->
         <div class="tasks-area">
           <div class="task-section">
-            <TaskList title="无项目任务" view-key="misc::no-project" />
+            <TaskList :title="$t('project.title.noProject')" view-key="misc::no-project" />
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@
           <div class="task-section">
             <TaskList
               :key="`project-${project.id}-no-section`"
-              title="未分类任务"
+              :title="$t('project.label.uncategorized')"
               :view-key="`project::${project.id}::section::all`"
               title-color="var(--color-text-accent)"
             />
@@ -105,8 +105,8 @@
 
           <!-- 空状态 -->
           <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
-            <p>暂无任务</p>
-            <p class="hint">从其他视图拖动任务到此项目，或点击"添加章节"组织任务</p>
+            <p>{{ $t('project.empty.noTasks') }}</p>
+            <p class="hint">{{ $t('project.empty.noTasksHint') }}</p>
           </div>
         </div>
       </div>
@@ -114,7 +114,7 @@
 
     <!-- 项目不存在 -->
     <div v-else class="empty-state">
-      <p>项目不存在</p>
+      <p>{{ $t('project.empty.notExist') }}</p>
     </div>
   </div>
 </template>

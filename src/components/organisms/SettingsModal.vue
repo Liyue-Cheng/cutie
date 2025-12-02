@@ -3,8 +3,8 @@
     <div class="settings-container" @click.stop>
       <!-- 头部 -->
       <div class="settings-header">
-        <h2 class="settings-title">Settings</h2>
-        <button class="close-btn" @click="$emit('close')" title="关闭">
+        <h2 class="settings-title">{{ $t('settings.title') }}</h2>
+        <button class="close-btn" @click="$emit('close')" :title="$t('common.action.close')">
           <CuteIcon name="X" :size="20" />
         </button>
       </div>
@@ -31,21 +31,21 @@
           <!-- AI 分类 -->
           <div v-if="activeCategory === 'ai'" class="settings-panel">
             <div class="panel-header">
-              <h3 class="panel-title">AI Settings</h3>
-              <p class="panel-description">配置对话模型与快速模型的接入信息</p>
+              <h3 class="panel-title">{{ $t('settings.ai.title') }}</h3>
+              <p class="panel-description">{{ $t('settings.ai.description') }}</p>
             </div>
 
             <div class="settings-list">
               <div class="settings-subsection">
-                <h4 class="subsection-title">对话模型（用于 AI 对话）</h4>
+                <h4 class="subsection-title">{{ $t('settings.ai.conversation.title') }}</h4>
                 <p class="subsection-description">
-                  应用于 AI 助手聊天的模型配置，需填写可用的请求地址、密钥与模型名称。
+                  {{ $t('settings.ai.conversation.description') }}
                 </p>
 
                 <div class="setting-item">
                   <div class="setting-info">
-                    <label class="setting-label">API Base URL</label>
-                    <span class="setting-description">例如：https://api.openai.com/v1</span>
+                    <label class="setting-label">{{ $t('settings.ai.field.apiBaseUrl') }}</label>
+                    <span class="setting-description">{{ $t('settings.ai.field.apiBaseUrlDesc') }}</span>
                   </div>
                   <input
                     type="text"
@@ -59,8 +59,8 @@
 
                 <div class="setting-item">
                   <div class="setting-info">
-                    <label class="setting-label">API Key</label>
-                    <span class="setting-description">用于访问对话模型的密钥</span>
+                    <label class="setting-label">{{ $t('settings.ai.field.apiKey') }}</label>
+                    <span class="setting-description">{{ $t('settings.ai.field.apiKeyDesc') }}</span>
                   </div>
                   <input
                     type="password"
@@ -74,30 +74,30 @@
 
                 <div class="setting-item">
                   <div class="setting-info">
-                    <label class="setting-label">Model</label>
-                    <span class="setting-description">模型名称，例如 gpt-4o、glm-4.5 等</span>
+                    <label class="setting-label">{{ $t('settings.ai.field.model') }}</label>
+                    <span class="setting-description">{{ $t('settings.ai.field.modelDesc') }}</span>
                   </div>
                   <input
                     type="text"
                     :value="store.getSettingValue('ai.conversation.model', '')"
                     @change="updateSetting('ai.conversation.model', $event, 'string')"
                     class="setting-input"
-                    placeholder="模型名称"
+                    :placeholder="$t('settings.ai.field.model')"
                     autocomplete="off"
                   />
                 </div>
               </div>
 
               <div class="settings-subsection">
-                <h4 class="subsection-title">快速模型（用于任务分类等快速调用）</h4>
+                <h4 class="subsection-title">{{ $t('settings.ai.quick.title') }}</h4>
                 <p class="subsection-description">
-                  用于自动分类等快速任务的轻量模型，推荐配置高性能、低延迟的模型。
+                  {{ $t('settings.ai.quick.description') }}
                 </p>
 
                 <div class="setting-item">
                   <div class="setting-info">
-                    <label class="setting-label">API Base URL</label>
-                    <span class="setting-description">例如：https://api.openai.com/v1</span>
+                    <label class="setting-label">{{ $t('settings.ai.field.apiBaseUrl') }}</label>
+                    <span class="setting-description">{{ $t('settings.ai.field.apiBaseUrlDesc') }}</span>
                   </div>
                   <input
                     type="text"
@@ -111,8 +111,8 @@
 
                 <div class="setting-item">
                   <div class="setting-info">
-                    <label class="setting-label">API Key</label>
-                    <span class="setting-description">用于访问快速模型的密钥</span>
+                    <label class="setting-label">{{ $t('settings.ai.field.apiKey') }}</label>
+                    <span class="setting-description">{{ $t('settings.ai.field.apiKeyDesc') }}</span>
                   </div>
                   <input
                     type="password"
@@ -126,17 +126,15 @@
 
                 <div class="setting-item">
                   <div class="setting-info">
-                    <label class="setting-label">Model</label>
-                    <span class="setting-description"
-                      >模型名称，例如 gpt-4o-mini、glm-4.5-flash 等</span
-                    >
+                    <label class="setting-label">{{ $t('settings.ai.field.model') }}</label>
+                    <span class="setting-description">{{ $t('settings.ai.field.modelDesc') }}</span>
                   </div>
                   <input
                     type="text"
                     :value="store.getSettingValue('ai.quick.model', '')"
                     @change="updateSetting('ai.quick.model', $event, 'string')"
                     class="setting-input"
-                    placeholder="模型名称"
+                    :placeholder="$t('settings.ai.field.model')"
                     autocomplete="off"
                   />
                 </div>
@@ -147,8 +145,8 @@
           <!-- Debug 分类 -->
           <div v-else-if="activeCategory === 'debug'" class="settings-panel">
             <div class="panel-header">
-              <h3 class="panel-title">Debug Settings</h3>
-              <p class="panel-description">开发和调试相关的设置选项</p>
+              <h3 class="panel-title">{{ $t('settings.debug.title') }}</h3>
+              <p class="panel-description">{{ $t('settings.debug.description') }}</p>
             </div>
 
             <div class="settings-list">
@@ -244,27 +242,27 @@
           <!-- Appearance 分类 -->
           <div v-else-if="activeCategory === 'appearance'" class="settings-panel">
             <div class="panel-header">
-              <h3 class="panel-title">Appearance Settings</h3>
-              <p class="panel-description">外观和主题相关的设置选项</p>
+              <h3 class="panel-title">{{ $t('settings.appearance.title') }}</h3>
+              <p class="panel-description">{{ $t('settings.appearance.description') }}</p>
             </div>
 
             <div class="settings-list">
               <!-- 主题选择 -->
               <div class="setting-item">
                 <div class="setting-info">
-                  <label class="setting-label">主题</label>
-                  <span class="setting-description">选择应用程序的外观主题</span>
+                  <label class="setting-label">{{ $t('settings.appearance.theme') }}</label>
+                  <span class="setting-description">{{ $t('settings.appearance.themeDesc') }}</span>
                 </div>
                 <select
                   :value="store.getSettingValue('appearance.theme', 'business')"
                   @change="updateSetting('appearance.theme', $event, 'string')"
                   class="setting-select"
                 >
-                  <option value="rose-pine">暮色庭院</option>
-                  <option value="rose-pine-dawn">晨光花园</option>
-                  <option value="rose-pine-moon">月夜花园</option>
-                  <option value="cutie">甜心梦境</option>
-                  <option value="business">简约办公</option>
+                  <option value="rose-pine">{{ $t('settings.theme.rosePine') }}</option>
+                  <option value="rose-pine-dawn">{{ $t('settings.theme.rosePineDawn') }}</option>
+                  <option value="rose-pine-moon">{{ $t('settings.theme.rosePineMoon') }}</option>
+                  <option value="cutie">{{ $t('settings.theme.cutie') }}</option>
+                  <option value="business">{{ $t('settings.theme.business') }}</option>
                 </select>
               </div>
             </div>
@@ -274,11 +272,11 @@
           <div v-else class="settings-panel">
             <div class="panel-header">
               <h3 class="panel-title">{{ getCategoryName(activeCategory) }}</h3>
-              <p class="panel-description">该分类的设置即将推出</p>
+              <p class="panel-description">{{ $t('settings.empty.comingSoon') }}</p>
             </div>
             <div class="empty-state">
               <CuteIcon name="Settings" :size="48" />
-              <p>暂无设置项</p>
+              <p>{{ $t('settings.empty.title') }}</p>
             </div>
           </div>
         </div>
@@ -288,9 +286,9 @@
       <div class="settings-footer">
         <button @click="resetAllSettings" class="reset-btn">
           <CuteIcon name="RotateCcw" :size="16" />
-          <span>Reset All</span>
+          <span>{{ $t('settings.action.resetAll') }}</span>
         </button>
-        <button @click="$emit('close')" class="close-action-btn">Close</button>
+        <button @click="$emit('close')" class="close-action-btn">{{ $t('settings.action.close') }}</button>
       </div>
     </div>
   </div>
@@ -298,6 +296,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { pipeline } from '@/cpu'
 import { useUserSettingsStore } from '@/stores/user-settings'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -310,6 +309,7 @@ defineProps<{
 
 defineEmits(['close'])
 
+const { t } = useI18n()
 const store = useUserSettingsStore()
 
 // 当前激活的分类
@@ -317,13 +317,13 @@ const activeCategory = ref<string>('ai')
 
 // 分类定义
 const categories = [
-  { id: 'ai', name: 'AI', icon: 'Sparkles' as const },
-  { id: 'appearance', name: 'Appearance', icon: 'Palette' as const },
-  { id: 'behavior', name: 'Behavior', icon: 'SlidersHorizontal' as const },
-  { id: 'data', name: 'Data', icon: 'Database' as const },
-  { id: 'account', name: 'Account', icon: 'User' as const },
-  { id: 'debug', name: 'Debug', icon: 'Bug' as const },
-  { id: 'system', name: 'System', icon: 'Settings' as const },
+  { id: 'ai', name: t('settings.category.ai'), icon: 'Sparkles' as const },
+  { id: 'appearance', name: t('settings.category.appearance'), icon: 'Palette' as const },
+  { id: 'behavior', name: t('settings.category.behavior'), icon: 'SlidersHorizontal' as const },
+  { id: 'data', name: t('settings.category.data'), icon: 'Database' as const },
+  { id: 'account', name: t('settings.category.account'), icon: 'User' as const },
+  { id: 'debug', name: t('settings.category.debug'), icon: 'Bug' as const },
+  { id: 'system', name: t('settings.category.system'), icon: 'Settings' as const },
 ]
 
 onMounted(async () => {
@@ -351,7 +351,7 @@ function updateSetting(key: string, event: Event, valueType: ValueType) {
 }
 
 async function resetAllSettings() {
-  if (confirm('Reset all settings to defaults?')) {
+  if (confirm(t('confirm.resetSettings'))) {
     await pipeline.dispatch('user_settings.reset', {})
   }
 }

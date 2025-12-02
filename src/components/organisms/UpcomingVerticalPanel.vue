@@ -13,7 +13,7 @@
       <!-- 头部 -->
       <div class="panel-header">
         <div class="header-title-row">
-          <h1 class="panel-title">Upcoming</h1>
+          <h1 class="panel-title">{{ $t('upcoming.title.main') }}</h1>
           <span class="task-count">{{ totalTaskCount }}</span>
         </div>
       </div>
@@ -43,7 +43,7 @@
         <!-- 空状态 -->
         <div v-if="totalTaskCount === 0" class="empty-state">
           <CuteIcon name="Check" :size="48" />
-          <p>暂无即将到来的任务</p>
+          <p>{{ $t('upcoming.empty.message') }}</p>
         </div>
       </div>
     </div>

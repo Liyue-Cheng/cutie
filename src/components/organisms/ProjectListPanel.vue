@@ -2,10 +2,10 @@
   <div class="project-list-panel">
     <!-- 控制栏 -->
     <div class="control-bar">
-      <h2 class="title">项目列表</h2>
+      <h2 class="title">{{ $t('project.title.list') }}</h2>
       <button class="create-btn" @click="emit('create-project')">
         <CuteIcon name="Plus" :size="16" />
-        <span>新建项目</span>
+        <span>{{ $t('project.action.create') }}</span>
       </button>
     </div>
 
@@ -21,9 +21,9 @@
           <CuteIcon name="Inbox" :size="20" />
         </div>
         <div class="project-info">
-          <div class="project-name">无项目</div>
+          <div class="project-name">{{ $t('project.title.noProject') }}</div>
           <div class="project-meta">
-            <span class="hint-text">未分配到项目的任务</span>
+            <span class="hint-text">{{ $t('project.label.noProjectTasks') }}</span>
           </div>
         </div>
       </div>
@@ -56,11 +56,11 @@
           <div class="project-right">
             <span class="task-count">
               {{ getProjectStats(project.id).completed }}/{{ getProjectStats(project.id).total }}
-              任务
+              {{ $t('task.count.tasks') }}
             </span>
             <span v-if="project.due_date" class="due-date">{{ formatDate(project.due_date) }}</span>
             <span v-if="project.status === 'COMPLETED'" class="status-badge completed inline-badge"
-              >已完成</span
+              >{{ $t('project.status.completed') }}</span
             >
           </div>
         </div>
@@ -74,8 +74,8 @@
 
       <!-- 空状态 -->
       <div v-if="projects.length === 0" class="empty-state">
-        <p>暂无项目</p>
-        <p class="hint">点击"新建项目"开始创建</p>
+        <p>{{ $t('project.empty.noProjects') }}</p>
+        <p class="hint">{{ $t('project.empty.noProjectsHint') }}</p>
       </div>
     </div>
   </div>

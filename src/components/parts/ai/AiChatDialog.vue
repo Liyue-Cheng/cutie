@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAiStore } from '@/stores/ai'
 import type { MessageImage } from '@/types/ai'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -9,6 +10,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const aiStore = useAiStore()
 
 // ==================== 状态 ====================
@@ -57,7 +59,7 @@ function handleClose() {
 }
 
 function handleClearHistory() {
-  if (confirm('确定要清空聊天记录吗？')) {
+  if (confirm(t('ai.confirm.clearHistory'))) {
     aiStore.clearMessages()
   }
 }
@@ -82,13 +84,13 @@ async function handleFileChange(event: Event) {
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件')
+    alert(t('ai.message.selectImageFile'))
     return
   }
 
   // 文件大小限制 (5MB)
   if (file.size > 5 * 1024 * 1024) {
-    alert('图片文件不能超过 5MB')
+    alert(t('ai.message.imageMaxSize'))
     return
   }
 
@@ -150,13 +152,13 @@ onBeforeUnmount(() => {
     <div class="dialog-header">
       <div class="header-left">
         <CuteIcon name="Sparkles" :size="20" />
-        <h2>AI 助手</h2>
+        <h2>{{ $t('ai.title') }}</h2>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" title="清空记录" @click="handleClearHistory">
+        <button class="icon-btn" :title="$t('ai.action.clearHistory')" @click="handleClearHistory">
           <CuteIcon name="Trash2" :size="18" />
         </button>
-        <button class="icon-btn" title="关闭" @click="handleClose">
+        <button class="icon-btn" :title="$t('ai.action.close')" @click="handleClose">
           <CuteIcon name="X" :size="18" />
         </button>
       </div>
@@ -166,12 +168,12 @@ onBeforeUnmount(() => {
     <div ref="messagesContainerRef" class="messages-container">
       <div v-if="!aiStore.hasMessages" class="empty-state">
         <CuteIcon name="MessageSquare" :size="64" />
-        <p>开始与 AI 对话吧！</p>
+        <p>{{ $t('ai.empty.title') }}</p>
       </div>
 
       <div v-for="(message, index) in aiStore.allMessages" :key="index" class="message-wrapper">
         <div :class="['message-bubble', message.role]">
-          <div class="message-role">{{ message.role === 'user' ? '你' : 'AI' }}</div>
+          <div class="message-role">{{ message.role === 'user' ? $t('ai.role.you') : $t('ai.role.ai') }}</div>
           <div v-if="message.text" class="message-text">{{ message.text }}</div>
           <div
             v-if="
@@ -190,7 +192,7 @@ onBeforeUnmount(() => {
               v-for="(img, imgIndex) in message.images"
               :key="imgIndex"
               :src="img.data"
-              alt="上传的图片"
+              :alt="$t('ai.image.alt')"
               class="message-image"
             />
           </div>
@@ -206,7 +208,7 @@ onBeforeUnmount(() => {
             </span>
             <span v-if="message.usage" class="meta-item">
               <CuteIcon name="Activity" :size="14" />
-              {{ message.usage.total_tokens }} tokens
+              {{ $t('ai.meta.tokens', { n: message.usage.total_tokens }) }}
             </span>
           </div>
         </div>
@@ -215,7 +217,7 @@ onBeforeUnmount(() => {
       <!-- 加载中指示器 -->
       <div v-if="aiStore.isLoading" class="message-wrapper">
         <div class="message-bubble assistant loading">
-          <div class="message-role">AI</div>
+          <div class="message-role">{{ $t('ai.role.ai') }}</div>
           <div class="loading-dots">
             <span></span>
             <span></span>
@@ -237,7 +239,7 @@ onBeforeUnmount(() => {
     <!-- 图片预览区 -->
     <div v-if="images.length > 0" class="images-preview">
       <div v-for="(img, index) in images" :key="index" class="preview-item">
-        <img :src="img.data" alt="待发送图片" />
+        <img :src="img.data" :alt="$t('ai.image.altPending')" />
         <button class="remove-btn" @click="removeImage(index)">
           <CuteIcon name="X" :size="16" />
         </button>
@@ -248,7 +250,7 @@ onBeforeUnmount(() => {
     <div class="input-area">
       <button
         class="icon-btn"
-        title="上传图片"
+        :title="$t('ai.action.upload')"
         :disabled="aiStore.isLoading"
         @click="handleImageUpload"
       >
@@ -264,7 +266,7 @@ onBeforeUnmount(() => {
       <textarea
         ref="textareaRef"
         v-model="inputText"
-        placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+        :placeholder="$t('ai.placeholder')"
         rows="3"
         :disabled="aiStore.isLoading"
         @keydown="handleKeyDown"

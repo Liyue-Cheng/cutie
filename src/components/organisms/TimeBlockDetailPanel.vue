@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTimeBlockStore } from '@/stores/timeblock'
+import { useTimeBlockRecurrenceOperations } from '@/composables/useTimeBlockRecurrenceOperations'
+import { getTimeBlockRecurrenceById } from '@/cpu/isa/timeblock-recurrence-isa'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import TimeBlockRecurrenceConfigDialog from '@/components/parts/recurrence/TimeBlockRecurrenceConfigDialog.vue'
 
 const props = defineProps<{
   timeBlockId: string | null
@@ -16,11 +20,17 @@ const emit = defineEmits<{
 }>()
 
 const timeBlockStore = useTimeBlockStore()
+const recurrenceOps = useTimeBlockRecurrenceOperations()
+
+// 循环配置对话框状态
+const showRecurrenceDialog = ref(false)
 
 // 动态计算面板位置
 const panelStyle = computed(() => {
-  const top = props.panelPosition?.top ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
-  const left = props.panelPosition?.left ?? (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)
+  const top =
+    props.panelPosition?.top ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
+  const left =
+    props.panelPosition?.left ?? (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)
 
   return {
     top: `${top}px`,
@@ -41,9 +51,11 @@ const linkedTasks = computed(() => {
 })
 
 // 格式化时间范围
+const { t } = useI18n()
+
 function formatTimeRange(timeBlock: any) {
   if (timeBlock.is_all_day) {
-    return '全天'
+    return t('timeBlock.label.allDay')
   }
 
   let startTime: string
@@ -67,12 +79,61 @@ function formatTimeRange(timeBlock: any) {
 
   return `${startTime} - ${endTime}`
 }
+
+// 处理循环配置成功
+function handleRecurrenceSuccess() {
+  showRecurrenceDialog.value = false
+  emit('close')
+}
+
+// 检查是否为循环时间块
+const isRecurringTimeBlock = computed(() => {
+  return !!(timeBlock.value?.recurrence_id && timeBlock.value?.recurrence_original_date)
+})
+
+// 检查循环是否已停止（有 end_date 表示已停止）
+const isRecurrenceStopped = computed(() => {
+  if (!timeBlock.value?.recurrence_id) return false
+  const recurrence = getTimeBlockRecurrenceById(timeBlock.value.recurrence_id)
+  return !!recurrence?.end_date
+})
+
+// 循环操作处理函数
+async function handleStopRepeating() {
+  if (!timeBlock.value?.recurrence_id || !timeBlock.value?.recurrence_original_date) return
+
+  try {
+    await recurrenceOps.stopRepeating(
+      timeBlock.value.recurrence_id,
+      timeBlock.value.recurrence_original_date
+    )
+    emit('close')
+  } catch (error) {
+    console.error('Failed to stop repeating:', error)
+  }
+}
+
+async function handleChangeFrequency() {
+  if (!timeBlock.value?.recurrence_id) return
+  recurrenceOps.openEditDialog(timeBlock.value.recurrence_id)
+  emit('close')
+}
+
+async function handleResumeRepeating() {
+  if (!timeBlock.value?.recurrence_id) return
+
+  try {
+    await recurrenceOps.resumeRecurrence(timeBlock.value.recurrence_id)
+  } catch (error) {
+    console.error('Failed to resume repeating:', error)
+  }
+}
 </script>
 
 <template>
   <div v-if="timeBlock" class="time-block-detail-panel" :style="panelStyle">
     <div class="panel-header">
-      <h3>时间块详情</h3>
+      <h3>{{ $t('timeBlock.title.detail') }}</h3>
       <button class="close-btn" @click="emit('close')">
         <CuteIcon name="X" :size="16" />
       </button>
@@ -87,9 +148,11 @@ function formatTimeRange(timeBlock: any) {
             {{ formatTimeRange(timeBlock) }}
           </span>
           <span v-if="timeBlock.time_type === 'FLOATING'" class="time-type-badge floating">
-            浮动时间
+            {{ $t('timeBlock.label.timeType.floating') }}
           </span>
-          <span v-else class="time-type-badge fixed"> 固定时间 </span>
+          <span v-else class="time-type-badge fixed">
+            {{ $t('timeBlock.label.timeType.fixed') }}
+          </span>
         </div>
         <div v-if="timeBlock.title" class="info-row">
           <CuteIcon name="FileText" :size="16" />
@@ -97,35 +160,93 @@ function formatTimeRange(timeBlock: any) {
         </div>
       </div>
 
+      <!-- 操作按钮 -->
+      <div class="actions-section">
+        <!-- 设置循环按钮（仅非循环时间块显示） -->
+        <button
+          v-if="!timeBlock.is_recurring"
+          class="action-btn"
+          @click="showRecurrenceDialog = true"
+        >
+          <CuteIcon name="Repeat" :size="16" />
+          <span>{{ $t('recurrence.action.setRecurrence') }}</span>
+        </button>
+        <!-- 已是循环时间块的提示 -->
+        <div v-else class="recurring-badge">
+          <CuteIcon name="Repeat" :size="14" />
+          <span>{{ $t('recurrence.label.isRecurring') }}</span>
+        </div>
+      </div>
+
+      <!-- 循环时间块相关操作 -->
+      <div v-if="isRecurringTimeBlock" class="recurrence-actions-section">
+        <div class="section-header">
+          <CuteIcon name="Repeat" :size="16" />
+          <span>{{ $t('recurrence.menuSection') }}</span>
+        </div>
+        <div class="recurrence-actions">
+          <!-- 停止和继续是互斥的：有 end_date 时显示继续，否则显示停止 -->
+          <button
+            v-if="!isRecurrenceStopped"
+            class="recurrence-action-btn"
+            @click="handleStopRepeating"
+          >
+            <CuteIcon name="Square" :size="14" />
+            <span>{{ $t('recurrence.action.stop') }}</span>
+          </button>
+          <button v-else class="recurrence-action-btn" @click="handleResumeRepeating">
+            <CuteIcon name="Play" :size="14" />
+            <span>{{ $t('recurrence.action.continue') }}</span>
+          </button>
+          <button class="recurrence-action-btn" @click="handleChangeFrequency">
+            <CuteIcon name="RefreshCw" :size="14" />
+            <span>{{ $t('recurrence.action.changeFrequency') }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- 链接的任务列表 -->
       <div class="linked-tasks-section">
         <div class="section-header">
           <CuteIcon name="Link" :size="16" />
-          <span>链接的任务</span>
+          <span>{{ $t('task.label.linkedTasks') }}</span>
           <span class="task-count">{{ linkedTasks.length }}</span>
         </div>
 
         <div v-if="linkedTasks.length === 0" class="empty-state">
-          <p>暂无链接任务</p>
+          <p>{{ $t('task.label.noLinkedTasks') }}</p>
         </div>
 
         <div v-else class="tasks-list">
           <div v-for="task in linkedTasks" :key="task.id" class="task-item">
             <div class="task-title">{{ task.title }}</div>
             <div class="task-status" :class="{ completed: task.is_completed }">
-              {{ task.is_completed ? '已完成' : '进行中' }}
+              {{ task.is_completed ? $t('task.status.completed') : $t('task.status.inProgress') }}
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- 循环配置对话框 -->
+  <TimeBlockRecurrenceConfigDialog
+    v-if="timeBlock"
+    :time-block="timeBlock"
+    :open="showRecurrenceDialog"
+    @close="showRecurrenceDialog = false"
+    @success="handleRecurrenceSuccess"
+  />
 </template>
 
 <style scoped>
 .time-block-detail-panel {
   position: fixed;
-  transform: translate(calc(-100% - 1.2rem), 0); /* 面板右边缘距离锚点左边缘1.2rem，上边缘与时间块上边缘对齐 */
+  transform: translate(
+    calc(-100% - 1.2rem),
+    0
+  ); /* 面板右边缘距离锚点左边缘1.2rem，上边缘与时间块上边缘对齐 */
+
   width: 28rem;
   max-height: 80vh;
   background-color: var(--color-background-content);
@@ -296,5 +417,91 @@ function formatTimeRange(timeBlock: any) {
 .time-type-badge.fixed {
   background-color: var(--color-background-secondary);
   color: var(--color-warning);
+}
+
+/* 操作按钮区域 */
+.actions-section {
+  display: flex;
+  gap: 0.8rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-light);
+  margin-top: 0.5rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.2rem;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
+  color: var(--color-text-secondary);
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: var(--color-background-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.recurring-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-background-accent-light);
+  border-radius: 0.4rem;
+  color: var(--color-info);
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+/* 循环操作区域 */
+.recurrence-actions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.recurrence-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.recurrence-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 0.6rem;
+  color: var(--color-text-secondary);
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.recurrence-action-btn:hover {
+  background: var(--color-background-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.recurrence-action-btn.danger {
+  color: var(--color-danger);
+}
+
+.recurrence-action-btn.danger:hover {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
 }
 </style>

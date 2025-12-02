@@ -24,8 +24,8 @@ const viewMetadata: ViewMetadata = {
 <template>
   <div class="archive-column-wrapper">
     <SimpleKanbanColumn
-      title="Archive"
-      subtitle="已归档的任务"
+      :title="$t('toolbar.archive')"
+      :subtitle="$t('task.label.archived')"
       :show-add-input="false"
       :view-key="VIEW_KEY"
       :view-metadata="viewMetadata"

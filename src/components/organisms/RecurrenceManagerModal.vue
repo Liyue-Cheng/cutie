@@ -7,7 +7,7 @@
           <div class="modal-header">
             <h2 class="modal-title">
               <CuteIcon name="RefreshCw" :size="20" />
-              <span>循环任务管理</span>
+              <span>{{ $t('recurrence.title.manager') }}</span>
             </h2>
             <button class="close-btn" @click="handleClose">
               <CuteIcon name="X" :size="20" />
@@ -19,14 +19,14 @@
             <!-- 加载状态 -->
             <div v-if="isLoading" class="loading-state">
               <CuteIcon name="Loader" :size="32" class="spinner" />
-              <p>加载中...</p>
+              <p>{{ $t('common.state.loading') }}</p>
             </div>
 
             <!-- 空状态 -->
             <div v-else-if="recurrences.length === 0" class="empty-state">
               <CuteIcon name="CalendarX" :size="48" />
-              <p>暂无循环任务规则</p>
-              <p class="empty-hint">在任务编辑器中可以为任务设置循环规则</p>
+              <p>{{ $t('recurrence.empty.title') }}</p>
+              <p class="empty-hint">{{ $t('recurrence.empty.hint') }}</p>
             </div>
 
             <!-- 循环规则列表 -->
@@ -43,7 +43,7 @@
                     <span class="recurrence-title">{{
                       getTemplateTitle(recurrence.template_id)
                     }}</span>
-                    <span v-if="!recurrence.is_active" class="inactive-badge">已停用</span>
+                    <span v-if="!recurrence.is_active" class="inactive-badge">{{ $t('recurrence.status.inactive') }}</span>
                   </div>
                   <div class="recurrence-details">
                     <span class="detail-item">
@@ -52,11 +52,11 @@
                     </span>
                     <span v-if="recurrence.start_date" class="detail-item">
                       <CuteIcon name="CalendarDays" :size="12" />
-                      开始: {{ recurrence.start_date }}
+                      {{ $t('recurrence.label.start') }}: {{ recurrence.start_date }}
                     </span>
                     <span v-if="recurrence.end_date" class="detail-item">
                       <CuteIcon name="CalendarX" :size="12" />
-                      结束: {{ recurrence.end_date }}
+                      {{ $t('recurrence.label.end') }}: {{ recurrence.end_date }}
                     </span>
                     <span class="detail-item">
                       <CuteIcon name="Clock" :size="12" />
@@ -64,7 +64,7 @@
                     </span>
                     <span class="detail-item">
                       <CuteIcon name="Archive" :size="12" />
-                      过期: {{ formatExpiryBehavior(recurrence.expiry_behavior) }}
+                      {{ formatExpiryBehavior(recurrence.expiry_behavior) }}
                     </span>
                   </div>
                 </div>
@@ -75,21 +75,21 @@
                   <button
                     v-if="!isFutureRecurrence(recurrence)"
                     class="action-btn toggle-btn"
-                    :title="recurrence.is_active ? '停用' : '启用'"
+                    :title="recurrence.is_active ? $t('recurrence.action.pause') : $t('recurrence.action.resume')"
                     @click="toggleActive(recurrence)"
                   >
                     <CuteIcon :name="recurrence.is_active ? 'Pause' : 'Play'" :size="16" />
                   </button>
                   <button
                     class="action-btn edit-btn"
-                    title="编辑"
+                    :title="$t('common.action.edit')"
                     @click="editRecurrence(recurrence)"
                   >
                     <CuteIcon name="Pencil" :size="16" />
                   </button>
                   <button
                     class="action-btn delete-btn"
-                    title="删除"
+                    :title="$t('common.action.delete')"
                     @click="deleteRecurrence(recurrence)"
                   >
                     <CuteIcon name="Trash2" :size="16" />
@@ -101,10 +101,10 @@
 
           <!-- 底部操作栏 -->
           <div class="modal-footer">
-            <button class="footer-btn secondary-btn" @click="handleClose">关闭</button>
+            <button class="footer-btn secondary-btn" @click="handleClose">{{ $t('common.action.close') }}</button>
             <button class="footer-btn primary-btn" @click="refreshRecurrences">
               <CuteIcon name="RefreshCw" :size="16" />
-              刷新
+              {{ $t('common.action.refresh') }}
             </button>
           </div>
         </div>
@@ -123,6 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceEditDialog from './RecurrenceEditDialog.vue'
 import { useRecurrenceStore } from '@/stores/recurrence'
@@ -143,6 +144,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const recurrenceStore = useRecurrenceStore()
 const templateStore = useTemplateStore()
 const taskStore = useTaskStore()
@@ -200,7 +202,7 @@ async function refreshRecurrences() {
 // 获取模板标题
 function getTemplateTitle(templateId: string): string {
   const template = templateStore.getTemplateById(templateId)
-  return template ? template.title : '未知任务'
+  return template ? template.title : t('recurrence.unknownTask')
 }
 
 // 判断是否是未来的循环规则（开始日期在今天之后）
@@ -213,29 +215,29 @@ function isFutureRecurrence(recurrence: TaskRecurrence): boolean {
 // 格式化循环规则
 function formatRule(rule: string): string {
   if (rule.includes('FREQ=DAILY')) {
-    return '每日循环'
+    return t('recurrence.description.daily')
   } else if (rule.includes('FREQ=WEEKLY')) {
     const match = rule.match(/BYDAY=([A-Z,]+)/)
     if (match && match[1]) {
       const days = match[1].split(',').map((d) => {
         const dayMap: Record<string, string> = {
-          MO: '周一',
-          TU: '周二',
-          WE: '周三',
-          TH: '周四',
-          FR: '周五',
-          SA: '周六',
-          SU: '周日',
+          MO: t('recurrence.weekday.mon'),
+          TU: t('recurrence.weekday.tue'),
+          WE: t('recurrence.weekday.wed'),
+          TH: t('recurrence.weekday.thu'),
+          FR: t('recurrence.weekday.fri'),
+          SA: t('recurrence.weekday.sat'),
+          SU: t('recurrence.weekday.sun'),
         }
         return dayMap[d] || d
       })
-      return `每周循环 (${days.join(', ')})`
+      return `${t('recurrence.description.weekly')} (${days.join(', ')})`
     }
-    return '每周循环'
+    return t('recurrence.description.weekly')
   } else if (rule.includes('FREQ=MONTHLY')) {
-    return '每月循环'
+    return t('recurrence.description.monthly')
   } else if (rule.includes('FREQ=YEARLY')) {
-    return '每年循环'
+    return t('recurrence.description.yearly')
   }
   return rule
 }
@@ -243,8 +245,8 @@ function formatRule(rule: string): string {
 // 格式化时间类型
 function formatTimeType(timeType: string): string {
   const typeMap: Record<string, string> = {
-    FLOATING: '浮动时间',
-    FIXED: '固定时间',
+    FLOATING: t('recurrence.timeType.floating'),
+    FIXED: t('recurrence.timeType.fixed'),
   }
   return typeMap[timeType] || timeType
 }
@@ -252,8 +254,8 @@ function formatTimeType(timeType: string): string {
 // 格式化过期行为
 function formatExpiryBehavior(behavior: string): string {
   const behaviorMap: Record<string, string> = {
-    CARRYOVER_TO_STAGING: '转入暂存',
-    EXPIRE: '自动过期',
+    CARRYOVER_TO_STAGING: t('recurrence.expiry.carryover'),
+    EXPIRE: t('recurrence.expiry.expire'),
   }
   return behaviorMap[behavior] || behavior
 }
@@ -264,9 +266,7 @@ async function toggleActive(recurrence: TaskRecurrence) {
 
   // 如果是暂停（设置为 false），需要确认并删除今天之后的未完成任务
   if (!willBeActive) {
-    const confirmed = confirm(
-      `确定要暂停此循环任务吗？\n\n将会删除今天之后的所有未完成任务实例。\n今天及之前的任务不受影响。`
-    )
+    const confirmed = confirm(t('confirm.pauseRecurrence'))
     if (!confirmed) return
   }
 
@@ -372,7 +372,7 @@ async function handleSaveEdit(updates: Partial<TaskRecurrence>) {
 // 删除循环规则
 async function deleteRecurrence(recurrence: TaskRecurrence) {
   const confirmed = confirm(
-    `确定要删除这个循环规则吗？\n\n${formatRule(recurrence.rule)}\n\n将会删除所有未完成的任务实例。`
+    t('confirm.deleteRecurrence', { rule: formatRule(recurrence.rule) })
   )
   if (!confirmed) return
 

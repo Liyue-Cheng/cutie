@@ -1,12 +1,13 @@
 <template>
   <ContextMenu>
-    <MenuItem @click="handleAction('edit')">编辑项目</MenuItem>
-    <MenuItem divider @click="handleAction('add-section')">新增节</MenuItem>
-    <MenuItem divider variant="danger" @click="handleAction('delete')">删除项目</MenuItem>
+    <MenuItem @click="handleAction('edit')">{{ $t('project.action.edit') }}</MenuItem>
+    <MenuItem divider @click="handleAction('add-section')">{{ $t('project.action.addSection') }}</MenuItem>
+    <MenuItem divider variant="danger" @click="handleAction('delete')">{{ $t('project.action.delete') }}</MenuItem>
   </ContextMenu>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import ContextMenu from '@/components/assembles/ContextMenu/shared/CuteContextMenu.vue'
 import MenuItem from '@/components/assembles/ContextMenu/shared/CuteMenuItem.vue'
 import type { ProjectCard } from '@/types/dtos'
@@ -20,6 +21,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['close'])
+
+const { t } = useI18n()
 
 const handleAction = async (action: 'edit' | 'add-section' | 'delete') => {
   if (action === 'edit') {

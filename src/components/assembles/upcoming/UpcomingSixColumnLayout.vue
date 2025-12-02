@@ -98,7 +98,7 @@ function getColumnTotalCount(column: ColumnData): number {
             <!-- 截止日期任务组 -->
             <div v-if="column.dueDate.length > 0" class="task-section">
               <div class="section-header">
-                <span>截止日期</span>
+                <span>{{ $t('upcoming.taskType.dueDate') }}</span>
                 <span class="section-count">{{ column.dueDate.length }}</span>
               </div>
               <TransitionGroup name="task-list" tag="div" class="section-tasks">
@@ -116,7 +116,7 @@ function getColumnTotalCount(column: ColumnData): number {
             <!-- 循环任务组 -->
             <div v-if="column.recurrence.length > 0" class="task-section">
               <div class="section-header">
-                <span>循环任务</span>
+                <span>{{ $t('upcoming.taskType.recurrence') }}</span>
                 <span class="section-count">{{ column.recurrence.length }}</span>
               </div>
               <TransitionGroup name="task-list" tag="div" class="section-tasks">
@@ -134,7 +134,7 @@ function getColumnTotalCount(column: ColumnData): number {
             <!-- 排期任务组 -->
             <div v-if="column.scheduled.length > 0" class="task-section">
               <div class="section-header">
-                <span>排期任务</span>
+                <span>{{ $t('upcoming.taskType.scheduled') }}</span>
                 <span class="section-count">{{ column.scheduled.length }}</span>
               </div>
               <TransitionGroup name="task-list" tag="div" class="section-tasks">
@@ -152,7 +152,7 @@ function getColumnTotalCount(column: ColumnData): number {
             <!-- 空状态 -->
             <div v-if="getColumnTotalCount(column) === 0" class="empty-state">
               <CuteIcon name="Check" :size="40" />
-              <p>暂无任务</p>
+              <p>{{ $t('task.label.noTasks') }}</p>
             </div>
           </div>
         </div>

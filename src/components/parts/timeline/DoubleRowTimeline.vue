@@ -4,7 +4,7 @@ import TimelineDayCell from './TimelineDayCell.vue'
 import { useTaskStore } from '@/stores/task'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import type { TaskCard, TimeBlockView } from '@/types/dtos'
-import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { getTodayDateString, extractDateFromUtc } from '@/infra/utils/dateUtils'
 import type { MonthViewFilters } from '@/composables/calendar/useCalendarEvents'
 
 type LayoutMode = 'auto' | 'single' | 'double'
@@ -141,7 +141,8 @@ function buildDayData(dateStr: string, dayNumber: number, today: string): DayDat
     timeBlockStore.allTimeBlocks.forEach((tb) => {
       if (!tb.is_all_day) return
 
-      const startDate = new Date(tb.start_time).toISOString().split('T')[0]
+      // ⚠️ 使用 extractDateFromUtc() 从 UTC 时间提取本地日期，符合 TIME_CONVENTION.md
+      const startDate = extractDateFromUtc(tb.start_time)
       if (startDate === dateStr) {
         allDayEvents.push(tb)
       }

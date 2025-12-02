@@ -1,27 +1,27 @@
 <template>
   <ContextMenu>
-    <MenuItem @click="handleAction('edit')">编辑任务</MenuItem>
+    <MenuItem @click="handleAction('edit')">{{ $t('task.action.edit') }}</MenuItem>
 
     <!-- 循环任务相关操作 -->
     <template v-if="isRecurringTask">
-      <MenuSection divider title="Task recurrence:">
+      <MenuSection divider :title="$t('recurrence.menuSection')">
         <MenuItem icon="Square" @click="handleAction('stop-repeating')">
-          Stop repeating
+          {{ $t('recurrence.action.stop') }}
         </MenuItem>
         <MenuItem icon="RefreshCw" @click="handleAction('change-frequency')">
-          Change repeat frequency
+          {{ $t('recurrence.action.changeFrequency') }}
         </MenuItem>
         <MenuItem icon="Copy" @click="handleAction('update-all-instances')">
-          Update all incomplete instances to match this task
+          {{ $t('recurrence.action.updateAll') }}
         </MenuItem>
         <MenuItem icon="Trash2" variant="danger" @click="handleAction('delete-all-instances')">
-          Delete all incomplete instances and stop repeating
+          {{ $t('recurrence.action.deleteAll') }}
         </MenuItem>
       </MenuSection>
     </template>
 
     <MenuItem divider icon="RotateCcw" @click="handleAction('return-to-staging')">
-      返回暂存区
+      {{ $t('task.action.returnToStaging') }}
     </MenuItem>
 
     <!-- 取消今日排期（只在日期视图显示） -->
@@ -31,20 +31,21 @@
       icon="CalendarX"
       @click="handleAction('cancel-today-schedule')"
     >
-      取消今日排期
+      {{ $t('task.action.cancelTodaySchedule') }}
     </MenuItem>
 
     <MenuItem v-if="!task.is_archived" divider @click="handleAction('archive')">
-      归档任务
+      {{ $t('task.action.archive') }}
     </MenuItem>
-    <MenuItem v-else divider @click="handleAction('unarchive')">取消归档</MenuItem>
+    <MenuItem v-else divider @click="handleAction('unarchive')">{{ $t('task.action.unarchive') }}</MenuItem>
 
-    <MenuItem divider variant="danger" @click="handleAction('delete')">删除任务</MenuItem>
+    <MenuItem divider variant="danger" @click="handleAction('delete')">{{ $t('task.action.delete') }}</MenuItem>
   </ContextMenu>
 </template>
 
 <script setup lang="ts">
 import { defineProps, defineEmits, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { TaskCard } from '@/types/dtos'
 import { pipeline } from '@/cpu'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
@@ -61,6 +62,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 
+const { t } = useI18n()
 // UI Store
 const uiStore = useUIStore()
 
@@ -231,9 +233,7 @@ const handleAction = async (action: ActionType) => {
     if (!props.task.recurrence_id) return
 
     const confirmed = confirm(
-      `确定删除所有未完成的循环任务实例并停止重复吗？\n` +
-        `这将删除所有未来的"${props.task.title}"任务。\n` +
-        `此操作不可撤销。`
+      t('confirm.deleteAllRecurrenceInstances', { title: props.task.title })
     )
 
     if (confirmed) {
@@ -254,5 +254,13 @@ const handleAction = async (action: ActionType) => {
   }
 
   emit('close')
+}
+
+// 修改 confirm 函数调用
+function getConfirmMessage() {
+  if (props.task.recurrence_id) {
+    return t('confirm.deleteAllRecurrenceInstances', { title: props.task.title })
+  }
+  return ''
 }
 </script>

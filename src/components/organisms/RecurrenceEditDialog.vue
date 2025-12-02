@@ -2,7 +2,7 @@
   <div class="edit-dialog-overlay" @click.self="handleClose">
     <div class="edit-dialog">
       <div class="dialog-header">
-        <h3>编辑循环规则</h3>
+        <h3>{{ $t('recurrence.title.edit') }}</h3>
         <button class="close-btn" @click="handleClose">
           <CuteIcon name="X" :size="18" />
         </button>
@@ -11,39 +11,39 @@
       <div class="dialog-content">
         <!-- 日期范围 -->
         <div class="form-group">
-          <label>开始日期</label>
+          <label>{{ $t('recurrence.label.startDate') }}</label>
           <input
             v-model="formData.start_date"
             type="date"
             class="form-input"
-            placeholder="留空表示立即生效"
+            :placeholder="$t('recurrence.label.startDateHint')"
           />
         </div>
 
         <div class="form-group">
-          <label>结束日期</label>
+          <label>{{ $t('recurrence.label.endDate') }}</label>
           <input
             v-model="formData.end_date"
             type="date"
             class="form-input"
-            placeholder="留空表示永久有效"
+            :placeholder="$t('recurrence.label.endDateHint')"
           />
         </div>
 
         <!-- 过期行为 -->
         <div class="form-group">
-          <label>过期行为</label>
+          <label>{{ $t('recurrence.label.expiryBehavior') }}</label>
           <select v-model="formData.expiry_behavior" class="form-select">
-            <option value="CARRYOVER_TO_STAGING">转入暂存</option>
-            <option value="EXPIRE">自动过期</option>
+            <option value="CARRYOVER_TO_STAGING">{{ $t('recurrence.expiry.carryover') }}</option>
+            <option value="EXPIRE">{{ $t('recurrence.expiry.expire') }}</option>
           </select>
-          <p class="form-hint">未完成的任务在当天结束后的处理方式</p>
+          <p class="form-hint">{{ $t('recurrence.label.expiryBehaviorHint') }}</p>
         </div>
       </div>
 
       <div class="dialog-footer">
-        <button class="dialog-btn secondary-btn" @click="handleClose">取消</button>
-        <button class="dialog-btn primary-btn" @click="handleSave">保存</button>
+        <button class="dialog-btn secondary-btn" @click="handleClose">{{ $t('common.action.cancel') }}</button>
+        <button class="dialog-btn primary-btn" @click="handleSave">{{ $t('common.action.save') }}</button>
       </div>
     </div>
   </div>

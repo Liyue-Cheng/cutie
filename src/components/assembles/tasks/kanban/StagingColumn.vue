@@ -24,8 +24,8 @@ const viewMetadata: ViewMetadata = {
 <template>
   <div class="staging-column-wrapper">
     <SimpleKanbanColumn
-      title="Staging"
-      subtitle="未安排的任务"
+      :title="$t('toolbar.staging')"
+      :subtitle="$t('task.label.unscheduled')"
       :show-add-input="true"
       :view-key="VIEW_KEY"
       :view-metadata="viewMetadata"

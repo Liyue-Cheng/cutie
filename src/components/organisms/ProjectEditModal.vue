@@ -3,41 +3,41 @@
     <div v-if="show" class="modal-overlay" @click="handleOverlayClick">
       <div class="modal-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>编辑项目</h3>
+          <h3>{{ $t('project.title.edit') }}</h3>
           <button class="close-button" @click="close">
             <CuteIcon name="X" :size="18" />
           </button>
         </div>
         <div class="dialog-body">
           <div class="form-group">
-            <label for="edit-project-name">项目名称 <span class="required">*</span></label>
+            <label for="edit-project-name">{{ $t('project.field.name') }} <span class="required">{{ $t('common.label.required') }}</span></label>
             <input
               id="edit-project-name"
               ref="nameInputRef"
               v-model="formData.name"
               type="text"
               class="form-input"
-              placeholder="输入项目名称..."
+              :placeholder="$t('project.placeholder.name')"
               @keydown.enter="handleSubmit"
             />
           </div>
 
           <div class="form-group">
-            <label for="edit-project-description">项目描述</label>
+            <label for="edit-project-description">{{ $t('project.field.description') }}</label>
             <textarea
               id="edit-project-description"
               v-model="formData.description"
               class="form-textarea"
-              placeholder="输入项目描述..."
+              :placeholder="$t('project.placeholder.description')"
               rows="3"
             />
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="edit-project-area">所属区域</label>
+              <label for="edit-project-area">{{ $t('project.field.area') }}</label>
               <select id="edit-project-area" v-model="formData.area_id" class="form-select">
-                <option :value="null">无区域</option>
+                <option :value="null">{{ $t('project.label.noArea') }}</option>
                 <option v-for="area in areas" :key="area.id" :value="area.id">
                   {{ area.name }}
                 </option>
@@ -45,7 +45,7 @@
             </div>
 
             <div class="form-group">
-              <label for="edit-project-due-date">截止日期</label>
+              <label for="edit-project-due-date">{{ $t('project.field.dueDate') }}</label>
               <input
                 id="edit-project-due-date"
                 v-model="formData.due_date"
@@ -56,21 +56,21 @@
           </div>
 
           <div class="form-group">
-            <label for="edit-project-status">项目状态</label>
+            <label for="edit-project-status">{{ $t('project.field.status') }}</label>
             <select id="edit-project-status" v-model="formData.status" class="form-select">
-              <option value="ACTIVE">进行中</option>
-              <option value="COMPLETED">已完成</option>
+              <option value="ACTIVE">{{ $t('project.status.active') }}</option>
+              <option value="COMPLETED">{{ $t('project.status.completed') }}</option>
             </select>
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="cancel-button" @click="close">取消</button>
+          <button class="cancel-button" @click="close">{{ $t('common.action.cancel') }}</button>
           <button
             class="submit-button"
             :disabled="!formData.name.trim() || isSubmitting"
             @click="handleSubmit"
           >
-            {{ isSubmitting ? '保存中...' : '保存' }}
+            {{ isSubmitting ? $t('project.button.saving') : $t('project.button.save') }}
           </button>
         </div>
       </div>
@@ -80,6 +80,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { useAreaStore } from '@/stores/area'
@@ -96,6 +97,7 @@ const emit = defineEmits<{
   success: []
 }>()
 
+const { t } = useI18n()
 const areaStore = useAreaStore()
 const projectStore = useProjectStore()
 
@@ -165,7 +167,7 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '项目更新失败', error)
-    alert('更新项目失败，请重试')
+    alert(t('message.error.updateProjectFailed'))
   } finally {
     isSubmitting.value = false
   }

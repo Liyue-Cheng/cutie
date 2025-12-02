@@ -31,12 +31,13 @@
 
 <script setup lang="ts">
 import CuteIcon from './CuteIcon.vue'
+import type { IconName } from '@/types/icons'
 
 interface Props {
   /** 选项标签 */
   label?: string
   /** 左侧图标名称 */
-  icon?: string
+  icon?: IconName
   /** 图标大小 */
   iconSize?: number
   /** 右侧后缀文本 */
@@ -101,6 +102,16 @@ function handleClick() {
   cursor: not-allowed;
 }
 
+/* 图标 */
+.item-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.cute-dropdown-item.active .item-icon {
+  color: var(--color-text-accent);
+}
+
 /* 危险样式变体 */
 .cute-dropdown-item.danger {
   color: var(--color-danger-text);
@@ -112,16 +123,6 @@ function handleClick() {
 
 .cute-dropdown-item.danger .item-icon {
   color: var(--color-danger-text);
-}
-
-/* 图标 */
-.item-icon {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-}
-
-.cute-dropdown-item.active .item-icon {
-  color: var(--color-text-accent);
 }
 
 /* 主内容 */

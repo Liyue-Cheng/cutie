@@ -321,7 +321,7 @@ function handleTitleClick() {
         </div>
         <div v-if="subtitle" class="subtitle-row">
           <span class="subtitle">{{ subtitle }}</span>
-          <button class="sort-button" title="排序">
+          <button class="sort-button" :title="$t('task.action.sort')">
             <CuteIcon name="ArrowUpDown" :size="14" />
           </button>
           <span class="count">{{ effectiveTasks.length }}</span>
@@ -329,15 +329,15 @@ function handleTitleClick() {
       </div>
 
       <div v-if="showAddInput" class="add-task-wrapper">
-        <input
-          ref="addTaskInputRef"
-          v-model="newTaskTitle"
-          type="text"
-          placeholder="+ 添加任务"
-          class="add-task-input"
-          :disabled="isCreatingTask"
-          @keydown.enter="handleAddTask"
-        />
+          <input
+            ref="addTaskInputRef"
+            v-model="newTaskTitle"
+            type="text"
+            :placeholder="$t('task.action.addTask')"
+            class="add-task-input"
+            :disabled="isCreatingTask"
+            @keydown.enter="handleAddTask"
+          />
       </div>
 
       <div class="task-list-scroll-area">
@@ -362,7 +362,7 @@ function handleTitleClick() {
           />
         </div>
 
-        <div v-if="displayItems.length === 0" class="empty-state">暂无任务</div>
+          <div v-if="displayItems.length === 0" class="empty-state">{{ $t('task.label.noTasks') }}</div>
       </div>
     </div>
   </CutePane>

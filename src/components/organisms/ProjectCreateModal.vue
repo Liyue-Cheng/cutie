@@ -3,41 +3,41 @@
     <div v-if="show" class="modal-overlay" @click="handleOverlayClick">
       <div class="modal-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>新建项目</h3>
+          <h3>{{ $t('project.title.create') }}</h3>
           <button class="close-button" @click="close">
             <CuteIcon name="X" :size="18" />
           </button>
         </div>
         <div class="dialog-body">
           <div class="form-group">
-            <label for="project-name">项目名称 <span class="required">*</span></label>
+            <label for="project-name">{{ $t('project.field.name') }} <span class="required">{{ $t('common.label.required') }}</span></label>
             <input
               id="project-name"
               ref="nameInputRef"
               v-model="formData.name"
               type="text"
               class="form-input"
-              placeholder="输入项目名称..."
+              :placeholder="$t('project.placeholder.name')"
               @keydown.enter="handleSubmit"
             />
           </div>
 
           <div class="form-group">
-            <label for="project-description">项目描述</label>
+            <label for="project-description">{{ $t('project.field.description') }}</label>
             <textarea
               id="project-description"
               v-model="formData.description"
               class="form-textarea"
-              placeholder="输入项目描述..."
+              :placeholder="$t('project.placeholder.description')"
               rows="3"
             />
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="project-area">所属区域</label>
+              <label for="project-area">{{ $t('project.field.area') }}</label>
               <select id="project-area" v-model="formData.area_id" class="form-select">
-                <option :value="null">无区域</option>
+                <option :value="null">{{ $t('project.label.noArea') }}</option>
                 <option v-for="area in areas" :key="area.id" :value="area.id">
                   {{ area.name }}
                 </option>
@@ -45,7 +45,7 @@
             </div>
 
             <div class="form-group">
-              <label for="project-due-date">截止日期</label>
+              <label for="project-due-date">{{ $t('project.field.dueDate') }}</label>
               <input
                 id="project-due-date"
                 v-model="formData.due_date"
@@ -56,13 +56,13 @@
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="cancel-button" @click="close">取消</button>
+          <button class="cancel-button" @click="close">{{ $t('common.action.cancel') }}</button>
           <button
             class="submit-button"
             :disabled="!formData.name.trim() || isSubmitting"
             @click="handleSubmit"
           >
-            {{ isSubmitting ? '创建中...' : '创建项目' }}
+            {{ isSubmitting ? $t('project.button.creating') : $t('project.button.create') }}
           </button>
         </div>
       </div>
@@ -72,6 +72,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { useAreaStore } from '@/stores/area'
@@ -148,11 +149,13 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '项目创建失败', error)
-    alert('创建项目失败，请重试')
+    alert(t('message.error.createProjectFailed'))
   } finally {
     isSubmitting.value = false
   }
 }
+
+const { t } = useI18n()
 </script>
 
 <style scoped>

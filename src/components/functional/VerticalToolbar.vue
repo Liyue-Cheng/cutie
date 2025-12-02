@@ -19,10 +19,11 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
+import type { IconName } from '@/types/icons'
 
 // Props
 interface ViewConfig {
-  icon: string
+  icon: IconName
   label: string
 }
 
@@ -77,8 +78,9 @@ function handleClick(viewKey: string) {
 // 初始化时触发默认视图
 onMounted(() => {
   // 如果当前没有选中视图，触发默认视图
-  if (props.currentView === null && resolvedDefaultView.value !== null) {
-    emit('view-change', resolvedDefaultView.value)
+  const defaultView = resolvedDefaultView.value
+  if (props.currentView === null && defaultView !== null && defaultView !== undefined) {
+    emit('view-change', defaultView)
   }
 })
 </script>

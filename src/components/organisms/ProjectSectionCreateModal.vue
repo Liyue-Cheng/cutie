@@ -3,44 +3,44 @@
     <div v-if="show" class="modal-overlay" @click="handleOverlayClick">
       <div class="modal-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>添加章节</h3>
+          <h3>{{ $t('project.action.createSection') }}</h3>
           <button class="close-button" @click="close">
             <CuteIcon name="X" :size="18" />
           </button>
         </div>
         <div class="dialog-body">
           <div class="form-group">
-            <label for="section-title">章节标题 <span class="required">*</span></label>
+            <label for="section-title">{{ $t('project.field.sectionTitle') }} <span class="required">{{ $t('common.label.required') }}</span></label>
             <input
               id="section-title"
               ref="titleInputRef"
               v-model="formData.title"
               type="text"
               class="form-input"
-              placeholder="输入章节标题..."
+              :placeholder="$t('project.placeholder.sectionTitle')"
               @keydown.enter="handleSubmit"
             />
           </div>
 
           <div class="form-group">
-            <label for="section-description">章节描述</label>
+            <label for="section-description">{{ $t('project.field.sectionDescription') }}</label>
             <textarea
               id="section-description"
               v-model="formData.description"
               class="form-textarea"
-              placeholder="输入章节描述..."
+              :placeholder="$t('project.placeholder.sectionDescription')"
               rows="3"
             />
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="cancel-button" @click="close">取消</button>
+          <button class="cancel-button" @click="close">{{ $t('common.action.cancel') }}</button>
           <button
             class="submit-button"
             :disabled="!formData.title.trim() || isSubmitting"
             @click="handleSubmit"
           >
-            {{ isSubmitting ? '创建中...' : '创建章节' }}
+            {{ isSubmitting ? $t('project.button.creating') : $t('project.button.createSection') }}
           </button>
         </div>
       </div>
@@ -50,6 +50,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -64,6 +65,7 @@ const emit = defineEmits<{
   success: []
 }>()
 
+const { t } = useI18n()
 const titleInputRef = ref<HTMLInputElement | null>(null)
 const isSubmitting = ref(false)
 
@@ -117,7 +119,7 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '章节创建失败', error)
-    alert('创建章节失败，请重试')
+    alert(t('message.error.createSectionFailed'))
   } finally {
     isSubmitting.value = false
   }

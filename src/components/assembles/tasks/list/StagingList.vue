@@ -1,7 +1,7 @@
 <template>
   <div class="staging-list">
     <TaskList
-      title="待安排"
+      :title="$t('task.label.scheduled')"
       view-key="misc::staging"
       :show-add-input="true"
       :default-collapsed="false"

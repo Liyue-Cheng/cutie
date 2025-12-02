@@ -3,7 +3,7 @@
     <div v-if="show" class="quick-add-overlay" @click="handleOverlayClick">
       <div class="quick-add-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>快速添加任务</h3>
+          <h3>{{ $t('quickAdd.title') }}</h3>
           <button class="close-button" @click="close">
             <CuteIcon name="X" :size="18" />
           </button>
@@ -14,13 +14,13 @@
             v-model="taskTitle"
             type="text"
             class="task-input"
-            placeholder="输入任务标题..."
+            :placeholder="$t('task.placeholder.title')"
             @keydown.enter="handleAdd"
             @keydown.esc="close"
           />
         </div>
         <div class="dialog-footer">
-          <button class="cancel-button" @click="close">取消</button>
+          <button class="cancel-button" @click="close">{{ $t('common.action.cancel') }}</button>
           <button class="add-button" :disabled="!taskTitle.trim()" @click="handleAdd">
             {{ buttonText }}
           </button>
@@ -32,6 +32,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -46,6 +47,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const taskTitle = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
 
@@ -64,10 +66,10 @@ const buttonText = computed(() => {
   const metadata = viewMetadata.value
   if (metadata && metadata.type === 'date') {
     const dateConfig = metadata.config as import('@/types/drag').DateViewConfig
-    return `添加到 ${dateConfig.date}`
+    return t('quickAdd.button.addTo', { date: dateConfig.date })
   }
   // 其他视图使用通用文本
-  return '添加任务'
+  return t('quickAdd.button.add')
 })
 
 // 当对话框显示时，自动聚焦到输入框

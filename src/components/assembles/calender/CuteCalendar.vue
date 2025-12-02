@@ -1,31 +1,5 @@
 <template>
   <div class="calendar-container" :class="[`zoom-${currentZoom}x`, viewTypeClass]">
-    <!-- 自定义日期头部 -->
-    <div v-if="displayDates.length > 0" class="custom-day-headers">
-      <div class="time-axis-placeholder" :style="{ width: timeAxisWidth + 'px' }"></div>
-      <div
-        v-for="dateInfo in displayDates"
-        :key="dateInfo.date"
-        class="custom-day-header"
-        :data-date="dateInfo.date"
-        :class="{
-          'is-today': dateInfo.isToday,
-          'is-drag-target': isDragTargetDate(dateInfo.date),
-        }"
-        :style="{ width: dateInfo.width ? dateInfo.width + 'px' : 'auto' }"
-        @click="onDayHeaderClick(dateInfo.date)"
-      >
-        <span class="day-name">{{ dateInfo.dayName }}</span>
-        <span class="date-number" :class="{ 'is-today': dateInfo.isToday }">{{ dateInfo.dateNumber }}</span>
-        <!-- 单日/多日视图：完整今天徽章 -->
-        <span v-if="dateInfo.isToday && props.viewType === 'day'" class="today-badge">
-          今天
-        </span>
-        <!-- 拖动预览指示器 -->
-        <span v-if="isDragTargetDate(dateInfo.date)" class="drag-preview-indicator">+</span>
-      </div>
-    </div>
-
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
     <!-- 装饰竖线（已禁用） -->
@@ -262,7 +236,12 @@ function onDayHeaderClick(date: string) {
 }
 
 // 事件处理器
-const handlers = useCalendarHandlers(drag.previewEvent, currentDateRef, selectedTimeBlockId, handleMonthDateClick)
+const handlers = useCalendarHandlers(
+  drag.previewEvent,
+  currentDateRef,
+  selectedTimeBlockId,
+  handleMonthDateClick
+)
 
 function handleCalendarEventClick(clickInfo: EventClickArg) {
   handlers.handleEventClick(clickInfo)
@@ -418,10 +397,11 @@ const headerDropzones = new Map<string, HTMLElement>()
 function syncColumnWidths() {
   if (!calendarRef.value) return
 
-  // 获取时间轴宽度
+  // 获取时间轴宽度（使用浮点宽度，避免整数舍入误差）
   const timeAxisEl = document.querySelector('.fc-timegrid-axis') as HTMLElement
   if (timeAxisEl) {
-    timeAxisWidth.value = timeAxisEl.offsetWidth
+    const rect = timeAxisEl.getBoundingClientRect()
+    timeAxisWidth.value = rect.width
   }
 
   // 获取日历列元素（使用 data-date 属性精确匹配）
@@ -432,9 +412,11 @@ function syncColumnWidths() {
   displayDates.value = displayDates.value.map((dateInfo, index) => {
     const columnEl = dayColumns[index]
     if (columnEl) {
+      const rect = columnEl.getBoundingClientRect()
       return {
         ...dateInfo,
-        width: columnEl.offsetWidth,
+        // 使用浮点宽度而不是 offsetWidth，避免 0.x / 1.x 像素误差
+        width: rect.width,
       }
     }
     return dateInfo
@@ -709,11 +691,15 @@ onMounted(async () => {
       const startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1) // 3个月前
       const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0) // 3个月后
 
+      // 🔥 使用本地日期格式（YYYY-MM-DD），符合 TIME_CONVENTION.md 规范
+      const startDateStr = formatDateShort(startDate)
+      const endDateStr = formatDateShort(endDate)
+
       logger.debug(LogTags.COMPONENT_CALENDAR, 'Loading time blocks for range', {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        startDate: startDateStr,
+        endDate: endDateStr,
       })
-      await timeBlockStore.fetchTimeBlocksForRange(startDate.toISOString(), endDate.toISOString())
+      await timeBlockStore.fetchTimeBlocksForRange(startDateStr, endDateStr)
     }
 
     // 计算装饰竖线位置（已禁用）
@@ -786,8 +772,9 @@ function registerHeaderDropzones() {
   })
   headerDropzones.clear()
 
+  // 使用 FullCalendar 原生列头作为拖放目标，保证与网格列像素级对齐
   const headerEls = document.querySelectorAll(
-    '.custom-day-headers .custom-day-header'
+    '.calendar-container .fc-col-header-cell[data-date]'
   ) as NodeListOf<HTMLElement>
 
   headerEls.forEach((el) => {
@@ -798,9 +785,14 @@ function registerHeaderDropzones() {
     const zoneId = `daily::${date}`
     el.setAttribute('data-zone-id', zoneId)
 
+    // 绑定点击事件：点击头部日期时触发与之前相同的逻辑
+    el.onclick = () => {
+      onDayHeaderClick(date)
+    }
+
     interactManager.registerDropzone(el, {
       zoneId,
-      type: 'kanban', // 改为kanban类型，这样预览系统会把它当作看板处理
+      type: 'kanban', // 看板型目标：拖到头部表示放到该日期最上方
       computePreview: () => ({
         dropIndex: 0, // 总是放在最上面
       }),
@@ -1280,14 +1272,35 @@ defineExpose({
  * 10. 视图特定样式 - 周视图/月视图定制
  * =============================================== */
 
-/* 📅 周视图日期头部 */
+/* 📅 周视图 / 多日视图 / 月视图日期头部
+ * 使用与自定义头部相同的背景色，并让内容在单元格内完全居中
+ */
 .fc .fc-col-header-cell {
-  padding: 0.5rem; /* 📐 适中的内边距 */
+  padding: 0; /* 由内部自定义头部控制内边距，避免垂直偏移 */
   font-weight: 600; /* 📝 加粗字重 */
   color: var(--color-text-primary); /* 🎨 主要文本色 */
-  background-color: var(--color-background); /* 🎭 背景色 */
+  background-color: var(--color-background-content); /* 🎭 与内容区域一致的浅色背景 */
+  border-bottom: 1px solid var(--color-border-default); /* 🔲 底部分隔线，与网格对齐 */
+  height: 48px; /* 📏 固定高度，与之前自定义头部保持一致 */
+}
 
-  /* 🔲 border由--fc-border-color变量统一控制 */
+/* 让同步容器和 cushion 链接撑满单元格高度，方便内部 flex 居中 */
+.fc .fc-col-header-cell .fc-scrollgrid-sync-inner {
+  height: 100%;
+}
+
+.fc .fc-col-header-cell .fc-col-header-cell-cushion {
+  display: block;
+  height: 100%;
+  padding: 0; /* 由 .custom-day-header 控制内部留白 */
+  text-decoration: none; /* 🔧 取消默认下划线 */
+}
+
+/* 选中 / 悬停列头时也不显示下划线 */
+.fc .fc-col-header-cell .fc-col-header-cell-cushion:hover,
+.fc .fc-col-header-cell .fc-col-header-cell-cushion:focus,
+.fc .fc-col-header-cell .fc-col-header-cell-cushion:active {
+  text-decoration: none;
 }
 
 /* 🌟 今日列头部高亮 - 仅保留文字颜色，无背景 */
@@ -1469,7 +1482,6 @@ defineExpose({
 .time-axis-placeholder {
   flex-shrink: 0; /* 🚫 不收缩 */
   height: 100%; /* 📏 继承容器高度 */
-  border-right: 1px solid var(--color-border-default); /* 🔲 右边框 */
 }
 
 /* 📅 单个日期头部 */
@@ -1482,7 +1494,6 @@ defineExpose({
   gap: 0.6rem; /* 📏 子元素间距 */
   padding: 0 0.4rem; /* 📐 水平内边距 */
   height: 100%; /* 📏 继承容器高度 */
-  border-left: 1px solid var(--color-border-default); /* 🔲 左边框 */
   transition: background-color 0.2s ease; /* 🎬 背景色过渡 */
   box-sizing: border-box; /* 📦 边框盒模型 */
   cursor: pointer; /* 👆 可点击 */

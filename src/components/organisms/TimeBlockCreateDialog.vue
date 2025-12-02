@@ -9,14 +9,14 @@
             @click="selectedType = 'task'"
           >
             <CuteIcon name="CheckSquare" :size="18" />
-            <span>Task</span>
+            <span>{{ $t('timeBlock.type.task') }}</span>
           </button>
           <button
             :class="['type-button', { active: selectedType === 'event' }]"
             @click="selectedType = 'event'"
           >
             <CuteIcon name="Calendar" :size="18" />
-            <span>Event</span>
+            <span>{{ $t('timeBlock.type.event') }}</span>
           </button>
         </div>
 
@@ -27,7 +27,7 @@
             v-model="title"
             type="text"
             class="title-input"
-            placeholder="输入标题..."
+            :placeholder="$t('timeBlock.placeholder.title')"
             @keydown.enter="handleConfirm"
             @keydown.esc="handleCancel"
           />
@@ -35,9 +35,9 @@
 
         <!-- 底部按钮 -->
         <div class="button-section">
-          <button class="cancel-button" @click="handleCancel">取消</button>
+          <button class="cancel-button" @click="handleCancel">{{ $t('common.action.cancel') }}</button>
           <button class="confirm-button" :disabled="!title.trim()" @click="handleConfirm">
-            确认
+            {{ $t('timeBlock.button.confirm') }}
           </button>
         </div>
       </div>

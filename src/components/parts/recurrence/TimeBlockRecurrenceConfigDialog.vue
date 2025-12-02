@@ -2,15 +2,12 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RRule, Frequency } from 'rrule'
-import type { TaskCard } from '@/types/dtos'
-import { useTemplateStore } from '@/stores/template'
-import { useRecurrenceStore } from '@/stores/recurrence'
+import type { TimeBlockView } from '@/types/dtos'
 import { pipeline } from '@/cpu'
-import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
 
 const props = defineProps<{
-  task: TaskCard
-  viewKey?: string // View context key (e.g., 'daily::2025-10-10', 'misc::staging')
+  timeBlock: TimeBlockView
   open: boolean
 }>()
 
@@ -29,28 +26,18 @@ const bymonthday = ref<number | null>(null)
 const bymonth = ref<number | null>(null)
 const startDate = ref<string | null>(null)
 const endDate = ref<string | null>(null)
-const expiryBehavior = ref<'CARRYOVER_TO_STAGING' | 'EXPIRE'>('CARRYOVER_TO_STAGING') // 过期行为
+const skipConflicts = ref<boolean>(true)
 
-const templateStore = useTemplateStore()
-const recurrenceStore = useRecurrenceStore()
-
-// 从 viewKey 提取日期（如果是 daily 类型）
-function extractDateFromViewKey(viewKey?: string): string | null {
-  if (!viewKey) return null
-  const parts = viewKey.split('::')
-  if (parts[0] === 'daily' && parts[1]) {
-    return parts[1] // 返回 YYYY-MM-DD 格式的日期
-  }
-  return null
-}
-
-// 监听对话框打开，自动设置 start_date
+// 监听对话框打开，自动设置初始值
 watch(
   () => props.open,
   (isOpen) => {
-    if (isOpen) {
-      const dateFromView = extractDateFromViewKey(props.viewKey)
-      startDate.value = dateFromView || getTodayDateString()
+    if (isOpen && props.timeBlock) {
+      // 🔥 从时间块的 start_time 提取本地日期
+      // 使用 dateUtils.toDateString 确保符合 TIME_CONVENTION.md 规范
+      const startTimeDate = new Date(props.timeBlock.start_time)
+      const blockDate = toDateString(startTimeDate)
+      startDate.value = blockDate || getTodayDateString()
     }
   },
   { immediate: true }
@@ -88,6 +75,25 @@ const ruleString = computed(() => {
   return rule.toString().replace('RRULE:', '') // 移除 RRULE: 前缀
 })
 
+// 从时间块中提取时长（分钟）
+const durationMinutes = computed(() => {
+  const start = new Date(props.timeBlock.start_time)
+  const end = new Date(props.timeBlock.end_time)
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60))
+})
+
+// 从时间块中提取开始时间 (HH:MM:SS)
+const startTimeLocal = computed(() => {
+  if (props.timeBlock.start_time_local) {
+    return props.timeBlock.start_time_local
+  }
+  // 如果没有本地时间，从 UTC 时间转换
+  const date = new Date(props.timeBlock.start_time)
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}:00`
+})
+
 function toggleWeekday(day: number) {
   const index = byweekday.value.indexOf(day)
   if (index > -1) {
@@ -99,34 +105,32 @@ function toggleWeekday(day: number) {
 
 async function handleSave() {
   try {
-    // 步骤1: 使用CPU指令创建循环模板（基于当前任务）
-    const template = await pipeline.dispatch('template.create', {
-      title: props.task.title,
-      glance_note_template: props.task.glance_note ?? undefined,
-      detail_note_template: undefined,
-      estimated_duration_template: props.task.estimated_duration ?? undefined,
-      subtasks_template: props.task.subtasks ?? undefined,
-      area_id: props.task.area_id ?? undefined, // 🔥 修复：直接使用 area_id
-      category: 'RECURRENCE',
-    })
+    // 使用 CPU 指令创建时间块循环规则
+    await pipeline.dispatch('timeblock-recurrence.create', {
+      // 模板信息（从当前时间块复制）
+      title: props.timeBlock.title,
+      glance_note_template: props.timeBlock.glance_note ?? undefined,
+      detail_note_template: props.timeBlock.detail_note ?? undefined,
+      duration_minutes: durationMinutes.value,
+      start_time_local: startTimeLocal.value,
+      time_type: props.timeBlock.time_type,
+      is_all_day: props.timeBlock.is_all_day,
+      area_id: props.timeBlock.area_id ?? undefined,
 
-    // 步骤2: 使用CPU指令创建循环规则（传入原任务ID，避免重复创建）
-    await pipeline.dispatch('recurrence.create', {
-      template_id: template.id,
+      // 循环规则信息
       rule: ruleString.value,
-      time_type: 'FLOATING',
       start_date: startDate.value,
       end_date: endDate.value,
-      expiry_behavior: expiryBehavior.value, // 🔥 传入过期行为
-      is_active: true,
-      source_task_id: props.task.id, // 🔥 传入原任务ID
+      skip_conflicts: skipConflicts.value,
+
+      // 将当前时间块作为第一个实例
+      source_time_block_id: props.timeBlock.id,
     })
-    // ✅ 刷新由 CPU 指令的 commit 阶段统一处理
 
     emit('success')
     emit('close')
   } catch (error) {
-    console.error('Failed to create recurrence:', error)
+    console.error('Failed to create time block recurrence:', error)
     alert(t('message.error.createRecurrenceFailed'))
   }
 }
@@ -150,8 +154,26 @@ function setWeekly() {
 <template>
   <div v-if="open" class="dialog-backdrop" @click.self="handleCancel">
     <div class="dialog-content">
-      <h3>{{ $t('recurrence.title.config') }}</h3>
-      <p class="task-info">{{ $t('recurrence.title.taskConfig', { title: task.title }) }}</p>
+      <h3>{{ $t('recurrence.title.timeBlockConfig') }}</h3>
+      <p class="block-info">
+        {{
+          $t('recurrence.title.timeBlockConfigDesc', {
+            title: timeBlock.title || $t('timeBlock.label.untitled'),
+          })
+        }}
+      </p>
+
+      <!-- 时间块摘要 -->
+      <section class="time-block-summary">
+        <div class="summary-item">
+          <span class="label">{{ $t('timeBlock.label.startTime') }}:</span>
+          <span class="value">{{ startTimeLocal }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">{{ $t('timeBlock.label.duration') }}:</span>
+          <span class="value">{{ durationMinutes }} {{ $t('common.unit.minutes') }}</span>
+        </div>
+      </section>
 
       <!-- REPEATS 部分 -->
       <section class="form-section">
@@ -172,10 +194,6 @@ function setWeekly() {
           <label class="radio-item">
             <input type="radio" :value="RRule.MONTHLY" v-model="freq" />
             <span>{{ $t('recurrence.freq.monthly') }}</span>
-          </label>
-          <label class="radio-item">
-            <input type="radio" :value="RRule.YEARLY" v-model="freq" />
-            <span>{{ $t('recurrence.freq.yearly') }}</span>
           </label>
         </div>
       </section>
@@ -209,44 +227,31 @@ function setWeekly() {
         <label class="section-label">{{ $t('recurrence.label.monthDay') }}</label>
         <select v-model.number="bymonthday" class="select-input">
           <option :value="null" disabled>{{ $t('common.action.select') }}</option>
-          <option v-for="day in 31" :key="day" :value="day">{{ day }} {{ $t('recurrence.label.monthDaySuffix') }}</option>
+          <option v-for="day in 31" :key="day" :value="day">
+            {{ day }} {{ $t('recurrence.label.monthDaySuffix') }}
+          </option>
         </select>
       </section>
 
-      <!-- 每年选项 -->
-      <section v-if="freq === RRule.YEARLY" class="form-section">
-        <label class="section-label">{{ $t('recurrence.freq.yearly') }}</label>
-        <div class="inline-inputs">
-          <select v-model.number="bymonth" class="select-input">
-            <option :value="null" disabled>{{ $t('common.action.selectMonth') }}</option>
-            <option v-for="month in 12" :key="month" :value="month">{{ month }} {{ $t('recurrence.label.month') }}</option>
-          </select>
-          <select v-model.number="bymonthday" class="select-input">
-            <option :value="null" disabled>{{ $t('common.action.selectDate') }}</option>
-            <option v-for="day in 31" :key="day" :value="day">{{ day }} {{ $t('recurrence.label.monthDaySuffix') }}</option>
-          </select>
-        </div>
-      </section>
-
-      <!-- 过期行为 -->
+      <!-- 冲突处理 -->
       <section class="form-section">
-        <label class="section-label">{{ $t('recurrence.label.expiryBehavior') }}</label>
+        <label class="section-label">{{ $t('recurrence.label.conflictBehavior') }}</label>
         <div class="radio-group">
           <label class="radio-item">
-            <input type="radio" value="CARRYOVER_TO_STAGING" v-model="expiryBehavior" />
+            <input type="radio" :value="true" v-model="skipConflicts" />
             <span>
-              <strong>{{ $t('recurrence.expiry.carryoverFull') }}</strong>
+              <strong>{{ $t('recurrence.conflict.skip') }}</strong>
               <div class="radio-description">
-                {{ $t('recurrence.expiry.carryoverDesc') }}
+                {{ $t('recurrence.conflict.skipDesc') }}
               </div>
             </span>
           </label>
           <label class="radio-item">
-            <input type="radio" value="EXPIRE" v-model="expiryBehavior" />
+            <input type="radio" :value="false" v-model="skipConflicts" />
             <span>
-              <strong>{{ $t('recurrence.expiry.expire') }}</strong>
+              <strong>{{ $t('recurrence.conflict.error') }}</strong>
               <div class="radio-description">
-                {{ $t('recurrence.expiry.expireDesc') }}
+                {{ $t('recurrence.conflict.errorDesc') }}
               </div>
             </span>
           </label>
@@ -301,12 +306,37 @@ h3 {
   color: var(--color-text-primary);
 }
 
-/* 任务信息提示 */
-.task-info {
+/* 时间块信息提示 */
+.block-info {
   color: var(--color-text-secondary);
   font-size: 1.4rem;
-  margin-bottom: 2.4rem;
+  margin-bottom: 1.6rem;
   line-height: 1.5;
+}
+
+/* 时间块摘要 */
+.time-block-summary {
+  display: flex;
+  gap: 2rem;
+  padding: 1.2rem;
+  background: var(--color-background-secondary);
+  border-radius: 0.6rem;
+  margin-bottom: 2.4rem;
+}
+
+.summary-item {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 1.4rem;
+}
+
+.summary-item .label {
+  color: var(--color-text-tertiary);
+}
+
+.summary-item .value {
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
 /* 表单区块 */
@@ -454,16 +484,6 @@ h3 {
   outline: none;
   border-color: var(--color-border-input-focus);
   box-shadow: var(--shadow-focus);
-}
-
-/* 内联输入组 */
-.inline-inputs {
-  display: flex;
-  gap: 1.2rem;
-}
-
-.inline-inputs .select-input {
-  flex: 1;
 }
 
 /* 日期输入框 */

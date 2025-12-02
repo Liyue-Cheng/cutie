@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTemplateStore } from '@/stores/template'
 import type { ViewMetadata } from '@/types/drag'
 import CutePane from '@/components/alias/CutePane.vue'
@@ -145,9 +146,11 @@ async function handleCreateTemplate() {
       'Failed to create template',
       error instanceof Error ? error : new Error(String(error))
     )
-    alert('创建模板失败')
+    alert(t('template.message.createFailed'))
   }
 }
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -157,8 +160,8 @@ async function handleCreateTemplate() {
       <!-- Header -->
       <div class="header">
         <div class="title-section">
-          <h2 class="title">模板</h2>
-          <p class="subtitle">Templates</p>
+          <h2 class="title">{{ $t('template.title.templates') }}</h2>
+          <p class="subtitle">{{ $t('template.title.subtitle') }}</p>
         </div>
         <div class="task-count">
           <span class="count">{{ displayItems.length }}</span>
@@ -170,7 +173,7 @@ async function handleCreateTemplate() {
         <input
           v-model="newTemplateName"
           type="text"
-          placeholder="输入模板名称，按回车创建..."
+          :placeholder="$t('template.placeholder.name')"
           class="add-task-input"
           @keyup.enter="handleCreateTemplate"
         />
@@ -187,7 +190,7 @@ async function handleCreateTemplate() {
           <TemplateCard :template="template" @open-editor="handleOpenEditor(template.id)" />
         </div>
 
-        <div v-if="displayItems.length === 0" class="empty-state">暂无模板</div>
+        <div v-if="displayItems.length === 0" class="empty-state">{{ $t('template.label.noTemplates') }}</div>
       </div>
     </div>
   </CutePane>

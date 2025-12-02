@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAreaStore } from '@/stores/area'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 
 defineEmits(['close'])
 
+const { t } = useI18n()
 const areaStore = useAreaStore()
 
 const newAreaName = ref('')
@@ -31,13 +33,13 @@ async function handleCreate() {
     newAreaColor.value = '#4A90E2'
   } catch (error) {
     console.error('创建 Area 失败:', error)
-    alert(`创建失败: ${error instanceof Error ? error.message : String(error)}`)
+    alert(t('message.error.createAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
 async function handleAiSuggestColor() {
   if (!newAreaName.value.trim()) {
-    alert('请先输入 Area 名称')
+    alert(t('area.message.enterName'))
     return
   }
 
@@ -49,7 +51,7 @@ async function handleAiSuggestColor() {
     newAreaColor.value = result.suggested_color
   } catch (error) {
     console.error('AI 染色失败:', error)
-    alert(`AI 染色失败: ${error instanceof Error ? error.message : String(error)}`)
+    alert(t('message.error.aiColorFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     isAiColorLoading.value = false
   }
@@ -80,13 +82,13 @@ async function saveEdit() {
     editingArea.value = null
   } catch (error) {
     console.error('更新 Area 失败:', error)
-    alert(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
+    alert(t('message.error.updateAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
 async function handleEditAiSuggestColor() {
   if (!editingArea.value?.name.trim()) {
-    alert('请先输入 Area 名称')
+    alert(t('area.message.enterName'))
     return
   }
 
@@ -98,19 +100,19 @@ async function handleEditAiSuggestColor() {
     editingArea.value.color = result.suggested_color
   } catch (error) {
     console.error('AI 染色失败:', error)
-    alert(`AI 染色失败: ${error instanceof Error ? error.message : String(error)}`)
+    alert(t('message.error.aiColorFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     isEditAiColorLoading.value = false
   }
 }
 
 async function handleDelete(id: string) {
-  if (confirm('确定要删除这个 Area 吗？这将影响所有关联的任务。')) {
+  if (confirm(t('confirm.deleteArea'))) {
     try {
       await pipeline.dispatch('area.delete', { id })
     } catch (error) {
       console.error('删除 Area 失败:', error)
-      alert(`删除失败: ${error instanceof Error ? error.message : String(error)}`)
+      alert(t('message.error.deleteAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 }
@@ -121,32 +123,32 @@ async function handleDelete(id: string) {
     <div class="manager-container" @click.stop>
       <!-- 头部 -->
       <div class="manager-header">
-        <h2 class="manager-title">Area 管理器</h2>
-        <button class="close-btn" @click="$emit('close')" title="关闭">
+        <h2 class="manager-title">{{ $t('area.title.manager') }}</h2>
+        <button class="close-btn" @click="$emit('close')" :title="$t('common.action.close')">
           <CuteIcon name="X" :size="20" />
         </button>
       </div>
 
       <!-- 创建新 Area 区域 -->
       <div class="create-section">
-        <h3 class="section-title">创建新 Area</h3>
+        <h3 class="section-title">{{ $t('area.title.create') }}</h3>
         <div class="create-form">
           <input
             v-model="newAreaName"
             type="text"
-            placeholder="输入 Area 名称..."
+            :placeholder="$t('area.placeholder.name')"
             class="name-input"
             @keyup.enter="handleCreate"
           />
           <div class="color-picker-wrapper">
-            <input v-model="newAreaColor" type="color" class="color-input" title="选择颜色" />
+            <input v-model="newAreaColor" type="color" class="color-input" :title="$t('area.action.selectColor')" />
             <div class="color-preview" :style="{ backgroundColor: newAreaColor }"></div>
           </div>
           <button
             class="ai-color-btn"
             @click="handleAiSuggestColor"
             :disabled="!newAreaName.trim() || isAiColorLoading"
-            title="AI 自动染色"
+            :title="$t('area.action.aiColor')"
           >
             <CuteIcon name="Sparkles" :size="16" />
             <span v-if="!isAiColorLoading">AI</span>
@@ -156,10 +158,10 @@ async function handleDelete(id: string) {
             class="add-btn"
             @click="handleCreate"
             :disabled="!newAreaName.trim()"
-            title="添加 Area"
+            :title="$t('area.action.add')"
           >
             <CuteIcon name="Plus" :size="18" />
-            <span>添加</span>
+            <span>{{ $t('area.action.add') }}</span>
           </button>
         </div>
       </div>
@@ -167,15 +169,15 @@ async function handleDelete(id: string) {
       <!-- Area 列表区域 -->
       <div class="areas-section">
         <div class="section-header">
-          <h3 class="section-title">所有 Areas</h3>
-          <span class="area-count">{{ areaStore.allAreas.length }} 个</span>
+          <h3 class="section-title">{{ $t('area.title.all') }}</h3>
+          <span class="area-count">{{ $t('area.count', { n: areaStore.allAreas.length }) }}</span>
         </div>
 
         <div class="areas-list">
           <div v-if="areaStore.allAreas.length === 0" class="empty-state">
             <CuteIcon name="Tag" :size="48" class="empty-icon" />
-            <p class="empty-text">还没有创建任何 Area</p>
-            <p class="empty-hint">Area 可以帮助你组织和分类任务</p>
+            <p class="empty-text">{{ $t('area.empty.title') }}</p>
+            <p class="empty-hint">{{ $t('area.empty.hint') }}</p>
           </div>
 
           <div v-else class="areas-grid">
@@ -209,14 +211,14 @@ async function handleDelete(id: string) {
                     class="edit-btn ai"
                     @click="handleEditAiSuggestColor"
                     :disabled="!editingArea.name.trim() || isEditAiColorLoading"
-                    title="AI 自动染色"
+                    :title="$t('area.action.aiColor')"
                   >
                     <CuteIcon name="Sparkles" :size="14" />
                   </button>
-                  <button class="edit-btn save" @click="saveEdit" title="保存">
+                  <button class="edit-btn save" @click="saveEdit" :title="$t('common.action.save')">
                     <CuteIcon name="Check" :size="16" />
                   </button>
-                  <button class="edit-btn cancel" @click="cancelEdit" title="取消">
+                  <button class="edit-btn cancel" @click="cancelEdit" :title="$t('common.action.cancel')">
                     <CuteIcon name="X" :size="16" />
                   </button>
                 </div>
@@ -229,10 +231,10 @@ async function handleDelete(id: string) {
                   <span class="area-name">{{ area.name }}</span>
                 </div>
                 <div class="area-actions">
-                  <button class="action-btn edit" @click="startEdit(area)" title="编辑">
+                  <button class="action-btn edit" @click="startEdit(area)" :title="$t('common.action.edit')">
                     <CuteIcon name="Pencil" :size="16" />
                   </button>
-                  <button class="action-btn delete" @click="handleDelete(area.id)" title="删除">
+                  <button class="action-btn delete" @click="handleDelete(area.id)" :title="$t('common.action.delete')">
                     <CuteIcon name="Trash2" :size="16" />
                   </button>
                 </div>

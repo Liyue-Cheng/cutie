@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAreaStore } from '@/stores/area'
 import CuteCard from '@/components/templates/CuteCard.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
@@ -119,7 +120,7 @@ function handleClose() {
 async function handleCreate() {
   const title = titleInput.value.trim()
   if (!title) {
-    alert('请输入模板标题')
+    alert(t('template.message.enterTitle'))
     return
   }
 
@@ -140,9 +141,11 @@ async function handleCreate() {
       'Failed to create template',
       error instanceof Error ? error : new Error(String(error))
     )
-    alert('创建模板失败')
+    alert(t('template.message.createFailed'))
   }
 }
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -166,7 +169,7 @@ async function handleCreate() {
               />
               <div v-else class="no-area-placeholder">
                 <span class="hash-symbol">#</span>
-                <span>无区域</span>
+                <span>{{ $t('task.label.noArea') }}</span>
               </div>
             </div>
 
@@ -181,7 +184,7 @@ async function handleCreate() {
                 <AreaTag :name="area.name" :color="area.color" size="small" />
               </div>
               <div class="area-option" @click="updateArea(null)">
-                <span class="no-area-text">清除区域</span>
+                <span class="no-area-text">{{ $t('area.action.clearArea') }}</span>
               </div>
             </div>
           </div>
@@ -198,19 +201,19 @@ async function handleCreate() {
             ref="titleInputRef"
             v-model="titleInput"
             class="title-input"
-            placeholder="模板标题"
+            :placeholder="$t('template.placeholder.title')"
             @keydown.enter="handleCreate"
           />
         </div>
 
         <!-- 第三栏：Glance Note Template 区域 -->
         <div class="note-area glance-note-area">
-          <div v-if="!glanceNoteTemplate" class="note-placeholder">快速概览笔记模板...</div>
+          <div v-if="!glanceNoteTemplate" class="note-placeholder">{{ $t('task.placeholder.glanceNoteTemplate') }}</div>
           <textarea
             ref="glanceNoteTextarea"
             v-model="glanceNoteTemplate"
             class="note-textarea"
-            placeholder="快速概览笔记模板..."
+            :placeholder="$t('task.placeholder.glanceNoteTemplate')"
             rows="1"
             @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
           ></textarea>
@@ -221,7 +224,7 @@ async function handleCreate() {
 
         <!-- 第四栏：子任务模板编辑区 -->
         <div class="subtasks-section">
-          <div class="subtasks-header">子任务模板</div>
+          <div class="subtasks-header">{{ $t('task.label.subtaskTemplate') }}</div>
           <draggable
             v-model="subtasks"
             item-key="id"
@@ -250,7 +253,7 @@ async function handleCreate() {
             <input
               v-model="newSubtaskTitle"
               class="add-subtask-input"
-              placeholder="添加子任务模板..."
+              :placeholder="$t('task.placeholder.addSubtaskTemplate')"
               @keydown.enter="handleAddSubtask"
             />
           </div>
@@ -261,12 +264,12 @@ async function handleCreate() {
 
         <!-- 第五栏：细节笔记模板区 -->
         <div class="note-area detail-note-area">
-          <div v-if="!detailNoteTemplate" class="note-placeholder">详细笔记模板...</div>
+          <div v-if="!detailNoteTemplate" class="note-placeholder">{{ $t('task.placeholder.detailNoteTemplate') }}</div>
           <textarea
             ref="detailNoteTextarea"
             v-model="detailNoteTemplate"
             class="note-textarea"
-            placeholder="详细笔记模板..."
+            :placeholder="$t('task.placeholder.detailNoteTemplate')"
             rows="1"
             @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
           ></textarea>
@@ -274,8 +277,8 @@ async function handleCreate() {
 
         <!-- 第六栏：操作按钮 -->
         <div class="action-buttons">
-          <button class="cancel-button" @click="handleClose">取消</button>
-          <button class="create-button" @click="handleCreate">创建</button>
+          <button class="cancel-button" @click="handleClose">{{ $t('common.action.cancel') }}</button>
+          <button class="create-button" @click="handleCreate">{{ $t('template.button.create') }}</button>
         </div>
       </div>
     </CuteCard>

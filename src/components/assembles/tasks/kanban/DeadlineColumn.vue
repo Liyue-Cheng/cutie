@@ -52,15 +52,15 @@ function handleDrop(event: DragEvent) {
   <div class="deadline-column">
     <div class="column-header">
       <div class="header-title">
-        <h3>截止日期</h3>
+        <h3>{{ $t('toolbar.deadline') }}</h3>
         <span class="task-count">{{ taskCount }}</span>
       </div>
-      <div v-if="overdueCount > 0" class="overdue-badge">{{ overdueCount }} 个已逾期</div>
+      <div v-if="overdueCount > 0" class="overdue-badge">{{ $t('task.count.overdue', { n: overdueCount }) }}</div>
     </div>
 
     <div class="column-content" @dragover="handleDragOver" @drop="handleDrop">
       <div v-if="deadlineTasks.length === 0" class="empty-state">
-        <p>没有设置截止日期的任务</p>
+        <p>{{ $t('task.label.noDeadlineTasks') }}</p>
       </div>
 
       <div v-else class="tasks-list">
