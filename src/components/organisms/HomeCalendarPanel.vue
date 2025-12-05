@@ -805,22 +805,21 @@ defineExpose({
   align-items: center;
   justify-content: center;
   height: 3.6rem;
-  padding: 0 1.2rem;
+  padding: 0 1rem;
   font-size: 1.4rem;
   font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary, #f0f);
+  background-color: transparent;
+  border: none;
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  min-width: 5.6rem;
 }
 
 .zoom-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .zoom-btn:active {
