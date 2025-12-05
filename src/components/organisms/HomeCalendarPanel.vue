@@ -5,61 +5,48 @@
         <div class="calendar-controls">
           <!-- ========== 日历模式控制栏 ========== -->
           <template v-if="props.isCalendarMode">
-            <!-- 左侧：退出按钮 + 年月显示 + 导航 -->
-            <div class="calendar-left-controls">
-              <button
-                class="calendar-mode-btn"
-                title="退出日历模式"
-                @click="emit('exit-calendar-mode')"
-              >
-                <CuteIcon name="ChevronsRight" :size="18" />
-              </button>
-
-              <!-- 年月显示 -->
-              <div class="calendar-year-month">
-                {{ calendarYearMonth }}
+            <!-- 左侧：年月标题（可点击展开导航面板） -->
+            <div class="controls-left">
+              <div class="date-title-wrapper">
+                <div class="date-title" @click="toggleNavPanel">
+                  <span class="date-text">{{ calendarYearMonth }}</span>
+                </div>
               </div>
 
-              <!-- 左右导航按钮 -->
-              <button class="control-btn nav-btn" title="上一周/月" @click="navigatePrevious">
-                <CuteIcon name="ChevronLeft" :size="16" />
-              </button>
-              <button class="control-btn nav-btn" title="下一周/月" @click="navigateNext">
-                <CuteIcon name="ChevronRight" :size="16" />
-              </button>
+              <!-- 导航面板 -->
+              <div v-if="showNavPanel" ref="navPanelRef" class="date-nav-panel">
+                <div class="panel-header">
+                  <span class="panel-title">导航</span>
+                </div>
+                <div class="panel-body">
+                  <!-- 导航控制 -->
+                  <div class="nav-row">
+                    <button class="panel-nav-btn" title="上一周/月" @click="navigatePrevious">
+                      <CuteIcon name="ChevronLeft" :size="16" />
+                    </button>
+                    <span class="current-range">{{ calendarYearMonth }}</span>
+                    <button class="panel-nav-btn" title="下一周/月" @click="navigateNext">
+                      <CuteIcon name="ChevronRight" :size="16" />
+                    </button>
+                  </div>
 
-              <!-- 本周按钮 + 日历选择器（仅周视图） -->
-              <div v-if="calendarModeViewType === 'week'" class="combined-btn-wrapper">
-                <button class="combined-btn-left" @click="goToThisWeek" title="回到本周">
-                  <span>本周</span>
-                </button>
-                <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
-                  <CuteIcon name="CalendarDays" :size="16" />
-                </button>
-                <input
-                  ref="dateInputRef"
-                  type="date"
-                  v-model="calendarModeCurrentDate"
-                  class="date-input-hidden"
-                  @change="onDatePickerChange"
-                />
-              </div>
+                  <!-- 日期输入 -->
+                  <div class="date-input-row">
+                    <label class="date-label">跳转到日期</label>
+                    <input
+                      type="date"
+                      v-model="calendarModeCurrentDate"
+                      class="date-input"
+                      @change="onDatePickerChange"
+                    />
+                  </div>
 
-              <!-- 本月按钮 + 日历选择器（仅月视图） -->
-              <div v-if="calendarModeViewType === 'month'" class="combined-btn-wrapper">
-                <button class="combined-btn-left" @click="goToThisMonth" title="回到本月">
-                  <span>本月</span>
-                </button>
-                <button class="combined-btn-right" @click="toggleDatePicker" title="选择日期">
-                  <CuteIcon name="CalendarDays" :size="16" />
-                </button>
-                <input
-                  ref="dateInputRef"
-                  type="date"
-                  v-model="calendarModeCurrentDate"
-                  class="date-input-hidden"
-                  @change="onDatePickerChange"
-                />
+                  <!-- 快捷按钮 -->
+                  <button class="today-btn" @click="goToToday">
+                    <CuteIcon name="Calendar" :size="16" />
+                    <span>{{ calendarModeViewType === 'week' ? '回到本周' : '回到本月' }}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -78,70 +65,80 @@
                 {{ calendarZoom }}x
               </button>
 
-              <!-- 月视图筛选菜单 -->
-              <CuteDropdown
-                v-if="calendarModeViewType === 'month'"
-                :close-on-select="false"
-              >
+              <!-- 统一菜单按钮 -->
+              <CuteDropdown :close-on-select="false" :max-height="'none'" align-right>
                 <template #trigger>
-                  <button class="filter-btn">
-                    <span>筛选</span>
-                    <CuteIcon name="ChevronDown" :size="14" />
+                  <button class="icon-btn menu-btn" title="设置">
+                    <CuteIcon name="Menu" :size="18" />
                   </button>
                 </template>
-                <CuteDropdownItem @click.prevent>
-                  <label class="filter-option">
-                    <CuteCheckbox
-                      :checked="monthViewFilters.showRecurringTasks"
-                      size="small"
-                      @update:checked="(val) => (monthViewFilters.showRecurringTasks = val)"
-                    />
-                    <span>循环任务</span>
-                  </label>
-                </CuteDropdownItem>
-                <CuteDropdownItem @click.prevent>
-                  <label class="filter-option">
-                    <CuteCheckbox
-                      :checked="monthViewFilters.showScheduledTasks"
-                      size="small"
-                      @update:checked="(val) => (monthViewFilters.showScheduledTasks = val)"
-                    />
-                    <span>已排期任务</span>
-                  </label>
-                </CuteDropdownItem>
-                <CuteDropdownItem @click.prevent>
-                  <label class="filter-option">
-                    <CuteCheckbox
-                      :checked="monthViewFilters.showDueDates"
-                      size="small"
-                      @update:checked="(val) => (monthViewFilters.showDueDates = val)"
-                    />
-                    <span>截止日期</span>
-                  </label>
-                </CuteDropdownItem>
-                <CuteDropdownItem @click.prevent>
-                  <label class="filter-option">
-                    <CuteCheckbox
-                      :checked="monthViewFilters.showAllDayEvents"
-                      size="small"
-                      @update:checked="(val) => (monthViewFilters.showAllDayEvents = val)"
-                    />
-                    <span>全天事件</span>
-                  </label>
-                </CuteDropdownItem>
-              </CuteDropdown>
 
-              <!-- 周视图/月视图选择器 -->
-              <CuteDropdown
-                :model-value="calendarModeViewType"
-                :options="calendarModeViewOptions"
-                @update:model-value="onCalendarModeViewChange"
-              >
-                <template #trigger>
-                  <button class="day-count-trigger">
-                    <span>{{ calendarModeViewType === 'week' ? '周视图' : '月视图' }}</span>
-                    <CuteIcon name="ChevronDown" :size="14" />
-                  </button>
+                <!-- 视图切换（横向按钮组） -->
+                <div class="menu-row">
+                  <span class="menu-section-label">视图</span>
+                  <div class="view-type-buttons">
+                    <button
+                      class="view-type-btn"
+                      :class="{ active: calendarModeViewType === 'week' }"
+                      @click.stop="onCalendarModeViewChange('week')"
+                    >
+                      周
+                    </button>
+                    <button
+                      class="view-type-btn"
+                      :class="{ active: calendarModeViewType === 'month' }"
+                      @click.stop="onCalendarModeViewChange('month')"
+                    >
+                      月
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 分隔线（仅月视图显示筛选） -->
+                <template v-if="calendarModeViewType === 'month'">
+                  <div class="menu-divider"></div>
+
+                  <!-- 筛选选项 -->
+                  <CuteDropdownItem @click.prevent>
+                    <label class="filter-option">
+                      <CuteCheckbox
+                        :checked="monthViewFilters.showRecurringTasks"
+                        size="small"
+                        @update:checked="(val) => (monthViewFilters.showRecurringTasks = val)"
+                      />
+                      <span>循环任务</span>
+                    </label>
+                  </CuteDropdownItem>
+                  <CuteDropdownItem @click.prevent>
+                    <label class="filter-option">
+                      <CuteCheckbox
+                        :checked="monthViewFilters.showScheduledTasks"
+                        size="small"
+                        @update:checked="(val) => (monthViewFilters.showScheduledTasks = val)"
+                      />
+                      <span>已排期任务</span>
+                    </label>
+                  </CuteDropdownItem>
+                  <CuteDropdownItem @click.prevent>
+                    <label class="filter-option">
+                      <CuteCheckbox
+                        :checked="monthViewFilters.showDueDates"
+                        size="small"
+                        @update:checked="(val) => (monthViewFilters.showDueDates = val)"
+                      />
+                      <span>截止日期</span>
+                    </label>
+                  </CuteDropdownItem>
+                  <CuteDropdownItem @click.prevent>
+                    <label class="filter-option">
+                      <CuteCheckbox
+                        :checked="monthViewFilters.showAllDayEvents"
+                        size="small"
+                        @update:checked="(val) => (monthViewFilters.showAllDayEvents = val)"
+                      />
+                      <span>全天事件</span>
+                    </label>
+                  </CuteDropdownItem>
                 </template>
               </CuteDropdown>
             </div>
@@ -149,17 +146,15 @@
 
           <!-- ========== 普通模式控制栏 ========== -->
           <template v-else>
-            <!-- 左侧：年月显示（日历视图） -->
-            <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-left-controls">
-              <div class="calendar-year-month">
-                {{ calendarYearMonth }}
-              </div>
-            </div>
-
-            <!-- 左侧：年月显示（时间线视图） -->
-            <div v-else-if="props.currentRightPaneView === 'timeline'" class="calendar-left-controls">
-              <div class="calendar-year-month">
-                {{ calendarYearMonth }}
+            <!-- 左侧：年月显示 -->
+            <div
+              v-if="props.currentRightPaneView === 'calendar' || props.currentRightPaneView === 'timeline'"
+              class="controls-left"
+            >
+              <div class="date-title-wrapper">
+                <div class="date-title-static">
+                  <span class="date-text">{{ calendarYearMonth }}</span>
+                </div>
               </div>
             </div>
 
@@ -180,15 +175,14 @@
 
               <!-- 月视图筛选菜单 -->
               <CuteDropdown
-                v-if="
-                  props.currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'
-                "
+                v-if="props.currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'"
                 :close-on-select="false"
+                :max-height="'none'"
+                align-right
               >
                 <template #trigger>
-                  <button class="filter-btn">
-                    <span>筛选</span>
-                    <CuteIcon name="ChevronDown" :size="14" />
+                  <button class="icon-btn menu-btn" title="筛选">
+                    <CuteIcon name="Menu" :size="18" />
                   </button>
                 </template>
                 <CuteDropdownItem @click.prevent>
@@ -277,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
@@ -357,22 +351,26 @@ function handleTimeBlockDialogCancel() {
 // ==================== 日历模式状态 ====================
 const calendarModeViewType = ref<'week' | 'month'>('month') // 日历模式默认显示月视图
 const calendarModeCurrentDate = ref<string>(getTodayDateString()) // 日历模式的当前日期
-const dateInputRef = ref<HTMLInputElement | null>(null) // 日期输入框引用
-
-const calendarModeViewOptions = [
-  { value: 'week', label: '周视图' },
-  { value: 'month', label: '月视图' },
-]
+const showNavPanel = ref(false) // 导航面板显示状态
+const navPanelRef = ref<HTMLElement | null>(null) // 导航面板引用
 
 function onCalendarModeViewChange(value: string) {
   calendarModeViewType.value = value as 'week' | 'month'
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar mode view changed', { view: value })
 }
 
-// 切换日期选择器
-function toggleDatePicker() {
-  if (dateInputRef.value) {
-    dateInputRef.value.showPicker()
+// 切换导航面板
+function toggleNavPanel() {
+  showNavPanel.value = !showNavPanel.value
+}
+
+// 点击外部关闭面板
+function handleClickOutside(event: MouseEvent) {
+  if (navPanelRef.value && !navPanelRef.value.contains(event.target as Node)) {
+    const trigger = (event.target as Element).closest('.date-title')
+    if (!trigger) {
+      showNavPanel.value = false
+    }
   }
 }
 
@@ -405,16 +403,11 @@ function navigateNext() {
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Navigate next', { date: calendarModeCurrentDate.value })
 }
 
-// 跳转到本周
-function goToThisWeek() {
+// 跳转到今天（本周/本月）
+function goToToday() {
   calendarModeCurrentDate.value = getTodayDateString()
-  logger.debug(LogTags.COMPONENT_CALENDAR, 'Go to this week')
-}
-
-// 跳转到本月
-function goToThisMonth() {
-  calendarModeCurrentDate.value = getTodayDateString()
-  logger.debug(LogTags.COMPONENT_CALENDAR, 'Go to this month')
+  showNavPanel.value = false
+  logger.debug(LogTags.COMPONENT_CALENDAR, 'Go to today')
 }
 
 // 月视图日期点击处理
@@ -465,6 +458,19 @@ const effectiveCurrentDate = computed(() => {
   return props.currentCalendarDate
 })
 
+// 获取一年中的第几周（ISO 8601 标准）
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  // 设置为本周四（ISO 周从周一开始，周四决定周属于哪一年）
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  // 获取年初第一天
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  // 计算周数
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return weekNo
+}
+
 // 格式化日历年月显示
 const calendarYearMonth = computed(() => {
   const dateStr = props.isCalendarMode ? calendarModeCurrentDate.value : props.currentCalendarDate
@@ -473,6 +479,12 @@ const calendarYearMonth = computed(() => {
   const date = new Date(dateStr)
   const year = date.getFullYear()
   const month = date.getMonth() + 1
+
+  // 周视图时显示第几周
+  if (props.isCalendarMode && calendarModeViewType.value === 'week') {
+    const weekNumber = getWeekNumber(date)
+    return `${year}年${month}月 · 第${weekNumber}周`
+  }
 
   return `${year}年${month}月`
 })
@@ -592,6 +604,16 @@ async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: stri
   }
 }
 
+// ==================== 生命周期 ====================
+onMounted(() => {
+  // 添加点击外部关闭面板的监听器
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
 // 暴露方法给父组件
 defineExpose({
   calendarRef,
@@ -614,8 +636,15 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: 1.2rem;
-  padding: 1.2rem 1.6rem;
+  padding: 1.2rem 0.8rem 1.2rem 1.6rem;
   background-color: transparent;
+}
+
+.controls-left {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
 }
 
 .controls-right {
@@ -624,30 +653,186 @@ defineExpose({
   gap: 1.2rem;
 }
 
-/* 年月显示 */
-.calendar-year-month {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-}
-
-/* 左侧控制组 */
-.calendar-left-controls {
+/* ==================== 日期标题样式 ==================== */
+.date-title-wrapper {
   display: flex;
   align-items: center;
   gap: 0.8rem;
 }
 
-/* 日历模式按钮 */
-.calendar-mode-btn {
+.date-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.date-title:hover {
+  opacity: 0.7;
+}
+
+.date-title:active {
+  opacity: 0.5;
+}
+
+.date-title-static {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.date-text {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* ==================== 导航面板 ==================== */
+.date-nav-panel {
+  position: absolute;
+  top: calc(100% + 0.8rem);
+  left: 0;
+  z-index: 100;
+  min-width: 24rem;
+  background-color: var(--color-background-primary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.8rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 1.2rem 1.6rem;
+  border-bottom: 1px solid var(--color-border-light, #f0f);
+}
+
+.panel-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+}
+
+.panel-body {
+  padding: 1.2rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+/* 导航行 */
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.panel-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 3.2rem;
   height: 3.2rem;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.panel-nav-btn:hover {
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+}
+
+.panel-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.current-range {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+}
+
+/* 日期输入行 */
+.date-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.date-label {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #f0f);
+  line-height: 1.4;
+}
+
+.date-input {
+  width: 100%;
+  height: 3.6rem;
+  padding: 0 1rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.date-input:hover {
+  border-color: var(--color-border-hover, #f0f);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, #f0f);
+}
+
+/* 今天按钮 */
+.today-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.today-btn:hover {
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+}
+
+.today-btn:active {
+  transform: scale(0.98);
+}
+
+/* ==================== 图标按钮 ==================== */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.6rem;
+  height: 3.6rem;
   padding: 0;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary, #f0f);
   background-color: transparent;
   border: 1px solid transparent;
   border-radius: 0.6rem;
@@ -655,136 +840,93 @@ defineExpose({
   transition: all 0.2s ease;
 }
 
-.calendar-mode-btn:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-default);
+.icon-btn:hover {
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-default, #f0f);
 }
 
-.calendar-mode-btn:active {
+.icon-btn:active {
   transform: scale(0.95);
 }
 
-/* 控制按钮（导航、本周、本月） */
-.control-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+/* 菜单按钮往右偏移 */
+.menu-btn {
+  margin-left: 0.4rem;
 }
 
-.control-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
+/* ==================== 菜单样式 ==================== */
+/* 菜单分组标签 */
+.menu-section-label {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-tertiary, #f0f);
 }
 
-.control-btn:active {
-  transform: scale(0.98);
-}
-
-/* 导航按钮 */
-.nav-btn {
-  width: 3.6rem;
-  padding: 0;
-}
-
-/* 合并按钮（本周/本月 + 日历） */
-.combined-btn-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: 3.6rem;
-}
-
-.combined-btn-left,
-.combined-btn-right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 3.6rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.combined-btn-left {
-  gap: 0.6rem;
-  padding: 0 1.2rem;
-  border-radius: 0.6rem 0 0 0.6rem;
-  border-right: none;
-}
-
-.combined-btn-right {
-  width: 3.6rem;
-  padding: 0;
-  border-radius: 0 0.6rem 0.6rem 0;
-  border-left: 1px solid var(--color-border-default);
-}
-
-.combined-btn-left:hover,
-.combined-btn-right:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
-  z-index: 1;
-}
-
-.combined-btn-left:active,
-.combined-btn-right:active {
-  transform: scale(0.98);
-}
-
-.date-input-hidden {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
-}
-
-/* 天数选择器触发器 */
-.day-count-trigger {
+/* 菜单行（用于视图选择等） */
+.menu-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
-  height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.4rem;
+  gap: 1.2rem;
+  padding: 0.8rem 1.2rem;
+}
+
+/* 菜单分隔线 */
+.menu-divider {
+  height: 1px;
+  background-color: var(--color-border-light, #f0f);
+  margin: 0.4rem 1.2rem;
+}
+
+/* 视图类型按钮组 */
+.view-type-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.view-type-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 2.8rem;
+  font-size: 1.3rem;
   font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
+  color: var(--color-text-secondary, #f0f);
+  background-color: transparent;
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.4rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
-  min-width: 7rem;
-  white-space: nowrap;
+  transition: all 0.15s ease;
 }
 
-.day-count-trigger:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
+.view-type-btn:hover {
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
 }
 
-.day-count-trigger:active {
-  transform: scale(0.98);
+.view-type-btn.active {
+  color: var(--color-text-on-accent, #f0f);
+  background-color: var(--color-background-accent, #f0f);
+  border-color: var(--color-background-accent, #f0f);
+}
+
+/* 筛选选项 */
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-option span {
+  user-select: none;
 }
 
 /* 占位 */
@@ -792,7 +934,7 @@ defineExpose({
   flex: 1;
 }
 
-/* 缩放按钮 */
+/* ==================== 缩放按钮 ==================== */
 .zoom-btn {
   display: flex;
   align-items: center;
@@ -816,80 +958,6 @@ defineExpose({
 }
 
 .zoom-btn:active {
-  transform: scale(0.98);
-}
-
-/* 筛选按钮 */
-.filter-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  min-width: 10rem;
-}
-
-.filter-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
-}
-
-.filter-btn:active {
-  transform: scale(0.98);
-}
-
-/* 筛选选项 */
-.filter-option {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  width: 100%;
-  font-size: 1.4rem;
-  color: var(--color-text-primary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.filter-option span {
-  user-select: none;
-}
-
-/* 视图选择器按钮 */
-.view-selector-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  min-width: 10rem;
-}
-
-.view-selector-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover);
-}
-
-.view-selector-btn:active {
   transform: scale(0.98);
 }
 
