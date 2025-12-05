@@ -806,7 +806,7 @@ defineExpose({
   justify-content: center;
   height: 3.6rem;
   padding: 0 1rem;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   font-weight: 500;
   color: var(--color-text-secondary, #f0f);
   background-color: transparent;
