@@ -4,12 +4,13 @@
       <template #top>
         <div class="recent-controls">
           <div class="controls-left">
-            <!-- 日期导航按钮 -->
-            <button class="date-nav-trigger" @click="toggleDatePanel">
-              <CuteIcon name="CalendarDays" :size="16" />
-              <span class="date-display">{{ currentDateDisplay }}</span>
-              <CuteIcon name="ChevronDown" :size="14" />
-            </button>
+            <!-- 日期标题区域 -->
+            <div class="date-title-wrapper">
+              <!-- 日期标题（可点击） -->
+              <div class="date-title" @click="toggleDatePanel">
+                <span class="date-text">{{ currentDateDisplay }}</span>
+              </div>
+            </div>
 
             <!-- 日期导航面板 -->
             <div v-if="showDatePanel" class="date-nav-panel" ref="datePanelRef">
@@ -53,10 +54,8 @@
           <div class="controls-right">
             <CuteDropdown :close-on-select="false">
               <template #trigger>
-                <button class="filter-btn">
-                  <CuteIcon :name="'Filter' as any" :size="16" />
-                  <span>筛选</span>
-                  <CuteIcon name="ChevronDown" :size="14" />
+                <button class="icon-btn" title="筛选">
+                  <CuteIcon name="ListFilter" :size="18" />
                 </button>
               </template>
               <CuteDropdownItem @click.prevent>
@@ -105,6 +104,7 @@
             :hide-daily-recurring-tasks="!showDailyRecurringTasks"
             :hide-completed="!showCompletedTasks"
             :show-estimated-duration="false"
+            :title-color="dateInfo.isToday ? 'var(--color-text-accent)' : undefined"
           />
         </div>
       </template>
@@ -161,14 +161,8 @@ const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
 
 // 当前日期显示（用于触发按钮）
 const currentDateDisplay = computed(() => {
-  const today = getValidDateString()
-  if (selectedDate.value === today) {
-    return '今天'
-  }
-  const date = parseDateString(selectedDate.value)
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  return `${month}月${day}日`
+  // 直接使用日期范围显示
+  return dateRangeDisplay.value
 })
 
 // 日期范围显示（用于面板内）
@@ -204,6 +198,7 @@ interface DateInfo {
   date: string
   viewKey: string
   label: string
+  isToday: boolean
 }
 
 const dateList = computed<DateInfo[]>(() => {
@@ -221,6 +216,7 @@ const dateList = computed<DateInfo[]>(() => {
       date: dateString,
       viewKey: `daily::${dateString}`,
       label,
+      isToday: dateString === today,
     })
   }
 
@@ -285,7 +281,7 @@ function toggleDatePanel() {
 // 点击外部关闭面板
 function handleClickOutside(event: MouseEvent) {
   if (datePanelRef.value && !datePanelRef.value.contains(event.target as Node)) {
-    const trigger = (event.target as Element).closest('.date-nav-trigger')
+    const trigger = (event.target as Element).closest('.date-title')
     if (!trigger) {
       showDatePanel.value = false
     }
@@ -391,35 +387,35 @@ onUnmounted(() => {
   gap: 1.2rem;
 }
 
-/* ==================== 日期导航触发按钮 ==================== */
-.date-nav-trigger {
+/* ==================== 日期标题样式 ==================== */
+.date-title-wrapper {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary, #f0f);
-  background-color: var(--color-background-secondary, #f0f);
-  border: 1px solid var(--color-border-default, #f0f);
-  border-radius: 0.6rem;
+}
+
+.date-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  transition: opacity 0.2s ease;
 }
 
-.date-nav-trigger:hover {
-  background-color: var(--color-background-hover, #f0f);
-  border-color: var(--color-border-hover, #f0f);
+.date-title:hover {
+  opacity: 0.7;
 }
 
-.date-nav-trigger:active {
-  transform: scale(0.98);
+.date-title:active {
+  opacity: 0.5;
 }
 
-.date-display {
+.date-text {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f0f);
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 /* ==================== 日期导航面板 ==================== */
@@ -556,33 +552,30 @@ onUnmounted(() => {
   transform: scale(0.98);
 }
 
-/* ==================== 筛选下拉菜单 ==================== */
-.filter-btn {
+/* ==================== 筛选图标按钮 ==================== */
+.icon-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
+  justify-content: center;
+  width: 3.6rem;
   height: 3.6rem;
-  padding: 0 1.2rem;
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: var(--color-text-primary, #f0f);
-  background-color: var(--color-background-secondary, #f0f);
-  border: 1px solid var(--color-border-default, #f0f);
+  padding: 0;
+  color: var(--color-text-secondary, #f0f);
+  background-color: transparent;
+  border: 1px solid transparent;
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
-  min-width: 10rem;
 }
 
-.filter-btn:hover {
+.icon-btn:hover {
+  color: var(--color-text-primary, #f0f);
   background-color: var(--color-background-hover, #f0f);
-  border-color: var(--color-border-hover, #f0f);
+  border-color: var(--color-border-default, #f0f);
 }
 
-.filter-btn:active {
-  transform: scale(0.98);
+.icon-btn:active {
+  transform: scale(0.95);
 }
 
 .filter-option {

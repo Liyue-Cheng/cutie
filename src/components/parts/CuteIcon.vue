@@ -1,8 +1,11 @@
-/** * @description A wrapper for lucide-vue-next icons, providing a consistent API. * Supports both
-pixel numbers and rem string values for size. */
+/**
+ * @description A wrapper for lucide-vue-next icons, providing a consistent API.
+ * Supports both pixel numbers and rem string values for size.
+ * Shows a magenta X fallback when icon name doesn't exist (Magenta Fallback Rule).
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
-import { icons } from 'lucide-vue-next'
+import { icons, X } from 'lucide-vue-next'
 import type { IconName } from '@/types/icons'
 
 interface Props {
@@ -19,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const icon = computed(() => icons[props.name])
+const iconExists = computed(() => !!icons[props.name])
 
 // ✅ 计算实际尺寸：支持数字（像素）或字符串（rem等单位）
 const actualSize = computed(() => {
@@ -37,5 +41,21 @@ const actualSize = computed(() => {
 </script>
 
 <template>
-  <component :is="icon" :size="actualSize" :stroke-width="strokeWidth" :color="color" />
+  <!-- 正常图标 -->
+  <component
+    v-if="iconExists"
+    :is="icon"
+    :size="actualSize"
+    :stroke-width="strokeWidth"
+    :color="color"
+  />
+  <!-- Fallback: 品红色 X 图标，立即暴露缺失的图标 -->
+  <component
+    v-else
+    :is="X"
+    :size="actualSize"
+    :stroke-width="strokeWidth"
+    color="#f0f"
+    :title="`Missing icon: ${name}`"
+  />
 </template>
