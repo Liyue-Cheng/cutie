@@ -57,6 +57,11 @@ const routes: Array<RouteRecordRaw> = [
         name: 'projects',
         component: () => import('../views/ProjectsView.vue'),
       },
+      {
+        path: 'calendar',
+        name: 'calendar',
+        component: () => import('../views/CalendarView.vue'),
+      },
     ],
   },
 

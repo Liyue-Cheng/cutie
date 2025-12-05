@@ -42,8 +42,8 @@
                 <CuteIcon name="Plus" :size="14" />
               </button>
             </li>
-            <li @click="$router.push('/upcoming')">
-              <CuteIcon name="CalendarClock" :size="16" /><span>{{ $t('nav.upcoming') }}</span>
+            <li @click="$router.push('/calendar')">
+              <CuteIcon name="Calendar" :size="16" /><span>{{ $t('nav.calendar') }}</span>
             </li>
             <li @click="$router.push('/projects')">
               <CuteIcon name="Folder" :size="16" /><span>{{ $t('nav.projects') }}</span>

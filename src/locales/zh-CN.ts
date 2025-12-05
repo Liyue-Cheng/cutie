@@ -4,6 +4,7 @@ export default {
     recent: '最近',
     staging: '暂存区',
     upcoming: '即将到来',
+    calendar: '日历',
     projects: '项目',
     dailyOverview: '每日概览',
     dailyShutdown: '每日收尾',

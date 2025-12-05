@@ -4,6 +4,7 @@ export default {
     recent: 'Recent',
     staging: 'Staging',
     upcoming: 'Upcoming',
+    calendar: 'Calendar',
     projects: 'Projects',
     dailyOverview: 'Daily Overview',
     dailyShutdown: 'Daily Shutdown',
