@@ -65,6 +65,19 @@
                 {{ calendarZoom }}x
               </button>
 
+              <!-- 导航按钮组 -->
+              <div class="nav-buttons">
+                <button class="nav-btn" title="上一周/月" @click="navigatePrevious">
+                  <CuteIcon name="ChevronLeft" :size="18" />
+                </button>
+                <button class="nav-btn" title="下一周/月" @click="navigateNext">
+                  <CuteIcon name="ChevronRight" :size="18" />
+                </button>
+                <button class="nav-btn today-nav-btn" title="回到今天" @click="goToToday">
+                  <CuteIcon name="Calendar" :size="18" />
+                </button>
+              </div>
+
               <!-- 统一菜单按钮 -->
               <CuteDropdown :close-on-select="false" :max-height="'none'" align-right>
                 <template #trigger>
@@ -147,10 +160,7 @@
           <!-- ========== 普通模式控制栏 ========== -->
           <template v-else>
             <!-- 左侧：年月显示 -->
-            <div
-              v-if="props.currentRightPaneView === 'calendar' || props.currentRightPaneView === 'timeline'"
-              class="controls-left"
-            >
+            <div class="controls-left">
               <div class="date-title-wrapper">
                 <div class="date-title-static">
                   <span class="date-text">{{ calendarYearMonth }}</span>
@@ -163,9 +173,8 @@
 
             <!-- 右侧控制组 -->
             <div class="controls-right">
-              <!-- 缩放按钮（仅日历视图显示） -->
+              <!-- 缩放按钮 -->
               <button
-                v-if="props.currentRightPaneView === 'calendar'"
                 class="zoom-btn"
                 title="切换缩放"
                 @click="cycleZoom"
@@ -175,7 +184,7 @@
 
               <!-- 月视图筛选菜单 -->
               <CuteDropdown
-                v-if="props.currentRightPaneView === 'calendar' && effectiveCalendarViewType === 'month'"
+                v-if="effectiveCalendarViewType === 'month'"
                 :close-on-select="false"
                 :max-height="'none'"
                 align-right
@@ -232,8 +241,7 @@
       </template>
 
       <template #bottom>
-        <!-- 日历视图 -->
-        <div v-if="props.currentRightPaneView === 'calendar'" class="calendar-wrapper">
+        <div class="calendar-wrapper">
           <CuteCalendar
             ref="calendarRef"
             :current-date="effectiveCurrentDate"
@@ -244,19 +252,6 @@
             @month-date-click="onMonthDateClick"
           />
         </div>
-        <!-- 时间线视图 -->
-        <DoubleRowTimeline
-          v-else-if="props.currentRightPaneView === 'timeline'"
-          :current-month="currentCalendarDate.slice(0, 7)"
-          :month-view-filters="monthViewFilters"
-          :layout-mode="props.leftViewType === 'projects' ? 'single' : 'auto'"
-        />
-        <!-- Staging 视图 -->
-        <StagingList v-else-if="props.currentRightPaneView === 'staging'" />
-        <!-- Upcoming 视图 -->
-        <UpcomingPanel v-else-if="props.currentRightPaneView === 'upcoming'" />
-        <!-- Templates 视图 -->
-        <TemplateList v-else-if="props.currentRightPaneView === 'templates'" />
       </template>
     </TwoRowLayout>
 
@@ -271,13 +266,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
-import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
-import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
-import UpcomingPanel from '@/components/assembles/tasks/list/UpcomingPanel.vue'
-import TemplateList from '@/components/assembles/template/TemplateList.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteDropdown from '@/components/parts/CuteDropdown.vue'
@@ -293,7 +284,6 @@ interface Props {
   currentCalendarDate?: string
   calendarDays?: 1 | 3 | 5
   leftViewType?: 'recent' | 'staging' | 'projects'
-  currentRightPaneView?: 'calendar' | 'staging' | 'upcoming' | 'templates' | 'timeline'
   isCalendarMode?: boolean
 }
 
@@ -301,7 +291,6 @@ const props = withDefaults(defineProps<Props>(), {
   currentCalendarDate: () => getTodayDateString(),
   calendarDays: 3,
   leftViewType: 'recent',
-  currentRightPaneView: 'calendar',
   isCalendarMode: false,
 })
 
@@ -344,9 +333,6 @@ function handleTimeBlockDialogCancel() {
     calendarApi?.unselect()
   }
 }
-
-// ==================== 右栏视图状态 ====================
-// 移除内部状态管理，使用从父组件传入的 currentRightPaneView
 
 // ==================== 日历模式状态 ====================
 const calendarModeViewType = ref<'week' | 'month'>('month') // 日历模式默认显示月视图
@@ -503,19 +489,6 @@ function cycleZoom() {
   })
 }
 
-// 通知父组件需要更新日历尺寸
-function notifyCalendarSizeUpdate() {
-  emit('calendar-size-update')
-}
-
-// 监听右栏视图变化，通知父组件更新日历尺寸
-watch(
-  () => props.currentRightPaneView,
-  () => {
-    notifyCalendarSizeUpdate()
-  }
-)
-
 // ==================== 时间块创建逻辑 ====================
 async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: string }) {
   const context = uiStore.timeBlockCreateContext
@@ -650,7 +623,7 @@ defineExpose({
 .controls-right {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 0.4rem;
 }
 
 /* ==================== 日期标题样式 ==================== */
@@ -850,9 +823,41 @@ defineExpose({
   transform: scale(0.95);
 }
 
-/* 菜单按钮往右偏移 */
+/* 菜单按钮 */
 .menu-btn {
-  margin-left: 0.4rem;
+  margin-left: 0;
+}
+
+/* ==================== 导航按钮组 ==================== */
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  padding: 0;
+  color: var(--color-text-secondary, #f0f);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-default, #f0f);
+}
+
+.nav-btn:active {
+  transform: scale(0.95);
 }
 
 /* ==================== 菜单样式 ==================== */

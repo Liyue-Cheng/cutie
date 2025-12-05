@@ -6,6 +6,7 @@ export default {
     upcoming: 'Upcoming',
     calendar: 'Calendar',
     projects: 'Projects',
+    templates: 'Templates',
     dailyOverview: 'Daily Overview',
     dailyShutdown: 'Daily Shutdown',
     timelineKanban: 'Timeline Kanban',
@@ -358,7 +359,7 @@ export default {
   // ==================== View Titles ====================
   view: {
     staging: {
-      title: 'Staging Board',
+      title: 'Unscheduled Tasks',
       areaCount: '{n} area(s)',
     },
     upcoming: {

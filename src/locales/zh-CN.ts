@@ -6,6 +6,7 @@ export default {
     upcoming: '即将到来',
     calendar: '日历',
     projects: '项目',
+    templates: '模板',
     dailyOverview: '每日概览',
     dailyShutdown: '每日收尾',
     timelineKanban: '时间轴看板',
@@ -360,7 +361,7 @@ export default {
   // ==================== 视图标题 ====================
   view: {
     staging: {
-      title: '暂存区看板',
+      title: '待安排任务',
       areaCount: '{n} 个区域',
     },
     upcoming: {

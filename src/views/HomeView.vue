@@ -77,19 +77,27 @@
 
       <!-- 中栏（原右栏）-->
       <div class="middle-column">
-        <!-- Upcoming 竖排视图 -->
-        <UpcomingVerticalPanel v-if="currentRightPaneView === 'upcoming'" />
         <!-- 日历视图 -->
         <HomeCalendarPanel
-          v-else
+          v-if="currentRightPaneView === 'calendar'"
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
           :calendar-days="calendarDays"
           :left-view-type="currentView === 'calendar' ? 'recent' : currentView"
-          :current-right-pane-view="currentRightPaneView"
           @calendar-size-update="updateCalendarSize"
           @enter-calendar-mode="enterCalendarMode"
         />
+        <!-- 时间轴视图 -->
+        <HomeTimelinePanel
+          v-else-if="currentRightPaneView === 'timeline'"
+          :layout-mode="currentView === 'projects' ? 'single' : 'auto'"
+        />
+        <!-- 暂存区视图 -->
+        <HomeStagingPanel v-else-if="currentRightPaneView === 'staging'" />
+        <!-- Upcoming 竖排视图 -->
+        <HomeUpcomingPanel v-else-if="currentRightPaneView === 'upcoming'" />
+        <!-- 模板视图 -->
+        <HomeTemplatesPanel v-else-if="currentRightPaneView === 'templates'" />
       </div>
 
       <!-- 右侧垂直图标栏 -->
@@ -116,6 +124,10 @@ import { useRoute, useRouter } from 'vue-router'
 import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
 import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
+import HomeTimelinePanel from '@/components/organisms/HomeTimelinePanel.vue'
+import HomeStagingPanel from '@/components/organisms/HomeStagingPanel.vue'
+import HomeUpcomingPanel from '@/components/organisms/HomeUpcomingPanel.vue'
+import HomeTemplatesPanel from '@/components/organisms/HomeTemplatesPanel.vue'
 import UpcomingVerticalPanel from '@/components/organisms/UpcomingVerticalPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
@@ -405,6 +417,9 @@ function calculateOptimalRatio(): number {
         default:
           leftRatio = 0.4
       }
+    } else if (currentRightPaneView.value === 'timeline') {
+      // Timeline 视图：固定 1:1 比例
+      leftRatio = 0.5
     } else if (
       currentRightPaneView.value === 'staging' ||
       currentRightPaneView.value === 'templates'
@@ -519,10 +534,11 @@ function shouldAutoAdjust(): boolean {
     return true
   }
 
-  // Recent 视图：Calendar、Staging、Templates 或 Upcoming 时需要自动调节
+  // Recent 视图：Calendar、Timeline、Staging、Templates 或 Upcoming 时需要自动调节
   if (currentView.value === 'recent') {
     return (
       currentRightPaneView.value === 'calendar' ||
+      currentRightPaneView.value === 'timeline' ||
       currentRightPaneView.value === 'staging' ||
       currentRightPaneView.value === 'templates' ||
       currentRightPaneView.value === 'upcoming'
