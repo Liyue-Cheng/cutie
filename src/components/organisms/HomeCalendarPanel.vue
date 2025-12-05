@@ -68,33 +68,15 @@
 
             <!-- 右侧控制组 -->
             <div class="controls-right">
-              <!-- 设置菜单（仅周视图） -->
-              <CuteDropdown
+              <!-- 缩放按钮（仅周视图） -->
+              <button
                 v-if="calendarModeViewType === 'week'"
-                :close-on-select="false"
+                class="zoom-btn"
+                title="切换缩放"
+                @click="cycleZoom"
               >
-                <template #trigger>
-                  <button class="icon-btn" title="日历设置">
-                    <CuteIcon name="Settings" :size="18" />
-                  </button>
-                </template>
-                <CuteDropdownItem @click.prevent>
-                  <div class="setting-row">
-                    <span class="setting-label">缩放</span>
-                    <div class="setting-options">
-                      <button
-                        v-for="z in [1, 2, 3]"
-                        :key="z"
-                        class="option-btn"
-                        :class="{ active: calendarZoom === z }"
-                        @click="calendarZoom = z as 1 | 2 | 3"
-                      >
-                        {{ z }}x
-                      </button>
-                    </div>
-                  </div>
-                </CuteDropdownItem>
-              </CuteDropdown>
+                {{ calendarZoom }}x
+              </button>
 
               <!-- 月视图筛选菜单 -->
               <CuteDropdown
@@ -102,8 +84,9 @@
                 :close-on-select="false"
               >
                 <template #trigger>
-                  <button class="icon-btn" title="筛选">
-                    <CuteIcon name="ListFilter" :size="18" />
+                  <button class="filter-btn">
+                    <span>筛选</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
                   </button>
                 </template>
                 <CuteDropdownItem @click.prevent>
@@ -192,50 +175,32 @@
 
             <!-- 右侧控制组 -->
             <div class="controls-right">
-              <!-- 设置菜单（仅日历视图显示） -->
-              <CuteDropdown
+              <!-- 缩放按钮（仅日历视图显示） -->
+              <button
                 v-if="props.currentRightPaneView === 'calendar'"
-                :close-on-select="false"
+                class="zoom-btn"
+                title="切换缩放"
+                @click="cycleZoom"
+              >
+                {{ calendarZoom }}x
+              </button>
+
+              <!-- 天数选择器（仅 Recent 视图 + 日历视图时显示） -->
+              <CuteDropdown
+                v-if="
+                  props.leftViewType === 'recent' &&
+                  props.currentRightPaneView === 'calendar'
+                "
+                :model-value="props.calendarDays"
+                :options="dayCountOptions"
+                @update:model-value="onDayCountChange"
               >
                 <template #trigger>
-                  <button class="icon-btn" title="日历设置">
-                    <CuteIcon name="Settings" :size="18" />
+                  <button class="day-count-trigger">
+                    <span>{{ props.calendarDays }}天</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
                   </button>
                 </template>
-                <!-- 缩放选项 -->
-                <CuteDropdownItem @click.prevent>
-                  <div class="setting-row">
-                    <span class="setting-label">缩放</span>
-                    <div class="setting-options">
-                      <button
-                        v-for="z in [1, 2, 3]"
-                        :key="z"
-                        class="option-btn"
-                        :class="{ active: calendarZoom === z }"
-                        @click="calendarZoom = z as 1 | 2 | 3"
-                      >
-                        {{ z }}x
-                      </button>
-                    </div>
-                  </div>
-                </CuteDropdownItem>
-                <!-- 天数选项（仅 Recent 视图时显示） -->
-                <CuteDropdownItem v-if="props.leftViewType === 'recent'" @click.prevent>
-                  <div class="setting-row">
-                    <span class="setting-label">天数</span>
-                    <div class="setting-options">
-                      <button
-                        v-for="d in [1, 3, 5]"
-                        :key="d"
-                        class="option-btn"
-                        :class="{ active: props.calendarDays === d }"
-                        @click="onDayCountChange(d)"
-                      >
-                        {{ d }}天
-                      </button>
-                    </div>
-                  </div>
-                </CuteDropdownItem>
               </CuteDropdown>
 
               <!-- 月视图筛选菜单 -->
@@ -246,8 +211,9 @@
                 :close-on-select="false"
               >
                 <template #trigger>
-                  <button class="icon-btn" title="筛选">
-                    <CuteIcon name="ListFilter" :size="18" />
+                  <button class="filter-btn">
+                    <span>筛选</span>
+                    <CuteIcon name="ChevronDown" :size="14" />
                   </button>
                 </template>
                 <CuteDropdownItem @click.prevent>
@@ -548,6 +514,20 @@ const calendarYearMonth = computed(() => {
 
   return `${year}年${month}月`
 })
+
+// 循环切换缩放等级
+function cycleZoom() {
+  if (calendarZoom.value === 1) {
+    calendarZoom.value = 2
+  } else if (calendarZoom.value === 2) {
+    calendarZoom.value = 3
+  } else {
+    calendarZoom.value = 1
+  }
+  logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Calendar zoom cycled', {
+    zoom: calendarZoom.value,
+  })
+}
 
 // 通知父组件需要更新日历尺寸
 function notifyCalendarSizeUpdate() {
@@ -850,85 +830,61 @@ defineExpose({
   flex: 1;
 }
 
-/* 图标按钮 */
-.icon-btn {
+/* 缩放按钮 */
+.zoom-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3.6rem;
   height: 3.6rem;
-  padding: 0;
-  color: var(--color-text-secondary, #f0f);
-  background-color: transparent;
-  border: 1px solid transparent;
+  padding: 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 5.6rem;
 }
 
-.icon-btn:hover {
-  color: var(--color-text-primary, #f0f);
-  background-color: var(--color-background-hover, #f0f);
-  border-color: var(--color-border-default, #f0f);
+.zoom-btn:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
 }
 
-.icon-btn:active {
-  transform: scale(0.95);
+.zoom-btn:active {
+  transform: scale(0.98);
 }
 
-/* 设置行 */
-.setting-row {
+/* 筛选按钮 */
+.filter-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.2rem;
-  width: 100%;
-  min-width: 16rem;
-}
-
-.setting-label {
+  gap: 0.6rem;
+  height: 3.6rem;
+  padding: 0 1.2rem;
   font-size: 1.4rem;
   font-weight: 500;
-  color: var(--color-text-primary, #f0f);
-  white-space: nowrap;
-}
-
-.setting-options {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.option-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.6rem;
-  height: 2.8rem;
-  padding: 0 0.8rem;
-  font-size: 1.3rem;
-  font-weight: 500;
-  color: var(--color-text-secondary, #f0f);
-  background-color: transparent;
-  border: 1px solid var(--color-border-default, #f0f);
-  border-radius: 0.4rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.6rem;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 10rem;
 }
 
-.option-btn:hover {
-  color: var(--color-text-primary, #f0f);
-  background-color: var(--color-background-hover, #f0f);
+.filter-btn:hover {
+  background-color: var(--color-background-hover, #e8e8e8);
+  border-color: var(--color-border-hover);
 }
 
-.option-btn.active {
-  color: var(--color-text-on-accent, #f0f);
-  background-color: var(--color-accent-primary, #f0f);
-  border-color: var(--color-accent-primary, #f0f);
-}
-
-.option-btn:active {
-  transform: scale(0.95);
+.filter-btn:active {
+  transform: scale(0.98);
 }
 
 /* 筛选选项 */
@@ -938,7 +894,7 @@ defineExpose({
   gap: 0.8rem;
   width: 100%;
   font-size: 1.4rem;
-  color: var(--color-text-primary, #f0f);
+  color: var(--color-text-primary);
   cursor: pointer;
   user-select: none;
 }

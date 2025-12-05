@@ -50,14 +50,44 @@
             </div>
           </div>
 
-          <!-- 右侧筛选菜单 -->
+          <!-- 右侧设置菜单（天数 + 筛选） -->
           <div class="controls-right">
             <CuteDropdown :close-on-select="false">
               <template #trigger>
-                <button class="icon-btn" title="筛选">
-                  <CuteIcon name="ListFilter" :size="18" />
+                <button class="icon-btn" title="设置">
+                  <CuteIcon name="Settings" :size="18" />
                 </button>
               </template>
+
+              <!-- 天数选择 -->
+              <CuteDropdownItem disabled>
+                <span class="menu-section-label">显示天数</span>
+              </CuteDropdownItem>
+              <CuteDropdownItem
+                v-for="option in dayCountOptions"
+                :key="option.value"
+                @click="onDayCountChange(option.value)"
+              >
+                <label class="day-count-option">
+                  <span
+                    class="day-count-check"
+                    :class="{ active: dayCount === option.value }"
+                  >
+                    <CuteIcon v-if="dayCount === option.value" name="Check" :size="14" />
+                  </span>
+                  <span>{{ option.label }}</span>
+                </label>
+              </CuteDropdownItem>
+
+              <!-- 分隔线 -->
+              <CuteDropdownItem disabled>
+                <div class="menu-divider"></div>
+              </CuteDropdownItem>
+
+              <!-- 筛选选项 -->
+              <CuteDropdownItem disabled>
+                <span class="menu-section-label">筛选</span>
+              </CuteDropdownItem>
               <CuteDropdownItem @click.prevent>
                 <label class="filter-option">
                   <CuteCheckbox
@@ -158,6 +188,14 @@ const datePanelRef = ref<HTMLElement | null>(null) // 日期面板引用
 // 筛选菜单状态
 const showCompletedTasks = ref(true) // 默认显示已完成任务
 const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
+
+// 天数选项
+const dayCountOptions = [
+  { value: 1, label: '1 天' },
+  { value: 3, label: '3 天' },
+  { value: 5, label: '5 天' },
+  { value: 7, label: '7 天' },
+]
 
 // 当前日期显示（用于触发按钮）
 const currentDateDisplay = computed(() => {
@@ -306,6 +344,14 @@ function onFilterChange() {
     showDailyRecurringTasks: showDailyRecurringTasks.value,
   })
   // 筛选状态已通过 prop 传递给 TaskList 组件
+}
+
+// 天数变化
+function onDayCountChange(value: number) {
+  dayCount.value = value
+  emit('update:modelValue', value)
+  logger.info(LogTags.VIEW_HOME, 'Day count changed', { dayCount: value })
+  loadDateRangeTasks()
 }
 
 // 预加载日期范围的任务
@@ -591,6 +637,47 @@ onUnmounted(() => {
 
 .filter-option span {
   user-select: none;
+}
+
+/* 菜单分组标签 */
+.menu-section-label {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-tertiary, #f0f);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 菜单分隔线 */
+.menu-divider {
+  height: 1px;
+  background-color: var(--color-border-light, #f0f);
+  margin: 0.4rem 0;
+}
+
+/* 天数选项 */
+.day-count-option {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  cursor: pointer;
+  user-select: none;
+}
+
+.day-count-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  color: var(--color-text-accent, #f0f);
+}
+
+.day-count-check:not(.active) {
+  visibility: hidden;
 }
 
 /* 任务列表 */
