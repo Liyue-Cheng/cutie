@@ -34,11 +34,14 @@
         <TwoRowLayout>
           <template #top>
             <div class="staging-header">
-              <span class="staging-title">{{ $t('toolbar.staging') }}</span>
+              <div class="header-left">
+                <span class="staging-title">{{ $t('task.label.scheduled') }}</span>
+                <span class="task-count">{{ stagingListRef?.taskCount ?? 0 }}</span>
+              </div>
             </div>
           </template>
           <template #bottom>
-            <StagingList />
+            <StagingList ref="stagingListRef" :hide-header="true" />
           </template>
         </TwoRowLayout>
       </template>
@@ -83,6 +86,7 @@ const uiStore = useUIStore()
 type RightView = 'daily' | 'staging'
 const currentRightView = ref<RightView>('daily')
 const selectedDate = ref<string>(getTodayDateString())
+const stagingListRef = ref<InstanceType<typeof StagingList> | null>(null)
 
 // 工具栏配置
 const toolbarConfig = computed(() => ({
@@ -289,12 +293,36 @@ onBeforeUnmount(() => {
 .staging-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   width: 100%;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
 }
 
 .staging-title {
   font-size: 1.8rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.task-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.6rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-text-secondary, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
+  border-radius: 1rem;
 }
 </style>

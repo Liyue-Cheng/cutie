@@ -41,7 +41,6 @@ const recurrenceOps = useRecurrenceOperations()
 // 本地编辑状态
 const titleInput = ref('')
 const glanceNote = ref('')
-const detailNote = ref('')
 const selectedAreaId = ref<string | null>(null)
 const newSubtaskTitle = ref('')
 const isTitleEditing = ref(false)
@@ -50,7 +49,6 @@ const showDueDatePicker = ref(false)
 const dueDateInput = ref('') // YYYY-MM-DD format
 const dueDateType = ref<'SOFT' | 'HARD'>('SOFT')
 const glanceNoteTextarea = ref<HTMLTextAreaElement | null>(null)
-const detailNoteTextarea = ref<HTMLTextAreaElement | null>(null)
 const mouseDownOnOverlay = ref(false)
 const showRecurrenceDialog = ref(false)
 const currentRecurrence = ref<any>(null)
@@ -172,9 +170,6 @@ function initTextareaHeights() {
   if (glanceNoteTextarea.value) {
     autoResizeTextarea(glanceNoteTextarea.value)
   }
-  if (detailNoteTextarea.value) {
-    autoResizeTextarea(detailNoteTextarea.value)
-  }
 }
 
 // 加载循环规则（如果存在）
@@ -225,7 +220,6 @@ onMounted(async () => {
     if (detail) {
       titleInput.value = detail.title
       glanceNote.value = detail.glance_note || ''
-      detailNote.value = detail.detail_note || ''
       selectedAreaId.value = detail.area_id || null
 
       // 初始化截止日期
@@ -265,7 +259,6 @@ watch(
       if (detail) {
         titleInput.value = detail.title
         glanceNote.value = detail.glance_note || ''
-        detailNote.value = detail.detail_note || ''
         selectedAreaId.value = detail.area_id || null
 
         // 初始化截止日期
@@ -345,14 +338,6 @@ async function updateGlanceNote() {
   await pipeline.dispatch('task.update', {
     id: props.taskId,
     updates: { glance_note: glanceNote.value || null },
-  })
-}
-
-async function updateDetailNote() {
-  if (!props.taskId || !task.value) return
-  await pipeline.dispatch('task.update', {
-    id: props.taskId,
-    updates: { detail_note: detailNote.value || null },
   })
 }
 
@@ -799,27 +784,6 @@ async function handleDeleteRecurrence() {
                   </div>
                 </template>
               </draggable>
-            </div>
-          </div>
-
-          <!-- 详细笔记区域 -->
-          <div class="section section-note">
-            <div class="section-icon">
-              <CuteIcon name="FileText" :size="20" />
-            </div>
-            <div class="section-body">
-              <div v-if="!detailNote" class="note-placeholder">
-                {{ $t('task.placeholder.detailNote') }}
-              </div>
-              <textarea
-                ref="detailNoteTextarea"
-                v-model="detailNote"
-                class="note-textarea"
-                :placeholder="$t('task.placeholder.detailNote')"
-                rows="1"
-                @input="autoResizeTextarea($event.target as HTMLTextAreaElement)"
-                @blur="updateDetailNote"
-              ></textarea>
             </div>
           </div>
         </div>
@@ -1338,6 +1302,7 @@ async function handleDeleteRecurrence() {
   flex-direction: column;
   align-items: stretch;
   gap: 0; /* 覆盖 .section 的 gap */
+  border-bottom: 1px solid var(--color-border-default);
 }
 
 .section-header {
@@ -1352,6 +1317,7 @@ async function handleDeleteRecurrence() {
 
 .section-subtasks .section-body {
   padding-top: 1rem;
+  min-height: 12rem;
 }
 
 .section-title-text {

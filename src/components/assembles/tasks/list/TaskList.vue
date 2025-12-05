@@ -1,7 +1,8 @@
 <template>
   <div class="task-bar" :class="taskBarClasses" ref="taskBarRef">
-    <!-- 标题栏 -->
+    <!-- 标题栏（可隐藏） -->
     <div
+      v-if="!props.hideHeader"
       ref="headerRef"
       class="task-bar-header"
       :class="{ 'non-collapsible': !props.collapsible }"
@@ -112,6 +113,7 @@ interface Props {
   titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
   displayMode?: 'simple' | 'full' // 显示模式：简单/完整
   showEstimatedDuration?: boolean // 是否显示预期时间指示器
+  hideHeader?: boolean // 是否隐藏标题栏（用于外部自定义标题）
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -125,6 +127,7 @@ const props = withDefaults(defineProps<Props>(), {
   titleColor: '',
   displayMode: 'full',
   showEstimatedDuration: true,
+  hideHeader: false,
 })
 
 // Emits
@@ -213,6 +216,7 @@ const headerRef = ref<HTMLElement | null>(null)
 // 暴露标题栏 ref 给父组件（用于 Section 拖拽）
 defineExpose({
   headerRef,
+  taskCount: computed(() => displayItems.value.length),
 })
 
 const taskBarClasses = computed(() => ({
