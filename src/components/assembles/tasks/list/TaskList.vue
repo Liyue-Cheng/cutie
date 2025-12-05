@@ -593,11 +593,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 /* 边框样式变体 */
 .task-input-wrapper.border-dashed {
-  border-bottom: 2px dashed var(--color-border-light, #f0f);
+  border-bottom: 2px dashed var(--color-input-underline, #f0f);
 }
 
 .task-input-wrapper.border-solid {
-  border-bottom: 2px solid var(--color-border-light, #f0f);
+  border-bottom: 2px solid var(--color-input-underline, #f0f);
 }
 
 .task-input-wrapper.border-none {

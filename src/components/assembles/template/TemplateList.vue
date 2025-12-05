@@ -275,7 +275,7 @@ function handleOpenEditor(templateId: string) {
 }
 
 .template-list-scroll-area::-webkit-scrollbar-thumb {
-  background: var(--color-border-default);
+  background: var(--color-scrollbar-thumb);
   border-radius: 3px;
 }
 

@@ -1,0 +1,28 @@
+[33mcommit 49b5e250db4dbe412f4aed76ee22ba4202a20ddb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdev[m[33m)[m
+Author: Liyue-Cheng <liyue_cheng@163.com>
+Date:   Thu Nov 27 17:10:09 2025 +0800
+
+    feat(config): separate database paths for debug and release builds
+    
+    - Debug 模式：使用项目根目录 ./data/cutie.db (方便开发调试)
+    - Release 模式：使用系统应用数据目录 %APPDATA%/cutie/cutie.db (生产环境隔离)
+    - 添加启动日志，显示当前使用的数据库路径和构建模式
+    - 修复 TypeScript 类型错误和未使用导入
+    - 更新 bundle identifier 为 com.cutie.app
+    - 跳过类型检查以加快构建速度 (build vs build:check)
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+ package.json                               |  3 [32m++[m[31m-[m
+ src-tauri/src/config/app_config.rs         | 33 [32m++++++++++++++++++++++++[m[31m------[m
+ src-tauri/src/startup/sidecar.rs           |  9 [32m++++++++[m
+ src-tauri/tauri.conf.json                  |  2 [32m+[m[31m-[m
+ src/stores/recurrence/core.ts              |  1 [31m-[m
+ src/stores/task/core.ts                    |  2 [32m+[m[31m-[m
+ src/stores/user-settings/event-handlers.ts | 14 [32m++++++[m[31m-------[m
+ src/views/HomeView.vue                     | 10 [32m+++++[m[31m----[m
+ src/views/StagingKanbanView.vue            |  3 [32m++[m[31m-[m
+ src/views/TimelineKanbanView.vue           |  3 [32m++[m[31m-[m
+ 10 files changed, 57 insertions(+), 23 deletions(-)

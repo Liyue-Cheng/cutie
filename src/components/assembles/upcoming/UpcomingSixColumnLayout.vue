@@ -181,12 +181,12 @@ function getColumnTotalCount(column: ColumnData): number {
 }
 
 .columns-container::-webkit-scrollbar-thumb {
-  background: var(--color-border-default);
+  background: var(--color-scrollbar-thumb);
   border-radius: 0.4rem;
 }
 
 .columns-container::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-strong);
+  background: var(--color-scrollbar-thumb-hover);
 }
 
 /* ==================== 时间栏外包装 ==================== */

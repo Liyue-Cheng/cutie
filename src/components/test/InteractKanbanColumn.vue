@@ -490,7 +490,7 @@ function buildLexoPayload(viewKey: string, order: string[], taskId: string) {
 }
 
 .task-list-scroll-area::-webkit-scrollbar-thumb {
-  background: var(--color-border-default);
+  background: var(--color-scrollbar-thumb);
   border-radius: 3px;
 }
 

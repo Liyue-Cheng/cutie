@@ -2,21 +2,6 @@
   <div class="calendar-container" :class="[`zoom-${currentZoom}x`, viewTypeClass]">
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
-    <!-- 装饰竖线（已禁用） -->
-    <!-- <div
-      v-if="
-        decorativeLinePosition !== null &&
-        decorativeLineTop !== null &&
-        decorativeLineHeight !== null
-      "
-      class="decorative-line"
-      :style="{
-        left: `${decorativeLinePosition}px`,
-        top: `${decorativeLineTop}px`,
-        height: `${decorativeLineHeight}px`,
-      }"
-    ></div> -->
-
     <!-- 时间块详情面板 -->
     <TimeBlockDetailPanel
       v-if="selectedTimeBlockId"
@@ -37,7 +22,6 @@ import { useRegisterStore } from '@/stores/register'
 import { useUserSettingsStore } from '@/stores/user-settings'
 import { useAutoScroll } from '@/composables/calendar/useAutoScroll'
 import { useTimePosition } from '@/composables/calendar/useTimePosition'
-import { useDecorativeLine } from '@/composables/calendar/useDecorativeLine'
 import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
 import { useCalendarHandlers } from '@/composables/calendar/useCalendarHandlers'
 import { useCalendarOptions } from '@/composables/calendar/useCalendarOptions'
@@ -207,10 +191,6 @@ const { handleAutoScroll, stopAutoScroll } = useAutoScroll()
 // 时间位置计算
 const { getTimeFromDropPosition, clearCache } = useTimePosition(calendarRef)
 
-// 装饰线
-const decorativeLine = useDecorativeLine(calendarRef, currentDateRef)
-decorativeLine.initialize()
-
 // 拖拽功能（新的 interact.js 系统）
 const drag = useCalendarInteractDrag(calendarRef, {
   getTimeFromDropPosition,
@@ -374,11 +354,6 @@ const { calendarOptions } = useCalendarOptions(
   handleDatesSet,
   props.days ?? 1
 )
-
-// 装饰线位置（已禁用）
-// const decorativeLinePosition = decorativeLine.position
-// const decorativeLineTop = decorativeLine.top
-// const decorativeLineHeight = decorativeLine.height
 
 // ==================== 自定义日期头部 ====================
 interface DateHeaderInfo {
@@ -634,7 +609,6 @@ watch(
         }
       } catch {}
     }
-    // decorativeLine.updatePosition() // 已禁用
   }
 )
 
@@ -702,11 +676,8 @@ onMounted(async () => {
       await timeBlockStore.fetchTimeBlocksForRange(startDateStr, endDateStr)
     }
 
-    // 计算装饰竖线位置（已禁用）
-    await nextTick()
-    // decorativeLine.updatePosition()
-
     // 🔥 初始化后强制更新尺寸，确保显示正确
+    await nextTick()
     if (calendarRef.value) {
       const calendarApi = calendarRef.value.getApi()
       if (calendarApi) {
@@ -887,7 +858,7 @@ defineExpose({
   padding-left: 1.6rem; /* 🔧 为时间标签预留溢出空间 */
 
   /* 🎨 FullCalendar主题变量映射 - 统一使用Cutie设计token */
-  --fc-border-color: var(--color-border-default); /* 📐 统一边框颜色 */
+  --fc-border-color: var(--color-calendar-grid); /* 📐 日历网格线颜色 */
   --fc-today-bg-color: transparent; /* 📅 今日背景透明，无染色 */
   --fc-now-indicator-color: var(--color-danger); /* ⏰ 当前时间指示器 */
   --fc-neutral-text-color: var(--color-text-secondary); /* 📝 次要文本颜色 */
@@ -984,7 +955,7 @@ defineExpose({
 .fc .fc-timegrid-slot-label-cushion {
   font-size: 1.3rem !important; /* 📏 适中的字体大小 */
   font-weight: 500 !important; /* 📝 中等字重，保持清晰 */
-  color: var(--fc-neutral-text-color) !important; /* 🎨 使用FullCalendar变量 */
+  color: var(--color-text-secondary) !important; /* 🎨 使用项目次要文本色 */
   padding-right: 0.8rem !important; /* 📐 右侧留白避免截断 */
 }
 
@@ -1015,14 +986,14 @@ defineExpose({
 
 /* 🎛️ 滚动条滑块 */
 .fc .fc-scroller::-webkit-scrollbar-thumb {
-  background-color: var(--color-border-default); /* 🎨 使用默认边框色 */
+  background-color: var(--color-scrollbar-thumb); /* 🎨 使用滚动条专用色 */
   border-radius: 4px; /* ⭕ 圆角设计 */
   transition: background-color 0.2s; /* 🎬 平滑颜色过渡 */
 }
 
 /* 🖱️ 滑块悬停效果 */
 .fc .fc-scroller::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-border-strong); /* 🎨 悬停时加深颜色 */
+  background-color: var(--color-scrollbar-thumb-hover); /* 🎨 悬停时加深颜色 */
 }
 
 /* ===============================================
@@ -1280,7 +1251,7 @@ defineExpose({
   font-weight: 600; /* 📝 加粗字重 */
   color: var(--color-text-primary); /* 🎨 主要文本色 */
   background-color: var(--color-background-content); /* 🎭 与内容区域一致的浅色背景 */
-  border-bottom: 1px solid var(--color-border-default); /* 🔲 底部分隔线，与网格对齐 */
+  border-bottom: 1px solid var(--color-calendar-grid); /* 🔲 底部分隔线，与网格对齐 */
   height: 48px; /* 📏 固定高度，与之前自定义头部保持一致 */
 }
 
@@ -1451,19 +1422,7 @@ defineExpose({
 }
 
 /* ===============================================
- * 13. 装饰线系统 - 时间分隔视觉辅助
- * =============================================== */
-
-.decorative-line {
-  position: fixed; /* 📍 固定定位，参照视口 */
-  width: 0.8px; /* 📏 细线宽度 */
-  background: var(--color-border-default); /* 🎨 默认边框色 */
-  pointer-events: none; /* 🖱️ 鼠标事件穿透 */
-  z-index: 5; /* 🔝 适中的层级 */
-}
-
-/* ===============================================
- * 14. 自定义日期头部 - 多日视图顶部导航
+ * 13. 自定义日期头部 - 多日视图顶部导航
  * =============================================== */
 
 /* 📅 自定义日期头部容器 */
@@ -1471,7 +1430,7 @@ defineExpose({
   display: flex; /* 🎪 弹性布局 */
   align-items: center; /* ⬆️ 垂直居中 */
   background-color: var(--color-background-content); /* 🎭 内容背景色 */
-  border-bottom: 1px solid var(--color-border-default); /* 🔲 底部边框 */
+  border-bottom: 1px solid var(--color-calendar-grid); /* 🔲 底部边框 */
   position: sticky; /* 📍 粘性定位 */
   top: 0; /* 🔝 顶部对齐 */
   z-index: 10; /* 🔝 高层级 */

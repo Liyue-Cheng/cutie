@@ -54,7 +54,9 @@
       "Read(//c/Users/liyue/Desktop/projects/dashboard/kilocode/**)",
       "WebFetch(domain:fullcalendar.io)",
       "WebFetch(domain:stackoverflow.com)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(git reset:*)",
+      "WebFetch(domain:lucide.dev)"
     ],
     "deny": [],
     "ask": []

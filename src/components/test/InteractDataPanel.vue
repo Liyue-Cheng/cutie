@@ -470,7 +470,7 @@ addLog('📊 数据面板已初始化', 'success')
 
 .panel-content::-webkit-scrollbar-thumb,
 .log-container::-webkit-scrollbar-thumb {
-  background: var(--color-border-default);
+  background: var(--color-scrollbar-thumb);
   border-radius: 3px;
 }
 

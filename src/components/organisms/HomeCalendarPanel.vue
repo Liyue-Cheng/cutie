@@ -880,7 +880,7 @@ defineExpose({
 /* 菜单分隔线 */
 .menu-divider {
   height: 1px;
-  background-color: var(--color-border-light, #f0f);
+  background-color: var(--color-divider, #f0f);
   margin: 0.4rem 1.2rem;
 }
 
