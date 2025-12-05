@@ -185,24 +185,6 @@
                 {{ calendarZoom }}x
               </button>
 
-              <!-- 天数选择器（仅 Recent 视图 + 日历视图时显示） -->
-              <CuteDropdown
-                v-if="
-                  props.leftViewType === 'recent' &&
-                  props.currentRightPaneView === 'calendar'
-                "
-                :model-value="props.calendarDays"
-                :options="dayCountOptions"
-                @update:model-value="onDayCountChange"
-              >
-                <template #trigger>
-                  <button class="day-count-trigger">
-                    <span>{{ props.calendarDays }}天</span>
-                    <CuteIcon name="ChevronDown" :size="14" />
-                  </button>
-                </template>
-              </CuteDropdown>
-
               <!-- 月视图筛选菜单 -->
               <CuteDropdown
                 v-if="
@@ -270,7 +252,7 @@
             :current-date="effectiveCurrentDate"
             :view-type="effectiveCalendarViewType"
             :zoom="calendarZoom"
-            :days="calendarDays"
+            :days="props.calendarDays"
             :month-view-filters="monthViewFilters"
             @month-date-click="onMonthDateClick"
           />
@@ -341,7 +323,6 @@ const emit = defineEmits<{
   'calendar-size-update': []
   'enter-calendar-mode': []
   'exit-calendar-mode': []
-  'update:calendarDays': [days: 1 | 3 | 5]
   'date-click': [date: string]
 }>()
 
@@ -379,18 +360,6 @@ function handleTimeBlockDialogCancel() {
 
 // ==================== 右栏视图状态 ====================
 // 移除内部状态管理，使用从父组件传入的 currentRightPaneView
-
-// ==================== 天数选择器 ====================
-const dayCountOptions = [
-  { value: 1, label: '1天' },
-  { value: 3, label: '3天' },
-  { value: 5, label: '5天' },
-]
-
-function onDayCountChange(value: number) {
-  emit('update:calendarDays', value as 1 | 3 | 5)
-  logger.debug(LogTags.COMPONENT_CALENDAR, 'Day count changed', { days: value })
-}
 
 // ==================== 日历模式状态 ====================
 const calendarModeViewType = ref<'week' | 'month'>('month') // 日历模式默认显示月视图

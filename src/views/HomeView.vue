@@ -61,7 +61,7 @@
       <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
         <RecentTaskPanel
           v-if="currentView === 'recent'"
-          :model-value="calendarDays"
+          v-model="calendarDays"
           @date-change="onRecentDateChange"
         />
         <StagingTaskPanel v-else-if="currentView === 'staging'" />
@@ -84,7 +84,7 @@
           v-else
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
-          v-model:calendar-days="calendarDays"
+          :calendar-days="calendarDays"
           :left-view-type="currentView === 'calendar' ? 'recent' : currentView"
           :current-right-pane-view="currentRightPaneView"
           @calendar-size-update="updateCalendarSize"
