@@ -406,7 +406,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 1.2rem;
-  padding: 1.2rem 1.6rem;
+  padding: 1.2rem 0.8rem 1.2rem 1.6rem;
   background-color: transparent;
 }
 
