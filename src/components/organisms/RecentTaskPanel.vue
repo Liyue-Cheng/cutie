@@ -562,7 +562,7 @@ onUnmounted(() => {
 
 .date-input:focus {
   outline: none;
-  border-color: var(--color-accent-primary, #f0f);
+  border-color: var(--color-border-focus, #f0f);
 }
 
 /* 今天按钮 */
@@ -685,8 +685,8 @@ onUnmounted(() => {
 
 .day-count-btn.active {
   color: var(--color-text-on-accent, #f0f);
-  background-color: var(--color-accent-primary, #f0f);
-  border-color: var(--color-accent-primary, #f0f);
+  background-color: var(--color-background-accent, #f0f);
+  border-color: var(--color-background-accent, #f0f);
 }
 
 /* 任务列表 */
