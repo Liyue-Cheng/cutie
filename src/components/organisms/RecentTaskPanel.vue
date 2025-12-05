@@ -52,31 +52,29 @@
 
           <!-- 右侧设置菜单（天数 + 筛选） -->
           <div class="controls-right">
-            <CuteDropdown :close-on-select="false">
+            <CuteDropdown :close-on-select="false" :max-height="'none'">
               <template #trigger>
                 <button class="icon-btn" title="设置">
                   <CuteIcon name="Settings" :size="18" />
                 </button>
               </template>
 
-              <!-- 天数选择 -->
+              <!-- 天数选择（横向排布） -->
               <CuteDropdownItem disabled>
-                <span class="menu-section-label">显示天数</span>
-              </CuteDropdownItem>
-              <CuteDropdownItem
-                v-for="option in dayCountOptions"
-                :key="option.value"
-                @click="onDayCountChange(option.value)"
-              >
-                <label class="day-count-option">
-                  <span
-                    class="day-count-check"
-                    :class="{ active: dayCount === option.value }"
-                  >
-                    <CuteIcon v-if="dayCount === option.value" name="Check" :size="14" />
-                  </span>
-                  <span>{{ option.label }}</span>
-                </label>
+                <div class="day-count-row">
+                  <span class="menu-section-label">天数</span>
+                  <div class="day-count-buttons">
+                    <button
+                      v-for="option in dayCountOptions"
+                      :key="option.value"
+                      class="day-count-btn"
+                      :class="{ active: dayCount === option.value }"
+                      @click.stop="onDayCountChange(option.value)"
+                    >
+                      {{ option.value }}
+                    </button>
+                  </div>
+                </div>
               </CuteDropdownItem>
 
               <!-- 分隔线 -->
@@ -85,9 +83,6 @@
               </CuteDropdownItem>
 
               <!-- 筛选选项 -->
-              <CuteDropdownItem disabled>
-                <span class="menu-section-label">筛选</span>
-              </CuteDropdownItem>
               <CuteDropdownItem @click.prevent>
                 <label class="filter-option">
                   <CuteCheckbox
@@ -191,10 +186,9 @@ const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
 
 // 天数选项
 const dayCountOptions = [
-  { value: 1, label: '1 天' },
-  { value: 3, label: '3 天' },
-  { value: 5, label: '5 天' },
-  { value: 7, label: '7 天' },
+  { value: 1 },
+  { value: 3 },
+  { value: 5 },
 ]
 
 // 当前日期显示（用于触发按钮）
@@ -644,8 +638,6 @@ onUnmounted(() => {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--color-text-tertiary, #f0f);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 /* 菜单分隔线 */
@@ -655,29 +647,46 @@ onUnmounted(() => {
   margin: 0.4rem 0;
 }
 
-/* 天数选项 */
-.day-count-option {
+/* 天数选择行 */
+.day-count-row {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  justify-content: space-between;
+  gap: 1.2rem;
   width: 100%;
-  font-size: 1.4rem;
-  color: var(--color-text-primary, #f0f);
-  cursor: pointer;
-  user-select: none;
 }
 
-.day-count-check {
+.day-count-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.day-count-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  color: var(--color-text-accent, #f0f);
+  width: 3.2rem;
+  height: 2.8rem;
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #f0f);
+  background-color: transparent;
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.day-count-check:not(.active) {
-  visibility: hidden;
+.day-count-btn:hover {
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
+}
+
+.day-count-btn.active {
+  color: var(--color-text-on-accent, #f0f);
+  background-color: var(--color-accent-primary, #f0f);
+  border-color: var(--color-accent-primary, #f0f);
 }
 
 /* 任务列表 */
