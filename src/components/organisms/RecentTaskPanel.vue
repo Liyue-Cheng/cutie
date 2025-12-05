@@ -60,27 +60,23 @@
               </template>
 
               <!-- 天数选择（横向排布） -->
-              <CuteDropdownItem disabled>
-                <div class="day-count-row">
-                  <span class="menu-section-label">天数</span>
-                  <div class="day-count-buttons">
-                    <button
-                      v-for="option in dayCountOptions"
-                      :key="option.value"
-                      class="day-count-btn"
-                      :class="{ active: dayCount === option.value }"
-                      @click.stop="onDayCountChange(option.value)"
-                    >
-                      {{ option.value }}
-                    </button>
-                  </div>
+              <div class="menu-row">
+                <span class="menu-section-label">天数</span>
+                <div class="day-count-buttons">
+                  <button
+                    v-for="option in dayCountOptions"
+                    :key="option.value"
+                    class="day-count-btn"
+                    :class="{ active: dayCount === option.value }"
+                    @click.stop="onDayCountChange(option.value)"
+                  >
+                    {{ option.value }}
+                  </button>
                 </div>
-              </CuteDropdownItem>
+              </div>
 
               <!-- 分隔线 -->
-              <CuteDropdownItem disabled>
-                <div class="menu-divider"></div>
-              </CuteDropdownItem>
+              <div class="menu-divider"></div>
 
               <!-- 筛选选项 -->
               <CuteDropdownItem @click.prevent>
@@ -640,20 +636,20 @@ onUnmounted(() => {
   color: var(--color-text-tertiary, #f0f);
 }
 
-/* 菜单分隔线 */
-.menu-divider {
-  height: 1px;
-  background-color: var(--color-border-light, #f0f);
-  margin: 0.4rem 0;
-}
-
-/* 天数选择行 */
-.day-count-row {
+/* 菜单行（用于天数选择等） */
+.menu-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.2rem;
-  width: 100%;
+  padding: 0.8rem 1.2rem;
+}
+
+/* 菜单分隔线 */
+.menu-divider {
+  height: 1px;
+  background-color: var(--color-border-light, #f0f);
+  margin: 0.4rem 1.2rem;
 }
 
 .day-count-buttons {
