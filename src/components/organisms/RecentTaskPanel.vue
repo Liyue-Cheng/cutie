@@ -52,10 +52,10 @@
 
           <!-- 右侧设置菜单（天数 + 筛选） -->
           <div class="controls-right">
-            <CuteDropdown :close-on-select="false" :max-height="'none'">
+            <CuteDropdown :close-on-select="false" :max-height="'none'" align-right>
               <template #trigger>
-                <button class="icon-btn" title="设置">
-                  <CuteIcon name="Settings" :size="18" />
+                <button class="icon-btn menu-btn" title="设置">
+                  <CuteIcon name="Menu" :size="18" />
                 </button>
               </template>
 
@@ -612,6 +612,11 @@ onUnmounted(() => {
 
 .icon-btn:active {
   transform: scale(0.95);
+}
+
+/* 菜单按钮往右偏移 */
+.menu-btn {
+  margin-left: 0.4rem;
 }
 
 .filter-option {
