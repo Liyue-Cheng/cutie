@@ -1,6 +1,18 @@
 <template>
-  <div class="calendar-container" :class="[`zoom-${currentZoom}x`, viewTypeClass]">
+  <div
+    ref="calendarContainerRef"
+    class="calendar-container"
+    :class="[`zoom-${currentZoom}x`, viewTypeClass]"
+  >
     <FullCalendar ref="calendarRef" :options="calendarOptions" />
+
+    <CalendarNowIndicatorOverlay
+      v-if="shouldShowNowOverlay"
+      :calendar-root="calendarContainerRef"
+      :dates="displayDates"
+      :view-type="props.viewType"
+      :time-axis-width="timeAxisWidth"
+    />
 
     <!-- 时间块详情面板 -->
     <TimeBlockDetailPanel
@@ -30,6 +42,7 @@ import { useCalendarInteractDrag } from '@/composables/calendar/useCalendarInter
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 import { interactManager, dragPreviewState, previewMousePosition } from '@/infra/drag-interact'
 import TimeBlockDetailPanel from '@/components/organisms/TimeBlockDetailPanel.vue'
+import CalendarNowIndicatorOverlay from '@/components/assembles/calender/CalendarNowIndicatorOverlay.vue'
 
 const timeBlockStore = useTimeBlockStore()
 const taskStore = useTaskStore()
@@ -76,6 +89,7 @@ const viewTypeClass = computed(() => `view-type-${props.viewType}`)
 
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
+const calendarContainerRef = ref<HTMLElement | null>(null)
 const currentDateRef = computed(() => props.currentDate)
 
 // 选中的时间块ID（用于显示详情面板）
@@ -354,6 +368,9 @@ const { calendarOptions } = useCalendarOptions(
   handleDatesSet,
   props.days ?? 1
 )
+
+// 是否展示自定义跨列 now 指示器
+const shouldShowNowOverlay = computed(() => props.viewType !== 'month')
 
 // ==================== 自定义日期头部 ====================
 interface DateHeaderInfo {
@@ -1012,7 +1029,7 @@ defineExpose({
 .fc-timegrid-event .fc-event-title,
 .fc-timegrid-event .fc-event-time {
   color: var(--color-text-primary, #575279) !important; /* 🎨 统一主要文本色 */
-  font-weight: 600 !important; /* 📝 加粗提升可读性 */
+  font-weight: 500 !important; /* 📝 中等字重 */
 }
 
 /* 📦 全天事件布局控制 */
@@ -1165,7 +1182,7 @@ defineExpose({
 }
 
 .fc-event.due-date-event {
-  font-weight: 600; /* 📝 截止日期使用更粗字重 */
+  font-weight: 500; /* 📝 截止日期使用中等字重 */
 }
 
 /* 🖱️ 悬停效果统一 */
@@ -1179,7 +1196,7 @@ defineExpose({
 /* ⚠️ 逾期截止日期特殊标记 */
 .fc-event.due-date-event.overdue .fc-event-main {
   color: var(--color-danger) !important; /* 🔴 危险色突出逾期状态 */
-  font-weight: 700; /* 📝 最粗字重强调 */
+  font-weight: 600; /* 📝 加粗强调 */
 }
 
 /* ===============================================
@@ -1248,7 +1265,7 @@ defineExpose({
  */
 .fc .fc-col-header-cell {
   padding: 0; /* 由内部自定义头部控制内边距，避免垂直偏移 */
-  font-weight: 600; /* 📝 加粗字重 */
+  font-weight: 500; /* 📝 中等字重 */
   color: var(--color-text-primary); /* 🎨 主要文本色 */
   background-color: var(--color-background-content); /* 🎭 与内容区域一致的浅色背景 */
   border-bottom: 1px solid var(--color-calendar-grid); /* 🔲 底部分隔线，与网格对齐 */
@@ -1291,7 +1308,7 @@ defineExpose({
 }
 
 .fc .fc-daygrid-day:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 2%)); /* 🖱️ 悬停反馈 */
+  background-color: var(--color-background-hover, #f0f); /* 🖱️ 悬停反馈 */
 }
 
 /* 📅 月视图今日高亮 - 仅数字徽章，无格子背景 */
@@ -1303,7 +1320,7 @@ defineExpose({
 .fc .fc-day-today .fc-daygrid-day-number {
   color: var(--color-text-on-accent); /* 🎨 高对比度文字 */
   background-color: var(--color-calendar-today); /* 🎨 今日强调色 */
-  font-weight: 700; /* 📝 最粗字重 */
+  font-weight: 600; /* 📝 加粗字重 */
   padding: 0.2rem 0.6rem; /* 📐 徽章内边距 */
   border-radius: 999px; /* ⭕ 胶囊形状 */
   display: inline-flex; /* 🎪 弹性布局 */
@@ -1322,7 +1339,7 @@ defineExpose({
 /* 📝 "+N more"链接样式 */
 .fc .fc-daygrid-more-link {
   font-size: 1.1rem; /* 📏 字体大小 */
-  font-weight: 600; /* 📝 字重 */
+  font-weight: 500; /* 📝 字重 */
   color: var(--color-text-accent); /* 🎨 强调色 */
   padding: 2px 4px; /* 📐 内边距 */
   border-radius: 3px; /* ⭕ 圆角 */
@@ -1385,7 +1402,7 @@ defineExpose({
 /* 📝 Popover标题 */
 .fc .fc-popover-title {
   font-size: 1.3rem; /* 📏 标题字体 */
-  font-weight: 600; /* 📝 加粗 */
+  font-weight: 500; /* 📝 中等字重 */
   color: var(--color-text-primary); /* 🎨 主要文字色 */
 }
 
@@ -1480,7 +1497,7 @@ defineExpose({
 /* 📝 日期头部文字元素 */
 .custom-day-header .day-name {
   font-size: 1.4rem; /* 📏 日期名字体 */
-  font-weight: 600; /* 📝 加粗 */
+  font-weight: 500; /* 📝 中等字重 */
   color: var(--color-text-secondary); /* 🎨 次要文字色 */
   text-transform: uppercase; /* 🔤 大写转换 */
   line-height: 1.4; /* 📏 固定行高，避免中英文高度差异 */
@@ -1512,7 +1529,7 @@ defineExpose({
   padding: 0.2rem 0.6rem; /* 📐 徽章内边距 */
   margin-left: 0.4rem; /* 📏 左边距 */
   font-size: 1.3rem; /* 📏 徽章字体 */
-  font-weight: 600; /* 📝 加粗 */
+  font-weight: 500; /* 📝 中等字重 */
   color: var(--color-text-accent); /* 🎨 强调文字色 */
   background-color: var(--color-background-accent-light); /* 🎨 强调背景 */
   border-radius: 1rem; /* ⭕ 胶囊形状 */

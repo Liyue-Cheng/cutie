@@ -163,7 +163,7 @@ export function useCalendarOptions(
     slotDuration: '00:05:00', // 5分钟时间槽
     slotLabelInterval: '00:30:00', // 每30分钟显示一个时间标签
     snapDuration: '00:05:00', // 5分钟对齐精度
-    nowIndicator: true, // 显示当前时间指示器
+    nowIndicator: false, // 关闭内置指示器，使用自定义跨列指示线（CSS 保留备用）
     height: '100%',
     weekends: true,
     editable: true,
