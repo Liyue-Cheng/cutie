@@ -830,7 +830,7 @@ async function handleDeleteRecurrence() {
   width: 63rem;
   max-width: 90vw;
   max-height: 90vh;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-subtle, #f0f);
   background-color: var(--color-card-available);
   border-radius: 0.8rem;
   overflow-y: auto;
@@ -886,7 +886,7 @@ async function handleDeleteRecurrence() {
   background: var(--color-card-available);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-md, #f0f);
   z-index: 100;
   min-width: 20rem;
   max-height: 30rem;
@@ -939,10 +939,10 @@ async function handleDeleteRecurrence() {
   top: calc(100% + 0.4rem);
   right: 0;
   width: 26rem;
-  background: white;
+  background: var(--color-background-elevated, #f0f);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-lg, #f0f);
   padding: 1.5rem;
   z-index: 1000;
   display: flex;
@@ -998,7 +998,7 @@ async function handleDeleteRecurrence() {
 
 .type-button.active {
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
   border-color: var(--color-button-primary-bg);
 }
 
@@ -1020,11 +1020,11 @@ async function handleDeleteRecurrence() {
 
 .save-button {
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .save-button:hover {
-  background-color: var(--color-primary-dark, #1565c0);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 
 .clear-button {
@@ -1065,18 +1065,18 @@ async function handleDeleteRecurrence() {
 .recurrence-button:hover {
   border-color: var(--color-button-primary-bg);
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .recurrence-button.active {
   border-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
   background-color: var(--color-button-primary-bg);
 }
 
 .recurrence-button.active:hover {
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
 }
 
 /* 关闭按钮 */
@@ -1227,17 +1227,17 @@ async function handleDeleteRecurrence() {
   padding: 0;
   border: 1px solid transparent;
   border-radius: 0.4rem;
-  background: white;
+  background: var(--color-background-elevated, #f0f);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+  box-shadow: var(--shadow-sm, #f0f);
 }
 
 .action-btn:hover {
   border-color: var(--color-button-primary-bg);
   color: var(--color-button-primary-bg);
-  background: white;
+  background: var(--color-background-elevated, #f0f);
 }
 
 .action-btn.danger:hover {
@@ -1474,11 +1474,11 @@ async function handleDeleteRecurrence() {
 
 .confirm-footer-button {
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
   border: 1px solid var(--color-button-primary-bg);
 }
 
 .confirm-footer-button:hover {
-  background-color: var(--color-primary-dark, #1565c0);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 </style>

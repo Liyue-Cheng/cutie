@@ -249,10 +249,10 @@ async function handleResumeRepeating() {
 
   width: 28rem;
   max-height: 80vh;
-  background-color: var(--color-background-content);
+  background-color: var(--color-background-elevated, #f0f);
   border: 1px solid var(--color-border-default);
   border-radius: 0.8rem;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-lg, #f0f);
   display: flex;
   flex-direction: column;
   z-index: 1000;

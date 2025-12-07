@@ -475,7 +475,7 @@ onBeforeUnmount(() => {
 }
 
 .message-bubble.user .message-meta {
-  border-top-color: rgb(255 255 255 / 20%);
+  border-top-color: var(--color-border-light, #f0f);
 }
 
 .message-bubble.assistant .message-meta {
@@ -558,7 +558,7 @@ onBeforeUnmount(() => {
 }
 
 .error-message button:hover {
-  background-color: rgb(0 0 0 / 10%);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 /* ==================== 图片预览 ==================== */
@@ -595,7 +595,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   background-color: var(--color-danger);
-  color: white;
+  color: var(--color-button-danger-text, #f0f);
   border: none;
   border-radius: 50%;
   cursor: pointer;

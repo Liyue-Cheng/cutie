@@ -16,7 +16,8 @@
       </MenuSection>
     </template>
 
-    <MenuItem icon="Trash2" variant="danger" @click="handleDelete">
+    <!-- 危险操作 -->
+    <MenuItem divider icon="Trash2" variant="danger" @click="handleDelete">
       {{ $t('timeBlock.action.delete') }}
     </MenuItem>
   </ContextMenu>

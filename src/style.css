@@ -23,8 +23,8 @@ html {
   /* 2.1 基础背景色系 */
   --color-background-primary: #191724;
   --color-background-secondary: #1f1d2e;
-  --color-background-content: #26233a;
-  --color-background-elevated: #1f1d2e;
+  --color-background-content: #1f1d2e;
+  --color-background-elevated: #26233a;
   --color-background-hover: #21202e;
   --color-background-active: #403d52;
   --color-background-selected: #21202e;
@@ -48,18 +48,19 @@ html {
   --color-text-on-accent: #191724;
   --color-text-on-dark: #e0def4;
 
-  /* 2.3 边框色系 */
-  --color-border-default: rgba(110, 106, 134, 0.25);
-  --color-border-light: rgba(64, 61, 82, 0.3);
-  --color-border-strong: rgba(144, 140, 170, 0.35);
+  /* 2.3 边框色系 - 使用 Rose Pine Highlight 系列 */
+  --color-border-default: #403d52; /* Highlight Med */
+  --color-border-light: #21202e; /* Highlight Low */
+  --color-border-strong: #524f67; /* Highlight High */
+  --color-border-subtle: rgba(64, 61, 82, 0.3); /* 极淡边框，用于大面积内容区 */
   --color-border-hover: #9ccfd8;
   --color-border-focus: #9ccfd8;
   --color-border-active: #9ccfd8;
   --color-border-error: #eb6f92;
   --color-border-success: #9ccfd8;
   --color-border-warning: #f6c177;
-  --color-border-input: rgba(110, 106, 134, 0.25);
-  --color-border-input-hover: rgba(144, 140, 170, 0.35);
+  --color-border-input: #403d52; /* Highlight Med */
+  --color-border-input-hover: #524f67; /* Highlight High */
   --color-border-input-focus: #9ccfd8;
 
   /* 2.4 状态色系 */
@@ -77,12 +78,12 @@ html {
   --color-info-text: #31748f;
 
   /* 2.5 任务状态专用色 */
-  --color-status-completed: #ebbcba;
+  --color-status-completed: #31748f;
   --color-status-completed-light: #21202e;
-  --color-status-completed-checkbox: #ebbcba;
-  --color-status-present: #31748f;
+  --color-status-completed-checkbox: #31748f;
+  --color-status-present: #c4a7e7;
   --color-status-present-light: #21202e;
-  --color-status-present-checkbox: #31748f;
+  --color-status-present-checkbox: #c4a7e7;
   --color-status-pending: #6e6a86;
   --color-status-pending-checkbox: #6e6a86;
   --color-status-archived: #908caa;
@@ -112,19 +113,19 @@ html {
   --color-calendar-other-month: #6e6a86;
 
   /* 2.8 组件专用色 */
-  --color-button-primary-bg: #9ccfd8;
-  --color-button-primary-hover: #31748f;
-  --color-button-primary-text: #191724;
+  --color-button-primary-bg: #ebbcba; /* Rose */
+  --color-button-primary-hover: #d9a8a6;
+  --color-button-primary-text: #191724; /* Base - 深色文字 */
   --color-button-secondary-bg: transparent;
   --color-button-secondary-hover: #21202e;
   --color-button-secondary-border: rgba(110, 106, 134, 0.25);
   --color-button-danger-bg: #eb6f92;
   --color-button-danger-hover: #eb6f92;
   --color-button-danger-text: #191724;
-  --color-card-background: #1f1d2e;
-  --color-card-hover: #21202e;
+  --color-card-background: #26233a; /* Overlay - 卡片比 Surface 背景更亮 */
+  --color-card-hover: #2a2740;
   --color-card-border: rgba(64, 61, 82, 0.3);
-  --color-card-available: #1f1d2e;
+  --color-card-available: #26233a; /* Overlay */
   --color-divider: rgba(64, 61, 82, 0.3);
   --color-divider-strong: rgba(110, 106, 134, 0.25);
   --color-tag-background: #21202e;
@@ -172,7 +173,7 @@ body.theme-rose-pine-dawn {
   --color-background-primary: #faf4ed;
   --color-background-secondary: #fffaf3;
   --color-background-content: #f6efe8;
-  --color-background-elevated: #ffffff;
+  --color-background-elevated: #f2e9e1; /* Rose Pine Overlay */
   --color-background-hover: #f4ede8;
   --color-background-active: #dfdad9;
   --color-background-selected: rgba(40, 105, 131, 0.08);
@@ -200,6 +201,7 @@ body.theme-rose-pine-dawn {
   --color-border-default: #e0dce0;
   --color-border-light: #ede9e3;
   --color-border-strong: #d0cdd1;
+  --color-border-subtle: #ede9e3; /* 浅色主题边框可以更明显 */
   --color-border-hover: #56949f;
   --color-border-focus: #56949f;
   --color-border-active: #56949f;
@@ -260,19 +262,19 @@ body.theme-rose-pine-dawn {
   --color-calendar-other-month: #9893a5;
 
   /* 3.8 组件专用色 */
-  --color-button-primary-bg: #56949f;
-  --color-button-primary-hover: #286983;
-  --color-button-primary-text: #ffffff;
+  --color-button-primary-bg: #d7827e; /* Rose */
+  --color-button-primary-hover: #c4706c;
+  --color-button-primary-text: #575279; /* Text - 深色文字 */
   --color-button-secondary-bg: transparent;
   --color-button-secondary-hover: #f4ede8;
   --color-button-secondary-border: #e0dce0;
   --color-button-danger-bg: #b4637a;
   --color-button-danger-hover: #9a4a5f;
   --color-button-danger-text: #ffffff;
-  --color-card-background: #fffaf3;
-  --color-card-hover: #f6efe8;
+  --color-card-background: #f2e9e1; /* Overlay - 卡片比 Surface 背景更深 */
+  --color-card-hover: #ede4db;
   --color-card-border: #ede9e3;
-  --color-card-available: #fffaf3;
+  --color-card-available: #f2e9e1; /* Overlay */
   --color-divider: #ede9e3;
   --color-divider-strong: #e0dce0;
   --color-tag-background: #f4ede8;
@@ -320,7 +322,7 @@ body.theme-rose-pine-moon {
   --color-background-primary: #232136;
   --color-background-secondary: #2a273f;
   --color-background-content: #393552;
-  --color-background-elevated: #2a273f;
+  --color-background-elevated: #393552; /* Rose Pine Overlay */
   --color-background-hover: #2a283e;
   --color-background-active: #44415a;
   --color-background-selected: #2a283e;
@@ -344,18 +346,19 @@ body.theme-rose-pine-moon {
   --color-text-on-accent: #232136;
   --color-text-on-dark: #e0def4;
 
-  /* 4.3 边框色系 */
-  --color-border-default: rgba(110, 106, 134, 0.25);
-  --color-border-light: rgba(68, 65, 90, 0.3);
-  --color-border-strong: rgba(144, 140, 170, 0.35);
+  /* 4.3 边框色系 - 使用 Rose Pine Moon Highlight 系列 */
+  --color-border-default: #44415a; /* Highlight Med */
+  --color-border-light: #2a283e; /* Highlight Low */
+  --color-border-strong: #56526e; /* Highlight High */
+  --color-border-subtle: rgba(68, 65, 90, 0.3); /* 极淡边框，用于大面积内容区 */
   --color-border-hover: #9ccfd8;
   --color-border-focus: #9ccfd8;
   --color-border-active: #9ccfd8;
   --color-border-error: #eb6f92;
   --color-border-success: #9ccfd8;
   --color-border-warning: #f6c177;
-  --color-border-input: rgba(110, 106, 134, 0.25);
-  --color-border-input-hover: rgba(144, 140, 170, 0.35);
+  --color-border-input: #44415a; /* Highlight Med */
+  --color-border-input-hover: #56526e; /* Highlight High */
   --color-border-input-focus: #9ccfd8;
 
   /* 4.4 状态色系 */
@@ -373,12 +376,12 @@ body.theme-rose-pine-moon {
   --color-info-text: #3e8fb0;
 
   /* 4.5 任务状态专用色 */
-  --color-status-completed: #ea9a97;
+  --color-status-completed: #3e8fb0;
   --color-status-completed-light: #2a283e;
-  --color-status-completed-checkbox: #ea9a97;
-  --color-status-present: #3e8fb0;
+  --color-status-completed-checkbox: #3e8fb0;
+  --color-status-present: #c4a7e7;
   --color-status-present-light: #2a283e;
-  --color-status-present-checkbox: #3e8fb0;
+  --color-status-present-checkbox: #c4a7e7;
   --color-status-pending: #6e6a86;
   --color-status-pending-checkbox: #6e6a86;
   --color-status-archived: #908caa;
@@ -408,19 +411,19 @@ body.theme-rose-pine-moon {
   --color-calendar-other-month: #6e6a86;
 
   /* 4.8 组件专用色 */
-  --color-button-primary-bg: #9ccfd8;
-  --color-button-primary-hover: #3e8fb0;
-  --color-button-primary-text: #232136;
+  --color-button-primary-bg: #ea9a97; /* Rose */
+  --color-button-primary-hover: #d88885;
+  --color-button-primary-text: #232136; /* Base - 深色文字 */
   --color-button-secondary-bg: transparent;
   --color-button-secondary-hover: #2a283e;
   --color-button-secondary-border: rgba(110, 106, 134, 0.25);
   --color-button-danger-bg: #eb6f92;
   --color-button-danger-hover: #eb6f92;
   --color-button-danger-text: #232136;
-  --color-card-background: #2a273f;
-  --color-card-hover: #2a283e;
+  --color-card-background: #393552; /* Overlay - 卡片比 Surface 背景更亮 */
+  --color-card-hover: #3d3a56;
   --color-card-border: rgba(68, 65, 90, 0.3);
-  --color-card-available: #2a273f;
+  --color-card-available: #393552; /* Overlay */
   --color-divider: rgba(68, 65, 90, 0.3);
   --color-divider-strong: rgba(110, 106, 134, 0.25);
   --color-tag-background: #2a283e;

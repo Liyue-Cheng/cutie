@@ -396,14 +396,14 @@ function getCategoryName(categoryId: string): string {
   justify-content: space-between;
   align-items: center;
   padding: 2rem 2.4rem;
-  background-color: var(--color-background-secondary, #fffaf3);
-  border-bottom: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border-bottom: 1px solid var(--color-border-default, #f0f);
 }
 
 .settings-title {
   font-size: 2.2rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   margin: 0;
 }
 
@@ -417,14 +417,14 @@ function getCategoryName(categoryId: string): string {
   background: transparent;
   border: none;
   border-radius: 0.6rem;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .close-btn:hover {
   background-color: var(--color-background-hover);
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 /* ==================== 主体：左右两栏 ==================== */
@@ -437,8 +437,8 @@ function getCategoryName(categoryId: string): string {
 /* ==================== 左侧：分类导航 ==================== */
 .settings-sidebar {
   width: 22rem;
-  background-color: var(--color-background-secondary, #fffaf3);
-  border-right: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border-right: 1px solid var(--color-border-default, #f0f);
   overflow-y: auto;
 }
 
@@ -457,7 +457,7 @@ function getCategoryName(categoryId: string): string {
   background: transparent;
   border: none;
   border-radius: 0.8rem;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   font-size: 1.4rem;
   font-weight: 500;
   cursor: pointer;
@@ -467,12 +467,12 @@ function getCategoryName(categoryId: string): string {
 
 .category-item:hover {
   background-color: var(--color-background-hover);
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .category-item.active {
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .category-name {
@@ -483,7 +483,7 @@ function getCategoryName(categoryId: string): string {
 .settings-content {
   flex: 1;
   overflow-y: auto;
-  background-color: var(--color-background-primary, #faf4ed);
+  background-color: var(--color-background-primary, #f0f);
 }
 
 .settings-panel {
@@ -518,8 +518,8 @@ function getCategoryName(categoryId: string): string {
   flex-direction: column;
   gap: 1.6rem;
   padding: 1.6rem;
-  background-color: var(--color-background-secondary, #fffaf3);
-  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-soft, #f0f);
   border-radius: 0.8rem;
 }
 
@@ -531,13 +531,13 @@ function getCategoryName(categoryId: string): string {
   margin: 0;
   font-size: 1.6rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .subsection-description {
   margin: 0;
   font-size: 1.3rem;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
   line-height: 1.6;
 }
 
@@ -548,7 +548,7 @@ function getCategoryName(categoryId: string): string {
   align-items: center;
   justify-content: center;
   padding: 4rem 2rem;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
   gap: 1.2rem;
 }
 
@@ -564,14 +564,14 @@ function getCategoryName(categoryId: string): string {
   justify-content: space-between;
   gap: 2rem;
   padding: 1.4rem;
-  background-color: var(--color-background-secondary, #fffaf3);
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   transition: all 0.2s ease;
 }
 
 .setting-item:hover {
-  border-color: rgb(0 0 0 / 15%);
+  border-color: var(--color-border-strong, #f0f);
   box-shadow: var(--shadow-sm);
 }
 
@@ -585,12 +585,12 @@ function getCategoryName(categoryId: string): string {
 .setting-label {
   font-size: 1.5rem;
   font-weight: 500;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .setting-description {
   font-size: 1.3rem;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 /* ==================== 输入框 ==================== */
@@ -598,10 +598,10 @@ function getCategoryName(categoryId: string): string {
   width: 20rem;
   height: 3.6rem;
   padding: 0 1.2rem;
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
-  background: var(--color-background-primary, #faf4ed);
-  color: var(--color-text-primary, #575279);
+  background: var(--color-background-primary, #f0f);
+  color: var(--color-text-primary, #f0f);
   font-size: 1.4rem;
   transition: all 0.2s ease;
 }
@@ -751,7 +751,7 @@ input:checked + .toggle-slider::before {
   border: none;
   border-radius: 0.8rem;
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
   font-size: 1.4rem;
   font-weight: 500;
   cursor: pointer;

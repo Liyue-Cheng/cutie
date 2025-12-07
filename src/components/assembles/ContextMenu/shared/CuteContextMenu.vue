@@ -29,13 +29,13 @@
   min-width: 16rem;
   padding: 0.4rem;
   gap: 0.2rem; /* 使用 gap 替代 margin，避免 border 重叠 */
-  
-  /* 外观 */
-  background-color: var(--color-background-content, #faf4ed);
-  border: 1px solid var(--color-border-default, #dfdad9);
+
+  /* 外观 - 使用 elevated 强调浮层效果 */
+  background-color: var(--color-background-elevated, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
-  box-shadow: var(--shadow-md);
-  
+  box-shadow: var(--shadow-lg);
+
   /* 防止内容溢出 */
   overflow: hidden;
 }

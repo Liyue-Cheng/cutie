@@ -447,7 +447,7 @@ function handleClose() {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgb(0 0 0 / 50%);
+  background-color: var(--color-overlay-heavy, #f0f);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -459,9 +459,9 @@ function handleClose() {
   width: 100%;
   max-width: 80rem;
   height: 70vh;
-  background-color: var(--color-background-primary, #faf4ed);
+  background-color: var(--color-background-primary, #f0f);
   border-radius: 1.2rem;
-  box-shadow: 0 0.8rem 3.2rem rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-xl, #f0f);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -473,7 +473,7 @@ function handleClose() {
   align-items: center;
   justify-content: space-between;
   padding: 2rem 2.4rem;
-  border-bottom: 1px solid var(--color-border-default, #e0d8c8);
+  border-bottom: 1px solid var(--color-border-default, #f0f);
   flex-shrink: 0;
 }
 
@@ -502,7 +502,7 @@ function handleClose() {
 }
 
 .close-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
+  background-color: var(--color-background-hover, #f0f);
   color: var(--color-text-primary);
 }
 
@@ -571,15 +571,15 @@ function handleClose() {
   align-items: center;
   justify-content: space-between;
   padding: 1.6rem 2rem;
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default, #e0d8c8);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   transition: all 0.2s ease;
 }
 
 .recurrence-item:hover {
-  border-color: var(--color-border-hover, #c8c0b0);
-  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 5%);
+  border-color: var(--color-border-hover, #f0f);
+  box-shadow: var(--shadow-sm, #f0f);
 }
 
 .recurrence-item.inactive {
@@ -611,7 +611,7 @@ function handleClose() {
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text-tertiary);
-  background-color: var(--color-background-hover, #e8e8e8);
+  background-color: var(--color-background-hover, #f0f);
   border-radius: 0.4rem;
 }
 
@@ -651,11 +651,11 @@ function handleClose() {
 }
 
 .toggle-btn {
-  color: var(--color-primary, #286983);
+  color: var(--color-text-accent, #f0f);
 }
 
 .toggle-btn:hover {
-  background-color: var(--color-primary-bg, rgb(40 105 131 / 10%));
+  background-color: var(--color-background-accent-light, #f0f);
 }
 
 .edit-btn {
@@ -663,16 +663,16 @@ function handleClose() {
 }
 
 .edit-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
+  background-color: var(--color-background-hover, #f0f);
   color: var(--color-text-primary);
 }
 
 .delete-btn {
-  color: var(--color-danger, #d32f2f);
+  color: var(--color-danger, #f0f);
 }
 
 .delete-btn:hover {
-  background-color: rgb(211 47 47 / 10%);
+  background-color: var(--color-danger-light, #f0f);
 }
 
 /* 底部操作栏 */
@@ -682,7 +682,7 @@ function handleClose() {
   justify-content: flex-end;
   gap: 1.2rem;
   padding: 1.6rem 2.4rem;
-  border-top: 1px solid var(--color-border-default, #e0d8c8);
+  border-top: 1px solid var(--color-border-default, #f0f);
   flex-shrink: 0;
 }
 
@@ -713,12 +713,12 @@ function handleClose() {
 }
 
 .primary-btn {
-  color: white;
-  background-color: var(--color-primary, #286983);
+  color: var(--color-button-primary-text, #f0f);
+  background-color: var(--color-button-primary-bg, #f0f);
 }
 
 .primary-btn:hover {
-  background-color: var(--color-primary-hover, #1f5469);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 
 /* 过渡动画 */

@@ -300,7 +300,7 @@ async function handleCreate() {
   width: 63rem;
   max-width: 90vw;
   max-height: 90vh;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-border-subtle, #f0f);
   background-color: var(--color-card-available);
   border-radius: 0.8rem;
   overflow-y: auto;
@@ -357,7 +357,7 @@ async function handleCreate() {
   background: var(--color-card-available);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-md, #f0f);
   z-index: 100;
   min-width: 20rem;
   max-height: 30rem;
@@ -690,11 +690,11 @@ async function handleCreate() {
 
 .confirm-footer-button {
   background-color: var(--color-button-primary-bg);
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
   border: 1px solid var(--color-button-primary-bg);
 }
 
 .confirm-footer-button:hover {
-  background-color: var(--color-primary-dark, #1565c0);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 </style>

@@ -268,7 +268,7 @@ async function handleDelete(id: string) {
   width: 70rem;
   max-width: 90vw;
   max-height: 85vh;
-  background-color: var(--color-background-primary, #faf4ed);
+  background-color: var(--color-background-primary, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-xl);
   display: flex;
@@ -282,14 +282,14 @@ async function handleDelete(id: string) {
   justify-content: space-between;
   align-items: center;
   padding: 2rem 2.4rem;
-  background-color: var(--color-background-secondary, #fffaf3);
-  border-bottom: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border-bottom: 1px solid var(--color-border-default, #f0f);
 }
 
 .manager-title {
   font-size: 2.2rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   margin: 0;
 }
 
@@ -303,27 +303,27 @@ async function handleDelete(id: string) {
   background: transparent;
   border: none;
   border-radius: 0.6rem;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .close-btn:hover {
   background-color: var(--color-background-hover);
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 /* ==================== 创建区域 ==================== */
 .create-section {
   padding: 2rem 2.4rem;
-  background-color: var(--color-background-secondary, #fffaf3);
-  border-bottom: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border-bottom: 1px solid var(--color-border-default, #f0f);
 }
 
 .section-title {
   font-size: 1.4rem;
   font-weight: 600;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   margin: 0 0 1.2rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -340,16 +340,16 @@ async function handleDelete(id: string) {
   height: 4rem;
   padding: 0 1.2rem;
   font-size: 1.4rem;
-  color: var(--color-text-primary, #575279);
-  background-color: var(--color-background-primary, #faf4ed);
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-primary, #f0f);
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   outline: none;
   transition: all 0.2s ease;
 }
 
 .name-input::placeholder {
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .name-input:focus {
@@ -376,7 +376,7 @@ async function handleDelete(id: string) {
 .color-preview {
   width: 100%;
   height: 100%;
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -385,7 +385,7 @@ async function handleDelete(id: string) {
 
 .color-picker-wrapper:hover .color-preview {
   transform: scale(1.05);
-  box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 10%);
+  box-shadow: var(--shadow-md, #f0f);
 }
 
 .ai-color-btn {
@@ -397,7 +397,7 @@ async function handleDelete(id: string) {
   padding: 0 1.2rem;
   font-size: 1.3rem;
   font-weight: 500;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   background: linear-gradient(135deg, #f5a623 0%, #e94b8b 50%, #9b59b6 100%);
   background-clip: text;
   -webkit-background-clip: text; /* stylelint-disable-line property-no-vendor-prefix */
@@ -406,8 +406,8 @@ async function handleDelete(id: string) {
   background-origin: border-box;
   background-image:
     linear-gradient(
-      var(--color-background-secondary, #fffaf3),
-      var(--color-background-secondary, #fffaf3)
+      var(--color-background-secondary, #f0f),
+      var(--color-background-secondary, #f0f)
     ),
     linear-gradient(135deg, #f5a623 0%, #e94b8b 50%, #9b59b6 100%);
   border-radius: 0.8rem;
@@ -439,7 +439,7 @@ async function handleDelete(id: string) {
   padding: 0 1.6rem;
   font-size: 1.4rem;
   font-weight: 500;
-  color: white;
+  color: var(--color-button-primary-text, #f0f);
   background-color: var(--color-button-primary-bg);
   border: none;
   border-radius: 0.8rem;
@@ -512,7 +512,7 @@ async function handleDelete(id: string) {
 
 .empty-hint {
   font-size: 1.4rem;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
   margin: 0;
 }
 
@@ -525,15 +525,15 @@ async function handleDelete(id: string) {
 
 /* ==================== Area 卡片 ==================== */
 .area-card {
-  background-color: var(--color-background-secondary, #fffaf3);
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   padding: 1.2rem 1.4rem;
   transition: all 0.2s ease;
 }
 
 .area-card:hover {
-  border-color: rgb(0 0 0 / 15%);
+  border-color: var(--color-border-strong, #f0f);
   box-shadow: var(--shadow-sm);
 }
 
@@ -567,7 +567,7 @@ async function handleDelete(id: string) {
 .area-name {
   font-size: 1.5rem;
   font-weight: 500;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .area-actions {
@@ -585,14 +585,14 @@ async function handleDelete(id: string) {
   background: transparent;
   border: none;
   border-radius: 0.6rem;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .action-btn:hover {
   background-color: var(--color-background-hover);
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .action-btn.delete:hover {
@@ -634,7 +634,7 @@ async function handleDelete(id: string) {
 .edit-color-preview {
   width: 100%;
   height: 100%;
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.6rem;
   cursor: pointer;
   pointer-events: none;
@@ -645,16 +645,16 @@ async function handleDelete(id: string) {
   height: 3.6rem;
   padding: 0 1rem;
   font-size: 1.4rem;
-  color: var(--color-text-primary, #575279);
-  background-color: var(--color-background-primary, #faf4ed);
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-primary, #f0f);
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.6rem;
   outline: none;
   transition: all 0.2s ease;
 }
 
 .edit-name-input:focus {
-  border-color: var(--color-primary, #d7827e);
+  border-color: var(--color-border-focus, #f0f);
 }
 
 .edit-actions {
@@ -689,7 +689,7 @@ async function handleDelete(id: string) {
 }
 
 .edit-btn.ai:hover:not(:disabled) {
-  background-color: rgb(233 75 139 / 10%);
+  background-color: var(--color-danger-light, #f0f);
 }
 
 .edit-btn.save {
@@ -697,14 +697,14 @@ async function handleDelete(id: string) {
 }
 
 .edit-btn.save:hover {
-  background-color: rgb(34 197 94 / 10%);
+  background-color: var(--color-success-light, #f0f);
 }
 
 .edit-btn.cancel {
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .edit-btn.cancel:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover, #f0f);
 }
 </style>

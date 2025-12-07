@@ -90,7 +90,7 @@ function handleSave() {
 .edit-dialog-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgb(0 0 0 / 30%);
+  background-color: var(--color-overlay-medium, #f0f);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,9 +100,9 @@ function handleSave() {
 .edit-dialog {
   width: 100%;
   max-width: 50rem;
-  background-color: var(--color-background-primary, #faf4ed);
+  background-color: var(--color-background-primary, #f0f);
   border-radius: 1rem;
-  box-shadow: 0 0.8rem 2.4rem rgb(0 0 0 / 20%);
+  box-shadow: var(--shadow-xl, #f0f);
   overflow: hidden;
 }
 
@@ -111,7 +111,7 @@ function handleSave() {
   align-items: center;
   justify-content: space-between;
   padding: 1.6rem 2rem;
-  border-bottom: 1px solid var(--color-border-default, #e0d8c8);
+  border-bottom: 1px solid var(--color-border-default, #f0f);
 }
 
 .dialog-header h3 {
@@ -215,11 +215,11 @@ function handleSave() {
 }
 
 .primary-btn {
-  color: white;
-  background-color: var(--color-primary, #286983);
+  color: var(--color-button-primary-text, #f0f);
+  background-color: var(--color-button-primary-bg, #f0f);
 }
 
 .primary-btn:hover {
-  background-color: var(--color-primary-hover, #1f5469);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 </style>

@@ -195,7 +195,7 @@ async function handleAdd() {
 
 .quick-add-dialog {
   background-color: var(--color-background-content, #faf4ed);
-  border: 1px solid var(--color-border-default, #dfdad9);
+  border: 1px solid var(--color-border-subtle, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-lg);
   width: 90%;
@@ -295,7 +295,7 @@ async function handleAdd() {
 
 .add-button {
   background-color: var(--color-button-primary-bg);
-  color: #fff;
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .add-button:disabled {

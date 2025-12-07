@@ -1,7 +1,7 @@
 <template>
   <ContextMenu>
-    <MenuItem @click="handleAction('edit')">编辑模板</MenuItem>
-    <MenuItem divider variant="danger" @click="handleAction('delete')">删除模板</MenuItem>
+    <MenuItem icon="Pencil" @click="handleAction('edit')">编辑模板</MenuItem>
+    <MenuItem divider icon="Trash2" variant="danger" @click="handleAction('delete')">删除模板</MenuItem>
   </ContextMenu>
 </template>
 

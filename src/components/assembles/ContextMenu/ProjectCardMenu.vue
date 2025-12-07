@@ -1,8 +1,10 @@
 <template>
   <ContextMenu>
-    <MenuItem @click="handleAction('edit')">{{ $t('project.action.edit') }}</MenuItem>
-    <MenuItem divider @click="handleAction('add-section')">{{ $t('project.action.addSection') }}</MenuItem>
-    <MenuItem divider variant="danger" @click="handleAction('delete')">{{ $t('project.action.delete') }}</MenuItem>
+    <!-- 主要操作 -->
+    <MenuItem icon="Pencil" @click="handleAction('edit')">{{ $t('project.action.edit') }}</MenuItem>
+    <MenuItem icon="FolderPlus" @click="handleAction('add-section')">{{ $t('project.action.addSection') }}</MenuItem>
+    <!-- 危险操作 -->
+    <MenuItem divider icon="Trash2" variant="danger" @click="handleAction('delete')">{{ $t('project.action.delete') }}</MenuItem>
   </ContextMenu>
 </template>
 

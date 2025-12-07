@@ -481,7 +481,7 @@ const isAiDialogOpen = ref(false)
   display: flex;
   flex-direction: column;
   /* 内容区边框和圆角（从各 View 移至此处统一管理） */
-  border: 1px solid var(--color-border-default, #f0f);
+  border: 1px solid var(--color-border-subtle, #f0f);
   border-radius: 0.8rem;
   background-color: var(--color-background-content, #f0f);
   overflow: hidden;
