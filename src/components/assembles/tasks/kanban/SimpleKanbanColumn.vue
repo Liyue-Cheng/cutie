@@ -418,7 +418,7 @@ function handleTitleClick() {
 
 .title {
   font-size: 2.2rem;
-  font-weight: 600;
+  font-weight: 500;
   margin: 0;
   color: var(--color-text-primary);
   transition: color 0.2s ease;
@@ -479,7 +479,7 @@ function handleTitleClick() {
 }
 
 .sort-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover, #f0f);
   color: var(--color-text-secondary);
 }
 
@@ -508,8 +508,8 @@ function handleTitleClick() {
 
 .add-task-input:focus {
   outline: none;
-  border-color: var(--rose-pine-foam, #56949f);
-  box-shadow: 0 0 0 3px rgb(86 148 159 / 10%);
+  border-color: var(--color-border-focus, #f0f);
+  box-shadow: var(--shadow-focus, #f0f);
 }
 
 .add-task-input::placeholder {

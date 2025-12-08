@@ -559,7 +559,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .task-bar-title {
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   margin: 0;
   line-height: 1.4; /* 固定行高，避免中英文高度差异 */
@@ -573,7 +573,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   height: 2rem;
   padding: 0 0.6rem;
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1; /* 固定行高 */
   color: var(--color-text-secondary);
   background-color: var(--color-background-secondary);

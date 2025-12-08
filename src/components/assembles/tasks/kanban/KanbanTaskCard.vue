@@ -637,8 +637,8 @@ async function handleSubtaskStatusChange(subtaskId: string, isCompleted: boolean
   color: var(--color-text-on-accent);
   white-space: nowrap;
   border-radius: 0.36rem;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+  text-shadow: var(--shadow-text, #f0f);
+  box-shadow: var(--shadow-sm, #f0f);
   line-height: 1.4;
 }
 

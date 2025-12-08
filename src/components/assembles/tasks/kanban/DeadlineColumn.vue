@@ -106,7 +106,7 @@ function handleDrop(event: DragEvent) {
 .header-title h3 {
   margin: 0;
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
 }
 
@@ -118,7 +118,7 @@ function handleDrop(event: DragEvent) {
   height: 2.4rem;
   padding: 0 0.6rem;
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--color-text-tertiary);
   background-color: var(--color-background-hover);
   border-radius: 1.2rem;
@@ -130,8 +130,8 @@ function handleDrop(event: DragEvent) {
   padding: 0.4rem 0.8rem;
   font-size: 1.2rem;
   font-weight: 500;
-  color: #f44336;
-  background-color: rgb(244 67 54 / 10%);
+  color: var(--color-danger, #f0f);
+  background-color: var(--color-danger-light, #f0f);
   border-radius: 0.4rem;
 }
 

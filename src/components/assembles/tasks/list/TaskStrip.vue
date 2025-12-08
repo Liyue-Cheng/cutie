@@ -37,43 +37,36 @@
         />
       </div>
 
-      <!-- 所属 Area 标签（移动到标题旁） -->
-      <AreaTag
-        v-if="area"
-        class="area-tag-inline"
-        :name="area.name"
-        :color="area.color"
-        size="normal"
+      <!-- 所属项目（优先）或 Area 标签 -->
+      <InfoTag
+        v-if="project"
+        icon="FolderKanban"
+        :icon-color="area?.color || 'var(--color-text-tertiary)'"
+        :text="project.name"
+      />
+      <InfoTag
+        v-else-if="area"
+        icon="Hash"
+        :icon-color="area.color"
+        :text="area.name"
       />
 
       <!-- 截止日期（始终在标题行显示） -->
-      <div v-if="task.due_date" class="due-date-inline">
-        <span class="icon-wrapper">
-          <!-- 硬截止：使用旗子图标，过期为红色，未过期为灰色 -->
-          <CuteIcon
-            v-if="task.due_date.type === 'HARD'"
-            name="Flag"
-            size="1.4rem"
-            :color="
-              task.due_date.is_overdue
-                ? 'var(--color-deadline-overdue)'
-                : 'var(--color-text-tertiary)'
-            "
-          />
-          <!-- 软截止：使用波浪号 -->
-          <span v-else class="soft-deadline-icon">~</span>
-        </span>
-
-        <span
-          class="due-date-text"
-          :class="{
-            overdue: task.due_date.is_overdue && task.due_date.type === 'HARD',
-            'hard-deadline': task.due_date.type === 'HARD',
-          }"
-        >
-          {{ formatDueDate(task.due_date.date) }}
-        </span>
-      </div>
+      <InfoTag
+        v-if="task.due_date"
+        :icon="task.due_date.type === 'HARD' ? 'Flag' : undefined"
+        :icon-color="
+          task.due_date.is_overdue
+            ? 'var(--color-deadline-overdue)'
+            : 'var(--color-text-tertiary)'
+        "
+        :text="formatDueDate(task.due_date.date)"
+        :danger="task.due_date.is_overdue && task.due_date.type === 'HARD'"
+      >
+        <template v-if="task.due_date.type !== 'HARD'" #icon>
+          <span class="soft-deadline-icon">~</span>
+        </template>
+      </InfoTag>
 
       <!-- Daily view：显示预期时间（可选） -->
       <div v-if="isInDailyView && showEstimatedDuration" class="estimated-duration-wrapper">
@@ -92,37 +85,32 @@
       </div>
 
       <!-- Daily view：时间块显示（如果有） -->
-      <div v-if="isInDailyView && todayTimeBlocks.length > 0" class="time-blocks-inline">
-        <span v-for="block in todayTimeBlocks.slice(0, 3)" :key="block.id" class="time-tag">
-          <span
-            class="time-tag-dot"
-            :style="{ backgroundColor: area?.color || 'var(--color-tag-background)' }"
-          ></span>
-          {{ formatTimeBlockStart(block) }}
-        </span>
-        <span v-if="todayTimeBlocks.length > 3" class="time-tag-more"
-          >+{{ todayTimeBlocks.length - 3 }}</span
-        >
-      </div>
+      <InfoTag
+        v-if="isInDailyView && todayTimeBlocks.length > 0"
+        icon="Clock"
+        :text="timeBlocksDisplayText"
+      />
     </div>
 
     <!-- 概览笔记（仅完整模式显示） -->
-    <div v-if="displayMode === 'full' && task.glance_note" class="task-note">
-      <span class="icon-wrapper">
-        <CuteIcon name="FileText" size="1.4rem" />
-      </span>
+    <div v-if="displayMode === 'full' && task.glance_note" class="task-row">
+      <div class="row-head">
+        <CuteIcon name="FileText" size="1.4rem" class="row-icon" />
+      </div>
       <span class="note-text">{{ task.glance_note }}</span>
     </div>
 
     <!-- 子任务显示区（仅完整模式显示） -->
     <div v-if="displayMode === 'full' && hasSubtasks" class="subtasks-section">
-      <div v-for="subtask in task.subtasks" :key="subtask.id" class="subtask-item">
-        <CuteCheckbox
-          :checked="subtask.is_completed"
-          size="1.4rem"
-          @update:checked="() => toggleSubtask(subtask.id)"
-          @click.stop
-        />
+      <div v-for="subtask in task.subtasks" :key="subtask.id" class="task-row">
+        <div class="row-head">
+          <CuteCheckbox
+            :checked="subtask.is_completed"
+            size="1.4rem"
+            @update:checked="() => toggleSubtask(subtask.id)"
+            @click.stop
+          />
+        </div>
         <span class="subtask-title" :class="{ completed: subtask.is_completed }">
           {{ subtask.title }}
         </span>
@@ -135,6 +123,7 @@
 import { computed, ref } from 'vue'
 import type { TaskCard } from '@/types/dtos'
 import { useAreaStore } from '@/stores/area'
+import { useProjectStore } from '@/stores/project'
 import { useUIStore } from '@/stores/ui'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { useViewContext } from '@/composables/useViewContext'
@@ -144,7 +133,7 @@ import { pipeline } from '@/cpu'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
-import AreaTag from '@/components/parts/AreaTag.vue'
+import InfoTag from '@/components/parts/InfoTag.vue'
 import TimeDurationPicker from '@/components/parts/TimeDurationPicker.vue'
 import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue'
 
@@ -169,6 +158,7 @@ const emit = defineEmits<{
 
 // Stores
 const areaStore = useAreaStore()
+const projectStore = useProjectStore()
 const uiStore = useUIStore()
 const contextMenu = useContextMenu()
 
@@ -193,6 +183,11 @@ const isCompleting = ref(false)
 // 通过 area_id 从 store 获取完整 area 信息
 const area = computed(() => {
   return props.task.area_id ? areaStore.getAreaById(props.task.area_id) : null
+})
+
+// 通过 project_id 从 store 获取完整 project 信息
+const project = computed(() => {
+  return props.task.project_id ? projectStore.getProjectById(props.task.project_id) : null
 })
 
 // 判断是否在即将到期列表中
@@ -250,6 +245,16 @@ const todayTimeBlocksTotalDuration = computed(() => {
   }
 
   return totalMinutes
+})
+
+// 时间块显示文本：第一个时间 + 剩余数量
+const timeBlocksDisplayText = computed(() => {
+  if (todayTimeBlocks.value.length === 0) return ''
+
+  const firstTime = formatTimeBlockStart(todayTimeBlocks.value[0])
+  const remaining = todayTimeBlocks.value.length - 1
+
+  return remaining > 0 ? `${firstTime} +${remaining}` : firstTime
 })
 
 // 计算双模式复选框的状态
@@ -473,7 +478,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 /* 当有其他内容时，标题栏需要底部间距 */
-.task-strip:has(.task-note, .subtasks-section) .task-header {
+.task-strip:has(.task-row) .task-header {
   margin-bottom: 0.8rem;
 }
 
@@ -533,70 +538,38 @@ function onMouseDown(event: MouseEvent) {
   z-index: 100;
 }
 
-/* 时间块内联显示 */
-.time-blocks-inline {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.time-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.8rem;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-hover);
-  border: 1.5px solid var(--color-border-default);
-  white-space: nowrap;
-  border-radius: 1.2rem;
-  line-height: 1.4;
-}
-
-.time-tag-dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-}
-
-.time-tag-more {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem 0.8rem;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  background-color: var(--color-background-hover);
-  border: 1.5px solid var(--color-border-default);
-  white-space: nowrap;
-  border-radius: 1.2rem;
-  line-height: 1.4;
-}
-
-/* 概览笔记 */
-.task-note {
+/* 通用子行结构：行头 + 内容 */
+.task-row {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: 0.8rem;
-  padding-left: 3rem;
+  margin-bottom: 0.6rem;
+  padding-left: 0.4rem; /* 补偿与 task-header gap(1rem) 的差值，使文字对齐 */
 }
 
-.icon-wrapper {
+.task-row:last-child {
+  margin-bottom: 0;
+}
+
+/* 行头：固定宽度，内容居中，与主 checkbox 宽度一致 */
+.row-head {
   flex-shrink: 0;
+  width: 2.1rem; /* 与 CuteDualModeCheckbox large size 一致 */
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+.row-icon {
   color: var(--color-text-tertiary);
 }
 
+/* 概览笔记文本 */
 .note-text {
   flex: 1;
   font-size: 1.4rem;
   color: var(--color-text-secondary);
-  line-height: 1.6;
+  line-height: 1.4;
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -614,42 +587,15 @@ function onMouseDown(event: MouseEvent) {
   opacity: 0.7;
 }
 
-.soft-deadline-icon {
-  font-size: 1.6rem;
-  color: var(--color-text-tertiary);
-  font-weight: 600;
-}
-
-.due-date-text {
-  font-size: 1.3rem;
-  color: var(--color-text-secondary);
-}
-
-.due-date-text.hard-deadline {
-  font-weight: 500;
-}
-
-.due-date-text.overdue {
-  color: var(--color-danger);
-  font-weight: 600;
-}
-
 /* 子任务显示区 */
 .subtasks-section {
-  padding-left: 3rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 0.8rem;
 }
 
-.subtask-item {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
+/* 子任务文本 */
 .subtask-title {
+  flex: 1;
   font-size: 1.4rem;
   color: var(--color-text-secondary);
   line-height: 1.4;
@@ -660,49 +606,11 @@ function onMouseDown(event: MouseEvent) {
   text-decoration: line-through;
 }
 
-/* 标题行中的 Area 标签 */
-.area-tag-inline {
-  flex-shrink: 0;
-}
-
-/* 标题行中的截止日期（即将到期列表专用） */
-.due-date-inline {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.due-date-inline .icon-wrapper {
-  display: flex;
-  align-items: center;
-  color: var(--color-text-tertiary);
-}
-
-.due-date-inline .soft-deadline-icon {
-  font-size: 1.4rem;
-  color: var(--color-text-tertiary);
+/* 软截止日期波浪号图标 */
+.soft-deadline-icon {
+  font-size: 1.65rem;
+  color: var(--color-text-tertiary, #f0f);
   font-weight: 400;
   line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.due-date-inline .due-date-text {
-  font-size: 1.3rem;
-  color: var(--color-text-tertiary);
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.due-date-inline .due-date-text.hard-deadline {
-  font-weight: 500;
-}
-
-.due-date-inline .due-date-text.overdue {
-  color: var(--color-danger);
-  font-weight: 600;
 }
 </style>

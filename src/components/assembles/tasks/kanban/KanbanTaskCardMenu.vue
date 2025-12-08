@@ -1,6 +1,7 @@
 <template>
   <ContextMenu>
-    <MenuItem @click="handleAction('edit')">{{ $t('task.action.edit') }}</MenuItem>
+    <!-- 主要操作 -->
+    <MenuItem icon="Pencil" @click="handleAction('edit')">{{ $t('task.action.edit') }}</MenuItem>
 
     <!-- 循环任务相关操作 -->
     <template v-if="isRecurringTask">
@@ -20,6 +21,7 @@
       </MenuSection>
     </template>
 
+    <!-- 次要操作 -->
     <MenuItem divider icon="RotateCcw" @click="handleAction('return-to-staging')">
       {{ $t('task.action.returnToStaging') }}
     </MenuItem>
@@ -27,19 +29,19 @@
     <!-- 取消今日排期（只在日期视图显示） -->
     <MenuItem
       v-if="showCancelSchedule"
-      divider
       icon="CalendarX"
       @click="handleAction('cancel-today-schedule')"
     >
       {{ $t('task.action.cancelTodaySchedule') }}
     </MenuItem>
 
-    <MenuItem v-if="!task.is_archived" divider @click="handleAction('archive')">
+    <!-- 危险操作 -->
+    <MenuItem v-if="!task.is_archived" divider icon="Archive" @click="handleAction('archive')">
       {{ $t('task.action.archive') }}
     </MenuItem>
-    <MenuItem v-else divider @click="handleAction('unarchive')">{{ $t('task.action.unarchive') }}</MenuItem>
+    <MenuItem v-else divider icon="ArchiveRestore" @click="handleAction('unarchive')">{{ $t('task.action.unarchive') }}</MenuItem>
 
-    <MenuItem divider variant="danger" @click="handleAction('delete')">{{ $t('task.action.delete') }}</MenuItem>
+    <MenuItem icon="Trash2" variant="danger" @click="handleAction('delete')">{{ $t('task.action.delete') }}</MenuItem>
   </ContextMenu>
 </template>
 

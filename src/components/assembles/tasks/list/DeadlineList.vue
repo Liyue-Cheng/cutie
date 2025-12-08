@@ -263,7 +263,7 @@ const groupedTasks = computed(() => {
 
 .deadline-title {
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -276,7 +276,7 @@ const groupedTasks = computed(() => {
   height: 2.4rem;
   padding: 0 0.6rem;
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--color-text-secondary);
   background-color: var(--color-background-secondary, #f0f0f0);
   border-radius: 1.2rem;
@@ -301,7 +301,7 @@ const groupedTasks = computed(() => {
   justify-content: space-between;
   padding: 1.2rem 1.6rem 0.8rem;
   font-size: 1.3rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;

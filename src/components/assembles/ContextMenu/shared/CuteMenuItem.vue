@@ -103,7 +103,7 @@ function handleClick(event: MouseEvent) {
 .cute-menu-item.has-divider {
   margin-top: 0.4rem;
   padding-top: calc(0.8rem + 0.4rem); /* 原 padding + 分隔线间距 */
-  border-top: 2px solid var(--color-border-light, #f0f);
+  border-top: 1px solid var(--color-border-default, #f0f);
 }
 
 .menu-item-text {

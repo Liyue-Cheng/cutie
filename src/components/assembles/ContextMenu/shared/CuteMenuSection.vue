@@ -33,7 +33,7 @@ withDefaults(
 .cute-menu-section.has-divider {
   margin-top: 0.4rem;
   padding-top: 0.4rem;
-  border-top: 2px solid var(--color-border-light, #f0f);
+  border-top: 1px solid var(--color-border-default, #f0f);
 }
 
 .menu-section-title {
