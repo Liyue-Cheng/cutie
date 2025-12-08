@@ -8,25 +8,14 @@
 export type ValueType = 'string' | 'number' | 'boolean' | 'object' | 'array'
 
 /**
- * 设置分类
- */
-export type SettingCategory =
-  | 'appearance'
-  | 'behavior'
-  | 'data'
-  | 'account'
-  | 'debug'
-  | 'system'
-  | 'ai'
-
-/**
  * 用户设置 DTO
+ * Key 格式: {category}.{group?}.{name}
+ * 示例: appearance.theme, ai.conversation.api_key, debug.test_string
  */
 export interface UserSettingDto {
   setting_key: string
   setting_value: string // JSON 字符串
   value_type: ValueType
-  category: SettingCategory
   updated_at: string // ISO 8601 UTC
   created_at: string // ISO 8601 UTC
 }

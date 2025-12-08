@@ -5,6 +5,9 @@
  * - core.ts: 寄存器 + 导线 + 多路复用器
  * - event-handlers.ts: 中断处理器
  * - index.ts: 对外暴露接口
+ *
+ * Key 格式: {category}.{group?}.{name}
+ * 示例: appearance.theme, ai.conversation.api_key, debug.test_string
  */
 
 import { defineStore } from 'pinia'
@@ -26,17 +29,11 @@ export const useUserSettingsStore = defineStore('user-settings', () => {
 
     // Getters
     allSettings: core.allSettings,
-    settingsByCategory: core.settingsByCategory,
-    appearanceSettings: core.appearanceSettings,
-    behaviorSettings: core.behaviorSettings,
-    dataSettings: core.dataSettings,
-    accountSettings: core.accountSettings,
-    debugSettings: core.debugSettings,
-    aiSettings: core.aiSettings,
 
     // Mux
     getSettingValue: core.getSettingValue,
     getSetting_Mux: core.getSetting_Mux,
+    getSettingsByPrefix: core.getSettingsByPrefix,
 
     // 快捷访问器
     language: core.language,
@@ -51,6 +48,17 @@ export const useUserSettingsStore = defineStore('user-settings', () => {
     showLogs: core.showLogs,
     logLevel: core.logLevel,
 
+    // Internal Settings（隐藏设置）
+    internalCalendarDefaultViewType: core.internalCalendarDefaultViewType,
+    internalCalendarDefaultZoom: core.internalCalendarDefaultZoom,
+    internalCalendarMonthFilterRecurring: core.internalCalendarMonthFilterRecurring,
+    internalCalendarMonthFilterScheduled: core.internalCalendarMonthFilterScheduled,
+    internalCalendarMonthFilterDueDates: core.internalCalendarMonthFilterDueDates,
+    internalCalendarMonthFilterAllDay: core.internalCalendarMonthFilterAllDay,
+    internalHomeRecentDefaultDays: core.internalHomeRecentDefaultDays,
+    internalHomeRecentShowCompleted: core.internalHomeRecentShowCompleted,
+    internalHomeRecentShowDailyRecurring: core.internalHomeRecentShowDailyRecurring,
+
     // Mutations
     addOrUpdateSetting_mut: core.addOrUpdateSetting_mut,
     addOrUpdateBatch_mut: core.addOrUpdateBatch_mut,
@@ -61,4 +69,3 @@ export const useUserSettingsStore = defineStore('user-settings', () => {
     initEventSubscriptions: eventHandlers.initEventSubscriptions,
   }
 })
-

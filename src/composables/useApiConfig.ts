@@ -1,3 +1,14 @@
+/**
+ * API 配置模块
+ *
+ * 职责：
+ * 1. 发现后端 sidecar 端口
+ * 2. 初始化 SSE 事件订阅器
+ * 3. 提供 API 基础 URL
+ *
+ * 注意：Store 的事件订阅初始化已移至 bootstrap/initStores.ts
+ */
+
 import { ref, computed } from 'vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { invoke } from '@tauri-apps/api/core'
@@ -16,18 +27,21 @@ export const apiBaseUrl = computed(() => {
   return `http://127.0.0.1:${port}/api`
 })
 
-// 初始化端口发现
-export async function initializeApiConfig() {
+/**
+ * 初始化 API 配置
+ *
+ * 1. 发现后端端口
+ * 2. 初始化 SSE 事件订阅器
+ */
+export async function initializeApiConfig(): Promise<void> {
   try {
-    // 首先尝试从Tauri获取已发现的端口
+    // 首先尝试从 Tauri 获取已发现的端口
     const discoveredPort = await invoke<number | null>('get_sidecar_port')
     if (discoveredPort) {
       sidecarPort.value = discoveredPort
       isPortDiscovered.value = true
       logger.info(LogTags.SYSTEM_API, 'Using discovered port', { port: discoveredPort })
-
-      // ✅ 初始化事件订阅
-      await initializeEventSubscriptions(discoveredPort)
+      await initEventSubscriber(discoveredPort)
       return
     }
 
@@ -38,11 +52,10 @@ export async function initializeApiConfig() {
       isPortDiscovered.value = true
       logger.info(LogTags.SYSTEM_API, 'Port discovered via event', { port })
 
-      // ✅ 初始化事件订阅
-      initializeEventSubscriptions(port).catch((error) => {
+      initEventSubscriber(port).catch((error) => {
         logger.error(
           LogTags.SYSTEM_API,
-          'Failed to initialize event subscriptions',
+          'Failed to initialize event subscriber',
           error instanceof Error ? error : new Error(String(error))
         )
       })
@@ -61,9 +74,7 @@ export async function initializeApiConfig() {
         sidecarPort.value = currentPort
         isPortDiscovered.value = true
         logger.info(LogTags.SYSTEM_API, 'Port discovered via polling', { port: currentPort })
-
-        // ✅ 初始化事件订阅
-        await initializeEventSubscriptions(currentPort)
+        await initEventSubscriber(currentPort)
         break
       }
 
@@ -75,9 +86,7 @@ export async function initializeApiConfig() {
         port: DEFAULT_PORT,
       })
       sidecarPort.value = DEFAULT_PORT
-
-      // ✅ 初始化事件订阅（使用默认端口）
-      await initializeEventSubscriptions(DEFAULT_PORT)
+      await initEventSubscriber(DEFAULT_PORT)
     }
   } catch (error) {
     logger.error(
@@ -89,42 +98,21 @@ export async function initializeApiConfig() {
   }
 }
 
-// ✅ 初始化事件订阅系统
-async function initializeEventSubscriptions(port: number) {
-  try {
-    const apiUrl = `http://127.0.0.1:${port}/api`
+/**
+ * 初始化 SSE 事件订阅器
+ */
+async function initEventSubscriber(port: number): Promise<void> {
+  const apiUrl = `http://127.0.0.1:${port}/api`
 
-    // 动态导入事件服务
-    const { initEventSubscriber } = await import('@/infra/events/events')
-    initEventSubscriber(apiUrl)
-    logger.info(LogTags.SYSTEM_API, 'Event subscriber initialized')
+  const { initEventSubscriber: init } = await import('@/infra/events/events')
+  init(apiUrl)
 
-    // 初始化各个 Store 的事件订阅
-    const { useTaskStore } = await import('@/stores/task')
-    const { useTimeBlockStore } = await import('@/stores/timeblock')
-    const { useTrashStore } = await import('@/stores/trash')
-    const { useTemplateStore } = await import('@/stores/template')
-
-    const taskStore = useTaskStore()
-    const timeBlockStore = useTimeBlockStore()
-    const trashStore = useTrashStore()
-    const templateStore = useTemplateStore()
-
-    taskStore.initEventSubscriptions()
-    timeBlockStore.initEventSubscriptions()
-    trashStore.initEventSubscriptions()
-    templateStore.initEventSubscriptions()
-    logger.info(LogTags.SYSTEM_API, 'Store event subscriptions initialized')
-  } catch (error) {
-    logger.error(
-      LogTags.SYSTEM_API,
-      'Failed to initialize event subscriptions',
-      error instanceof Error ? error : new Error(String(error))
-    )
-  }
+  logger.info(LogTags.SYSTEM_API, 'Event subscriber initialized', { apiUrl })
 }
 
-// 等待API准备就绪
+/**
+ * 等待 API 准备就绪
+ */
 export async function waitForApiReady(): Promise<string> {
   if (!isPortDiscovered.value) {
     await initializeApiConfig()
@@ -132,7 +120,9 @@ export async function waitForApiReady(): Promise<string> {
   return apiBaseUrl.value
 }
 
-// 导出状态供其他组件使用
+/**
+ * API 配置 composable
+ */
 export function useApiConfig() {
   return {
     apiBaseUrl,

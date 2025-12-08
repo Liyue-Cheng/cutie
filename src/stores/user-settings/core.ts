@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import type { UserSettingDto, SettingCategory } from '@/types/user-settings'
+import type { UserSettingDto } from '@/types/user-settings'
 import { createLoadingState } from '@/stores/shared'
 import { logger, LogTags } from '@/infra/logging/logger'
 
@@ -10,6 +10,9 @@ import { logger, LogTags } from '@/infra/logging/logger'
  * - 管理用户设置数据的单一数据源
  * - 提供基础的状态操作方法（寄存器写端口）
  * - 提供计算属性和过滤器（多路复用器和导线）
+ *
+ * Key 格式: {category}.{group?}.{name}
+ * 示例: appearance.theme, ai.conversation.api_key, debug.test_string
  */
 
 /**
@@ -52,65 +55,6 @@ export function createUserSettingsCore() {
   })
 
   /**
-   * 根据 category 分组的设置
-   */
-  const settingsByCategory = computed(() => {
-    const grouped = new Map<SettingCategory, UserSettingDto[]>()
-
-    for (const setting of allSettingsArray.value) {
-      const category = setting.category
-      if (!grouped.has(category)) {
-        grouped.set(category, [])
-      }
-      grouped.get(category)!.push(setting)
-    }
-
-    return grouped
-  })
-
-  /**
-   * 获取 appearance 设置
-   */
-  const appearanceSettings = computed(() => {
-    return settingsByCategory.value.get('appearance') || []
-  })
-
-  /**
-   * 获取 behavior 设置
-   */
-  const behaviorSettings = computed(() => {
-    return settingsByCategory.value.get('behavior') || []
-  })
-
-  /**
-   * 获取 data 设置
-   */
-  const dataSettings = computed(() => {
-    return settingsByCategory.value.get('data') || []
-  })
-
-  /**
-   * 获取 account 设置
-   */
-  const accountSettings = computed(() => {
-    return settingsByCategory.value.get('account') || []
-  })
-
-  /**
-   * 获取 debug 设置
-   */
-  const debugSettings = computed(() => {
-    return settingsByCategory.value.get('debug') || []
-  })
-
-  /**
-   * 获取 AI 设置
-   */
-  const aiSettings = computed(() => {
-    return settingsByCategory.value.get('ai') || []
-  })
-
-  /**
    * Mux: 根据 key 获取设置值（多路复用器）
    * 自动解析 JSON 并返回实际值
    */
@@ -137,6 +81,14 @@ export function createUserSettingsCore() {
    */
   function getSetting_Mux(key: string): UserSettingDto | undefined {
     return settings.value.get(key)
+  }
+
+  /**
+   * 根据 key 前缀获取设置（按分类筛选）
+   * @param prefix key 前缀，如 'appearance', 'ai', 'debug'
+   */
+  function getSettingsByPrefix(prefix: string): UserSettingDto[] {
+    return allSettingsArray.value.filter((s) => s.setting_key.startsWith(prefix + '.'))
   }
 
   // ============================================================
@@ -199,6 +151,41 @@ export function createUserSettingsCore() {
   const logLevel = computed(() => getSettingValue('debug.log_level', 'info'))
 
   // ============================================================
+  // Internal Settings - 隐藏设置（不在设置面板显示）
+  // ============================================================
+
+  // CalendarPanel 设置 - 被 HomeView 和 CalendarView 共享
+  const internalCalendarDefaultViewType = computed(() =>
+    getSettingValue<'week' | 'month'>('internal.calendar.default_view_type', 'month')
+  )
+  const internalCalendarDefaultZoom = computed(() =>
+    getSettingValue<1 | 2 | 3>('internal.calendar.default_zoom', 1)
+  )
+  const internalCalendarMonthFilterRecurring = computed(() =>
+    getSettingValue('internal.calendar.month_filter.recurring', true)
+  )
+  const internalCalendarMonthFilterScheduled = computed(() =>
+    getSettingValue('internal.calendar.month_filter.scheduled', true)
+  )
+  const internalCalendarMonthFilterDueDates = computed(() =>
+    getSettingValue('internal.calendar.month_filter.due_dates', true)
+  )
+  const internalCalendarMonthFilterAllDay = computed(() =>
+    getSettingValue('internal.calendar.month_filter.all_day', true)
+  )
+
+  // Home - RecentTaskPanel 设置
+  const internalHomeRecentDefaultDays = computed(() =>
+    getSettingValue<1 | 3 | 5>('internal.home.recent.default_days', 3)
+  )
+  const internalHomeRecentShowCompleted = computed(() =>
+    getSettingValue('internal.home.recent.show_completed', true)
+  )
+  const internalHomeRecentShowDailyRecurring = computed(() =>
+    getSettingValue('internal.home.recent.show_daily_recurring', true)
+  )
+
+  // ============================================================
   // MUTATIONS - 写端口（Write Ports）
   // ============================================================
 
@@ -254,17 +241,11 @@ export function createUserSettingsCore() {
     // Getters (wires + mux)
     allSettings,
     allSettingsArray,
-    settingsByCategory,
-    appearanceSettings,
-    behaviorSettings,
-    dataSettings,
-    accountSettings,
-    debugSettings,
-    aiSettings,
 
     // Mux
     getSettingValue,
     getSetting_Mux,
+    getSettingsByPrefix,
 
     // 快捷访问器
     language,
@@ -278,6 +259,17 @@ export function createUserSettingsCore() {
     userEmail,
     showLogs,
     logLevel,
+
+    // Internal Settings（隐藏设置）
+    internalCalendarDefaultViewType,
+    internalCalendarDefaultZoom,
+    internalCalendarMonthFilterRecurring,
+    internalCalendarMonthFilterScheduled,
+    internalCalendarMonthFilterDueDates,
+    internalCalendarMonthFilterAllDay,
+    internalHomeRecentDefaultDays,
+    internalHomeRecentShowCompleted,
+    internalHomeRecentShowDailyRecurring,
 
     // Mutations (write ports)
     addOrUpdateSetting_mut,
