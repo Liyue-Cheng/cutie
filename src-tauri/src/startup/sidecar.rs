@@ -1,16 +1,37 @@
 /// Sidecar服务器模块 - 基于新架构重写
-use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
+use axum::{extract::State, http::StatusCode, response::Json, routing::get, routing::post, Router};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 
 use crate::config::AppConfig;
 use crate::infra::core::{build_info, AppError};
 use crate::startup::{AppState, HealthStatus};
 
+/// 全局 shutdown 信号发送器
+static SHUTDOWN_TX: std::sync::OnceLock<broadcast::Sender<()>> = std::sync::OnceLock::new();
+
+/// 初始化 shutdown channel
+fn init_shutdown_channel() -> broadcast::Receiver<()> {
+    let (tx, rx) = broadcast::channel(1);
+    let _ = SHUTDOWN_TX.set(tx);
+    rx
+}
+
+/// 触发 shutdown 信号
+pub fn trigger_shutdown() {
+    if let Some(tx) = SHUTDOWN_TX.get() {
+        let _ = tx.send(());
+    }
+}
+
 /// 启动Sidecar服务器（带优雅关闭）
 pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
     tracing::info!("Starting Cutie Sidecar Server with new feature-sliced architecture...");
+
+    // 初始化 shutdown channel
+    let shutdown_rx = init_shutdown_channel();
 
     let config = app_state.config();
 
@@ -32,8 +53,8 @@ pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
 
     tracing::info!("Sidecar server listening on {}", actual_addr);
 
-    // 设置优雅关闭信号
-    let shutdown_signal = setup_shutdown_signal();
+    // 设置优雅关闭信号（同时监听系统信号和 HTTP shutdown 请求）
+    let shutdown_signal = setup_shutdown_signal(shutdown_rx);
 
     // 启动服务器（带优雅关闭）
     axum::serve(listener, app)
@@ -47,8 +68,8 @@ pub async fn start_sidecar_server(app_state: AppState) -> Result<(), AppError> {
 
 /// 设置关闭信号监听
 ///
-/// 监听 SIGTERM、SIGINT 信号
-async fn setup_shutdown_signal() {
+/// 监听 SIGTERM、SIGINT 信号以及 HTTP shutdown 请求
+async fn setup_shutdown_signal(mut shutdown_rx: broadcast::Receiver<()>) {
     use tokio::signal;
 
     let ctrl_c = async {
@@ -68,12 +89,19 @@ async fn setup_shutdown_signal() {
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
+    let http_shutdown = async move {
+        let _ = shutdown_rx.recv().await;
+    };
+
     tokio::select! {
         _ = ctrl_c => {
             tracing::info!("Received Ctrl+C signal, shutting down...");
         }
         _ = terminate => {
             tracing::info!("Received SIGTERM signal, shutting down...");
+        }
+        _ = http_shutdown => {
+            tracing::info!("Received HTTP shutdown request, shutting down...");
         }
     }
 }
@@ -101,6 +129,7 @@ async fn create_router(app_state: AppState) -> Result<Router, AppError> {
     let app = Router::new()
         .route(&config.server.health_check_path, get(health_check_handler))
         .route("/info", get(server_info_handler))
+        .route("/admin/shutdown", post(shutdown_handler))
         .nest(&config.server.api_prefix, api_routes)
         .with_state(app_state);
 
@@ -180,6 +209,16 @@ async fn server_info_handler() -> Json<ServerInfoResponse> {
             "template_system".to_string(),
             "area_hierarchy".to_string(),
         ],
+    })
+}
+
+/// Shutdown 处理器 - 触发优雅关闭
+async fn shutdown_handler() -> Json<ShutdownResponse> {
+    tracing::info!("Shutdown endpoint called, initiating graceful shutdown...");
+    trigger_shutdown();
+    Json(ShutdownResponse {
+        message: "Shutdown initiated".to_string(),
+        timestamp: chrono::Utc::now(),
     })
 }
 
@@ -283,4 +322,10 @@ pub struct ServerInfoResponse {
     pub build_time: String,
     pub rust_version: String,
     pub features: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShutdownResponse {
+    pub message: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
 }

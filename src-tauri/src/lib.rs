@@ -157,9 +157,8 @@ pub fn run_with_port_discovery_and_cleanup(
             // 全局事件处理器 - 捕获应用退出
             match event {
                 tauri::RunEvent::ExitRequested { .. } => {
-                    tracing::info!("Application exit requested, killing sidecar process...");
-                    cleanup_sidecar_process_by_pid(&pid_for_cleanup);
-                    // 清理完成，允许退出
+                    tracing::info!("Application exit requested, initiating graceful shutdown...");
+                    graceful_shutdown_sidecar(&pid_for_cleanup);
                     tracing::info!("Cleanup completed, allowing exit");
                 }
                 _ => {}
@@ -167,8 +166,124 @@ pub fn run_with_port_discovery_and_cleanup(
         });
 }
 
-/// 通过 PID 清理 sidecar 子进程
-fn cleanup_sidecar_process_by_pid(pid: &Arc<Mutex<Option<u32>>>) {
+/// 优雅关闭 sidecar 进程
+///
+/// 1. 先尝试通过 HTTP shutdown endpoint 请求优雅关闭
+/// 2. 等待最多 3 秒让进程自行退出
+/// 3. 如果超时，强制杀死进程
+fn graceful_shutdown_sidecar(pid: &Arc<Mutex<Option<u32>>>) {
+    // 获取端口号
+    let port = get_sidecar_port();
+
+    if let Some(port) = port {
+        tracing::info!("Sending shutdown request to sidecar on port {}", port);
+
+        // 发送 HTTP shutdown 请求
+        let shutdown_url = format!("http://127.0.0.1:{}/admin/shutdown", port);
+
+        #[cfg(target_os = "windows")]
+        let client_result = {
+            use std::os::windows::process::CommandExt;
+            use std::process::Command;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            // 使用 curl 发送 POST 请求（Windows 10+ 自带 curl）
+            Command::new("curl")
+                .args(&["-X", "POST", "-s", "-o", "NUL", &shutdown_url])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output()
+        };
+
+        #[cfg(not(target_os = "windows"))]
+        let client_result = {
+            use std::process::Command;
+            Command::new("curl")
+                .args(&["-X", "POST", "-s", "-o", "/dev/null", &shutdown_url])
+                .output()
+        };
+
+        match client_result {
+            Ok(output) if output.status.success() => {
+                tracing::info!("Shutdown request sent successfully, waiting for graceful shutdown...");
+
+                // 等待进程退出（最多 3 秒）
+                if wait_for_process_exit(pid, std::time::Duration::from_secs(3)) {
+                    tracing::info!("Sidecar process exited gracefully");
+                    return;
+                }
+
+                tracing::warn!("Graceful shutdown timeout, forcing termination...");
+            }
+            Ok(_) => {
+                tracing::warn!("Shutdown request failed, forcing termination...");
+            }
+            Err(e) => {
+                tracing::warn!("Failed to send shutdown request: {}, forcing termination...", e);
+            }
+        }
+    } else {
+        tracing::warn!("Sidecar port not available, forcing termination...");
+    }
+
+    // 强制杀死进程
+    force_kill_sidecar_process(pid);
+}
+
+/// 等待进程退出
+fn wait_for_process_exit(pid: &Arc<Mutex<Option<u32>>>, timeout: std::time::Duration) -> bool {
+    let start = std::time::Instant::now();
+    let check_interval = std::time::Duration::from_millis(100);
+
+    while start.elapsed() < timeout {
+        if !is_process_running(pid) {
+            return true;
+        }
+        std::thread::sleep(check_interval);
+    }
+
+    false
+}
+
+/// 检查进程是否还在运行
+fn is_process_running(pid: &Arc<Mutex<Option<u32>>>) -> bool {
+    if let Ok(pid_guard) = pid.lock() {
+        if let Some(process_pid) = *pid_guard {
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                use std::process::Command;
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+                // 使用 tasklist 检查进程是否存在
+                if let Ok(output) = Command::new("tasklist")
+                    .args(&["/FI", &format!("PID eq {}", process_pid), "/NH"])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .output()
+                {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    // 如果输出包含 PID，说明进程还在运行
+                    return stdout.contains(&process_pid.to_string());
+                }
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                use std::process::Command;
+                // 使用 kill -0 检查进程是否存在（不发送信号）
+                if let Ok(output) = Command::new("kill")
+                    .args(&["-0", &process_pid.to_string()])
+                    .output()
+                {
+                    return output.status.success();
+                }
+            }
+        }
+    }
+    false
+}
+
+/// 强制杀死 sidecar 进程
+fn force_kill_sidecar_process(pid: &Arc<Mutex<Option<u32>>>) {
     if let Ok(pid_guard) = pid.lock() {
         if let Some(process_pid) = *pid_guard {
             tracing::info!("Attempting to kill sidecar process (PID: {})", process_pid);
