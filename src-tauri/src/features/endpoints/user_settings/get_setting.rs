@@ -53,7 +53,6 @@ GET /api/user-settings/{key}
   "setting_key": "appearance.language",
   "setting_value": "\"en\"",
   "value_type": "string",
-  "category": "appearance",
   "updated_at": "2025-01-11T12:00:00Z",
   "created_at": "2025-01-11T12:00:00Z"
 }

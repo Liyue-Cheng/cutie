@@ -6,6 +6,8 @@ use sqlx::FromRow;
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UserSetting {
     /// 设置项的唯一标识符
+    /// 格式: {category}.{group?}.{name}
+    /// 示例: appearance.theme, ai.conversation.api_key
     pub setting_key: String,
 
     /// 设置值 (JSON 格式)
@@ -13,9 +15,6 @@ pub struct UserSetting {
 
     /// 设置值的数据类型
     pub value_type: ValueType,
-
-    /// 设置项的分类
-    pub category: SettingCategory,
 
     /// 最后更新时间
     pub updated_at: DateTime<Utc>,
@@ -36,34 +35,14 @@ pub enum ValueType {
     Array,
 }
 
-/// 设置项的分类
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
-pub enum SettingCategory {
-    Appearance,
-    Behavior,
-    Data,
-    Account,
-    Debug,
-    System,
-    Ai,
-}
-
 impl UserSetting {
     /// 创建新的设置项
-    pub fn new(
-        setting_key: String,
-        setting_value: String,
-        value_type: ValueType,
-        category: SettingCategory,
-    ) -> Self {
+    pub fn new(setting_key: String, setting_value: String, value_type: ValueType) -> Self {
         let now = Utc::now();
         Self {
             setting_key,
             setting_value,
             value_type,
-            category,
             updated_at: now,
             created_at: now,
         }

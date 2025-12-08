@@ -112,6 +112,6 @@ pub use transaction_result::{
 
 // UserSetting 相关类型
 pub use user_setting::{
-    BatchUpdateResponse, ResetResponse, SettingCategory, SettingUpdate, UpdateBatchSettingsRequest,
+    BatchUpdateResponse, ResetResponse, SettingUpdate, UpdateBatchSettingsRequest,
     UpdateSettingRequest, UserSetting, UserSettingDto, ValueType,
 };

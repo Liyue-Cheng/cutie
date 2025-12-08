@@ -77,7 +77,6 @@ PUT /api/user-settings
       "setting_key": "appearance.language",
       "setting_value": "\"zh-CN\"",
       "value_type": "string",
-      "category": "appearance",
       "updated_at": "2025-01-11T12:30:00Z",
       "created_at": "2025-01-11T12:00:00Z"
     },
@@ -85,7 +84,6 @@ PUT /api/user-settings
       "setting_key": "appearance.display_scale",
       "setting_value": "110",
       "value_type": "number",
-      "category": "appearance",
       "updated_at": "2025-01-11T12:30:00Z",
       "created_at": "2025-01-11T12:00:00Z"
     }
@@ -120,7 +118,7 @@ PUT /api/user-settings
 
 1.  验证 `settings` 列表非空。
 2.  对每个设置项：
-    - 查询数据库获取 category，如果不存在则从默认设置列表获取。
+    - 验证 key 是否在数据库或默认设置列表中。
     - 如果 key 无效，返回 `422` 错误并终止。
     - 序列化 `value` 为 JSON 字符串。
 3.  获取写入许可（`acquire_write_permit`），确保写操作串行执行。
@@ -186,22 +184,15 @@ mod logic {
         // 2. 准备所有设置实体
         let mut settings = Vec::new();
         for update in &request.settings {
-            // 获取 category
-            let category = if let Some(existing) =
-                UserSettingRepository::find_by_key(pool, &update.key).await?
-            {
-                existing.category
-            } else {
-                get_default_value(&update.key)
-                    .map(|d| d.category)
-                    .ok_or_else(|| {
-                        AppError::validation_error(
-                            "key",
-                            format!("Unknown setting key '{}' and no default found", update.key),
-                            "UNKNOWN_KEY",
-                        )
-                    })?
-            };
+            // 验证 key 是否存在于数据库或默认列表中
+            let existing = UserSettingRepository::find_by_key(pool, &update.key).await?;
+            if existing.is_none() && get_default_value(&update.key).is_none() {
+                return Err(AppError::validation_error(
+                    "key",
+                    format!("Unknown setting key '{}' and no default found", update.key),
+                    "UNKNOWN_KEY",
+                ));
+            }
 
             // 序列化值
             let setting_value = serde_json::to_string(&update.value).map_err(|e| {
@@ -216,7 +207,6 @@ mod logic {
                 update.key.clone(),
                 setting_value,
                 update.value_type.clone(),
-                category,
             );
             settings.push(setting);
         }

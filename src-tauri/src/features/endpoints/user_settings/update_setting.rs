@@ -4,7 +4,6 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use sqlx::{Sqlite, Transaction};
 
 use crate::{
     entities::user_setting::{UpdateSettingRequest, UserSetting, UserSettingDto},
@@ -68,7 +67,6 @@ PUT /api/user-settings/{key}
   "setting_key": "appearance.language",
   "setting_value": "\"zh-CN\"",
   "value_type": "string",
-  "category": "appearance",
   "updated_at": "2025-01-11T12:30:00Z",
   "created_at": "2025-01-11T12:00:00Z"
 }
@@ -100,7 +98,7 @@ PUT /api/user-settings/{key}
 ## 5. 业务逻辑详解 (Business Logic Walkthrough)
 
 1.  从路径参数提取 `key`，从请求体提取 `value` 和 `value_type`。
-2.  查询数据库获取该设置的 category，如果不存在则从默认设置列表获取。
+2.  验证 key 是否在数据库或默认设置列表中。
 3.  如果 key 既不在数据库中也不在默认列表中，返回 `422` 错误。
 4.  将 `value` 序列化为 JSON 字符串。
 5.  获取写入许可（`acquire_write_permit`），确保写操作串行执行。
@@ -156,19 +154,15 @@ mod logic {
     ) -> AppResult<UserSettingDto> {
         let pool = app_state.db_pool();
 
-        // 1. 获取 category（从默认值或现有记录）
-        let category =
-            if let Some(existing) = UserSettingRepository::find_by_key(pool, &key).await? {
-                existing.category
-            } else {
-                get_default_value(&key).map(|d| d.category).ok_or_else(|| {
-                    AppError::validation_error(
-                        "key",
-                        format!("Unknown setting key '{}' and no default found", key),
-                        "UNKNOWN_KEY",
-                    )
-                })?
-            };
+        // 1. 验证 key 是否存在于数据库或默认列表中
+        let existing = UserSettingRepository::find_by_key(pool, &key).await?;
+        if existing.is_none() && get_default_value(&key).is_none() {
+            return Err(AppError::validation_error(
+                "key",
+                format!("Unknown setting key '{}' and no default found", key),
+                "UNKNOWN_KEY",
+            ));
+        }
 
         // 2. 序列化值为 JSON 字符串
         let setting_value = serde_json::to_string(&request.value).map_err(|e| {
@@ -180,7 +174,7 @@ mod logic {
         })?;
 
         // 3. 创建设置实体
-        let setting = UserSetting::new(key.clone(), setting_value, request.value_type, category);
+        let setting = UserSetting::new(key.clone(), setting_value, request.value_type);
 
         // ✅ 获取写入许可，确保写操作串行执行
         let _permit = app_state.acquire_write_permit().await;

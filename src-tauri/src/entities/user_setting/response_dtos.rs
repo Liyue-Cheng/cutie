@@ -1,12 +1,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::model::{SettingCategory, UserSetting, ValueType};
+use super::model::{UserSetting, ValueType};
 
 /// 用户设置响应DTO
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSettingDto {
     /// 设置键
+    /// 格式: {category}.{group?}.{name}
     pub setting_key: String,
 
     /// 设置值 (JSON)
@@ -14,9 +15,6 @@ pub struct UserSettingDto {
 
     /// 值的类型
     pub value_type: ValueType,
-
-    /// 设置分类
-    pub category: SettingCategory,
 
     /// 最后更新时间
     pub updated_at: DateTime<Utc>,
@@ -31,7 +29,6 @@ impl From<UserSetting> for UserSettingDto {
             setting_key: setting.setting_key,
             setting_value: setting.setting_value,
             value_type: setting.value_type,
-            category: setting.category,
             updated_at: setting.updated_at,
             created_at: setting.created_at,
         }
