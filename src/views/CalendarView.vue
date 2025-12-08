@@ -2,7 +2,7 @@
   <div class="calendar-view">
     <!-- 左栏：日历 -->
     <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-      <HomeCalendarPanel
+      <CalendarPanel
         ref="calendarPanelRef"
         :current-calendar-date="currentCalendarDate"
         :calendar-days="5"
@@ -67,7 +67,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
+import CalendarPanel from '@/components/organisms/CalendarPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
@@ -109,7 +109,7 @@ function onCalendarDateClick(date: string) {
 }
 
 // ==================== 日历状态 ====================
-const calendarPanelRef = ref<InstanceType<typeof HomeCalendarPanel> | null>(null)
+const calendarPanelRef = ref<InstanceType<typeof CalendarPanel> | null>(null)
 
 const currentCalendarDate = computed(() => {
   return (

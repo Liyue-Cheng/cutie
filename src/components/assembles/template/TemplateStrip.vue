@@ -183,7 +183,7 @@ function showContextMenu(event: MouseEvent) {
 .template-strip:hover {
   background-color: var(--color-background-hover);
   border-color: var(--color-border-hover);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  box-shadow: var(--shadow-sm, #f0f);
 }
 
 /* 顶部：标题 + 预期时间 */

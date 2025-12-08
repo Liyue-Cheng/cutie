@@ -93,7 +93,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background-color: transparent;
-  border-left: 1px solid var(--color-border-light, #f0f);
+  border-left: 1px solid var(--color-border-adaptive-light-subtle-dark-none, #f0f);
 }
 
 .toolbar-content {
@@ -135,10 +135,23 @@ onMounted(() => {
   color: var(--color-text-secondary, #f0f);
 }
 
-/* 激活状态 */
+/* 激活状态 - 左侧条带指示器 */
 .toolbar-button.active {
-  background-color: var(--color-button-primary-bg, #f0f);
-  color: var(--color-button-primary-text, #f0f);
+  background-color: transparent;
+  color: var(--color-text-accent, #f0f);
+  overflow: visible;
+}
+
+.toolbar-button.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 2.4rem;
+  background-color: var(--color-text-accent, #f0f);
+  border-radius: 0 2px 2px 0;
 }
 
 .toolbar-button:active {

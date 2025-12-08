@@ -200,7 +200,7 @@ function goToToday() {
   flex: 1;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
-  box-shadow: inset -4px 0 12px -2px rgb(0 0 0 / 5%);
+  box-shadow: var(--shadow-inset, #f0f);
   position: relative;
 }
 
@@ -245,9 +245,9 @@ function goToToday() {
   padding: 0.6rem 1.4rem;
   font-size: 1.4rem;
   font-weight: 600;
-  color: var(--color-primary, #4a90e2);
-  background-color: var(--color-primary-bg, #e3f2fd);
-  border: 1px solid var(--color-primary-border, #90caf9);
+  color: var(--color-text-accent, #f0f);
+  background-color: var(--color-background-accent-light, #f0f);
+  border: 1px solid var(--color-border-hover, #f0f);
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -257,7 +257,7 @@ function goToToday() {
 }
 
 .nav-today:hover {
-  background-color: var(--color-primary-hover, #bbdefb);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 /* 占位元素 */
@@ -275,7 +275,7 @@ function goToToday() {
 .view-type-controls {
   display: flex;
   gap: 0.4rem;
-  background-color: var(--color-background-secondary, #f5f5f5);
+  background-color: var(--color-background-secondary, #f0f);
   padding: 0.3rem;
   border-radius: 0.6rem;
 }
@@ -298,10 +298,10 @@ function goToToday() {
 }
 
 .view-type-btn.active {
-  color: var(--color-primary);
-  background-color: white;
+  color: var(--color-text-accent, #f0f);
+  background-color: var(--color-background-elevated, #f0f);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  box-shadow: var(--shadow-sm, #f0f);
 }
 
 .calendar-zoom-controls {
@@ -389,13 +389,13 @@ function goToToday() {
 }
 
 .toolbar-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover, #f0f);
   color: var(--color-text-secondary);
 }
 
 .toolbar-button.active {
-  background-color: var(--color-button-primary, #4a90e2);
-  color: white;
+  background-color: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .toolbar-button.active::before {
@@ -406,7 +406,7 @@ function goToToday() {
   transform: translateY(-50%);
   width: 0.3rem;
   height: 2.4rem;
-  background-color: var(--color-button-primary, #4a90e2);
+  background-color: var(--color-button-primary-bg, #f0f);
   border-radius: 0 0.2rem 0.2rem 0;
 }
 

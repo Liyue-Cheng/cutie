@@ -233,7 +233,7 @@ onUnmounted(() => {
 
 .date-text {
   font-size: 1.8rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
   white-space: nowrap;
@@ -260,7 +260,7 @@ onUnmounted(() => {
 
 .panel-title {
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
 }

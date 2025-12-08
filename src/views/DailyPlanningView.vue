@@ -289,13 +289,13 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
 }
 
 .toolbar-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
+  background-color: var(--color-background-hover, #f0f);
   color: var(--color-text-secondary);
 }
 
 .toolbar-button.active {
-  background-color: var(--color-button-primary, #4a90e2);
-  color: white;
+  background-color: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .toolbar-button.active::before {
@@ -306,7 +306,7 @@ function switchRightView(view: 'tomorrow' | 'upcoming') {
   transform: translateY(-50%);
   width: 0.3rem;
   height: 2.4rem;
-  background-color: var(--color-button-primary, #4a90e2);
+  background-color: var(--color-button-primary-bg, #f0f);
   border-radius: 0 0.2rem 0.2rem 0;
 }
 

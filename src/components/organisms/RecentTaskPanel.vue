@@ -142,6 +142,8 @@ import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteDropdown from '@/components/parts/CuteDropdown.vue'
 import CuteDropdownItem from '@/components/parts/CuteDropdownItem.vue'
 import { useTaskStore } from '@/stores/task'
+import { useUserSettingsStore } from '@/stores/user-settings'
+import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString, parseDateString, toDateString } from '@/infra/utils/dateUtils'
 
@@ -161,6 +163,7 @@ const emit = defineEmits<{
 }>()
 
 const taskStore = useTaskStore()
+const userSettingsStore = useUserSettingsStore()
 
 // ==================== "最近"视图状态 ====================
 // 确保 selectedDate 始终是有效的日期字符串
@@ -172,13 +175,40 @@ const getValidDateString = (): string => {
 }
 
 const selectedDate = ref<string>(getValidDateString()) // 选择的起始日期
-const dayCount = ref(props.modelValue) // 显示的天数
+// 从用户设置中读取默认值
+const dayCount = ref(userSettingsStore.internalHomeRecentDefaultDays)
 const showDatePanel = ref(false) // 日期导航面板显示状态
 const datePanelRef = ref<HTMLElement | null>(null) // 日期面板引用
 
-// 筛选菜单状态
-const showCompletedTasks = ref(true) // 默认显示已完成任务
-const showDailyRecurringTasks = ref(true) // 默认显示每日循环任务
+// 筛选菜单状态 - 从用户设置中读取默认值
+const showCompletedTasks = ref(userSettingsStore.internalHomeRecentShowCompleted)
+const showDailyRecurringTasks = ref(userSettingsStore.internalHomeRecentShowDailyRecurring)
+
+// 监听天数变化，自动保存到设置
+watch(dayCount, (newValue) => {
+  pipeline.dispatch('user_settings.update', {
+    key: 'internal.home.recent.default_days',
+    value: newValue,
+    value_type: 'number',
+  })
+})
+
+// 监听筛选状态变化，自动保存到设置
+watch(showCompletedTasks, (newValue) => {
+  pipeline.dispatch('user_settings.update', {
+    key: 'internal.home.recent.show_completed',
+    value: newValue,
+    value_type: 'boolean',
+  })
+})
+
+watch(showDailyRecurringTasks, (newValue) => {
+  pipeline.dispatch('user_settings.update', {
+    key: 'internal.home.recent.show_daily_recurring',
+    value: newValue,
+    value_type: 'boolean',
+  })
+})
 
 // 天数选项
 const dayCountOptions = [
@@ -196,9 +226,15 @@ const currentDateDisplay = computed(() => {
 // 日期范围显示（用于面板内）
 const dateRangeDisplay = computed(() => {
   const startDate = parseDateString(selectedDate.value)
-  const endDate = parseDateString(shiftDate(selectedDate.value, dayCount.value - 1))
   const startMonth = startDate.getMonth() + 1
   const startDay = startDate.getDate()
+
+  // 只有 1 天时，不显示范围
+  if (dayCount.value === 1) {
+    return `${startMonth}月${startDay}日`
+  }
+
+  const endDate = parseDateString(shiftDate(selectedDate.value, dayCount.value - 1))
   const endMonth = endDate.getMonth() + 1
   const endDay = endDate.getDate()
 
@@ -448,7 +484,7 @@ onUnmounted(() => {
 
 .date-text {
   font-size: 1.8rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
   white-space: nowrap;
@@ -464,7 +500,7 @@ onUnmounted(() => {
   background-color: var(--color-background-primary, #f0f);
   border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-lg, #f0f);
   overflow: hidden;
 }
 
@@ -475,7 +511,7 @@ onUnmounted(() => {
 
 .panel-title {
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
 }

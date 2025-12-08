@@ -1,6 +1,7 @@
 <template>
   <div v-if="shouldRender" class="now-indicator-overlay" :style="{ top: `${lineTop}px` }">
-    <div class="now-indicator-label" :style="labelStyle">{{ currentTimeText }}</div>
+    <!-- 暂时隐藏时间标签 -->
+    <!-- <div class="now-indicator-label" :style="labelStyle">{{ currentTimeText }}</div> -->
 
     <div class="now-indicator-lines">
       <div

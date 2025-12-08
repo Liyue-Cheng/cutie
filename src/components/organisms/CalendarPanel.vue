@@ -1,5 +1,5 @@
 <template>
-  <div class="home-calendar-panel">
+  <div class="calendar-panel">
     <TwoRowLayout>
       <template #top>
         <div class="calendar-controls">
@@ -266,7 +266,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
@@ -277,6 +277,7 @@ import TimeBlockCreateDialog from '@/components/organisms/TimeBlockCreateDialog.
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
 import { useUIStore } from '@/stores/ui'
+import { useUserSettingsStore } from '@/stores/user-settings'
 import { pipeline } from '@/cpu'
 
 // Props
@@ -304,6 +305,7 @@ const emit = defineEmits<{
 
 // ==================== Stores ====================
 const uiStore = useUIStore()
+const userSettingsStore = useUserSettingsStore()
 
 // 创建对话框位置（根据 UI Store 中的锚点信息计算）
 const timeBlockDialogPosition = computed(() => {
@@ -335,7 +337,8 @@ function handleTimeBlockDialogCancel() {
 }
 
 // ==================== 日历模式状态 ====================
-const calendarModeViewType = ref<'week' | 'month'>('month') // 日历模式默认显示月视图
+// 从用户设置中读取默认值
+const calendarModeViewType = ref<'week' | 'month'>(userSettingsStore.internalCalendarDefaultViewType)
 const calendarModeCurrentDate = ref<string>(getTodayDateString()) // 日历模式的当前日期
 const showNavPanel = ref(false) // 导航面板显示状态
 const navPanelRef = ref<HTMLElement | null>(null) // 导航面板引用
@@ -344,6 +347,15 @@ function onCalendarModeViewChange(value: string) {
   calendarModeViewType.value = value as 'week' | 'month'
   logger.debug(LogTags.COMPONENT_CALENDAR, 'Calendar mode view changed', { view: value })
 }
+
+// 监听视图类型变化，自动保存到设置
+watch(calendarModeViewType, (newValue) => {
+  pipeline.dispatch('user_settings.update', {
+    key: 'internal.calendar.default_view_type',
+    value: newValue,
+    value_type: 'string',
+  })
+})
 
 // 切换导航面板
 function toggleNavPanel() {
@@ -404,15 +416,41 @@ function onMonthDateClick(date: string) {
 
 // ==================== 日历状态 ====================
 const calendarRef = ref<InstanceType<typeof CuteCalendar> | null>(null)
-const calendarZoom = ref<1 | 2 | 3>(1)
+// 从用户设置中读取默认值
+const calendarZoom = ref<1 | 2 | 3>(userSettingsStore.internalCalendarDefaultZoom)
 
-// 月视图筛选状态
+// 月视图筛选状态 - 从用户设置中读取默认值
 const monthViewFilters = ref({
-  showRecurringTasks: true,
-  showScheduledTasks: true,
-  showDueDates: true,
-  showAllDayEvents: true,
+  showRecurringTasks: userSettingsStore.internalCalendarMonthFilterRecurring,
+  showScheduledTasks: userSettingsStore.internalCalendarMonthFilterScheduled,
+  showDueDates: userSettingsStore.internalCalendarMonthFilterDueDates,
+  showAllDayEvents: userSettingsStore.internalCalendarMonthFilterAllDay,
 })
+
+// 监听缩放变化，自动保存到设置
+watch(calendarZoom, (newValue) => {
+  pipeline.dispatch('user_settings.update', {
+    key: 'internal.calendar.default_zoom',
+    value: newValue,
+    value_type: 'number',
+  })
+})
+
+// 监听月视图筛选变化，自动保存到设置
+watch(
+  monthViewFilters,
+  (newValue) => {
+    pipeline.dispatch('user_settings.update_batch', {
+      settings: [
+        { key: 'internal.calendar.month_filter.recurring', value: newValue.showRecurringTasks, value_type: 'boolean' },
+        { key: 'internal.calendar.month_filter.scheduled', value: newValue.showScheduledTasks, value_type: 'boolean' },
+        { key: 'internal.calendar.month_filter.due_dates', value: newValue.showDueDates, value_type: 'boolean' },
+        { key: 'internal.calendar.month_filter.all_day', value: newValue.showAllDayEvents, value_type: 'boolean' },
+      ],
+    })
+  },
+  { deep: true }
+)
 
 // 根据天数计算视图类型：总是显示多天视图
 const calendarViewType = computed(() => {
@@ -490,7 +528,7 @@ function cycleZoom() {
 }
 
 // ==================== 时间块创建逻辑 ====================
-async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: string }) {
+async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: string; description?: string }) {
   const context = uiStore.timeBlockCreateContext
   if (!context) {
     logger.error(
@@ -507,6 +545,7 @@ async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: stri
       // 1. 先创建任务（返回 TaskCard）
       const taskCard = await pipeline.dispatch('task.create', {
         title: data.title,
+        glance_note: data.description || null,
         estimated_duration: 60, // 默认 60 分钟
       })
 
@@ -532,6 +571,7 @@ async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: stri
       // 创建事件：使用 time_block.create
       await pipeline.dispatch('time_block.create', {
         title: data.title,
+        description: data.description || null,
         start_time: context.startISO,
         end_time: context.endISO,
         start_time_local: context.startTimeLocal,
@@ -594,7 +634,7 @@ defineExpose({
 </script>
 
 <style scoped>
-.home-calendar-panel {
+.calendar-panel {
   width: 100%;
   height: 100%;
   display: flex;
@@ -657,7 +697,7 @@ defineExpose({
 
 .date-text {
   font-size: 1.8rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
   white-space: nowrap;
@@ -673,7 +713,7 @@ defineExpose({
   background-color: var(--color-background-primary, #f0f);
   border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-lg, #f0f);
   overflow: hidden;
 }
 
@@ -684,7 +724,7 @@ defineExpose({
 
 .panel-title {
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
 }

@@ -65,13 +65,13 @@ const statusInfo = computed(() => {
 }
 
 .tool-card.success {
-  border-color: rgb(76 175 80 / 30%);
-  background: rgb(76 175 80 / 4%);
+  border-color: var(--color-border-success, #f0f);
+  background: var(--color-success-light, #f0f);
 }
 
 .tool-card.error {
-  border-color: rgb(244 67 54 / 30%);
-  background: rgb(244 67 54 / 4%);
+  border-color: var(--color-border-error, #f0f);
+  background: var(--color-danger-light, #f0f);
 }
 
 .tool-card-header {
@@ -87,7 +87,7 @@ const statusInfo = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(255 255 255 / 30%);
+  background: var(--color-overlay-light, #f0f);
 }
 
 .tool-card-title {

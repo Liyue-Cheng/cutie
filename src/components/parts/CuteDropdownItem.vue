@@ -61,11 +61,11 @@ withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  click: []
+  click: [event: MouseEvent]
 }>()
 
-function handleClick() {
-  emit('click')
+function handleClick(event: MouseEvent) {
+  emit('click', event)
 }
 </script>
 

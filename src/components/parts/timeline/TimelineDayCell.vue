@@ -450,7 +450,7 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
 /* ==================== 中栏：虚线分隔 ==================== */
 .cell-divider {
   height: 0;
-  border-bottom: 2px dashed rgb(0 0 0 / 15%);
+  border-bottom: 2px dashed var(--color-border-default, #f0f);
   margin: 0;
 }
 
@@ -570,7 +570,7 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
 
 /* 拖放接收状态 */
 .timeline-day-cell[data-zone-receiving='true'] {
-  background: var(--color-primary-bg, rgb(74 144 226 / 10%));
+  background: var(--color-background-drag-target, #f0f);
 }
 
 .timeline-day-cell[data-zone-receiving='true'] .cell-divider {

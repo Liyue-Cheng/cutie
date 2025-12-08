@@ -4,7 +4,7 @@
     <template v-if="isCalendarMode">
       <!-- 左栏：日历 -->
       <div class="left-column" :style="{ width: leftPaneWidth + '%' }">
-        <HomeCalendarPanel
+        <CalendarPanel
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
           :calendar-days="5"
@@ -78,7 +78,7 @@
       <!-- 中栏（原右栏）-->
       <div class="middle-column">
         <!-- 日历视图 -->
-        <HomeCalendarPanel
+        <CalendarPanel
           v-if="currentRightPaneView === 'calendar'"
           ref="calendarPanelRef"
           :current-calendar-date="currentCalendarDate"
@@ -123,7 +123,7 @@ import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RecentTaskPanel from '@/components/organisms/RecentTaskPanel.vue'
 import StagingTaskPanel from '@/components/organisms/StagingTaskPanel.vue'
-import HomeCalendarPanel from '@/components/organisms/HomeCalendarPanel.vue'
+import CalendarPanel from '@/components/organisms/CalendarPanel.vue'
 import HomeTimelinePanel from '@/components/organisms/HomeTimelinePanel.vue'
 import HomeStagingPanel from '@/components/organisms/HomeStagingPanel.vue'
 import HomeUpcomingPanel from '@/components/organisms/HomeUpcomingPanel.vue'
@@ -135,6 +135,7 @@ import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
 import DailyTaskPanel from '@/components/organisms/DailyTaskPanel.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
+import { useUserSettingsStore } from '@/stores/user-settings'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
@@ -143,6 +144,7 @@ const route = useRoute()
 const router = useRouter()
 const registerStore = useRegisterStore()
 const uiStore = useUIStore()
+const userSettingsStore = useUserSettingsStore()
 
 // ==================== 视图切换状态 ====================
 const currentView = ref<'recent' | 'staging' | 'calendar'>('recent') // 当前左栏视图
@@ -242,8 +244,9 @@ async function exitCalendarMode() {
 }
 
 // ==================== 日历天数联动状态 ====================
-const calendarDays = ref<1 | 3 | 5>(3) // 默认显示3天，由右栏日历控制
-const calendarPanelRef = ref<InstanceType<typeof HomeCalendarPanel> | null>(null)
+// 从用户设置中读取默认天数，和 RecentTaskPanel 联动
+const calendarDays = ref<1 | 3 | 5>(userSettingsStore.internalHomeRecentDefaultDays)
+const calendarPanelRef = ref<InstanceType<typeof CalendarPanel> | null>(null)
 
 // 监听路由变化，切换视图
 watch(
@@ -277,12 +280,6 @@ watch(
           `Auto-switching right pane to default view '${defaultRightView}' for left view '${targetView}' (from route)`
         )
         currentRightPaneView.value = defaultRightView
-      }
-
-      // Recent 视图需要设置日历天数为3天
-      if (targetView === 'recent') {
-        calendarDays.value = 3
-        logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
       }
     }
 
@@ -330,12 +327,6 @@ watch(currentView, async (newView, oldView) => {
         `Auto-switching right pane to default view '${defaultRightView}' for left view '${newView}'`
       )
       currentRightPaneView.value = defaultRightView
-    }
-
-    // Recent 视图需要设置日历天数为3天
-    if (newView === 'recent') {
-      calendarDays.value = 3
-      logger.debug(LogTags.VIEW_HOME, 'Reset calendar days to 3 for Recent view')
     }
   }
 
@@ -701,7 +692,7 @@ onBeforeUnmount(() => {
 .divider {
   width: 1px;
   height: 100%;
-  background-color: var(--color-border-light);
+  background-color: var(--color-border-adaptive-light-subtle-dark-none, #f0f);
   cursor: col-resize;
   flex-shrink: 0;
   transition: background-color 0.2s;
@@ -758,7 +749,7 @@ onBeforeUnmount(() => {
 
 .staging-title {
   font-size: 1.8rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
 }
 </style>

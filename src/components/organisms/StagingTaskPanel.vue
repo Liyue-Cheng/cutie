@@ -72,7 +72,7 @@ onMounted(async () => {
   font-size: 1.4rem;
   font-weight: 500;
   color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
+  background-color: var(--color-background-secondary, #f0f);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
   cursor: pointer;
@@ -80,7 +80,7 @@ onMounted(async () => {
 }
 
 .filter-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
+  background-color: var(--color-background-hover, #f0f);
   border-color: var(--color-border-hover);
 }
 

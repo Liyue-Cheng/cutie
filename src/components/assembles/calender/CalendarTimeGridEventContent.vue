@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { useUserSettingsStore } from '@/stores/user-settings'
 
 type CheckboxState = null | 'completed' | 'present'
 
@@ -20,6 +21,15 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const userSettingsStore = useUserSettingsStore()
+
+// 判断是否为深色主题
+const isDarkTheme = computed(() => {
+  const theme = userSettingsStore.theme
+  // rose-pine 和 rose-pine-moon 是深色主题，rose-pine-dawn 和 able 是浅色主题
+  return theme === 'rose-pine' || theme === 'rose-pine-moon'
+})
+
 // 格式化时间为 "09:30 AM" 格式
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
@@ -34,49 +44,65 @@ function formatTime(isoString: string): string {
   return `${hours}:${paddedMinutes} ${period}`
 }
 
-// 将 Area 颜色调浅作为背景色
-function getLightenedColor(color: string): string {
+// 解析颜色为 RGB 分量
+function parseColorToRGB(color: string): { r: number; g: number; b: number } {
+  let r = 128,
+    g = 128,
+    b = 128
+
   // 如果是 hex 格式
   if (color.startsWith('#')) {
     const hex = color.replace('#', '')
-    const r = parseInt(hex.substring(0, 2), 16)
-    const g = parseInt(hex.substring(2, 4), 16)
-    const b = parseInt(hex.substring(4, 6), 16)
-
-    // 调浅颜色：向白色(255)混合，保持85%的白色
-    const lighten = (value: number) => Math.round(value + (255 - value) * 0.85)
-
-    const lightR = lighten(r)
-    const lightG = lighten(g)
-    const lightB = lighten(b)
-
-    return `rgb(${lightR}, ${lightG}, ${lightB})`
+    r = parseInt(hex.substring(0, 2), 16)
+    g = parseInt(hex.substring(2, 4), 16)
+    b = parseInt(hex.substring(4, 6), 16)
   }
-
   // 如果是 rgb/rgba 格式
-  if (color.startsWith('rgb')) {
+  else if (color.startsWith('rgb')) {
     const match = color.match(/\d+/g)
     if (match && match.length >= 3 && match[0] && match[1] && match[2]) {
-      const r = parseInt(match[0])
-      const g = parseInt(match[1])
-      const b = parseInt(match[2])
-
-      const lighten = (value: number) => Math.round(value + (255 - value) * 0.85)
-
-      const lightR = lighten(r)
-      const lightG = lighten(g)
-      const lightB = lighten(b)
-
-      return `rgb(${lightR}, ${lightG}, ${lightB})`
+      r = parseInt(match[0])
+      g = parseInt(match[1])
+      b = parseInt(match[2])
     }
   }
 
-  // 默认返回浅灰色
-  return '#f5f5f5'
+  return { r, g, b }
+}
+
+// 根据主题生成不透明的背景色
+function getAdaptiveBackgroundColor(color: string, isDark: boolean): string {
+  const { r, g, b } = parseColorToRGB(color)
+
+  if (isDark) {
+    // 深色主题：将颜色与深色背景混合（保留 20% 原色，80% 深色背景）
+    // 深色背景基准色：约 #1f1d2e (Rose Pine) -> rgb(31, 29, 46)
+    const bgR = 31,
+      bgG = 29,
+      bgB = 46
+    const ratio = 0.2 // 原色占比
+
+    const mixR = Math.round(r * ratio + bgR * (1 - ratio))
+    const mixG = Math.round(g * ratio + bgG * (1 - ratio))
+    const mixB = Math.round(b * ratio + bgB * (1 - ratio))
+
+    return `rgb(${mixR}, ${mixG}, ${mixB})`
+  } else {
+    // 浅色主题：将颜色与白色混合（保留 15% 原色，85% 白色）
+    const ratio = 0.15
+
+    const mixR = Math.round(r * ratio + 255 * (1 - ratio))
+    const mixG = Math.round(g * ratio + 255 * (1 - ratio))
+    const mixB = Math.round(b * ratio + 255 * (1 - ratio))
+
+    return `rgb(${mixR}, ${mixG}, ${mixB})`
+  }
 }
 
 const timeRange = `${formatTime(props.startTime)} > ${formatTime(props.endTime)}`
-const backgroundColor = getLightenedColor(props.areaColor)
+
+// 响应式背景色，随主题变化
+const backgroundColor = computed(() => getAdaptiveBackgroundColor(props.areaColor, isDarkTheme.value))
 
 // 计算复选框状态
 const effectiveScheduleDay = computed(() => props.scheduleDay ?? props.startTime.slice(0, 10))

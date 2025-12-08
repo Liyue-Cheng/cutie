@@ -273,8 +273,8 @@ const { t } = useI18n()
 
 .add-task-input:focus {
   outline: none;
-  border-color: var(--color-primary, #4a90e2);
-  box-shadow: 0 0 0 3px rgb(74 144 226 / 10%);
+  border-color: var(--color-border-focus, #f0f);
+  box-shadow: var(--shadow-focus, #f0f);
 }
 
 .add-task-input::placeholder {

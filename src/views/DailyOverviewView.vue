@@ -193,7 +193,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   padding: 0.6rem 0.8rem 0.4rem;
-  border-bottom: 1px solid var(--color-border-soft, rgb(0 0 0 / 6%));
+  border-bottom: 1px solid var(--color-border-soft, #f0f);
 }
 
 .card-title {
@@ -304,6 +304,6 @@ onMounted(async () => {
 
 .calendar-body :deep(.calendar-container) {
   border-radius: 0.6rem;
-  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 6%));
+  border: 1px solid var(--color-border-soft, #f0f);
 }
 </style>

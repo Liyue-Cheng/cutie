@@ -356,7 +356,7 @@ function setWeekdays() {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 50%);
+  background: var(--color-overlay-heavy, #f0f);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -364,14 +364,14 @@ function setWeekdays() {
 }
 
 .dialog-content {
-  background: white;
+  background: var(--color-background-primary, #f0f);
   border-radius: 12px;
   padding: 24px;
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+  box-shadow: var(--shadow-xl, #f0f);
 }
 
 h3 {

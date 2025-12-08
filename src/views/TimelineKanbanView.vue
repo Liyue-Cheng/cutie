@@ -428,7 +428,7 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
   flex: 1;
   min-width: 0;
   border-right: 1px solid var(--color-border-default);
-  box-shadow: inset -4px 0 12px -2px rgb(0 0 0 / 5%);
+  box-shadow: var(--shadow-inset, #f0f);
   position: relative;
 }
 
@@ -486,15 +486,15 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .days-toggle-btn:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+  color: var(--color-text-accent, #f0f);
 }
 
 .days-toggle-btn.active {
-  background-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-base, #faf4ed);
-  border-color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-accent, #f0f);
+  color: var(--color-text-on-accent, #f0f);
+  border-color: var(--color-background-accent, #f0f);
 }
 
 .calendar-nav-buttons {
@@ -518,9 +518,9 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .nav-btn:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+  color: var(--color-text-accent, #f0f);
 }
 
 .calendar-zoom-controls {
@@ -541,9 +541,9 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .zoom-toggle-btn:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+  color: var(--color-text-accent, #f0f);
 }
 
 /* ==================== 看板标题栏 ==================== */
@@ -569,9 +569,9 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .filter-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  border-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+  color: var(--color-text-accent, #f0f);
 }
 
 .date-navigation {
@@ -591,7 +591,7 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .today-group:hover {
-  border-color: var(--rose-pine-foam, #56949f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
 .today-button {
@@ -606,8 +606,8 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .today-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-accent, #f0f);
 }
 
 .expand-button {
@@ -625,13 +625,13 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .expand-button:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 5%));
-  color: var(--rose-pine-foam, #56949f);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-accent, #f0f);
 }
 
 .expand-button.active {
-  background-color: var(--rose-pine-foam, #56949f);
-  color: var(--rose-pine-base, #faf4ed);
+  background-color: var(--color-background-accent, #f0f);
+  color: var(--color-text-on-accent, #f0f);
 }
 
 .date-picker-dropdown {
@@ -642,7 +642,7 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
   border: 1px solid var(--color-border-default);
   border-radius: 0.8rem;
   padding: 1rem;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  box-shadow: var(--shadow-md, #f0f);
   z-index: 100;
 }
 
@@ -658,12 +658,12 @@ function handleCalendarDateVisibilityChange(isVisible: boolean) {
 }
 
 .date-input:hover {
-  border-color: var(--rose-pine-foam, #56949f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
 .date-input:focus {
   outline: none;
-  border-color: var(--rose-pine-foam, #56949f);
-  box-shadow: 0 0 0 3px rgb(86 148 159 / 10%);
+  border-color: var(--color-border-focus, #f0f);
+  box-shadow: var(--shadow-focus, #f0f);
 }
 </style>
