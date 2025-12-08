@@ -400,6 +400,7 @@ export default {
       edit: '编辑',
       delete: '删除',
       add: '添加',
+      create: '创建',
       filter: '筛选',
       enable: '启用',
       disable: '停用',
@@ -604,6 +605,9 @@ export default {
     },
     placeholder: {
       title: '输入标题...',
+      taskTitle: '输入任务标题...',
+      eventTitle: '输入事件标题...',
+      description: '添加备注...',
     },
     button: {
       confirm: '确认',

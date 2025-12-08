@@ -56,7 +56,9 @@
       "WebFetch(domain:stackoverflow.com)",
       "Bash(mkdir:*)",
       "Bash(git reset:*)",
-      "WebFetch(domain:lucide.dev)"
+      "WebFetch(domain:lucide.dev)",
+      "WebFetch(domain:highdream915.medium.com)",
+      "WebFetch(domain:copyprogramming.com)"
     ],
     "deny": [],
     "ask": []

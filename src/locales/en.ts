@@ -399,6 +399,7 @@ export default {
       edit: 'Edit',
       delete: 'Delete',
       add: 'Add',
+      create: 'Create',
       filter: 'Filter',
       enable: 'Enable',
       disable: 'Disable',
@@ -604,6 +605,9 @@ export default {
     },
     placeholder: {
       title: 'Enter title...',
+      taskTitle: 'Enter task title...',
+      eventTitle: 'Enter event title...',
+      description: 'Add notes...',
     },
     button: {
       confirm: 'Confirm',
