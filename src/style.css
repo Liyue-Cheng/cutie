@@ -50,9 +50,14 @@ html {
 
   /* 2.3 边框色系 - 使用 Rose Pine Highlight 系列 */
   --color-border-default: #403d52; /* Highlight Med */
-  --color-border-light: #21202e; /* Highlight Low */
+  --color-border-light: rgba(64, 61, 82, 0.3); /* Highlight Med 半透明 */
   --color-border-strong: #524f67; /* Highlight High */
   --color-border-subtle: rgba(64, 61, 82, 0.3); /* 极淡边框，用于大面积内容区 */
+  /* 自适应边框 - 根据主题调整可见度 */
+  --color-border-adaptive-light-normal-dark-soft: rgba(64, 61, 82, 0.5); /* 亮色正常，暗色稍淡 */
+  --color-border-adaptive-light-normal-dark-faint: rgba(64, 61, 82, 0.2); /* 亮色正常，暗色很淡 */
+  --color-border-adaptive-light-subtle-dark-none: transparent; /* 亮色淡边框，暗色无 */
+  --color-border-adaptive-light-normal-dark-none: transparent; /* 亮色正常，暗色无 */
   --color-border-hover: #9ccfd8;
   --color-border-focus: #9ccfd8;
   --color-border-active: #9ccfd8;
@@ -202,6 +207,11 @@ body.theme-rose-pine-dawn {
   --color-border-light: #ede9e3;
   --color-border-strong: #d0cdd1;
   --color-border-subtle: #ede9e3; /* 浅色主题边框可以更明显 */
+  /* 自适应边框 - 浅色主题下正常显示 */
+  --color-border-adaptive-light-normal-dark-soft: #e0dce0; /* 亮色正常，暗色稍淡 */
+  --color-border-adaptive-light-normal-dark-faint: #e0dce0; /* 亮色正常，暗色很淡 */
+  --color-border-adaptive-light-subtle-dark-none: #ede9e3; /* 亮色淡边框，暗色无 */
+  --color-border-adaptive-light-normal-dark-none: #e0dce0; /* 亮色正常，暗色无 */
   --color-border-hover: #56949f;
   --color-border-focus: #56949f;
   --color-border-active: #56949f;
@@ -348,9 +358,14 @@ body.theme-rose-pine-moon {
 
   /* 4.3 边框色系 - 使用 Rose Pine Moon Highlight 系列 */
   --color-border-default: #44415a; /* Highlight Med */
-  --color-border-light: #2a283e; /* Highlight Low */
+  --color-border-light: rgba(68, 65, 90, 0.3); /* Highlight Med 半透明 */
   --color-border-strong: #56526e; /* Highlight High */
   --color-border-subtle: rgba(68, 65, 90, 0.3); /* 极淡边框，用于大面积内容区 */
+  /* 自适应边框 - 根据主题调整可见度 */
+  --color-border-adaptive-light-normal-dark-soft: rgba(68, 65, 90, 0.5); /* 亮色正常，暗色稍淡 */
+  --color-border-adaptive-light-normal-dark-faint: rgba(68, 65, 90, 0.2); /* 亮色正常，暗色很淡 */
+  --color-border-adaptive-light-subtle-dark-none: transparent; /* 亮色淡边框，暗色无 */
+  --color-border-adaptive-light-normal-dark-none: transparent; /* 亮色正常，暗色无 */
   --color-border-hover: #9ccfd8;
   --color-border-focus: #9ccfd8;
   --color-border-active: #9ccfd8;
@@ -499,6 +514,11 @@ body.theme-cutie {
   --color-border-default: #f5d4e0;
   --color-border-light: #fce4ed;
   --color-border-strong: #e8c4d4;
+  /* 自适应边框 - 浅色主题下正常显示 */
+  --color-border-adaptive-light-normal-dark-soft: #f5d4e0; /* 亮色正常，暗色稍淡 */
+  --color-border-adaptive-light-normal-dark-faint: #f5d4e0; /* 亮色正常，暗色很淡 */
+  --color-border-adaptive-light-subtle-dark-none: #fce4ed; /* 亮色淡边框，暗色无 */
+  --color-border-adaptive-light-normal-dark-none: #f5d4e0; /* 亮色正常，暗色无 */
   --color-border-hover: #ff6b9d;
   --color-border-focus: #ff6b9d;
   --color-border-active: #ff6b9d;
@@ -647,6 +667,11 @@ body.theme-business {
   --color-border-default: #e0e0e0;
   --color-border-light: #eeeeee;
   --color-border-strong: #bdbdbd;
+  /* 自适应边框 - 浅色主题下正常显示 */
+  --color-border-adaptive-light-normal-dark-soft: #e0e0e0; /* 亮色正常，暗色稍淡 */
+  --color-border-adaptive-light-normal-dark-faint: #e0e0e0; /* 亮色正常，暗色很淡 */
+  --color-border-adaptive-light-subtle-dark-none: #eeeeee; /* 亮色淡边框，暗色无 */
+  --color-border-adaptive-light-normal-dark-none: #e0e0e0; /* 亮色正常，暗色无 */
   --color-border-hover: #1976d2;
   --color-border-focus: #1976d2;
   --color-border-active: #1565c0;

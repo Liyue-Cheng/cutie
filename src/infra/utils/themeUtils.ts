@@ -1,4 +1,4 @@
-const DEFAULT_FALLBACK_COLOR = '#9ca3af'
+const DEFAULT_FALLBACK_COLOR = '#f0f' // Magenta fallback to expose missing variables
 
 function readCssVariable(variableName: string): string | null {
   if (typeof window === 'undefined') {
