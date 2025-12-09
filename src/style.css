@@ -25,13 +25,13 @@ html {
   --color-background-secondary: #1f1d2e;
   --color-background-content: #1f1d2e;
   --color-background-elevated: #26233a;
-  --color-background-hover: #21202e;
+  --color-background-hover: #26233a;
   --color-background-active: #403d52;
   --color-background-selected: #21202e;
   --color-background-disabled: #21202e;
   --color-background-input: #1f1d2e;
   --color-background-input-hover: #21202e;
-  --color-background-input-focus: #1f1d2e;
+  --color-background-input-focus: #26233a; /* Elevated */
   --color-overlay-light: rgba(0, 0, 0, 0.05);
   --color-overlay-medium: rgba(0, 0, 0, 0.15);
   --color-overlay-heavy: rgba(0, 0, 0, 0.5);
@@ -185,7 +185,7 @@ body.theme-rose-pine-dawn {
   --color-background-disabled: #f4ede8;
   --color-background-input: #ffffff;
   --color-background-input-hover: #f4ede8;
-  --color-background-input-focus: #ffffff;
+  --color-background-input-focus: #f2e9e1; /* Elevated */
   --color-overlay-light: rgba(0, 0, 0, 0.03);
   --color-overlay-medium: rgba(0, 0, 0, 0.10);
   --color-overlay-heavy: rgba(0, 0, 0, 0.5);
@@ -333,13 +333,13 @@ body.theme-rose-pine-moon {
   --color-background-secondary: #2a273f;
   --color-background-content: #393552;
   --color-background-elevated: #393552; /* Rose Pine Overlay */
-  --color-background-hover: #2a283e;
+  --color-background-hover: #393552;
   --color-background-active: #44415a;
   --color-background-selected: #2a283e;
   --color-background-disabled: #2a283e;
   --color-background-input: #2a273f;
   --color-background-input-hover: #2a283e;
-  --color-background-input-focus: #2a273f;
+  --color-background-input-focus: #393552; /* Elevated */
   --color-overlay-light: rgba(0, 0, 0, 0.05);
   --color-overlay-medium: rgba(0, 0, 0, 0.15);
   --color-overlay-heavy: rgba(0, 0, 0, 0.5);
@@ -493,7 +493,7 @@ body.theme-cutie {
   --color-background-disabled: #fff0f5;
   --color-background-input: #ffffff;
   --color-background-input-hover: #fff0f5;
-  --color-background-input-focus: #ffffff;
+  --color-background-input-focus: #ffffff; /* Elevated (same as input for Cutie) */
   --color-overlay-light: rgba(255, 107, 157, 0.03);
   --color-overlay-medium: rgba(255, 107, 157, 0.10);
   --color-overlay-heavy: rgba(0, 0, 0, 0.4);
@@ -646,7 +646,7 @@ body.theme-business {
   --color-background-disabled: #fafafa;
   --color-background-input: #ffffff;
   --color-background-input-hover: #fafafa;
-  --color-background-input-focus: #ffffff;
+  --color-background-input-focus: #ffffff; /* Elevated (same as input for Business) */
   --color-overlay-light: rgba(0, 0, 0, 0.04);
   --color-overlay-medium: rgba(0, 0, 0, 0.12);
   --color-overlay-heavy: rgba(0, 0, 0, 0.5);
