@@ -197,7 +197,7 @@ pub async fn handle(
 // ==================== 业务逻辑层 ====================
 mod logic {
     use super::*;
-    use crate::features::shared::{TaskValidator, TransactionHelper};
+    use crate::features::shared::{repositories::ProjectRepository, TaskValidator, TransactionHelper};
 
     pub async fn execute(
         app_state: &AppState,
@@ -227,6 +227,23 @@ mod logic {
             "Generated task ID"
         );
 
+        // 🔥 如果指定了 project_id 但没有指定 area_id，从项目继承 area_id
+        let area_id = if request.area_id.is_none() && request.project_id.is_some() {
+            if let Some(project) = ProjectRepository::find_by_id(app_state.db_pool(), request.project_id.unwrap()).await? {
+                tracing::debug!(
+                    target: "SERVICE:TASKS:create_task",
+                    project_id = %request.project_id.unwrap(),
+                    inherited_area_id = ?project.area_id,
+                    "Inheriting area_id from project"
+                );
+                project.area_id
+            } else {
+                None
+            }
+        } else {
+            request.area_id
+        };
+
         // 4. 创建任务实体
         let task = Task {
             id: task_id,
@@ -238,7 +255,7 @@ mod logic {
             sort_positions: HashMap::new(),
             project_id: request.project_id,
             section_id: request.section_id,
-            area_id: request.area_id,
+            area_id,
             due_date: request.due_date,
             due_date_type: request.due_date_type,
             completed_at: None,

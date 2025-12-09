@@ -325,6 +325,7 @@ const showMoreMenu = () => {
   color: var(--color-text-secondary, #f0f);
   margin-top: 0.8rem;
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .tasks-area {

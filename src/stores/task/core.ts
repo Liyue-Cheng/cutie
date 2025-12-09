@@ -520,9 +520,11 @@ export function createTaskCore() {
             return allTasks.value
           } else if (subtype === 'no-project') {
             // misc::no-project - 无项目任务
+            // 🔥 过滤已完成和已归档的任务
             // 🔥 对于循环任务，只显示每个循环规则的最近未完成任务
             const noProjectTasks = allTasksArray.value.filter(
-              (task) => !task.project_id && !task.is_deleted
+              (task) =>
+                !task.project_id && !task.is_deleted && !task.is_completed && !task.is_archived
             )
             const tasks = deduplicateRecurringTasks(noProjectTasks)
 
