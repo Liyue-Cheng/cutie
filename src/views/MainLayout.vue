@@ -130,60 +130,94 @@ useMidnightRefresh()
 // ==================== 窗口拖动处理 (完全手动实现 - Workaround for Tauri bug #10767) ====================
 // 不使用 startDragging()，完全手动计算和设置窗口位置
 // 关键：e.screenX/screenY 是逻辑坐标，需要乘以 devicePixelRatio 转换为物理坐标
-// 使用 requestAnimationFrame 优化性能，避免卡顿
+//
+// 优化策略：
+// 1. 使用 dragSession 版本号忽略过时的 setPosition 请求，防止拉扯
+// 2. 同步启动拖动，异步获取窗口位置后再真正开始移动，避免 mousedown 延迟
+// 3. 串行化 setPosition 调用，等待上一次完成才发送下一次，防止请求堆积
+// 4. 动态获取 scaleFactor，支持跨显示器拖动
+
 let isDragging = false
+let isPositionReady = false // 窗口位置是否已获取
 let windowStartX = 0
 let windowStartY = 0
 let mouseStartX = 0
 let mouseStartY = 0
-let scaleFactor = 1
-let pendingFrame = false
 let currentMouseX = 0
 let currentMouseY = 0
+let dragSession = 0 // 拖动会话版本号，用于忽略过时请求
+let isSettingPosition = false // 是否正在执行 setPosition
+let hasPendingUpdate = false // 是否有待处理的位置更新
 
-const handleTitleBarMouseDown = async (e: MouseEvent) => {
+const handleTitleBarMouseDown = (e: MouseEvent) => {
   // 只响应左键
   if (e.button !== 0) return
 
-  try {
-    // 获取当前窗口位置（Physical 坐标）
-    const position = await appWindow.outerPosition()
-    windowStartX = position.x
-    windowStartY = position.y
+  // 立即记录鼠标起始位置（同步，无延迟）
+  mouseStartX = e.screenX
+  mouseStartY = e.screenY
+  currentMouseX = e.screenX
+  currentMouseY = e.screenY
 
-    // 获取屏幕缩放因子
-    scaleFactor = window.devicePixelRatio
+  // 增加会话版本号，使旧会话的所有请求失效
+  dragSession++
+  const currentSession = dragSession
 
-    // 记录鼠标起始位置（逻辑坐标）
-    mouseStartX = e.screenX
-    mouseStartY = e.screenY
-    currentMouseX = e.screenX
-    currentMouseY = e.screenY
+  isDragging = true
+  isPositionReady = false
+  isSettingPosition = false
+  hasPendingUpdate = false
 
-    console.log(
-      'Drag start - Window:',
-      position,
-      'Mouse:',
-      { x: mouseStartX, y: mouseStartY },
-      'Scale:',
-      scaleFactor
-    )
+  // 添加全局监听器（立即响应鼠标移动）
+  document.addEventListener('mousemove', handleMouseMove, { passive: false })
+  document.addEventListener('mouseup', handleMouseUp)
 
-    isDragging = true
+  // 防止默认行为
+  e.preventDefault()
 
-    // 添加全局监听器
-    document.addEventListener('mousemove', handleMouseMove, { passive: false })
-    document.addEventListener('mouseup', handleMouseUp)
+  // 异步获取窗口位置（不阻塞拖动启动）
+  appWindow
+    .outerPosition()
+    .then((position) => {
+      // 检查会话是否仍然有效
+      if (currentSession !== dragSession) return
 
-    // 防止默认行为
-    e.preventDefault()
-  } catch (err) {
-    console.error('Failed to start drag:', err)
-  }
+      windowStartX = position.x
+      windowStartY = position.y
+      isPositionReady = true
+
+      // 如果在获取位置期间鼠标已经移动，立即触发一次更新
+      if (currentMouseX !== mouseStartX || currentMouseY !== mouseStartY) {
+        schedulePositionUpdate()
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to get window position:', err)
+      // 获取失败时停止拖动
+      if (currentSession === dragSession) {
+        handleMouseUp()
+      }
+    })
 }
 
-const updateWindowPosition = () => {
-  if (!isDragging) return
+const schedulePositionUpdate = () => {
+  // 如果正在设置位置，标记有待处理的更新
+  if (isSettingPosition) {
+    hasPendingUpdate = true
+    return
+  }
+
+  // 使用 rAF 确保在下一帧更新
+  requestAnimationFrame(updateWindowPosition)
+}
+
+const updateWindowPosition = async () => {
+  if (!isDragging || !isPositionReady) return
+
+  const currentSession = dragSession
+
+  // 动态获取 scaleFactor（支持跨显示器）
+  const scaleFactor = window.devicePixelRatio
 
   // 计算鼠标移动的距离（逻辑坐标），然后转换为物理坐标
   const deltaX = (currentMouseX - mouseStartX) * scaleFactor
@@ -193,12 +227,27 @@ const updateWindowPosition = () => {
   const newX = Math.round(windowStartX + deltaX)
   const newY = Math.round(windowStartY + deltaY)
 
-  // 不等待 setPosition 完成，直接发送命令
-  appWindow.setPosition(new PhysicalPosition(newX, newY)).catch((err) => {
-    console.error('Failed to set window position:', err)
-  })
+  isSettingPosition = true
+  hasPendingUpdate = false
 
-  pendingFrame = false
+  try {
+    await appWindow.setPosition(new PhysicalPosition(newX, newY))
+  } catch (err) {
+    // 只有当前会话仍然有效时才报错
+    if (currentSession === dragSession) {
+      console.error('Failed to set window position:', err)
+    }
+  }
+
+  // 检查会话是否仍然有效
+  if (currentSession !== dragSession) return
+
+  isSettingPosition = false
+
+  // 如果有待处理的更新，继续执行
+  if (hasPendingUpdate && isDragging) {
+    schedulePositionUpdate()
+  }
 }
 
 const handleMouseMove = (e: MouseEvent) => {
@@ -206,7 +255,6 @@ const handleMouseMove = (e: MouseEvent) => {
 
   // 检查鼠标按钮状态，如果没有按下任何按钮，停止拖动
   if (e.buttons === 0) {
-    console.log('Mouse button released, stopping drag')
     handleMouseUp()
     return
   }
@@ -215,10 +263,9 @@ const handleMouseMove = (e: MouseEvent) => {
   currentMouseX = e.screenX
   currentMouseY = e.screenY
 
-  // 使用 requestAnimationFrame 节流，避免过多的更新
-  if (!pendingFrame) {
-    pendingFrame = true
-    requestAnimationFrame(updateWindowPosition)
+  // 如果窗口位置已就绪，调度位置更新
+  if (isPositionReady) {
+    schedulePositionUpdate()
   }
 
   // 防止默认行为
@@ -228,14 +275,16 @@ const handleMouseMove = (e: MouseEvent) => {
 const handleMouseUp = () => {
   if (!isDragging) return
 
+  // 增加会话版本号，使所有进行中的请求失效
+  dragSession++
   isDragging = false
-  pendingFrame = false
+  isPositionReady = false
+  isSettingPosition = false
+  hasPendingUpdate = false
 
   // 清理监听器
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', handleMouseUp)
-
-  console.log('Drag ended')
 }
 
 // 组件卸载时清理
@@ -480,6 +529,7 @@ const isAiDialogOpen = ref(false)
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+
   /* 内容区边框和圆角（从各 View 移至此处统一管理） */
   border: 1px solid var(--color-border-subtle, #f0f);
   border-radius: 0.8rem;
