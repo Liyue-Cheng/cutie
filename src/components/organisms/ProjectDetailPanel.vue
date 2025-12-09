@@ -22,7 +22,7 @@
         <!-- 任务列表区域 -->
         <div class="tasks-area">
           <div class="task-section">
-            <TaskList :title="$t('project.title.noProject')" view-key="misc::no-project" />
+            <ProjectTaskList :title="$t('project.title.noProject')" view-key="misc::no-project" />
           </div>
         </div>
       </div>
@@ -58,7 +58,7 @@
         <div class="tasks-area" @dragover="onContainerDragOver">
           <!-- 无 section 的任务（即使没有任务也要显示） -->
           <div class="task-section">
-            <TaskList
+            <ProjectTaskList
               :key="`project-${project.id}-no-section`"
               :title="$t('project.label.uncategorized')"
               :view-key="`project::${project.id}::section::all`"
@@ -77,26 +77,16 @@
               @dragover="onSectionDragOver($event, index)"
               @dragleave="onSectionDragLeave($event)"
             >
-              <TaskList
+              <ProjectTaskList
                 :ref="(el) => setTaskListRef(section.id, el)"
                 :title="section.title"
                 :view-key="`project::${project.id}::section::${section.id}`"
+                :section-id="section.id"
+                :section-description="section.description"
                 title-color="var(--color-text-accent)"
-              >
-                <template #title-actions>
-                  <button
-                    class="icon-btn drag-handle"
-                    draggable="true"
-                    @dragstart="handleDragStart(section, index, $event)"
-                    @mousedown.stop
-                  >
-                    <CuteIcon name="GripVertical" :size="14" />
-                  </button>
-                  <button class="icon-btn" @click="handleEditSection(section.id)">
-                    <CuteIcon name="Pencil" :size="14" />
-                  </button>
-                </template>
-              </TaskList>
+                @edit-section="handleEditSection"
+                @drag-start="(e) => handleDragStart(section, index, e)"
+              />
             </div>
           </template>
 
@@ -126,7 +116,7 @@ import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CircularProgress from '@/components/parts/CircularProgress.vue'
-import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
+import ProjectTaskList from '@/components/assembles/tasks/list/ProjectTaskList.vue'
 import { useSectionDrag } from '@/composables/drag/useSectionDrag'
 import { pipeline } from '@/cpu'
 import type { ProjectSection } from '@/types/dtos'
@@ -336,35 +326,6 @@ const showMoreMenu = () => {
 
 .task-section {
   margin-bottom: 2.4rem;
-}
-
-.icon-btn {
-  padding: 0.4rem;
-  background: transparent;
-  color: var(--color-text-secondary, #f0f);
-  border: none;
-  border-radius: 0.4rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.icon-btn:hover {
-  background: var(--color-background-hover, #f0f);
-  color: var(--color-text-primary, #f0f);
-}
-
-/* 拖拽把手 */
-.icon-btn.drag-handle {
-  cursor: grab;
-  opacity: 0.5;
-}
-
-.icon-btn.drag-handle:hover {
-  opacity: 1;
-}
-
-.icon-btn.drag-handle:active {
-  cursor: grabbing;
 }
 
 .no-tasks {

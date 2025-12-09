@@ -43,6 +43,14 @@
       @close="showCreateSectionModal = false"
       @success="handleSectionCreated"
     />
+
+    <!-- 编辑章节对话框 -->
+    <ProjectSectionEditModal
+      :show="showEditSectionModal"
+      :section-id="editingSectionId"
+      @close="showEditSectionModal = false"
+      @success="handleSectionUpdated"
+    />
   </div>
 </template>
 
@@ -56,6 +64,7 @@ import ProjectDetailPanel from '@/components/organisms/ProjectDetailPanel.vue'
 import ProjectCreateModal from '@/components/organisms/ProjectCreateModal.vue'
 import ProjectEditModal from '@/components/organisms/ProjectEditModal.vue'
 import ProjectSectionCreateModal from '@/components/organisms/ProjectSectionCreateModal.vue'
+import ProjectSectionEditModal from '@/components/organisms/ProjectSectionEditModal.vue'
 
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
@@ -67,7 +76,9 @@ const selectedProjectId = ref<string | null | undefined>(undefined)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showCreateSectionModal = ref(false)
+const showEditSectionModal = ref(false)
 const editingProjectId = ref<string | null>(null)
+const editingSectionId = ref<string | null>(null)
 
 // 选择项目
 const handleSelectProject = (id: string | null) => {
@@ -136,8 +147,13 @@ const handleSectionCreated = () => {
 
 // 编辑章节
 const handleEditSection = (sectionId: string) => {
-  // TODO: 打开编辑章节对话框
-  console.log('编辑章节', sectionId)
+  editingSectionId.value = sectionId
+  showEditSectionModal.value = true
+}
+
+// 章节更新成功
+const handleSectionUpdated = () => {
+  console.log('✅ 章节更新成功')
 }
 
 // 初始化时加载项目数据

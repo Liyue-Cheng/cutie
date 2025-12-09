@@ -16,6 +16,7 @@ use crate::{
     infra::{
         core::{AppError, AppResult},
         http::error_handler::created_response,
+        LexoRankService,
     },
     startup::AppState,
 };
@@ -173,10 +174,24 @@ mod logic {
         let section_id = app_state.id_generator().new_uuid();
         let now = app_state.clock().now_utc();
 
-        // 6. 创建 ProjectSection
+        // 6. 获取项目中最后一个 section 的 sort_order，用于生成新的排序
+        let existing_sections =
+            ProjectSectionRepository::list_by_project(&mut *tx, project_id).await?;
+        let last_sort_order = existing_sections
+            .last()
+            .and_then(|s| s.sort_order.as_deref());
+
+        // 7. 生成新的 sort_order（放到最后）
+        let new_sort_order = if request.sort_order.is_some() {
+            request.sort_order.clone()
+        } else {
+            Some(LexoRankService::generate_between(last_sort_order, None)?)
+        };
+
+        // 8. 创建 ProjectSection
         let mut section = ProjectSection::new(section_id, project_id, request.title, now);
         section.description = request.description;
-        section.sort_order = request.sort_order;
+        section.sort_order = new_sort_order;
 
         // 7. 插入数据库
         ProjectSectionRepository::insert(&mut tx, &section).await?;
