@@ -351,7 +351,7 @@ function handleMouseDown(event: MouseEvent) {
   const target = event.target as HTMLElement
 
   // 如果点击的是任务卡片或其内部元素，不启动看板拖动
-  if (target.closest('.task-card-wrapper')) {
+  if (target.closest('.task-draggable')) {
     return
   }
 

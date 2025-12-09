@@ -277,7 +277,7 @@ export function showWarningMessage(message: string): void {
  * @returns 哈希字符串
  */
 export function hashElements(container: HTMLElement): string {
-  const wrappers = container.querySelectorAll('.task-card-wrapper')
+  const wrappers = container.querySelectorAll('.task-draggable, .template-draggable, .project-draggable')
   // 简单哈希：元素数量 + 第一个和最后一个元素的位置
   const count = wrappers.length
   const firstTop = wrappers[0]?.getBoundingClientRect().top || 0

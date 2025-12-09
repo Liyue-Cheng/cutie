@@ -56,8 +56,8 @@
             v-for="task in displayItems"
             :key="task.id"
             :class="[
-              'task-card-wrapper',
-              `task-strip-wrapper-${normalizedViewKey}`,
+              'task-draggable',
+              `task-draggable-${normalizedViewKey}`,
               {
                 'is-preview': (task as any)._isPreview === true,
                 'drag-compact': (task as any)._dragCompact === true,
@@ -256,7 +256,7 @@ const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   items: filteredTasks,
   containerRef: taskBarRef,
-  draggableSelector: `.task-strip-wrapper-${normalizedViewKey.value}`,
+  draggableSelector: `.task-draggable-${normalizedViewKey.value}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
   onDrop: async (session) => {
@@ -624,7 +624,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .task-input:focus {
-  background-color: var(--color-background-hover, #f0f);
+  background-color: var(--color-background-input-focus, #f0f);
 }
 
 .task-input:disabled {
@@ -642,8 +642,8 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-button-primary-bg, #f0f);
-  color: var(--color-button-primary-text, #f0f);
+  background-color: transparent;
+  color: var(--color-text-accent, #f0f);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -651,21 +651,11 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 }
 
 .add-task-btn:hover {
-  background-color: var(--color-button-primary-hover, #f0f);
+  background-color: var(--color-background-accent-light, #f0f);
 }
 
 .add-task-btn:active {
   transform: translateY(-50%) scale(0.95);
-}
-
-/* 输入框聚焦时，+按钮无背景色 */
-.task-input-wrapper.focused .add-task-btn {
-  background-color: transparent;
-  color: var(--color-text-accent, #f0f);
-}
-
-.task-input-wrapper.focused .add-task-btn:hover {
-  background-color: var(--color-background-accent-light, #f0f);
 }
 
 /* 任务列表容器（拖放接收区） */

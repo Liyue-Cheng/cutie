@@ -87,7 +87,7 @@ const { displayItems } = useInteractDrag({
   viewMetadata,
   items: originalTemplates,
   containerRef: kanbanContainerRef,
-  draggableSelector: `.template-card-wrapper-${VIEW_KEY.replace(/::/g, '--')}`,
+  draggableSelector: `.template-draggable-${VIEW_KEY.replace(/::/g, '--')}`,
   objectType: 'template',
   getObjectId: (template) => template.id,
   onDrop: async (session) => {
@@ -184,7 +184,7 @@ const { t } = useI18n()
         <div
           v-for="template in displayItems"
           :key="template.id"
-          :class="`template-card-wrapper template-card-wrapper-${VIEW_KEY.replace(/::/g, '--')}`"
+          :class="`template-draggable template-draggable-${VIEW_KEY.replace(/::/g, '--')}`"
           :data-object-id="template.id"
         >
           <TemplateCard :template="template" @open-editor="handleOpenEditor(template.id)" />
@@ -328,18 +328,18 @@ const { t } = useI18n()
 }
 
 /* 拖拽相关样式 */
-.template-card-wrapper {
+.template-draggable {
   position: relative;
   cursor: grab;
   transition: transform 0.2s ease;
   margin-bottom: 1rem;
 }
 
-.template-card-wrapper:active {
+.template-draggable:active {
   cursor: grabbing;
 }
 
-.template-card-wrapper:last-child {
+.template-draggable:last-child {
   margin-bottom: 0;
 }
 </style>

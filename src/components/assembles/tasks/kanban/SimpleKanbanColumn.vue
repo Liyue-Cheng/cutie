@@ -68,7 +68,7 @@ const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   items: effectiveTasks,
   containerRef: kanbanContainerRef,
-  draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/::/g, '--')}`,
+  draggableSelector: `.task-draggable-${props.viewKey.replace(/::/g, '--')}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
   onDrop: async (session) => {
@@ -345,8 +345,8 @@ function handleTitleClick() {
           v-for="task in displayItems"
           :key="task.id"
           :class="[
-            'task-card-wrapper',
-            `task-card-wrapper-${viewKey.replace(/::/g, '--')}`,
+            'task-draggable',
+            `task-draggable-${viewKey.replace(/::/g, '--')}`,
             {
               'is-preview': (task as any)._isPreview === true,
               'drag-compact': (task as any)._dragCompact === true,
@@ -558,7 +558,7 @@ function handleTitleClick() {
 }
 
 /* 🔥 拖拽样式由 interact.js 控制器自动管理 */
-.task-card-wrapper {
+.task-draggable {
   position: relative;
   transition: transform 0.2s ease;
 }
@@ -583,7 +583,7 @@ function handleTitleClick() {
 }
 
 /* 过期看板中的任务卡片整体透明度降低 */
-.simple-kanban-column.is-expired .task-card-wrapper {
+.simple-kanban-column.is-expired .task-draggable {
   opacity: 0.7;
 }
 

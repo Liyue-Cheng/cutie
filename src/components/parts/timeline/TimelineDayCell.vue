@@ -128,7 +128,7 @@ const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   items: resolvedTasks,
   containerRef: cellRef,
-  draggableSelector: `.cell-task-wrapper-${normalizedViewKey.value}`,
+  draggableSelector: `.task-draggable-${normalizedViewKey.value}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
   onDrop: async (session) => {
@@ -292,9 +292,8 @@ function handleEventContextMenu(event: MouseEvent, timeBlock: TimeBlockView) {
           v-for="task in displayItems"
           :key="`task-${task.id}-${date}`"
           :class="[
-            'task-card-wrapper',
-            'cell-task-wrapper',
-            `cell-task-wrapper-${normalizedViewKey}`,
+            'task-draggable',
+            `task-draggable-${normalizedViewKey}`,
             {
               'is-preview': (task as any)._isPreview === true,
               'drag-compact': (task as any)._dragCompact === true,

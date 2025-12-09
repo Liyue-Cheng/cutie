@@ -16,7 +16,7 @@
       <div
         v-for="template in displayItems"
         :key="template.id"
-        :class="`template-card-wrapper template-card-wrapper-${VIEW_KEY_CLASS} template-strip-wrapper template-strip-wrapper-${VIEW_KEY_CLASS}`"
+        :class="`template-draggable template-draggable-${VIEW_KEY_CLASS}`"
         :data-object-id="template.id"
       >
         <TemplateStrip :template="template" @open-editor="handleOpenEditor(template.id)" />
@@ -123,7 +123,7 @@ const { displayItems } = useInteractDrag({
   viewMetadata,
   items: originalTemplates,
   containerRef: templateContainerRef,
-  draggableSelector: `.template-card-wrapper-${VIEW_KEY_CLASS}`,
+  draggableSelector: `.template-draggable-${VIEW_KEY_CLASS}`,
   objectType: 'template',
   getObjectId: (template) => template.id,
   onDrop: async (session) => {
@@ -250,18 +250,18 @@ function handleOpenEditor(templateId: string) {
 }
 
 /* 拖拽相关样式 */
-.template-strip-wrapper {
+.template-draggable {
   position: relative;
   cursor: grab;
   transition: transform 0.2s ease;
   margin-bottom: 0.8rem;
 }
 
-.template-strip-wrapper:active {
+.template-draggable:active {
   cursor: grabbing;
 }
 
-.template-strip-wrapper:last-child {
+.template-draggable:last-child {
   margin-bottom: 0;
 }
 

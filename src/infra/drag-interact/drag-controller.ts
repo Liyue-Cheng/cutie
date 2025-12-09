@@ -694,8 +694,8 @@ class InteractDragController {
     const rectChecker = options.rectChecker ?? (() => this.getDynamicDropzoneRect(element))
 
     interactable.dropzone({
-      // 接受任务与模板两类卡片包装元素（支持跨类型拖放）
-      accept: '.task-card-wrapper, .template-card-wrapper',
+      // 接受可拖拽元素（按语义类型命名：{type}-draggable）
+      accept: '.task-draggable, .template-draggable, .project-draggable',
       overlap: 'pointer', // 指针模式：鼠标进入即触发
       // 启用实时矩形检测，确保拖动过程中区域变化能被捕捉
       rectChecker,
@@ -834,9 +834,9 @@ class InteractDragController {
     element: HTMLElement,
     useLastIndex: boolean = false
   ): number {
-    // 支持任务与模板两类卡片元素
+    // 查找所有可拖拽元素（按语义类型命名）
     const wrappers = Array.from(
-      element.querySelectorAll('.task-card-wrapper, .template-card-wrapper')
+      element.querySelectorAll('.task-draggable, .template-draggable, .project-draggable')
     ) as HTMLElement[]
     // 🔥 传入上一次的 dropIndex，启用施密特触发器
     const lastDropIndex = useLastIndex ? (this.state.dropIndex ?? undefined) : undefined
@@ -851,7 +851,7 @@ class InteractDragController {
    */
   private calculateDropIndexWithDirectionalGate(pointerY: number, element: HTMLElement): number {
     const wrappers = Array.from(
-      element.querySelectorAll('.task-card-wrapper, .template-card-wrapper')
+      element.querySelectorAll('.task-draggable, .template-draggable, .project-draggable')
     ) as HTMLElement[]
 
     const lastIndex = Math.max(0, Math.min(this.state.dropIndex ?? 0, wrappers.length))

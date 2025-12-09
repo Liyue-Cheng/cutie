@@ -63,7 +63,7 @@ const { displayItems, isDragging, isReceiving, getDebugInfo } = useInteractDrag(
   viewMetadata: effectiveViewMetadata,
   items: computed(() => effectiveTasks.value),
   containerRef: kanbanContainerRef, // 使用整个看板容器作为 dropzone
-  draggableSelector: `.task-card-wrapper-${props.viewKey.replace(/:/g, '-')}`,
+  draggableSelector: `.task-draggable-${props.viewKey.replace(/:/g, '-')}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
   onDrop: async (session) => {
@@ -259,10 +259,10 @@ function buildLexoPayload(viewKey: string, order: string[], taskId: string) {
         <div
           v-for="task in displayItems"
           :key="task.id"
-          class="task-card-wrapper"
+          class="task-draggable"
           :class="[
             { 'is-preview': (task as any)._isPreview },
-            `task-card-wrapper-${viewKey.replace(/:/g, '-')}`,
+            `task-draggable-${viewKey.replace(/:/g, '-')}`,
           ]"
           :data-task-id="task.id"
         >
@@ -425,18 +425,18 @@ function buildLexoPayload(viewKey: string, order: string[], taskId: string) {
   font-size: 1.4rem;
 }
 
-.task-card-wrapper {
+.task-draggable {
   position: relative;
   cursor: grab;
   transition: all 0.2s ease;
   margin-bottom: 0.5rem;
 }
 
-.task-card-wrapper:active {
+.task-draggable:active {
   cursor: grabbing;
 }
 
-.task-card-wrapper.is-preview {
+.task-draggable.is-preview {
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 8px 24px rgb(0 0 0 / 15%);
   border: 2px solid var(--color-primary);
