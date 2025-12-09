@@ -88,30 +88,8 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
     const isSourceView = sourceZoneId === currentViewId
     const isCompact = preview.computed.isCompact === true
 
-    // 🔥 跨类型拖放处理（如 template → task）
-    // 当拖拽对象类型与列表类型不匹配时，仍需在目标列表显示占位预览
-    const isCrossTypeDrag = previewObjectType !== objectType
-    const isTargetView = targetZoneId === currentViewId
-
-    // 跨类型拖放：只在目标视图显示占位预览
-    if (isCrossTypeDrag) {
-      if (isTargetView && dropIndex !== undefined) {
-        // 在目标位置插入占位预览元素
-        const previewList = [...currentItems]
-        const safeIndex = Math.max(0, Math.min(dropIndex, previewList.length))
-
-        // 创建占位预览对象（使用拖拽对象的基本信息）
-        const placeholderPreview = {
-          ...draggedObject,
-          _isPreview: true,
-          _isCrossTypePreview: true, // 标记为跨类型预览
-          _dragCompact: preview.computed.isCompact === true,
-        } as T & { _isPreview?: boolean; _isCrossTypePreview?: boolean; _dragCompact?: boolean }
-
-        previewList.splice(safeIndex, 0, placeholderPreview)
-        return previewList
-      }
-      // 非目标视图，返回原始列表
+    // 只处理匹配的对象类型
+    if (previewObjectType !== objectType) {
       return currentItems
     }
 

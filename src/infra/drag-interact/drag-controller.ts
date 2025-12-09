@@ -531,7 +531,10 @@ class InteractDragController {
 
     // 🔥 安全：先清理旧的绑定再注册新的
     if (this.registeredSelectors.has(selector)) {
-      logger.debug(LogTags.DRAG_CROSS_VIEW, `Selector already registered, re-registering: ${selector}`)
+      logger.debug(
+        LogTags.DRAG_CROSS_VIEW,
+        `Selector already registered, re-registering: ${selector}`
+      )
       interact(selector).unset() // 清理旧的绑定
     }
 
@@ -544,7 +547,10 @@ class InteractDragController {
         start: (event) => {
           // 🔥 安全检查：确保状态为 IDLE 才允许开始
           if (this.state.phase !== 'IDLE') {
-            logger.warn(LogTags.DRAG_CROSS_VIEW, `Cannot start drag: current phase is ${this.state.phase}`)
+            logger.warn(
+              LogTags.DRAG_CROSS_VIEW,
+              `Cannot start drag: current phase is ${this.state.phase}`
+            )
             event.preventDefault()
             return
           }
