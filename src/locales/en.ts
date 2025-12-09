@@ -459,6 +459,11 @@ export default {
       createRecurrenceFailed: 'Failed to create recurrence rule, please check configuration',
       updateRecurrenceFailed: 'Failed to update recurrence, please try again',
       loadRecurrenceFailed: 'Failed to load recurrence, please try again',
+      createProjectFailed: 'Failed to create project, please try again',
+      updateProjectFailed: 'Failed to update project, please try again',
+      createSectionFailed: 'Failed to create section, please try again',
+      updateSectionFailed: 'Failed to update section, please try again',
+      deleteSectionFailed: 'Failed to delete section, please try again',
     },
   },
 
@@ -556,6 +561,8 @@ export default {
     },
     confirm: {
       delete: 'Are you sure you want to delete this project?',
+      deleteSection:
+        'Are you sure you want to delete this section? Tasks in this section will be moved to "Uncategorized".',
     },
   },
 

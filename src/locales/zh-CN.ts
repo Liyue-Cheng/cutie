@@ -459,6 +459,8 @@ export default {
       createProjectFailed: '创建项目失败，请重试',
       updateProjectFailed: '更新项目失败，请重试',
       createSectionFailed: '创建章节失败，请重试',
+      updateSectionFailed: '更新章节失败，请重试',
+      deleteSectionFailed: '删除章节失败，请重试',
     },
   },
 
@@ -556,6 +558,7 @@ export default {
     },
     confirm: {
       delete: '确定要删除这个项目吗？',
+      deleteSection: '确定要删除这个章节吗？章节内的任务将移至"未分类"。',
     },
   },
 
