@@ -38,14 +38,16 @@
       </div>
 
       <!-- 所属项目（优先）或 Area 标签 -->
+      <!-- 在项目视图内部不显示项目标签 -->
       <InfoTag
-        v-if="project"
+        v-if="project && !isInProjectView"
         icon="FolderKanban"
         :icon-color="area?.color || 'var(--color-text-tertiary)'"
         :text="project.name"
       />
+      <!-- 在项目视图中，只有当任务 Area 与项目 Area 不一致时才显示 -->
       <InfoTag
-        v-else-if="area"
+        v-else-if="area && shouldShowAreaTag"
         icon="Hash"
         :icon-color="area.color"
         :text="area.name"
@@ -203,6 +205,33 @@ const hasSubtasks = computed(() => {
 // 判断是否在 daily view 中
 const isInDailyView = computed(() => {
   return props.viewKey?.startsWith('daily::')
+})
+
+// 判断是否在项目视图中
+const isInProjectView = computed(() => {
+  return props.viewKey?.startsWith('project::')
+})
+
+// 从 viewKey 提取当前项目视图的项目 ID
+const currentViewProjectId = computed(() => {
+  if (!props.viewKey?.startsWith('project::')) return null
+  // viewKey 格式: project::{projectId} 或 project::{projectId}::section::...
+  const parts = props.viewKey.split('::')
+  return parts[1] || null
+})
+
+// 当前视图的项目
+const currentViewProject = computed(() => {
+  return currentViewProjectId.value ? projectStore.getProjectById(currentViewProjectId.value) : null
+})
+
+// 是否应该显示 Area 标签
+// 非项目视图：始终显示（如果没有项目标签）
+// 项目视图：只有当任务 Area 与项目 Area 不一致时才显示
+const shouldShowAreaTag = computed(() => {
+  if (!isInProjectView.value) return true
+  // 在项目视图中，检查任务 Area 是否与项目 Area 不一致
+  return props.task.area_id !== currentViewProject.value?.area_id
 })
 
 // 获取当前视图的日期 (YYYY-MM-DD)

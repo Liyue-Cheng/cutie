@@ -99,6 +99,7 @@ import { deriveViewMetadata } from '@/services/viewAdapter'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { useRecurrenceStore } from '@/stores/recurrence'
+import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 interface Props {
   title: string
@@ -178,26 +179,34 @@ const filteredTasks = computed(() => {
     })
   }
 
-  // 4. 过滤每日循环任务
+  // 4. 过滤每日循环任务（但今天的不隐藏）
   if (props.hideDailyRecurringTasks) {
-    result = result.filter((task) => {
-      // 如果任务没有循环规则，保留
-      if (!task.recurrence_id) {
-        return true
-      }
+    // 从 viewKey 提取日期（格式：daily::YYYY-MM-DD）
+    const viewDate = props.viewKey.startsWith('daily::') ? props.viewKey.split('::')[1] : null
+    const today = getTodayDateString()
+    const isToday = viewDate === today
 
-      // 获取循环规则
-      const recurrence = recurrenceStore.getRecurrenceById(task.recurrence_id)
-      if (!recurrence) {
-        return true // 如果找不到规则，保留任务（安全起见）
-      }
+    // 如果是今天，不过滤每日循环任务
+    if (!isToday) {
+      result = result.filter((task) => {
+        // 如果任务没有循环规则，保留
+        if (!task.recurrence_id) {
+          return true
+        }
 
-      // 检查是否是每日循环（FREQ=DAILY）
-      const isDailyRecurrence = recurrence.rule.includes('FREQ=DAILY')
+        // 获取循环规则
+        const recurrence = recurrenceStore.getRecurrenceById(task.recurrence_id)
+        if (!recurrence) {
+          return true // 如果找不到规则，保留任务（安全起见）
+        }
 
-      // 如果是每日循环，过滤掉（返回 false）；否则保留
-      return !isDailyRecurrence
-    })
+        // 检查是否是每日循环（FREQ=DAILY）
+        const isDailyRecurrence = recurrence.rule.includes('FREQ=DAILY')
+
+        // 如果是每日循环，过滤掉（返回 false）；否则保留
+        return !isDailyRecurrence
+      })
+    }
   }
 
   return result
