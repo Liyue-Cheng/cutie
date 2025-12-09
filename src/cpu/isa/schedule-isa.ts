@@ -8,6 +8,7 @@
  */
 
 import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { TaskCard } from '@/types/dtos'
 import {
   transactionProcessor,
   type TaskTransactionResult,
@@ -113,11 +114,14 @@ export const ScheduleISA: ISADefinition = {
           return { task_id: payload.task_id, had_task: false }
         }
 
-        // 保存原始 schedules 数组（用于回滚）
+        // 保存原始 schedules 数组和 sort_positions（用于回滚）
         const snapshot = {
           task_id: payload.task_id,
           had_task: true,
           original_schedules: JSON.parse(JSON.stringify(task.schedules)), // 深拷贝
+          original_sort_positions: task.sort_positions
+            ? { ...task.sort_positions }
+            : null,
         }
 
         // 🔥 立即更新 schedules 数组
@@ -146,10 +150,17 @@ export const ScheduleISA: ISADefinition = {
           return schedule
         })
 
+        // 🔥 如果提供了 sort_position，立即设置占位值防止 useViewTasks 触发 batch_init_ranks
+        let newSortPositions = task.sort_positions ? { ...task.sort_positions } : {}
+        if (payload.updates.sort_position) {
+          newSortPositions[payload.updates.sort_position.view_context] = '__pending__'
+        }
+
         // 立即更新任务
         taskStore.addOrUpdateTask_mut({
           ...task,
           schedules: newSchedules,
+          sort_positions: Object.keys(newSortPositions).length > 0 ? newSortPositions : null,
         })
 
         return snapshot
@@ -161,10 +172,11 @@ export const ScheduleISA: ISADefinition = {
         const task = taskStore.getTaskById_Mux(snapshot.task_id)
 
         if (task) {
-          // 🔥 恢复原始 schedules 数组
+          // 🔥 恢复原始 schedules 数组和 sort_positions
           taskStore.addOrUpdateTask_mut({
             ...task,
             schedules: snapshot.original_schedules,
+            sort_positions: snapshot.original_sort_positions,
           })
         }
       },
@@ -174,14 +186,45 @@ export const ScheduleISA: ISADefinition = {
     request: {
       method: 'PATCH',
       url: (payload) => `/tasks/${payload.task_id}/schedules/${payload.scheduled_day}`,
-      body: (payload) => payload.updates,
+      body: (payload) => ({
+        ...payload.updates,
+        // 🔥 如果有 sort_position，也发送给后端
+        sort_position: payload.updates.sort_position,
+      }),
     },
 
-    commit: async (result: TaskTransactionResult, _payload, context) => {
+    commit: async (
+      result: TaskTransactionResult & {
+        sort_position_result?: {
+          task_id: string
+          view_context: string
+          new_rank: string
+        }
+      },
+      _payload,
+      context
+    ) => {
+      // 先处理任务事务
       await transactionProcessor.applyTaskTransaction(result, {
         correlation_id: context.correlationId,
         source: 'http',
       })
+
+      // 🔥 如果有排序位置结果，更新 sort_positions
+      if (result.sort_position_result) {
+        const taskStore = useTaskStore()
+        const task = taskStore.getTaskById_Mux(result.sort_position_result.task_id)
+        if (task) {
+          const updatedSortPositions = {
+            ...(task.sort_positions ?? {}),
+            [result.sort_position_result.view_context]: result.sort_position_result.new_rank,
+          }
+          taskStore.addOrUpdateTask_mut({
+            ...task,
+            sort_positions: updatedSortPositions,
+          })
+        }
+      }
     },
   },
 

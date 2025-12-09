@@ -16,7 +16,7 @@ use crate::{
     features::shared::{
         assemblers::TimeBlockAssembler,
         repositories::{
-            TaskRepository, TaskScheduleRepository, TaskTimeBlockLinkRepository,
+            TaskRepository, TaskScheduleRepository, TaskSortRepository, TaskTimeBlockLinkRepository,
             TimeBlockRepository,
         },
         TaskAssembler,
@@ -24,6 +24,7 @@ use crate::{
     infra::{
         core::{AppError, AppResult},
         http::{error_handler::success_response, extractors::extract_correlation_id},
+        LexoRankService,
     },
     startup::AppState,
 };
@@ -205,12 +206,34 @@ PATCH /api/tasks/{id}/schedules/{date}
 */
 
 // ==================== 请求/响应结构体 ====================
+
+/// 排序位置信息（用于跨日期拖拽时原子性设置排序）
+#[derive(Debug, Deserialize)]
+pub struct SortPositionInfo {
+    /// 目标视图上下文（如 "daily::2025-12-09"）
+    pub view_context: String,
+    /// 前一个任务的 ID（null 表示移动到开头）
+    pub prev_task_id: Option<Uuid>,
+    /// 后一个任务的 ID（null 表示移动到末尾）
+    pub next_task_id: Option<Uuid>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UpdateScheduleRequest {
     /// 新日期（YYYY-MM-DD 格式，可选）
     pub new_date: Option<String>,
     /// 新的结局状态（可选）
     pub outcome: Option<String>,
+    /// 排序位置信息（可选，用于跨日期拖拽时原子性设置排序）
+    pub sort_position: Option<SortPositionInfo>,
+}
+
+/// 排序位置更新结果
+#[derive(Debug, Serialize, Clone)]
+pub struct SortPositionResult {
+    pub task_id: Uuid,
+    pub view_context: String,
+    pub new_rank: String,
 }
 
 /// 更新日程的响应
@@ -219,6 +242,9 @@ pub struct UpdateScheduleRequest {
 pub struct UpdateScheduleResponse {
     #[serde(flatten)]
     pub result: TaskTransactionResult,
+    /// 排序位置更新结果（如果请求中包含 sort_position）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort_position_result: Option<SortPositionResult>,
 }
 
 // ==================== HTTP 处理器 ====================
@@ -282,6 +308,22 @@ mod validation {
 mod logic {
     use super::*;
     use crate::features::shared::TransactionHelper;
+
+    /// 获取相邻任务的 rank（用于计算新的排序位置）
+    async fn fetch_neighbor_rank(
+        pool: &sqlx::SqlitePool,
+        task_id: Uuid,
+        view_context: &str,
+    ) -> AppResult<String> {
+        match TaskSortRepository::get_task_rank(pool, task_id, view_context).await? {
+            Some(rank) => Ok(rank),
+            None => Err(AppError::validation_error(
+                "neighbor_task",
+                format!("Task {} has no rank in view {}", task_id, view_context),
+                "NEIGHBOR_TASK_MISSING_RANK",
+            )),
+        }
+    }
 
     pub async fn execute(
         app_state: &AppState,
@@ -383,10 +425,50 @@ mod logic {
             let target_date = if let Some(ref new_date_str) = request.new_date {
                 validation::parse_date(new_date_str)?
             } else {
-                original_date
+                original_date.clone()
             };
             database::update_schedule_outcome(&mut tx, task_id, &target_date, outcome, now).await?;
         }
+
+        // 7.5 处理排序位置更新（原子性操作，与日程更新在同一事务中）
+        let sort_position_result = if let Some(ref sort_info) = request.sort_position {
+            // 获取相邻任务的 rank
+            let prev_rank = if let Some(prev_id) = sort_info.prev_task_id {
+                Some(fetch_neighbor_rank(app_state.db_pool(), prev_id, &sort_info.view_context).await?)
+            } else {
+                None
+            };
+
+            let next_rank = if let Some(next_id) = sort_info.next_task_id {
+                Some(fetch_neighbor_rank(app_state.db_pool(), next_id, &sort_info.view_context).await?)
+            } else {
+                None
+            };
+
+            // 计算新的 rank
+            let new_rank = LexoRankService::generate_between(
+                prev_rank.as_deref(),
+                next_rank.as_deref(),
+            )?;
+
+            // 在事务内更新排序位置
+            TaskSortRepository::update_task_rank_in_tx(
+                &mut tx,
+                task_id,
+                &sort_info.view_context,
+                &new_rank,
+                now,
+            )
+            .await?;
+
+            Some(SortPositionResult {
+                task_id,
+                view_context: sort_info.view_context.clone(),
+                new_rank,
+            })
+        } else {
+            None
+        };
 
         // 8. 重新查询任务并组装 TaskCard
         let updated_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
@@ -447,6 +529,7 @@ mod logic {
         // ✅ HTTP 响应与 SSE 事件载荷完全一致
         Ok(UpdateScheduleResponse {
             result: transaction_result,
+            sort_position_result,
         })
     }
 }

@@ -284,19 +284,39 @@ export const dailyToDailyStrategy: Strategy = {
           operations.push(createOperationRecord('delete_schedule', ctx.sourceViewId, deletePayload))
         } else {
           // 🎯 目标日期无日程，正常更新日程日期
+          // 🔥 计算排序位置信息，与日程更新合并为一个原子操作
+          const targetSorting = extractTaskIds(ctx.targetContext)
+          const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
+          const sortPayload = buildLexoRankPayload(ctx.targetViewId, newTargetSorting, task.id)
+
           const updatePayload = {
             task_id: task.id,
             scheduled_day: sourceDate,
             updates: {
               new_date: targetDate,
+              // 🔥 将排序位置信息合并到 schedule.update 请求中
+              sort_position: sortPayload
+                ? {
+                    view_context: sortPayload.view_context,
+                    prev_task_id: sortPayload.prev_task_id,
+                    next_task_id: sortPayload.next_task_id,
+                  }
+                : undefined,
             },
           }
-          // 🔥 使用 pipeline.dispatch 支持乐观更新
-          pipeline.dispatch('schedule.update', updatePayload)
+          // 🔥 使用 pipeline.dispatch 支持乐观更新，一个请求同时完成改期和排序
+          await pipeline.dispatch('schedule.update', updatePayload)
           operations.push(createOperationRecord('update_schedule', ctx.targetViewId, updatePayload))
+
+          return {
+            success: true,
+            message: `✅ Rescheduled from ${sourceDate} to ${targetDate}`,
+            operations,
+            affectedViews: [ctx.sourceViewId, ctx.targetViewId],
+          }
         }
 
-        // 🎯 步骤 2: 插入到目标 Daily
+        // 🎯 对于 shouldKeepSource 或 hasTargetSchedule 的情况，仍需单独更新排序
         const targetSorting = extractTaskIds(ctx.targetContext)
         const newTargetSorting = insertTaskAt(targetSorting, task.id, ctx.dropIndex)
 
@@ -310,9 +330,7 @@ export const dailyToDailyStrategy: Strategy = {
           success: true,
           message: shouldKeepSource
             ? `✅ Rescheduled from ${sourceDate} to ${targetDate} (work record preserved)`
-            : hasTargetSchedule
-              ? `✅ Moved from ${sourceDate} to ${targetDate} (replaced existing schedule)`
-              : `✅ Rescheduled from ${sourceDate} to ${targetDate}`,
+            : `✅ Moved from ${sourceDate} to ${targetDate} (replaced existing schedule)`,
           operations,
           affectedViews: [ctx.sourceViewId, ctx.targetViewId],
         }
