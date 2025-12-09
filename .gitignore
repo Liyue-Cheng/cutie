@@ -135,3 +135,7 @@ ai-doc/
 
 # Kilocode reference code (not to be committed)
 from-kilocode/
+# Database files
+src-tauri/data/*.db
+src-tauri/data/*.db-shm
+src-tauri/data/*.db-wal
