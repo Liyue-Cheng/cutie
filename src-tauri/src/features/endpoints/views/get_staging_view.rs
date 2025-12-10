@@ -202,7 +202,7 @@ mod database {
               AND NOT EXISTS (
                   SELECT 1 FROM task_schedules ts
                   WHERE ts.task_id = t.id
-                    AND ts.scheduled_day >= ?
+                    AND ts.scheduled_date >= ?
               )
               AND NOT (
                   -- 排除 EXPIRE 类型且已过期的循环任务
@@ -219,7 +219,7 @@ mod database {
         "#;
 
         let rows = sqlx::query_as::<_, TaskRow>(query)
-            .bind(today) // 用于 task_schedules.scheduled_day >= ?
+            .bind(today) // 用于 task_schedules.scheduled_date >= ?
             .bind(today) // 用于 recurrence_original_date < ?
             .fetch_all(pool)
             .await

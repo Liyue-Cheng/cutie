@@ -301,6 +301,16 @@ export default {
       theme: '主题',
       themeDesc: '选择应用程序的外观主题',
     },
+    behavior: {
+      title: '行为设置',
+      description: '任务和应用行为相关的设置选项',
+      taskCompletion: {
+        title: '任务完成',
+        description: '控制任务完成时的行为',
+        createSchedule: '完成时创建日程',
+        createScheduleDesc: '在非当日视图完成任务时，自动在今天创建一条已完成的日程记录',
+      },
+    },
     debug: {
       title: '调试设置',
       description: '开发和调试相关的设置选项',

@@ -13,6 +13,7 @@ import interact from 'interactjs'
 // Position 已在类型导入处声明，避免重复标识符导入
 import { shallowRef } from 'vue'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { useRegisterStore } from '@/stores/register'
 import { dragPreviewActions } from './preview-state'
 import { calculateDropIndex, getDistance, showErrorMessage } from './utils'
 import type {
@@ -57,8 +58,38 @@ class InteractDragController {
   private dragSourceElement: HTMLElement | null = null // 记录当前拖动的源元素
   private dynamicDropEnabled: boolean = false // 标记是否已启用动态 drop 匹配
   private globalEventHandlers: Map<string, EventListener> = new Map() // 🔥 存储全局事件处理器以便清理
+  private registerStore: ReturnType<typeof useRegisterStore> | null = null // 延迟获取寄存器 Store
 
   // ==================== 状态管理 ====================
+
+  /**
+   * 获取寄存器 Store（延迟初始化以避免在 Pinia 未就绪时调用）
+   */
+  private getRegisterStore() {
+    if (!this.registerStore) {
+      this.registerStore = useRegisterStore()
+    }
+    return this.registerStore
+  }
+
+  /**
+   * 记录全局拖拽激活状态
+   */
+  private markGlobalDragActive(sessionId: string) {
+    const store = this.getRegisterStore()
+    store.writeRegister(store.RegisterKeys.GLOBAL_DRAG_ACTIVE, {
+      sessionId,
+      startedAt: Date.now(),
+    })
+  }
+
+  /**
+   * 清除全局拖拽激活状态
+   */
+  private clearGlobalDragActive() {
+    const store = this.getRegisterStore()
+    store.deleteRegister(store.RegisterKeys.GLOBAL_DRAG_ACTIVE)
+  }
 
   /**
    * 进入新阶段
@@ -93,6 +124,7 @@ class InteractDragController {
     this.state.targetZone = null
     this.state.dropIndex = null
     this.lastMouseY = null
+    this.clearGlobalDragActive()
     this.updateDebug()
   }
 
@@ -389,6 +421,8 @@ class InteractDragController {
         sourceContext: dragData.sourceContext,
       },
     }
+
+    this.markGlobalDragActive(session.id)
 
     const shouldCompact = this.shouldApplyCompactMode(sourceElement)
     this.isCompactModeActive = shouldCompact

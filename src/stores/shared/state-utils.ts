@@ -82,11 +82,13 @@ export function createLoadingState() {
 
   /**
    * 包装异步操作，自动管理加载状态
+   *
+   * 注意：错误会被记录并重新抛出，调用者需要处理错误
    */
   const withLoading = async <T>(
     operation: () => Promise<T>,
     errorPrefix = 'Operation failed'
-  ): Promise<T | null> => {
+  ): Promise<T> => {
     isLoading.value = true
     error.value = null
 
@@ -96,7 +98,8 @@ export function createLoadingState() {
     } catch (e) {
       error.value = `${errorPrefix}: ${e}`
       logger.error(LogTags.STORE_TASKS, errorPrefix, e instanceof Error ? e : new Error(String(e)))
-      return null
+      // 重新抛出错误，让调用者知道操作失败
+      throw e
     } finally {
       isLoading.value = false
     }

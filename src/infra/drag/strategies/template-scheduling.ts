@@ -9,7 +9,6 @@
 import type { Strategy } from '../types'
 import {
   extractTaskIds,
-  insertTaskAt,
   moveTaskWithin,
   extractDate,
   createOperationRecord,
@@ -21,10 +20,10 @@ import { isTemplate, isTaskCard } from '@/types/dtos'
 /**
  * 策略 1：Template → Daily
  *
- * 操作链：
- * 1. 从模板创建任务 (template.create_task)
- * 2. 为新任务添加日程 (schedule.create)
- * 3. 插入到 Daily 视图 (view.update_sorting)
+ * 操作链（原子操作）：
+ * 1. 从模板创建任务 + 添加日程 + 设置排序（单次 API 调用）
+ *
+ * 修复：避免竞争条件，所有操作在后端事务中完成
  */
 export const templateToDailyStrategy: Strategy = {
   id: 'template-to-daily',
@@ -43,7 +42,7 @@ export const templateToDailyStrategy: Strategy = {
 
   action: {
     name: 'create_task_from_template_with_schedule',
-    description: '从模板创建任务并安排到指定日期（3步操作）',
+    description: '从模板创建任务并安排到指定日期（原子操作）',
 
     async execute(ctx) {
       // 类型守卫
@@ -56,32 +55,32 @@ export const templateToDailyStrategy: Strategy = {
       const operations: OperationRecord[] = []
 
       try {
-        // 🎯 步骤 1: 从模板创建任务
+        // 计算排序位置
+        const targetSorting = extractTaskIds(ctx.targetContext)
+        const dropIndex = ctx.dropIndex ?? targetSorting.length
+        const prevTaskId = dropIndex > 0 ? targetSorting[dropIndex - 1] : null
+        const nextTaskId = dropIndex < targetSorting.length ? targetSorting[dropIndex] : null
+
+        // 🎯 单次原子操作：创建任务 + 日程 + 排序
         const createTaskPayload = {
           template_id: template.id,
-          variables: { date: targetDate }, // 可以传递变量
-        }
-        const newTask = await pipeline.dispatch('template.create_task', createTaskPayload)
-        operations.push(createOperationRecord('create_task', ctx.targetViewId, createTaskPayload))
-
-        // 🎯 步骤 2: 为新任务添加日程
-        const schedulePayload = {
-          task_id: newTask.id,
+          variables: { date: targetDate },
           scheduled_day: targetDate,
+          sort_position: {
+            view_context: ctx.targetViewId,
+            prev_task_id: prevTaskId,
+            next_task_id: nextTaskId,
+          },
         }
-        await pipeline.dispatch('schedule.create', schedulePayload)
-        operations.push(createOperationRecord('create_schedule', ctx.targetViewId, schedulePayload))
 
-        // 🎯 步骤 3: 插入到 Daily 视图（更新排序）
-        const targetSorting = extractTaskIds(ctx.targetContext)
-        const newTargetSorting = insertTaskAt(targetSorting, newTask.id, ctx.dropIndex)
-        const sortPayload = buildTaskLexoPayload(ctx.targetViewId, newTargetSorting, newTask.id)
-        if (sortPayload) {
-          await pipeline.dispatch('task.update_sort_position', sortPayload)
-          operations.push(
-            createOperationRecord('update_sort_position', ctx.targetViewId, sortPayload)
-          )
-        }
+        const newTask = await pipeline.dispatch('template.create_task', createTaskPayload)
+        operations.push(
+          createOperationRecord('create_task_with_schedule_and_sort', ctx.targetViewId, {
+            task_id: newTask.id,
+            template_id: template.id,
+            scheduled_day: targetDate,
+          })
+        )
 
         return {
           success: true,
@@ -100,7 +99,7 @@ export const templateToDailyStrategy: Strategy = {
     },
   },
 
-  tags: ['template', 'daily', 'create', 'multi-step'],
+  tags: ['template', 'daily', 'create', 'atomic'],
 }
 
 /**
@@ -248,21 +247,6 @@ export const templateReorderStrategy: Strategy = {
   },
 
   tags: ['template', 'reorder'],
-}
-
-function buildTaskLexoPayload(viewKey: string, order: string[], taskId: string) {
-  const index = order.indexOf(taskId)
-  if (index === -1) return null
-
-  const prev = index > 0 ? order[index - 1] : null
-  const next = index < order.length - 1 ? order[index + 1] : null
-
-  return {
-    view_context: viewKey,
-    task_id: taskId,
-    prev_task_id: prev,
-    next_task_id: next,
-  }
 }
 
 function buildTemplateSortPayload(order: string[], templateId: string) {

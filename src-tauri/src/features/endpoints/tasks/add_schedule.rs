@@ -243,11 +243,16 @@ mod logic {
         let mut tx = TransactionHelper::begin(app_state.db_pool()).await?;
 
         // 3. 检查任务是否存在
-        let _task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
+        let task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
 
-        // 4. 检查该日期是否已有日程
+        // 4. 检查任务是否已完成（已完成的任务不能添加日程）
+        if task.completed_at.is_some() {
+            return Err(AppError::conflict("已完成的任务不能添加日程"));
+        }
+
+        // 5. 检查该日期是否已有日程
         let has_schedule =
             TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &scheduled_day)
                 .await?;
@@ -256,10 +261,10 @@ mod logic {
             return Err(AppError::conflict("该日期已有日程安排"));
         }
 
-        // 5. 创建日程记录
+        // 6. 创建日程记录
         TaskScheduleRepository::create_in_tx(&mut tx, task_id, &scheduled_day).await?;
 
-        // 6. 重新查询任务并组装 TaskCard
+        // 7. 重新查询任务并组装 TaskCard
         // 注意：schedule_status 是派生字段，由装配器根据 task_schedules 表计算
         let updated_task = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
@@ -267,19 +272,19 @@ mod logic {
 
         let mut task_card = TaskAssembler::task_to_card_basic(&updated_task);
 
-        // 7. ✅ 在事务内填充 schedules 字段
+        // 8. ✅ 在事务内填充 schedules 字段
         // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
         // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
-        // 8. 构建统一的事务结果
+        // 9. 构建统一的事务结果
         // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
         let transaction_result = TaskTransactionResult {
             task: task_card,
             side_effects: SideEffects::empty(),
         };
 
-        // 9. 写入领域事件到 outbox
+        // 10. 写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,
             outbox::{EventOutboxRepository, SqlxEventOutboxRepository},
@@ -301,10 +306,10 @@ mod logic {
             outbox_repo.append_in_tx(&mut tx, &event).await?;
         }
 
-        // 10. 提交事务
+        // 11. 提交事务
         TransactionHelper::commit(tx).await?;
 
-        // 11. 返回结果
+        // 12. 返回结果
         // ✅ HTTP 响应与 SSE 事件载荷完全一致
         Ok(AddScheduleResponse {
             result: transaction_result,

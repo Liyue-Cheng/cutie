@@ -15,20 +15,17 @@
       <div class="header-right">
         <!-- Section 操作按钮（仅当有 sectionId 时显示） -->
         <template v-if="sectionId">
-          <CuteIcon
-            name="GripVertical"
-            :size="16"
+          <span
             class="header-icon drag-icon"
             draggable="true"
             @dragstart="handleDragStart"
             @mousedown.stop
-          />
-          <CuteIcon
-            name="Pencil"
-            :size="16"
-            class="header-icon edit-icon"
-            @click.stop="handleEditSection"
-          />
+          >
+            <CuteIcon name="GripVertical" :size="16" />
+          </span>
+          <span class="header-icon edit-icon" @click.stop="handleEditSection">
+            <CuteIcon name="Pencil" :size="16" />
+          </span>
         </template>
         <CuteIcon
           v-if="props.collapsible"
@@ -501,6 +498,9 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 /* 拖拽把手 */
 .drag-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: grab;
   opacity: 0.5;
 }
@@ -515,6 +515,9 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 /* 编辑按钮 */
 .edit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   opacity: 0.5;
 }

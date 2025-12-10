@@ -268,6 +268,43 @@
             </div>
           </div>
 
+          <!-- Behavior 分类 -->
+          <div v-else-if="activeCategory === 'behavior'" class="settings-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">{{ $t('settings.behavior.title') }}</h3>
+              <p class="panel-description">{{ $t('settings.behavior.description') }}</p>
+            </div>
+
+            <div class="settings-list">
+              <div class="settings-subsection">
+                <h4 class="subsection-title">{{ $t('settings.behavior.taskCompletion.title') }}</h4>
+                <p class="subsection-description">
+                  {{ $t('settings.behavior.taskCompletion.description') }}
+                </p>
+
+                <!-- 完成时创建日程 -->
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label class="setting-label">{{ $t('settings.behavior.taskCompletion.createSchedule') }}</label>
+                    <span class="setting-description">{{ $t('settings.behavior.taskCompletion.createScheduleDesc') }}</span>
+                  </div>
+                  <CuteCheckbox
+                    :checked="store.getSettingValue('task.completion.create_schedule_on_complete', true)"
+                    size="small"
+                    @update:checked="
+                      (val) =>
+                        pipeline.dispatch('user_settings.update', {
+                          key: 'task.completion.create_schedule_on_complete',
+                          value: val,
+                          value_type: 'boolean',
+                        })
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 其他分类的占位 -->
           <div v-else class="settings-panel">
             <div class="panel-header">

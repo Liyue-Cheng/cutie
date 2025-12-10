@@ -111,7 +111,7 @@ export const TemplateISA: ISADefinition = {
 
   'template.create_task': {
     meta: {
-      description: '从模板创建任务',
+      description: '从模板创建任务（支持原子操作：创建+日程+排序）',
       category: 'task',
       resourceIdentifier: (payload) => [`template:${payload.template_id}`],
       priority: 5,
@@ -129,10 +129,15 @@ export const TemplateISA: ISADefinition = {
     },
 
     // 🔥 声明式请求配置
+    // 支持可选参数：scheduled_day, sort_position
     request: {
       method: 'POST',
       url: (payload) => `/templates/${payload.template_id}/create-task`,
-      body: (payload) => payload.variables || {},
+      body: (payload) => ({
+        variables: payload.variables || {},
+        scheduled_day: payload.scheduled_day,
+        sort_position: payload.sort_position,
+      }),
     },
 
     commit: async (result: TaskCard) => {

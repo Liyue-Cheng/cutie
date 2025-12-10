@@ -1,97 +1,98 @@
 <template>
   <div
     class="task-strip"
-    :class="{ completed: task.is_completed }"
+    :class="{
+      completed: task.is_completed,
+      'hover-disabled': isGlobalDragActive && (task as any)._isPreview !== true,
+      'is-preview': (task as any)._isPreview === true,
+    }"
     @mousedown="onMouseDown"
     @click="handleClick"
     @contextmenu="showContextMenu"
   >
-    <!-- 顶部：完成按钮 + 标题 + 预期时间 -->
+    <!-- 顶部：完成按钮 + 标题 + 元信息 -->
     <div class="task-header">
-      <CuteDualModeCheckbox
-        class="main-checkbox"
-        :state="checkboxState"
-        size="large"
-        @update:state="handleCheckboxStateChange"
-        @click.stop
-      />
-      <div class="task-title" :class="{ completed: task.is_completed }">
-        {{ task.title || '新任务' }}
-      </div>
-
-      <!-- 简单模式：信息指示器 -->
-      <div v-if="displayMode === 'simple'" class="task-indicators">
-        <CuteIcon
-          v-if="task.glance_note"
-          name="FileText"
-          size="1.4rem"
-          class="indicator-icon"
-          title="有笔记"
+      <!-- 复选框 + 标题（不可分割） -->
+      <div class="task-main">
+        <CuteDualModeCheckbox
+          class="main-checkbox"
+          :state="checkboxState"
+          size="large"
+          @update:state="handleCheckboxStateChange"
+          @click.stop
         />
-        <CuteIcon
-          v-if="hasSubtasks"
-          name="ListChecks"
-          size="1.4rem"
-          class="indicator-icon"
-          title="有子任务"
-        />
-      </div>
+        <div class="task-title" :class="{ completed: task.is_completed }">
+          {{ task.title || '新任务' }}
+        </div>
 
-      <!-- 所属项目（优先）或 Area 标签 -->
-      <!-- 在项目视图内部不显示项目标签 -->
-      <InfoTag
-        v-if="project && !isInProjectView"
-        icon="FolderKanban"
-        :icon-color="area?.color || 'var(--color-text-tertiary)'"
-        :text="project.name"
-      />
-      <!-- 在项目视图中，只有当任务 Area 与项目 Area 不一致时才显示 -->
-      <InfoTag
-        v-else-if="area && shouldShowAreaTag"
-        icon="Hash"
-        :icon-color="area.color"
-        :text="area.name"
-      />
-
-      <!-- 截止日期（始终在标题行显示） -->
-      <InfoTag
-        v-if="task.due_date"
-        :icon="task.due_date.type === 'HARD' ? 'Flag' : undefined"
-        :icon-color="
-          task.due_date.is_overdue
-            ? 'var(--color-deadline-overdue)'
-            : 'var(--color-text-tertiary)'
-        "
-        :text="formatDueDate(task.due_date.date)"
-        :danger="task.due_date.is_overdue && task.due_date.type === 'HARD'"
-      >
-        <template v-if="task.due_date.type !== 'HARD'" #icon>
-          <span class="soft-deadline-icon">~</span>
-        </template>
-      </InfoTag>
-
-      <!-- Daily view：显示预期时间（可选） -->
-      <div v-if="isInDailyView && showEstimatedDuration" class="estimated-duration-wrapper">
-        <button class="estimated-duration" @click.stop="toggleTimePicker">
-          {{ formattedDuration }}
-        </button>
-
-        <!-- 时间选择器弹窗 -->
-        <div v-if="showTimePicker" class="time-picker-popup">
-          <TimeDurationPicker
-            :model-value="task.estimated_duration"
-            @update:model-value="updateEstimatedDuration"
-            @close="showTimePicker = false"
+        <!-- 简单模式：信息指示器 -->
+        <div v-if="displayMode === 'simple'" class="task-indicators">
+          <CuteIcon
+            v-if="task.glance_note"
+            name="FileText"
+            size="1.4rem"
+            class="indicator-icon"
+            title="有笔记"
+          />
+          <CuteIcon
+            v-if="hasSubtasks"
+            name="ListChecks"
+            size="1.4rem"
+            class="indicator-icon"
+            title="有子任务"
           />
         </div>
       </div>
 
-      <!-- Daily view：时间块显示（如果有） -->
-      <InfoTag
-        v-if="isInDailyView && todayTimeBlocks.length > 0"
-        icon="Clock"
-        :text="timeBlocksDisplayText"
-      />
+      <!-- 元信息区域（会自动换行） -->
+      <div class="task-meta">
+        <!-- 所属项目（优先）或 Area 标签 -->
+        <!-- 在项目视图内部不显示项目标签 -->
+        <InfoTag
+          v-if="project && !isInProjectView"
+          icon="FolderKanban"
+          :icon-color="area?.color || 'var(--color-text-tertiary)'"
+          :text="project.name"
+        />
+        <!-- 在项目视图中，只有当任务 Area 与项目 Area 不一致时才显示 -->
+        <InfoTag
+          v-else-if="area && shouldShowAreaTag"
+          icon="Hash"
+          :icon-color="area.color"
+          :text="area.name"
+        />
+
+        <!-- 截止日期 -->
+        <InfoTag
+          v-if="task.due_date"
+          :icon="task.due_date.type === 'HARD' ? 'Flag' : undefined"
+          :icon-color="
+            task.due_date.is_overdue
+              ? 'var(--color-deadline-overdue)'
+              : 'var(--color-text-tertiary)'
+          "
+          :text="formatDueDate(task.due_date.date)"
+          :danger="task.due_date.is_overdue && task.due_date.type === 'HARD'"
+        >
+          <template v-if="task.due_date.type !== 'HARD'" #icon>
+            <span class="soft-deadline-icon">~</span>
+          </template>
+        </InfoTag>
+
+        <!-- 最近排期（仅在项目和区域视图显示） -->
+        <InfoTag
+          v-if="shouldShowNextSchedule && nextScheduleDate"
+          icon="CalendarDays"
+          :text="formatScheduleDate(nextScheduleDate)"
+        />
+
+        <!-- Daily view：时间块显示（如果有） -->
+        <InfoTag
+          v-if="isInDailyView && todayTimeBlocks.length > 0"
+          icon="Clock"
+          :text="timeBlocksDisplayText"
+        />
+      </div>
     </div>
 
     <!-- 概览笔记（仅完整模式显示） -->
@@ -127,6 +128,7 @@ import type { TaskCard } from '@/types/dtos'
 import { useAreaStore } from '@/stores/area'
 import { useProjectStore } from '@/stores/project'
 import { useUIStore } from '@/stores/ui'
+import { useRegisterStore } from '@/stores/register'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { useViewContext } from '@/composables/useViewContext'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
@@ -136,7 +138,6 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
 import InfoTag from '@/components/parts/InfoTag.vue'
-import TimeDurationPicker from '@/components/parts/TimeDurationPicker.vue'
 import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue'
 
 // Props
@@ -144,12 +145,10 @@ interface Props {
   task: TaskCard
   viewKey?: string
   displayMode?: 'simple' | 'full'
-  showEstimatedDuration?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   displayMode: 'full',
-  showEstimatedDuration: true,
 })
 
 // Emits
@@ -162,6 +161,7 @@ const emit = defineEmits<{
 const areaStore = useAreaStore()
 const projectStore = useProjectStore()
 const uiStore = useUIStore()
+const registerStore = useRegisterStore()
 const contextMenu = useContextMenu()
 
 // ✅ 视图上下文：直接使用 viewKey prop（已经是正确的格式）
@@ -176,11 +176,13 @@ const suppressClickOnce = ref(false)
 let mouseDownAt: { x: number; y: number } | null = null
 const CLICK_SUPPRESS_DISTANCE = 4 // px
 
-// 时间选择器状态
-const showTimePicker = ref(false)
-
 // 乐观更新：正在完成中的状态
 const isCompleting = ref(false)
+
+// 全局拖拽进行中时关闭 hover 效果
+const isGlobalDragActive = computed(() =>
+  registerStore.hasRegister(registerStore.RegisterKeys.GLOBAL_DRAG_ACTIVE)
+)
 
 // 通过 area_id 从 store 获取完整 area 信息
 const area = computed(() => {
@@ -210,6 +212,30 @@ const isInDailyView = computed(() => {
 // 判断是否在项目视图中
 const isInProjectView = computed(() => {
   return props.viewKey?.startsWith('project::')
+})
+
+// 判断是否在区域视图中
+const isInAreaView = computed(() => {
+  return props.viewKey?.startsWith('area::')
+})
+
+// 是否应该显示最近排期（仅在项目和区域视图）
+const shouldShowNextSchedule = computed(() => {
+  return isInProjectView.value || isInAreaView.value
+})
+
+// 获取最近的未来排期（包括今天，不包括过去）
+const nextScheduleDate = computed(() => {
+  if (!props.task.schedules || props.task.schedules.length === 0) return null
+
+  const today = getTodayDateString()
+
+  // 筛选出今天及未来的排期，并排序
+  const futureSchedules = props.task.schedules
+    .filter(s => s.scheduled_day >= today)
+    .sort((a, b) => a.scheduled_day.localeCompare(b.scheduled_day))
+
+  return futureSchedules.length > 0 ? futureSchedules[0].scheduled_day : null
 })
 
 // 从 viewKey 提取当前项目视图的项目 ID
@@ -313,32 +339,6 @@ const checkboxState = computed<CheckboxState>(() => {
   return null
 })
 
-// 格式化时间显示
-const formattedDuration = computed(() => {
-  // 如果有今日时间块，显示时间块总和
-  if (todayTimeBlocks.value.length > 0) {
-    const minutes = todayTimeBlocksTotalDuration.value
-
-    if (minutes === 0) return 'tiny'
-
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-
-    return `${hours}:${mins.toString().padStart(2, '0')}`
-  }
-
-  // 没有时间块时，显示预期时间
-  if (props.task.estimated_duration === null || props.task.estimated_duration === 0) {
-    return 'tiny'
-  }
-
-  const minutes = props.task.estimated_duration
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-
-  return `${hours}:${mins.toString().padStart(2, '0')}`
-})
-
 // 格式化时间块的开始时间（HH:mm）
 function formatTimeBlockStart(timeBlock: any): string {
   // 如果是浮动时间且有本地时间，使用本地时间
@@ -356,6 +356,27 @@ function formatTimeBlockStart(timeBlock: any): string {
 // 格式化截止日期
 // ✅ due_date.date 现在是 YYYY-MM-DD 格式
 function formatDueDate(dateString: string): string {
+  const [year, month, day] = dateString.split('-')
+  return `${month}/${day}`
+}
+
+// 格式化排期日期（显示友好名称：今天、明天、或 MM/DD）
+function formatScheduleDate(dateString: string): string {
+  const today = getTodayDateString()
+
+  if (dateString === today) {
+    return '今天'
+  }
+
+  // 计算明天
+  const todayDate = new Date(today)
+  todayDate.setDate(todayDate.getDate() + 1)
+  const tomorrow = todayDate.toISOString().split('T')[0]
+
+  if (dateString === tomorrow) {
+    return '明天'
+  }
+
   const [year, month, day] = dateString.split('-')
   return `${month}/${day}`
 }
@@ -415,28 +436,6 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
   }
 }
 
-// 切换时间选择器显示
-function toggleTimePicker() {
-  showTimePicker.value = !showTimePicker.value
-}
-
-// 更新预期时间
-async function updateEstimatedDuration(duration: number | null) {
-  try {
-    await pipeline.dispatch('task.update', {
-      id: props.task.id,
-      updates: { estimated_duration: duration },
-    })
-    showTimePicker.value = false
-  } catch (error) {
-    logger.error(
-      LogTags.COMPONENT_TASK_BAR,
-      'Error updating estimated duration',
-      error instanceof Error ? error : new Error(String(error))
-    )
-  }
-}
-
 // 点击打开编辑器
 function handleClick() {
   if (suppressClickOnce.value) {
@@ -474,7 +473,7 @@ function onMouseDown(event: MouseEvent) {
 .task-strip {
   background-color: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: 0.8rem;
   padding: 0.8rem 1.6rem;
   margin-bottom: 0;
   cursor: pointer;
@@ -495,15 +494,46 @@ function onMouseDown(event: MouseEvent) {
   background-color: var(--color-background-hover, #f0f);
 }
 
+.task-strip.is-preview,
+.task-strip.is-preview:hover,
+.task-strip.is-preview.hover-disabled,
+.task-strip.is-preview.hover-disabled:hover {
+  background-color: var(--color-background-hover, #f0f);
+}
+
+.task-strip.hover-disabled,
+.task-strip.hover-disabled:hover {
+  background-color: transparent;
+}
+
 .task-strip.completed {
   opacity: 0.7;
 }
 
-/* 顶部：完成按钮 + 标题 + 预期时间 */
+/* 顶部：完成按钮 + 标题 + 元信息 */
 .task-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 0.6rem 1rem;
+}
+
+/* 复选框 + 标题：不可分割的整体 */
+.task-main {
+  display: flex;
+  align-items: flex-start;
   gap: 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 元信息区域：空间不够时换行到第二行 */
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
 }
 
 /* 当有其他内容时，标题栏需要底部间距 */
@@ -511,13 +541,17 @@ function onMouseDown(event: MouseEvent) {
   margin-bottom: 0.8rem;
 }
 
-/* 主要完成复选框 */
+/* 主要完成复选框：与标题第一行中线对齐 */
 .main-checkbox {
   flex-shrink: 0;
+  /* 标题 line-height: 1.4, font-size: 1.5rem, 行高 = 2.1rem */
+  /* 复选框高度约 2.1rem，与第一行中线对齐 */
+  margin-top: 0.05rem;
 }
 
 .task-title {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 1.5rem;
   font-weight: 500;
   color: var(--color-text-primary);
@@ -528,43 +562,6 @@ function onMouseDown(event: MouseEvent) {
 .task-title.completed {
   color: var(--color-text-secondary);
   text-decoration: line-through;
-}
-
-/* 预期时间显示 */
-.estimated-duration-wrapper {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.estimated-duration {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.8rem;
-  font-family: inherit;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background-color: var(--color-background-hover);
-  border: 1.5px solid var(--color-border-default);
-  border-radius: 1.2rem;
-  line-height: 1.4;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.estimated-duration:hover {
-  border-color: var(--color-button-primary-bg);
-  background-color: var(--color-button-primary-hover);
-  color: var(--color-button-primary-bg);
-}
-
-.time-picker-popup {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.4rem;
-  z-index: 100;
 }
 
 /* 通用子行结构：行头 + 内容 */

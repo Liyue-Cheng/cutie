@@ -299,6 +299,17 @@ export default {
       theme: 'Theme',
       themeDesc: 'Select application theme',
     },
+    behavior: {
+      title: 'Behavior Settings',
+      description: 'Task and application behavior settings',
+      taskCompletion: {
+        title: 'Task Completion',
+        description: 'Control behavior when completing tasks',
+        createSchedule: 'Create schedule on completion',
+        createScheduleDesc:
+          'Automatically create a completed schedule record for today when completing tasks from non-today views',
+      },
+    },
     debug: {
       title: 'Debug Settings',
       description: 'Development and debugging settings',

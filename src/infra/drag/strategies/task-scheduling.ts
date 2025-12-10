@@ -55,6 +55,8 @@ function buildLexoRankPayload(viewKey: string, order: string[], taskId: string) 
  * - misc::staging (全部)
  * - misc::staging::no-area (无区域)
  * - misc::staging::{areaId} (指定区域)
+ * - misc::staging::no-project (无项目)
+ * - misc::staging::project::{projectId} (指定项目)
  */
 export const stagingToDailyStrategy: Strategy = {
   id: 'staging-to-daily',
@@ -62,7 +64,7 @@ export const stagingToDailyStrategy: Strategy = {
 
   conditions: {
     source: {
-      viewKey: /^misc::staging(::[\w-]+)?$/,
+      viewKey: /^misc::staging(::[\w-]+(::[\w-]+)?)?$/,
       objectType: 'task',
       taskStatus: 'staging',
     },
@@ -360,6 +362,8 @@ export const dailyToDailyStrategy: Strategy = {
  * - misc::staging (全部)
  * - misc::staging::no-area (无区域)
  * - misc::staging::{areaId} (指定区域)
+ * - misc::staging::no-project (无项目)
+ * - misc::staging::project::{projectId} (指定项目)
  */
 export const dailyToStagingStrategy: Strategy = {
   id: 'daily-to-staging',
@@ -372,7 +376,7 @@ export const dailyToStagingStrategy: Strategy = {
       taskStatus: 'scheduled',
     },
     target: {
-      viewKey: /^misc::staging(::[\w-]+)?$/,
+      viewKey: /^misc::staging(::[\w-]+(::[\w-]+)?)?$/,
     },
     priority: 95,
   },
@@ -524,6 +528,8 @@ export const dailyReorderStrategy: Strategy = {
  * - misc::staging (全部)
  * - misc::staging::no-area (无区域)
  * - misc::staging::{areaId} (指定区域)
+ * - misc::staging::no-project (无项目)
+ * - misc::staging::project::{projectId} (指定项目)
  *
  * 注意：只处理同一 staging 视图内的重排序
  */
@@ -533,11 +539,11 @@ export const stagingReorderStrategy: Strategy = {
 
   conditions: {
     source: {
-      viewKey: /^misc::staging(::[\w-]+)?$/,
+      viewKey: /^misc::staging(::[\w-]+(::[\w-]+)?)?$/,
       objectType: 'task',
     },
     target: {
-      viewKey: /^misc::staging(::[\w-]+)?$/,
+      viewKey: /^misc::staging(::[\w-]+(::[\w-]+)?)?$/,
       // 🔥 自定义检查：确保是同一个 staging 视图
       customCheck: (targetZone: string, session) => {
         return session.source.viewKey === targetZone
@@ -609,6 +615,8 @@ export const stagingReorderStrategy: Strategy = {
  * - misc::staging::no-area → misc::staging::{areaId}
  * - misc::staging::{areaId} → misc::staging::no-area
  * - misc::staging::{areaId1} → misc::staging::{areaId2}
+ * - misc::staging::no-project → misc::staging::project::{projectId}
+ * - misc::staging::project::{projectId} → misc::staging::no-project
  */
 export const stagingCrossAreaStrategy: Strategy = {
   id: 'staging-cross-area',
@@ -616,12 +624,12 @@ export const stagingCrossAreaStrategy: Strategy = {
 
   conditions: {
     source: {
-      viewKey: /^misc::staging(::[\w-]+)?$/,
+      viewKey: /^misc::staging(::[\w-]+(::[\w-]+)?)?$/,
       objectType: 'task',
       taskStatus: 'staging',
     },
     target: {
-      viewKey: /^misc::staging(::[\w-]+)?$/,
+      viewKey: /^misc::staging(::[\w-]+(::[\w-]+)?)?$/,
       // 🔥 自定义检查：确保是不同的 staging 视图（跨区域）
       customCheck: (targetZone: string, session) => {
         return session.source.viewKey !== targetZone

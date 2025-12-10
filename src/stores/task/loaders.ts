@@ -176,16 +176,19 @@ export function createLoaders(core: ReturnType<typeof createTaskCore>) {
    * API: GET /tasks/search?q=...
    */
   async function searchTasks_DMA(query: string, limit?: number): Promise<TaskCard[]> {
-    const result = await withLoading(async () => {
-      // TODO: 实现 API 调用
-      logger.info(LogTags.STORE_TASKS, 'DMA: searchTasks - API not implemented yet', {
-        query,
-        limit,
-      })
+    try {
+      const result = await withLoading(async () => {
+        // TODO: 实现 API 调用
+        logger.info(LogTags.STORE_TASKS, 'DMA: searchTasks - API not implemented yet', {
+          query,
+          limit,
+        })
+        return []
+      }, 'search tasks')
+      return result
+    } catch {
       return []
-    }, 'search tasks')
-
-    return result ?? []
+    }
   }
 
   return {

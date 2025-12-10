@@ -371,7 +371,11 @@ mod logic {
             TaskRepository::update_subtasks_in_tx(&mut tx, task_id, Some(subtasks)).await?;
         }
 
-        // 6. 处理日程：确保在 schedule_date 有已完成的日程，删除之后的日程
+        // 6. 读取设置：是否在完成时创建日程
+        let create_schedule_on_complete =
+            get_create_schedule_on_complete_setting(app_state.db_pool()).await;
+
+        // 7. 处理日程：确保在 schedule_date 有已完成的日程，删除之后的日程
         let has_schedule =
             TaskScheduleRepository::has_schedule_for_day_in_tx(&mut tx, task_id, &schedule_date)
                 .await?;
@@ -385,8 +389,8 @@ mod logic {
                 completed_at,
             )
             .await?;
-        } else {
-            // 没有日程，创建一条新的
+        } else if create_schedule_on_complete {
+            // 没有日程且设置允许创建，创建一条新的
             TaskScheduleRepository::create_in_tx(&mut tx, task_id, &schedule_date).await?;
             // 立即更新为已完成
             TaskScheduleRepository::update_day_to_completed_in_tx(
@@ -401,17 +405,23 @@ mod logic {
                 schedule_date,
                 task_id
             );
+        } else {
+            // 没有日程且设置不允许创建，跳过
+            tracing::info!(
+                "Skipping schedule creation for task {} (setting disabled)",
+                task_id
+            );
         }
 
-        // 7. 删除 > schedule_date 的所有日程
+        // 8. 删除 > schedule_date 的所有日程
         TaskScheduleRepository::delete_schedules_after_in_tx(&mut tx, task_id, &schedule_date)
             .await?;
 
-        // 8. 查询所有链接的时间块（✅ 使用共享 Repository）
+        // 9. 查询所有链接的时间块（✅ 使用共享 Repository）
         let linked_blocks =
             TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;
 
-        // 9. 第一遍：收集需要删除/截断的时间块（✅ 在删除之前先查询完整数据）
+        // 10. 第一遍：收集需要删除/截断的时间块（✅ 在删除之前先查询完整数据）
         let mut blocks_to_delete = Vec::new();
         let mut blocks_to_truncate = Vec::new();
 
@@ -431,12 +441,12 @@ mod logic {
             }
         }
 
-        // 10. 查询将被删除的时间块的完整数据（✅ 使用共享装配器）
+        // 11. 查询将被删除的时间块的完整数据（✅ 使用共享装配器）
         let deleted_time_block_ids: Vec<Uuid> = blocks_to_delete.iter().map(|b| b.id).collect();
         let deleted_blocks =
             TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &deleted_time_block_ids).await?;
 
-        // 11. 现在执行删除和截断操作（✅ 使用共享 Repository）
+        // 12. 现在执行删除和截断操作（✅ 使用共享 Repository）
         for block in blocks_to_delete {
             TimeBlockRepository::soft_delete_in_tx(&mut tx, block.id).await?;
             tracing::info!("Deleted future block {}", block.id);
@@ -449,18 +459,18 @@ mod logic {
             tracing::info!("Truncated ongoing block {} to {}", block.id, completed_at);
         }
 
-        // 12. 查询被截断的时间块的完整数据（✅ 使用共享装配器）
+        // 13. 查询被截断的时间块的完整数据（✅ 使用共享装配器）
         let truncated_blocks =
             TimeBlockAssembler::assemble_for_event_in_tx(&mut tx, &truncated_time_block_ids)
                 .await?;
 
-        // 13. 重新查询任务并组装完整 TaskCard（✅ 使用共享 Repository）
+        // 14. 重新查询任务并组装完整 TaskCard（✅ 使用共享 Repository）
         let updated_task_in_tx = TaskRepository::find_by_id_in_tx(&mut tx, task_id)
             .await?
             .ok_or_else(|| AppError::not_found("Task", task_id.to_string()))?;
         let mut task_card_for_event = TaskAssembler::task_to_card_basic(&updated_task_in_tx);
 
-        // 14. ✅ 在事务内填充 schedules 字段
+        // 15. ✅ 在事务内填充 schedules 字段
         // ⚠️ 必须在写入 SSE 之前填充，确保 SSE 和 HTTP 返回的数据一致！
         task_card_for_event.schedules =
             TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
@@ -639,6 +649,28 @@ mod logic {
         }
 
         Ok(TimeBlockAction::None)
+    }
+}
+
+// ==================== 设置读取 ====================
+
+/// 读取"完成时是否创建日程"设置
+///
+/// 默认值为 true（保持原有行为）
+async fn get_create_schedule_on_complete_setting(pool: &sqlx::SqlitePool) -> bool {
+    use crate::features::user_settings::shared::UserSettingRepository;
+
+    const SETTING_KEY: &str = "task.completion.create_schedule_on_complete";
+
+    match UserSettingRepository::find_by_key(pool, SETTING_KEY).await {
+        Ok(Some(setting)) => {
+            // 解析 JSON boolean 值
+            setting.setting_value.trim() == "true"
+        }
+        _ => {
+            // 默认值：true
+            true
+        }
     }
 }
 

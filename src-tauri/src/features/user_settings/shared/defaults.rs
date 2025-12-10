@@ -123,6 +123,13 @@ pub fn get_default_settings() -> Vec<DefaultSetting> {
             value: "true",
             value_type: ValueType::Boolean,
         },
+        // ==================== Task Behavior Settings ====================
+        // 任务行为相关设置
+        DefaultSetting {
+            key: "task.completion.create_schedule_on_complete",
+            value: "true",
+            value_type: ValueType::Boolean,
+        },
     ]
 }
 

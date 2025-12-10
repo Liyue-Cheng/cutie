@@ -42,17 +42,27 @@ const lineTop = ref<number | null>(null)
 const segments = ref<Array<{ date: string; left: number; width: number; isToday: boolean }>>([])
 const currentTimeText = ref<string>('')
 
+// 🔧 时间网格可见区域边界（用于限制指示器只在时间槽区域显示）
+const visibleBounds = ref<{ top: number; bottom: number } | null>(null)
+
 let refreshTimer: number | null = null
 let resizeObserver: ResizeObserver | null = null
 let scrollEl: HTMLElement | null = null
 
-const shouldRender = computed(
-  () =>
-    Boolean(props.calendarRoot) &&
-    props.viewType !== 'month' &&
-    segments.value.length > 0 &&
-    lineTop.value !== null
-)
+const shouldRender = computed(() => {
+  if (!props.calendarRoot || props.viewType === 'month') return false
+  if (segments.value.length === 0 || lineTop.value === null) return false
+
+  // 🔧 只有当指示器在时间网格可见区域内时才显示
+  if (visibleBounds.value) {
+    const { top, bottom } = visibleBounds.value
+    if (lineTop.value < top || lineTop.value > bottom) {
+      return false
+    }
+  }
+
+  return true
+})
 
 const labelStyle = computed(() => {
   const axisWidth = props.timeAxisWidth ?? 0
@@ -213,6 +223,23 @@ function updateTimePosition() {
   // 最终位置 = slot 顶部相对容器的位置 + slot 内偏移
   lineTop.value = slotRect.top - containerRect.top + slotHeight * ratio
 
+  // 🔧 计算时间网格可见区域边界（排除标题栏和全天区域）
+  // 使用滚动容器的可见区域来限制指示器显示范围
+  if (scroller) {
+    const scrollerRect = scroller.getBoundingClientRect()
+    visibleBounds.value = {
+      top: scrollerRect.top - containerRect.top,
+      bottom: scrollerRect.bottom - containerRect.top,
+    }
+  } else {
+    // 如果没有滚动容器，使用 slotsContainer 的边界
+    const slotsRect = slotsContainer.getBoundingClientRect()
+    visibleBounds.value = {
+      top: slotsRect.top - containerRect.top,
+      bottom: slotsRect.bottom - containerRect.top,
+    }
+  }
+
   debug('updateTimePosition', {
     targetSlotTime: targetSlot.minutes,
     slotHeight,
@@ -221,6 +248,7 @@ function updateTimePosition() {
     offsetInSlot,
     ratio,
     lineTop: lineTop.value,
+    visibleBounds: visibleBounds.value,
   })
 }
 

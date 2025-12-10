@@ -32,9 +32,9 @@ interface StoreInitConfig {
  * 1. area - 被 task 引用
  * 2. recurrence - 被 task 引用
  * 3. userSettings - 被主题系统使用
- * 4. task - 核心数据
- * 5. timeBlock - 依赖 task
- * 6. project - 独立
+ * 4. project - 被 task staging 视图引用（显示项目名称）
+ * 5. task - 核心数据
+ * 6. timeBlock - 依赖 task
  * 7. template - 独立
  * 8. trash - 独立
  */
@@ -61,23 +61,23 @@ const STORE_CONFIGS: StoreInitConfig[] = [
     fetchData: { usePipeline: 'user_settings.fetch_all' },
   },
   {
+    name: 'Project',
+    importFn: () => import('@/stores/project'),
+    storeName: 'useProjectStore',
+    initEvents: true,
+    fetchData: { usePipeline: 'project.fetch_all' }, // 预加载所有项目（staging 视图需要项目名称）
+  },
+  {
     name: 'Task',
     importFn: () => import('@/stores/task'),
     storeName: 'useTaskStore',
     initEvents: true,
-    // 不预加载，按需加载
+    fetchData: { method: 'fetchStagingTasks_DMA' }, // 预加载 staging 任务
   },
   {
     name: 'TimeBlock',
     importFn: () => import('@/stores/timeblock'),
     storeName: 'useTimeBlockStore',
-    initEvents: true,
-    // 不预加载，按需加载
-  },
-  {
-    name: 'Project',
-    importFn: () => import('@/stores/project'),
-    storeName: 'useProjectStore',
     initEvents: true,
     // 不预加载，按需加载
   },
@@ -131,12 +131,19 @@ export async function initStores(): Promise<void> {
       if (config.fetchData) {
         if (config.fetchData.usePipeline) {
           // 使用 pipeline 指令
+          logger.info('System:Init', `Fetching data via pipeline: ${config.fetchData.usePipeline}`)
           await pipeline.dispatch(config.fetchData.usePipeline, {})
         } else if (config.fetchData.method) {
           // 使用 store 方法
           const method = store[config.fetchData.method]
           if (typeof method === 'function') {
+            logger.info('System:Init', `Fetching data via method: ${config.fetchData.method}`)
             await method.call(store)
+          } else {
+            logger.warn('System:Init', `Method not found on store: ${config.fetchData.method}`, {
+              storeName: config.name,
+              availableMethods: Object.keys(store).filter((k) => typeof store[k] === 'function'),
+            })
           }
         }
       }

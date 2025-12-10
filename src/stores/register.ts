@@ -128,6 +128,9 @@ export const useRegisterStore = defineStore('register', () => {
     /** HomeView 的显示模式 ('default' | 'board' | 'calendar') */
     HOME_VIEW_MODE: 'homeViewMode',
 
+    /** 全局拖拽状态标记 (boolean | { sessionId: string; startedAt: number }) */
+    GLOBAL_DRAG_ACTIVE: 'globalDragActive',
+
     // 可以继续添加更多预定义键名...
   } as const
 

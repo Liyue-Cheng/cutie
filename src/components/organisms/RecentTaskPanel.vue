@@ -50,8 +50,22 @@
             </div>
           </div>
 
-          <!-- 右侧设置菜单（天数 + 筛选） -->
+          <!-- 右侧控制组 -->
           <div class="controls-right">
+            <!-- 导航按钮组 -->
+            <div class="nav-buttons">
+              <button class="nav-btn" title="上一页" @click="navigatePrevious">
+                <CuteIcon name="ChevronLeft" :size="18" />
+              </button>
+              <button class="nav-btn" title="下一页" @click="navigateNext">
+                <CuteIcon name="ChevronRight" :size="18" />
+              </button>
+              <button class="nav-btn today-nav-btn" title="回到今天" @click="goToToday">
+                <span class="today-text">T</span>
+              </button>
+            </div>
+
+            <!-- 设置菜单（天数 + 筛选） -->
             <CuteDropdown :close-on-select="false" :max-height="'none'" align-right>
               <template #trigger>
                 <button class="icon-btn menu-btn" title="设置">
@@ -456,7 +470,51 @@ onUnmounted(() => {
 .controls-right {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 0.4rem;
+}
+
+/* ==================== 导航按钮组 ==================== */
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.recent-controls:hover .nav-buttons {
+  opacity: 1;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  padding: 0;
+  color: var(--color-text-secondary, #f0f);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-default, #f0f);
+}
+
+.nav-btn:active {
+  transform: scale(0.95);
+}
+
+.today-text {
+  font-size: 1.6rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
 /* ==================== 日期标题样式 ==================== */
