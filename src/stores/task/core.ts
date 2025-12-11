@@ -381,6 +381,58 @@ export function createTaskCore() {
               })
 
               return filteredTasks
+            } else if (identifier === 'recent-carryover') {
+              // misc::staging::recent-carryover - 最近结转的 staging 任务
+              // 定义：过去5天内有排期，但目前属于 staging 的任务
+              const today = getTodayDateString()
+              const todayDate = new Date(today)
+              const fiveDaysAgo = new Date(todayDate)
+              fiveDaysAgo.setDate(todayDate.getDate() - 5)
+              const fiveDaysAgoStr = fiveDaysAgo.toISOString().split('T')[0]!
+
+              const filteredTasks = allTasksArray.value.filter((task) => {
+                // 基础状态检查
+                if (task.is_completed || task.is_archived || task.is_deleted) {
+                  return false
+                }
+
+                // 🔥 必须是 staging 状态（没有当前或未来的日程）
+                const hasFutureOrTodaySchedule =
+                  task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+                if (hasFutureOrTodaySchedule) {
+                  return false
+                }
+
+                // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                if (
+                  task.recurrence_id &&
+                  task.recurrence_original_date &&
+                  task.recurrence_expiry_behavior === 'EXPIRE'
+                ) {
+                  if (task.recurrence_original_date < today) {
+                    return false
+                  }
+                }
+
+                // 🔥 必须在过去5天内有排期（不含今天）
+                const hasRecentPastSchedule =
+                  task.schedules?.some((schedule) => {
+                    const scheduleDay = schedule.scheduled_day
+                    return scheduleDay >= fiveDaysAgoStr && scheduleDay < today
+                  }) ?? false
+
+                return hasRecentPastSchedule
+              })
+
+              logger.debug(LogTags.STORE_TASKS, 'Recent carryover staging filter result', {
+                viewKey,
+                today,
+                fiveDaysAgoStr,
+                totalTasks: allTasksArray.value.length,
+                filteredCount: filteredTasks.length,
+              })
+
+              return filteredTasks
             } else if (identifier === 'project' && extraIdentifier) {
               // misc::staging::project::{projectId} - 指定项目的 staging 任务
               const projectId = extraIdentifier

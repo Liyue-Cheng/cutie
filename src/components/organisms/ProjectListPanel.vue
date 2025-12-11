@@ -1,29 +1,38 @@
 <template>
-  <div class="project-list-panel">
-    <!-- 控制栏 -->
-    <div class="control-bar">
-      <h2 class="title">{{ $t('project.title.list') }}</h2>
-      <button class="create-btn" @click="emit('create-project')">
-        <CuteIcon name="Plus" :size="16" />
-        <span>{{ $t('project.action.create') }}</span>
-      </button>
-    </div>
+  <TwoRowLayout class="project-list-panel">
+    <template #top>
+      <!-- 控制栏 -->
+      <div class="control-bar">
+        <h2 class="title">{{ $t('project.title.list') }}</h2>
+        <button class="create-btn" @click="emit('create-project')">
+          <CuteIcon name="Plus" :size="16" />
+          <span>{{ $t('project.action.create') }}</span>
+        </button>
+      </div>
+    </template>
 
-    <!-- 项目列表 -->
-    <div class="project-list">
+    <template #bottom>
+      <!-- 项目列表 -->
+      <div class="project-list">
       <!-- 无项目选项（置顶） -->
       <div
-        class="project-card no-project"
+        class="project-card"
         :class="{ active: selectedId === null }"
         @click="emit('select-project', null)"
       >
-        <div class="no-project-icon">
-          <CuteIcon name="Inbox" :size="20" />
-        </div>
-        <div class="project-info">
-          <div class="project-name">{{ $t('project.title.noProject') }}</div>
-          <div class="project-meta">
-            <span class="hint-text">{{ $t('project.label.noProjectTasks') }}</span>
+        <div class="project-row">
+          <div class="project-left">
+            <div class="no-project-icon">
+              <CuteIcon name="Inbox" :size="16" />
+            </div>
+            <div class="project-name">{{ $t('project.title.noProject') }}</div>
+          </div>
+
+          <div class="project-right">
+            <span class="task-count">
+              {{ noProjectStats.completed }}/{{ noProjectStats.total }}
+              {{ $t('task.count.tasks') }}
+            </span>
           </div>
         </div>
       </div>
@@ -54,6 +63,11 @@
           </div>
 
           <div class="project-right">
+            <span
+              v-if="projectColor(project)"
+              class="area-dot"
+              :style="{ backgroundColor: projectColor(project) }"
+            ></span>
             <span class="task-count">
               {{ getProjectStats(project.id).completed }}/{{ getProjectStats(project.id).total }}
               {{ $t('task.count.tasks') }}
@@ -64,21 +78,16 @@
             >
           </div>
         </div>
-
-        <div
-          v-if="projectColor(project)"
-          class="color-bar"
-          :style="{ backgroundColor: projectColor(project) }"
-        ></div>
       </div>
 
-      <!-- 空状态 -->
-      <div v-if="projects.length === 0" class="empty-state">
-        <p>{{ $t('project.empty.noProjects') }}</p>
-        <p class="hint">{{ $t('project.empty.noProjectsHint') }}</p>
+        <!-- 空状态 -->
+        <div v-if="projects.length === 0" class="empty-state">
+          <p>{{ $t('project.empty.noProjects') }}</p>
+          <p class="hint">{{ $t('project.empty.noProjectsHint') }}</p>
+        </div>
       </div>
-    </div>
-  </div>
+    </template>
+  </TwoRowLayout>
 </template>
 
 <script setup lang="ts">
@@ -92,6 +101,7 @@ import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { interactManager, dragPreviewState, type DragSession } from '@/infra/drag-interact'
 import { logger, LogTags } from '@/infra/logging/logger'
+import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import CircularProgress from '@/components/parts/CircularProgress.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import ProjectCardMenu from '@/components/assembles/ContextMenu/ProjectCardMenu.vue'
@@ -127,6 +137,16 @@ const projects = computed(() => projectStore.activeProjects)
 const getProjectStats = (projectId: string) => {
   return projectStore.getProjectStatsRealtime(projectId)
 }
+
+// 获取无项目任务的统计
+const noProjectStats = computed(() => {
+  const noProjectTasks = taskStore.allTasks.filter(
+    (task) => !task.project_id && !task.is_deleted && !task.is_archived
+  )
+  const completed = noProjectTasks.filter((task) => task.is_completed).length
+  const total = noProjectTasks.length
+  return { completed, total }
+})
 
 const getProjectViewKey = (projectId: string) => `project::${projectId}::section::all`
 
@@ -262,9 +282,6 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
 
 <style scoped>
 .project-list-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
   background: var(--color-background-content, #f0f);
 }
 
@@ -272,10 +289,8 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.2rem 1.6rem;
-  border-bottom: 1px solid var(--color-border-default);
-  flex-shrink: 0;
-  min-height: 60px;
+  width: 100%;
+  padding: 0 1.2rem 0 2.4rem; /* 左侧与卡片内图标对齐 (project-list 1.2rem + project-card 1.2rem) */
 }
 
 .title {
@@ -305,8 +320,6 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
 }
 
 .project-list {
-  flex: 1;
-  overflow-y: auto;
   padding: 1.2rem;
 }
 
@@ -362,28 +375,14 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
   white-space: nowrap;
 }
 
-.project-card.no-project {
-  border: 2px dashed var(--color-border-default);
-  background: transparent;
-}
-
-.project-card.no-project:hover {
-  background: var(--color-background-hover);
-}
-
-.project-card.no-project.active {
-  background: var(--color-background-active);
-}
-
+/* 无项目图标（与 CircularProgress small 尺寸对齐） */
 .no-project-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-background-secondary);
-  color: var(--color-text-secondary);
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--color-text-primary);
   flex-shrink: 0;
 }
 
@@ -450,13 +449,12 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
   color: var(--color-success-text);
 }
 
-.color-bar {
-  position: absolute;
-  left: 4px;
-  top: 4px;
-  bottom: 4px;
-  width: 4px;
-  border-radius: 2px;
+/* 区域彩色圆点 */
+.area-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .empty-state {

@@ -59,6 +59,8 @@ withDefaults(defineProps<Props>(), {
 
 .info-tag-text {
   white-space: nowrap;
+  /* 使用等宽数字，确保时间/日期标签宽度一致 */
+  font-variant-numeric: tabular-nums;
 }
 
 /* 危险状态（过期） */

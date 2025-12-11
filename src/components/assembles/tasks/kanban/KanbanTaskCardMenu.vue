@@ -21,8 +21,8 @@
       </MenuSection>
     </template>
 
-    <!-- 次要操作 -->
-    <MenuItem divider icon="RotateCcw" @click="handleAction('return-to-staging')">
+    <!-- 次要操作（只在非暂存区任务显示"返回暂存区"） -->
+    <MenuItem v-if="!isStagingTask" divider icon="RotateCcw" @click="handleAction('return-to-staging')">
       {{ $t('task.action.returnToStaging') }}
     </MenuItem>
 
@@ -81,6 +81,14 @@ const isRecurringTask = computed(() => {
 const showCancelSchedule = computed(() => {
   if (!props.viewKey) return false
   return props.viewKey.startsWith('daily::')
+})
+
+// 检查任务是否已经是暂存区任务（没有当前或未来的日程）
+const isStagingTask = computed(() => {
+  const today = new Date().toISOString().split('T')[0]!
+  const hasFutureOrTodaySchedule =
+    props.task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+  return !hasFutureOrTodaySchedule
 })
 
 // 获取当前日期

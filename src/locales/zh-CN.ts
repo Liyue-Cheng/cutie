@@ -84,6 +84,7 @@ export default {
       noDeadlineTasks: '没有设置截止日期的任务',
       noLinkedTasks: '暂无链接任务',
       linkedTasks: '链接的任务',
+      recentCarryover: '最近结转',
     },
     button: {
       done: '完成',

@@ -84,6 +84,7 @@ export default {
       noDeadlineTasks: 'No tasks with due dates',
       noLinkedTasks: 'No linked tasks',
       linkedTasks: 'Linked Tasks',
+      recentCarryover: 'Recent Carryover',
     },
     button: {
       done: 'Done',

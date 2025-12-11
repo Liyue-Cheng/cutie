@@ -20,9 +20,19 @@
 
       <template #bottom>
         <div class="staging-groups-container">
-          <!-- 无项目任务列表 -->
+          <!-- 最近结转任务列表 -->
           <TaskList
-            v-if="noProjectTasks.length > 0"
+            v-if="recentCarryoverTasks.length > 0"
+            :title="$t('task.label.recentCarryover')"
+            view-key="misc::staging::recent-carryover"
+            :show-add-input="false"
+            :show-dashed-divider="true"
+            :collapsible="true"
+            :default-collapsed="false"
+          />
+
+          <!-- 无项目任务列表（始终显示，作为默认添加入口） -->
+          <TaskList
             :title="$t('project.title.noProject')"
             view-key="misc::staging::no-project"
             :show-add-input="true"
@@ -59,6 +69,11 @@ import { useProjectStore } from '@/stores/project'
 
 const taskStore = useTaskStore()
 const projectStore = useProjectStore()
+
+// 最近结转的 staging 任务（过去5天内有排期）
+const recentCarryoverTasks = computed(() => {
+  return taskStore.getTasksByViewKey_Mux('misc::staging::recent-carryover')
+})
 
 // 无项目的 staging 任务
 const noProjectTasks = computed(() => {

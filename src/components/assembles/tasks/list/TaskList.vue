@@ -49,6 +49,9 @@
         </button>
       </div>
 
+      <!-- 虚线分隔符（当不显示输入框但需要分隔符时） -->
+      <div v-else-if="showDashedDivider" class="dashed-divider"></div>
+
       <!-- 任务纸条列表 -->
       <div ref="taskListRef" class="task-list-container">
         <TransitionGroup name="task-list" tag="div" class="task-list">
@@ -106,6 +109,7 @@ interface Props {
   viewKey: string // 🔥 必需：遵循 VIEW_CONTEXT_KEY_SPEC 规范
   defaultCollapsed?: boolean
   showAddInput?: boolean // 是否显示添加任务输入框
+  showDashedDivider?: boolean // 是否显示虚线分隔符（当 showAddInput=false 时使用）
   fillRemainingSpace?: boolean // 是否占满父容器剩余空间
   collapsible?: boolean // 是否可折叠
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
@@ -120,6 +124,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   defaultCollapsed: false,
   showAddInput: true,
+  showDashedDivider: false,
   fillRemainingSpace: false,
   collapsible: true,
   hideDailyRecurringTasks: false,
@@ -665,6 +670,12 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .add-task-btn:active {
   transform: translateY(-50%) scale(0.95);
+}
+
+/* 虚线分隔符 */
+.dashed-divider {
+  margin: 0 1.6rem 1rem;
+  border-bottom: 2px dashed var(--color-input-underline, #f0f);
 }
 
 /* 任务列表容器（拖放接收区） */

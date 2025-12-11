@@ -196,11 +196,11 @@ onMounted(async () => {
 }
 
 .project-list-section {
-  width: 30%;
-  min-width: 280px;
+  width: 32rem;
+  flex-shrink: 0;
   height: 100%;
   background: var(--color-background-content, #f0f);
-  border-right: 1px solid var(--color-border-default, #f0f);
+  border-right: 1px solid var(--color-border-adaptive-light-normal-dark-soft, #f0f);
 }
 
 .project-detail-section {

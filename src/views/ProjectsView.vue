@@ -101,7 +101,7 @@ function switchRightPaneView(view: string | null) {
 .main-content-pane {
   flex: 1;
   min-width: 0;
-  border-right: 1px solid var(--color-border-default, #f0f);
+  border-right: 1px solid var(--color-border-adaptive-light-normal-dark-none, #f0f);
   position: relative;
   overflow: hidden;
 }
@@ -110,7 +110,7 @@ function switchRightPaneView(view: string | null) {
 .right-control-pane {
   width: 28rem;
   min-width: 28rem;
-  border-right: 1px solid var(--color-border-default, #f0f);
+  border-right: 1px solid var(--color-border-adaptive-light-normal-dark-none, #f0f);
 }
 
 .right-pane-header {

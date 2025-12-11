@@ -43,6 +43,12 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 | 无项目 Staging        | `misc::staging::no-project`           | 未分配项目的 staging 任务  |
 | 指定项目 Staging      | `misc::staging::project::{project_uuid}` | 指定项目的 staging 任务 |
 
+**Staging 扩展格式**（最近结转）：
+
+| 视图名称              | Context Key 格式                      | 说明                                           |
+| --------------------- | ------------------------------------- | ---------------------------------------------- |
+| 最近结转              | `misc::staging::recent-carryover`     | 过去5天内有排期但目前属于 staging 的任务       |
+
 **示例**：
 
 ```javascript
@@ -65,6 +71,10 @@ sorted_task_ids: '["uuid-8", "uuid-9"]'
 // 指定项目的 staging 任务
 context_key: 'misc::staging::project::proj-uuid-1234-5678-90ab'
 sorted_task_ids: '["uuid-10", "uuid-11"]'
+
+// 最近结转的 staging 任务（过去5天内有排期）
+context_key: 'misc::staging::recent-carryover'
+sorted_task_ids: '["uuid-14", "uuid-15"]'
 
 context_key: 'misc::deadline'
 sorted_task_ids: '["uuid-12", "uuid-13"]'
