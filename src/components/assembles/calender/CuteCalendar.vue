@@ -89,6 +89,85 @@ const viewTypeClass = computed(() => `view-type-${props.viewType}`)
 
 // FullCalendar 引用
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
+
+// ==================== 滚动位置保存/恢复 ====================
+/**
+ * 获取日历滚动容器元素
+ */
+function getScrollerElement(): HTMLElement | null {
+  if (!calendarRef.value) return null
+  const el = calendarRef.value.$el as HTMLElement
+  return el.querySelector('.fc-scroller-liquid-absolute') as HTMLElement | null
+}
+
+/**
+ * 将滚动位置（像素）转换为时间字符串
+ * 基于日历的时间槽高度计算
+ */
+function scrollPositionToTime(scrollTop: number): string {
+  const scrollerEl = getScrollerElement()
+  if (!scrollerEl) return '08:00:00' // 默认早上8点
+
+  const scrollHeight = scrollerEl.scrollHeight
+
+  if (scrollHeight <= 0) return '00:00:00'
+
+  // 计算滚动比例对应的时间（0-24小时）
+  const ratio = scrollTop / scrollHeight
+  const totalMinutes = ratio * 24 * 60
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = Math.floor(totalMinutes % 60)
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+}
+
+/**
+ * 获取视图类型对应的滚动位置寄存器键名
+ * - day 视图（1/3/5/7天）使用 CALENDAR_SCROLL_POSITION_DAY
+ * - week 视图使用 CALENDAR_SCROLL_POSITION_WEEK
+ * - month 视图不保存滚动位置
+ */
+function getScrollPositionKey(viewType: 'day' | 'week' | 'month'): string | null {
+  if (viewType === 'month') return null
+  if (viewType === 'week') {
+    return registerStore.RegisterKeys.CALENDAR_SCROLL_POSITION_WEEK
+  }
+  // day 视图（包括 1/3/5/7 天）
+  return registerStore.RegisterKeys.CALENDAR_SCROLL_POSITION_DAY
+}
+
+/**
+ * 保存当前滚动位置到寄存器（保存为时间字符串）
+ * 只在非月视图时保存
+ */
+function saveScrollPosition(): void {
+  const key = getScrollPositionKey(props.viewType)
+  if (!key) return // 月视图不保存
+
+  const scrollerEl = getScrollerElement()
+  if (scrollerEl) {
+    const scrollTop = scrollerEl.scrollTop
+    const scrollTime = scrollPositionToTime(scrollTop)
+    registerStore.writeRegister(key, scrollTime)
+    logger.debug(LogTags.COMPONENT_CALENDAR, 'Scroll position saved', {
+      viewType: props.viewType,
+      key,
+      scrollTop,
+      scrollTime,
+    })
+  }
+}
+
+/**
+ * 读取保存的滚动时间
+ * 根据视图类型读取对应的滚动位置，月视图返回 undefined（使用默认值）
+ */
+function getInitialScrollTime(): string | undefined {
+  const key = getScrollPositionKey(props.viewType)
+  if (!key) return undefined
+  return registerStore.readRegister<string>(key)
+}
 const calendarContainerRef = ref<HTMLElement | null>(null)
 const currentDateRef = computed(() => props.currentDate)
 
@@ -360,13 +439,17 @@ const handleDatesSet = (dateInfo: DatesSetArg) => {
   })
 }
 
-// 日历配置（传递视图类型、天数和日期变化回调）
+// 读取保存的滚动时间（在组件初始化时立即读取，用于 FullCalendar 的 scrollTime 配置）
+const savedScrollTime = getInitialScrollTime()
+
+// 日历配置（传递视图类型、天数、日期变化回调和初始滚动时间）
 const { calendarOptions } = useCalendarOptions(
   calendarEvents,
   calendarHandlers,
   props.viewType,
   handleDatesSet,
-  props.days ?? 1
+  props.days ?? 1,
+  savedScrollTime // 传递保存的滚动时间（月视图为 undefined，使用默认值）
 )
 
 // 是否展示自定义跨列 now 指示器
@@ -719,6 +802,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  // 保存滚动位置
+  saveScrollPosition()
+
   // 清理resize observer
   if (resizeObserver) {
     resizeObserver.disconnect()
@@ -870,9 +956,9 @@ defineExpose({
   /* 🎛️ 容器布局配置 */
   height: 100%;
   position: relative;
-  overflow: hidden;
+  overflow: visible hidden; /* 🔧 允许时间标签向左溢出 */ /* 🔒 垂直方向仍然隐藏，由内部滚动容器控制 */
   padding: 0.8rem;
-  padding-left: 1.6rem; /* 🔧 为时间标签预留溢出空间 */
+  padding-left: 1.8rem; /* 🔧 为时间标签预留更多溢出空间（霞鹜文楷字体较宽） */
 
   /* 🎨 FullCalendar主题变量映射 - 统一使用Cutie设计token */
   --fc-border-color: var(--color-calendar-grid); /* 📐 日历网格线颜色 */

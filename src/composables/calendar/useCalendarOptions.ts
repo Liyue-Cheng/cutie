@@ -36,7 +36,8 @@ export function useCalendarOptions(
   },
   viewType: 'day' | 'week' | 'month' = 'day', // ✅ 新增：视图类型参数，默认为单天
   handleDatesSet?: (dateInfo: DatesSetArg) => void, // 🆕 日期变化回调
-  days: 1 | 3 | 5 | 7 = 1 // 🆕 显示天数（1天、3天、5天或7天）
+  days: 1 | 3 | 5 | 7 = 1, // 🆕 显示天数（1天、3天、5天或7天）
+  initialScrollTime?: string // 🆕 初始滚动时间（如 "08:00:00"）
 ) {
   const taskStore = useTaskStore()
 
@@ -163,6 +164,8 @@ export function useCalendarOptions(
     slotDuration: '00:05:00', // 5分钟时间槽
     slotLabelInterval: '00:30:00', // 每30分钟显示一个时间标签
     snapDuration: '00:05:00', // 5分钟对齐精度
+    scrollTime: initialScrollTime || '08:00:00', // 🆕 初始滚动位置（默认早上8点）
+    scrollTimeReset: false, // 🆕 视图切换时不重置滚动位置
     nowIndicator: false, // 关闭内置指示器，使用自定义跨列指示线（CSS 保留备用）
     height: '100%',
     weekends: true,

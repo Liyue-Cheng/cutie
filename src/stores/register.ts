@@ -131,6 +131,12 @@ export const useRegisterStore = defineStore('register', () => {
     /** 全局拖拽状态标记 (boolean | { sessionId: string; startedAt: number }) */
     GLOBAL_DRAG_ACTIVE: 'globalDragActive',
 
+    /** 日历滚动位置 - 多日视图 (string, 时间格式如 "08:00:00") */
+    CALENDAR_SCROLL_POSITION_DAY: 'calendarScrollPosition_day',
+
+    /** 日历滚动位置 - 周视图 (string, 时间格式如 "08:00:00") */
+    CALENDAR_SCROLL_POSITION_WEEK: 'calendarScrollPosition_week',
+
     // 可以继续添加更多预定义键名...
   } as const
 
