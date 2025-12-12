@@ -70,10 +70,11 @@
       <div class="content-container">
         <div class="staging-header">
           <div class="header-title-row">
-            <span
-              class="area-dot-large"
-              :style="{ backgroundColor: area.color || 'var(--color-text-tertiary)' }"
-            ></span>
+            <CuteIcon
+              name="Hash"
+              :size="24"
+              :color="area.color || 'var(--color-text-tertiary)'"
+            />
             <h1 class="staging-title">{{ area.name }}</h1>
           </div>
           <div v-if="area.description" class="staging-description">{{ area.description }}</div>
@@ -279,13 +280,5 @@ const areaProjectGroups = computed(() => {
 
 .task-section {
   margin-bottom: 0.5rem;
-}
-
-/* 区域大圆点 */
-.area-dot-large {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 </style>

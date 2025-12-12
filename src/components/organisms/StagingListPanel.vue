@@ -60,10 +60,11 @@
           <div class="category-row">
             <div class="category-left">
               <div class="category-icon">
-                <span
-                  class="area-dot"
-                  :style="{ backgroundColor: area.color || 'var(--color-text-tertiary)' }"
-                ></span>
+                <CuteIcon
+                  name="Hash"
+                  :size="16"
+                  :color="area.color || 'var(--color-text-tertiary)'"
+                />
               </div>
               <div class="category-name">{{ area.name }}</div>
             </div>
@@ -240,14 +241,6 @@ const allAreas = computed(() => {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--color-text-primary, #f0f);
-}
-
-/* 区域彩色圆点 */
-.area-dot {
-  width: 1.2rem;
-  height: 1.2rem;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .empty-state {

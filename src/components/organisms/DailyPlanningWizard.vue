@@ -27,10 +27,7 @@
               class="legend-item"
               :style="{ '--delay': `${index * 50}ms` }"
             >
-              <span class="legend-indicator">
-                <span class="legend-dot" :style="{ backgroundColor: item.color }"></span>
-                <span class="legend-ring" :style="{ borderColor: item.color }"></span>
-              </span>
+              <CuteIcon name="Hash" size="1.65rem" :color="item.color" class="legend-icon" />
               <span class="legend-name">{{ item.name }}</span>
               <span class="legend-count">{{
                 isStage2 ? formatMinutesCompact(item.value) : item.value
@@ -73,6 +70,7 @@ import { TooltipComponent, GraphicComponent } from 'echarts/components'
 import type { ECBasicOption } from 'echarts/types/dist/shared'
 import { useTaskStore } from '@/stores/task'
 import { useAreaStore } from '@/stores/area'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import type { TaskCard } from '@/types/dtos'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
@@ -490,7 +488,7 @@ function handleNext() {
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.6rem;
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
   background: transparent;
@@ -516,51 +514,16 @@ function handleNext() {
   background: var(--color-background-hover, #f0f);
 }
 
-/* 图例指示器：圆点 + 光环 */
-.legend-indicator {
-  position: relative;
-  width: 1.2rem;
-  height: 1.2rem;
+/* 图例图标 */
+.legend-icon {
   flex-shrink: 0;
-}
-
-.legend-dot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  transition: transform 0.2s ease;
-}
-
-.legend-ring {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 1.5px solid;
-  opacity: 0.4;
-  transition: all 0.2s ease;
-}
-
-.legend-item:hover .legend-dot {
-  transform: translate(-50%, -50%) scale(1.2);
-}
-
-.legend-item:hover .legend-ring {
-  opacity: 0.7;
-  transform: scale(1.15);
 }
 
 .legend-name {
   flex: 1;
-  font-size: 1.35rem;
-  font-weight: 450;
-  color: var(--color-text-secondary, #f0f);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--color-text-tertiary, #f0f);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -569,7 +532,7 @@ function handleNext() {
 }
 
 .legend-item:hover .legend-name {
-  color: var(--color-text-primary, #f0f);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .legend-count {
