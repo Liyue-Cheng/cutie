@@ -516,6 +516,103 @@ export function createTaskCore() {
 
               return filteredTasks
             } else if (identifier) {
+              // 检查是否有更多部分（区域+项目筛选）
+              const fifthPart = parts[4]
+
+              if (extraIdentifier === 'no-project') {
+                // misc::staging::${areaId}::no-project - 指定区域的无项目 staging 任务
+                const areaId = identifier
+                const today = getTodayDateString()
+                const filteredTasks = allTasksArray.value.filter((task) => {
+                  // 基础检查：必须属于指定区域且没有项目
+                  if (
+                    task.area_id !== areaId ||
+                    task.project_id ||
+                    task.is_completed ||
+                    task.is_archived ||
+                    task.is_deleted
+                  ) {
+                    return false
+                  }
+
+                  // 🔥 实时计算：没有当前或未来的日程 = staging
+                  const hasFutureOrTodaySchedule =
+                    task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+                  if (hasFutureOrTodaySchedule) {
+                    return false
+                  }
+
+                  // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                  if (
+                    task.recurrence_id &&
+                    task.recurrence_original_date &&
+                    task.recurrence_expiry_behavior === 'EXPIRE'
+                  ) {
+                    if (task.recurrence_original_date < today) {
+                      return false
+                    }
+                  }
+
+                  return true
+                })
+
+                logger.debug(LogTags.STORE_TASKS, 'Area no-project staging filter result', {
+                  viewKey,
+                  areaId,
+                  totalTasks: allTasksArray.value.length,
+                  filteredCount: filteredTasks.length,
+                })
+
+                return filteredTasks
+              } else if (extraIdentifier === 'project' && fifthPart) {
+                // misc::staging::${areaId}::project::${projectId} - 指定区域的指定项目 staging 任务
+                const areaId = identifier
+                const projectId = fifthPart
+                const today = getTodayDateString()
+                const filteredTasks = allTasksArray.value.filter((task) => {
+                  // 基础检查：必须属于指定区域和指定项目
+                  if (
+                    task.area_id !== areaId ||
+                    task.project_id !== projectId ||
+                    task.is_completed ||
+                    task.is_archived ||
+                    task.is_deleted
+                  ) {
+                    return false
+                  }
+
+                  // 🔥 实时计算：没有当前或未来的日程 = staging
+                  const hasFutureOrTodaySchedule =
+                    task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+                  if (hasFutureOrTodaySchedule) {
+                    return false
+                  }
+
+                  // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                  if (
+                    task.recurrence_id &&
+                    task.recurrence_original_date &&
+                    task.recurrence_expiry_behavior === 'EXPIRE'
+                  ) {
+                    if (task.recurrence_original_date < today) {
+                      return false
+                    }
+                  }
+
+                  return true
+                })
+
+                logger.debug(LogTags.STORE_TASKS, 'Area project staging filter result', {
+                  viewKey,
+                  areaId,
+                  projectId,
+                  totalTasks: allTasksArray.value.length,
+                  filteredCount: filteredTasks.length,
+                })
+
+                return filteredTasks
+              }
+
               // misc::staging::${areaId} - 指定 area 的 staging 任务
               // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
               const today = getTodayDateString()

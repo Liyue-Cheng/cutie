@@ -19,6 +19,8 @@
     "@fullcalendar/timegrid": "^6.1.19",
     "@fullcalendar/vue3": "^6.1.19",
     "@tauri-apps/api": "^2.8.0",
+    "apexcharts": "^5.3.6",
+    "echarts": "^6.0.0",
     "interactjs": "^1.10.27",
     "lucide-vue-next": "^0.544.0",
     "nanoid": "^5.1.6",
@@ -27,8 +29,10 @@
     "splitpanes": "^4.0.4",
     "uuid": "^13.0.0",
     "vue": "^3.5.21",
+    "vue-echarts": "^8.0.1",
     "vue-i18n": "^11.1.12",
     "vue-router": "^4.5.1",
+    "vue3-apexcharts": "^1.10.0",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {

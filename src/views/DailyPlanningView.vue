@@ -1,316 +1,540 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import SimpleKanbanColumn from '@/components/assembles/tasks/kanban/SimpleKanbanColumn.vue'
-import StagingColumn from '@/components/assembles/tasks/kanban/StagingColumn.vue'
-import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
-import CuteIcon from '@/components/parts/CuteIcon.vue'
+import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
+import ProjectDetailPanel from '@/components/organisms/ProjectDetailPanel.vue'
+import ProjectListPanel from '@/components/organisms/ProjectListPanel.vue'
+import StagingTaskGroups from '@/components/assembles/tasks/StagingTaskGroups.vue'
+import DailyPlanningWizard from '@/components/organisms/DailyPlanningWizard.vue'
+import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
+import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
+import { pipeline } from '@/cpu'
+import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
+import { useRegisterStore } from '@/stores/register'
 import { logger, LogTags } from '@/infra/logging/logger'
-import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
+import {
+  getTodayDateString,
+  getTomorrowDateString,
+  parseDateString,
+  toDateString,
+} from '@/infra/utils/dateUtils'
+
+// ==================== Router & i18n ====================
+const router = useRouter()
+const { t, locale } = useI18n()
 
 // ==================== Stores ====================
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
+const registerStore = useRegisterStore()
 
 // ==================== 状态 ====================
 const today = ref(getTodayDateString())
+const dailyViewKey = computed(() => `daily::${today.value}`)
 
-// 计算明天的日期
-const tomorrow = computed(() => {
-  const todayDate = new Date(today.value)
-  todayDate.setDate(todayDate.getDate() + 1)
-  return todayDate.toLocaleDateString('en-CA') // YYYY-MM-DD
+// ==================== 步骤与右栏视图管理 ====================
+type WizardStep = 1 | 2
+type RightPaneView = 'staging' | 'projects' | 'daily' | 'calendar'
+
+const currentStep = ref<WizardStep>(1)
+const currentRightView = ref<RightPaneView>('staging')
+
+// ==================== Projects 右栏视图（列表 -> 详情） ====================
+// 约定：
+// - undefined: 列表页（未选中任何项目）
+// - null: “无项目”详情页
+// - string: 项目详情页
+const selectedProjectId = ref<string | null | undefined>(undefined)
+const projectsLoadedOnce = ref(false)
+
+const isProjectsList = computed(
+  () => currentRightView.value === 'projects' && selectedProjectId.value === undefined
+)
+const isProjectDetail = computed(
+  () => currentRightView.value === 'projects' && selectedProjectId.value !== undefined
+)
+
+async function ensureProjectsLoaded() {
+  if (projectsLoadedOnce.value) return
+  projectsLoadedOnce.value = true
+  try {
+    await pipeline.dispatch('project.fetch_all', {})
+  } catch (error) {
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Daily Planning: failed to load projects',
+      error instanceof Error ? error : new Error(String(error))
+    )
+  }
+}
+
+async function openProjectDetail(projectId: string) {
+  selectedProjectId.value = projectId
+  try {
+    await pipeline.dispatch('project_section.fetch_all', { project_id: projectId })
+  } catch (error) {
+    logger.error(
+      LogTags.VIEW_HOME,
+      'Daily Planning: failed to load project sections',
+      error instanceof Error ? error : new Error(String(error)),
+      { projectId }
+    )
+  }
+}
+
+function backToProjectList() {
+  selectedProjectId.value = undefined
+}
+
+async function handleSelectProject(id: string | null) {
+  selectedProjectId.value = id
+
+  // 只有选择了具体项目，才需要拉取 sections
+  if (id) {
+    await openProjectDetail(id)
+  }
+}
+
+function goToProjectsMainView() {
+  router.push('/projects')
+}
+
+// ==================== 当天视图（默认明天，跳过今天） ====================
+const dailyRightDate = ref<string>(getTomorrowDateString())
+
+function shiftDate(baseDate: string, offsetDays: number): string {
+  const date = parseDateString(baseDate)
+  date.setDate(date.getDate() + offsetDays)
+  return toDateString(date)
+}
+
+function ensureNotToday(dateStr: string, direction: -1 | 1): string {
+  const todayStr = getTodayDateString()
+  if (dateStr !== todayStr) return dateStr
+  // 跳过今天：继续往同方向再走一天
+  return shiftDate(dateStr, direction)
+}
+
+function goToDailyTomorrow() {
+  dailyRightDate.value = getTomorrowDateString()
+}
+
+function navigateDailyPrev() {
+  const next = shiftDate(dailyRightDate.value, -1)
+  dailyRightDate.value = ensureNotToday(next, -1)
+}
+
+function navigateDailyNext() {
+  const next = shiftDate(dailyRightDate.value, 1)
+  dailyRightDate.value = ensureNotToday(next, 1)
+}
+
+const dailyRightLabel = computed(() => {
+  const todayStr = getTodayDateString()
+  const yesterdayStr = shiftDate(todayStr, -1)
+  const tomorrowStr = shiftDate(todayStr, 1)
+
+  const date = parseDateString(dailyRightDate.value)
+  const weekday = new Intl.DateTimeFormat(locale.value, { weekday: 'short' }).format(date)
+
+  // 永远不显示“今天”
+  if (dailyRightDate.value === tomorrowStr) return `${t('time.tomorrow')} ${weekday}`
+  if (dailyRightDate.value === yesterdayStr) return `${t('time.yesterday')} ${weekday}`
+
+  // 其他日期：用 locale 输出（避免在英文界面出现“X月X日”）
+  return new Intl.DateTimeFormat(locale.value, {
+    month: 'short',
+    day: 'numeric',
+    weekday: 'short',
+  }).format(date)
 })
 
-// 当前右侧面板视图
-const currentRightView = ref<'tomorrow' | 'upcoming'>('tomorrow')
+watch(
+  () => currentRightView.value,
+  (view) => {
+    if (view === 'daily') {
+      dailyRightDate.value = getTomorrowDateString()
+    }
+  }
+)
+
+watch(
+  () => dailyRightDate.value,
+  async (date) => {
+    if (currentRightView.value !== 'daily') return
+    // 拉取该日期任务，避免未来日期数据不完整
+    await taskStore.fetchDailyTasksRange_DMA(date, date)
+  }
+)
+
+// 视图到步骤的映射关系
+const viewToStep: Record<RightPaneView, WizardStep> = {
+  staging: 1,
+  projects: 1,
+  daily: 1,
+  calendar: 2,
+}
+
+// 工具栏配置：staging 下方增加 projects
+const toolbarConfig = computed(() => ({
+  staging: { icon: 'Layers' as const, label: t('toolbar.staging') },
+  projects: { icon: 'Folder' as const, label: t('toolbar.projects') },
+  daily: { icon: 'List' as const, label: t('toolbar.dailyTasks') },
+  calendar: { icon: 'Calendar' as const, label: t('toolbar.calendar') },
+}))
+
+// ==================== 双向联动逻辑 ====================
+
+// 工具栏切换 -> 自动更新步骤
+function onRightViewChange(viewKey: string | null) {
+  if (!viewKey) return
+  const view = viewKey as RightPaneView
+  currentRightView.value = view
+  currentStep.value = viewToStep[view]
+
+  // 离开 projects 视图时，重置项目详情状态
+  if (view !== 'projects') {
+    selectedProjectId.value = undefined
+  } else {
+    void ensureProjectsLoaded()
+  }
+
+  // 进入当天视图：默认显示明天（且永远跳过今天）
+  if (view === 'daily') {
+    dailyRightDate.value = getTomorrowDateString()
+  }
+
+  logger.info(LogTags.VIEW_HOME, 'Daily Planning: toolbar changed', {
+    viewKey,
+    step: currentStep.value,
+  })
+}
+
+// Wizard Next 按钮 -> 切换到日历 + Step 2
+function onWizardNext() {
+  currentStep.value = 2
+  currentRightView.value = 'calendar'
+  selectedProjectId.value = undefined
+  logger.info(LogTags.VIEW_HOME, 'Daily Planning: wizard next', { step: 2 })
+}
+
+// Wizard Back 按钮
+function onWizardBack() {
+  if (currentStep.value === 1) {
+    // Step 1 时返回主页
+    router.push('/')
+    logger.info(LogTags.VIEW_HOME, 'Daily Planning: returning to home')
+  } else {
+    // Step 2 时回到 Step 1
+    currentStep.value = 1
+    currentRightView.value = 'staging'
+    selectedProjectId.value = undefined
+    logger.info(LogTags.VIEW_HOME, 'Daily Planning: wizard back to step 1')
+  }
+}
+
+// Wizard Done 按钮 -> 返回主页
+function onWizardDone() {
+  router.push('/')
+  logger.info(LogTags.VIEW_HOME, 'Daily Planning: completed, returning to home')
+}
 
 // ==================== 计算属性 ====================
-// 今天的任务列表
 const todayTasks = computed(() => {
   return taskStore.getTasksByDate_Mux(today.value)
-})
-
-// 明天的任务列表
-const tomorrowTasks = computed(() => {
-  return taskStore.getTasksByDate_Mux(tomorrow.value)
-})
-
-// 即将到期的任务（未来7天内有截止日期的未完成任务）
-const upcomingTasks = computed(() => {
-  const todayStr = getTodayDateString()
-  const sevenDaysLater = new Date()
-  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
-  const sevenDaysLaterStr = toDateString(sevenDaysLater)
-
-  return Array.from(taskStore.tasks.values()).filter((task) => {
-    if (task.is_completed || task.is_archived || task.is_deleted) return false
-    if (!task.due_date) return false
-
-    // ✅ 使用本地日期字符串比较（YYYY-MM-DD格式）
-    const dueDateStr = task.due_date.date
-    return dueDateStr >= todayStr && dueDateStr <= sevenDaysLaterStr
-  })
 })
 
 // ==================== 初始化 ====================
 onMounted(async () => {
   logger.info(LogTags.VIEW_HOME, 'Daily Planning: Initializing...')
-  // 🔥 替换：只加载未完成任务，避免循环任务导致的无限数据
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'daily-planning')
+
+  // 加载未完成任务
   await taskStore.fetchAllIncompleteTasks_DMA()
-  logger.info(LogTags.VIEW_HOME, 'Daily Planning: Loaded incomplete tasks', {
+
+  logger.info(LogTags.VIEW_HOME, 'Daily Planning: Loaded tasks', {
     today: today.value,
     todayCount: todayTasks.value.length,
-    tomorrowCount: tomorrowTasks.value.length,
   })
 })
-
-// ==================== 任务编辑器 ====================
-function handleOpenTaskEditor(taskId: string) {
-  uiStore.openEditor(taskId, 'daily-planning')
-}
-
-function handleCloseTaskEditor() {
-  uiStore.closeEditor()
-}
-
-// ==================== 日历交互 ====================
-function handleCalendarDateChange(date: string) {
-  today.value = date
-  logger.debug(LogTags.VIEW_HOME, 'Daily Planning: Date changed', { date })
-}
-
-// ==================== 右侧视图切换 ====================
-function switchRightView(view: 'tomorrow' | 'upcoming') {
-  currentRightView.value = view
-  logger.debug(LogTags.VIEW_HOME, 'Switching right view', { view })
-}
 </script>
 
 <template>
   <div class="daily-planning-view">
-    <TwoRowLayout>
-      <!-- 上栏：标题 -->
-      <template #top>
-        <div class="header">
-          <h2>Daily Planning</h2>
-          <span class="task-count">{{ todayTasks.length }} tasks today</span>
-        </div>
-      </template>
+    <!-- 左栏：每日规划向导 -->
+    <div class="pane left-pane">
+      <TwoRowLayout>
+        <template #top>
+          <!-- 上栏留空 -->
+        </template>
+        <template #bottom>
+          <DailyPlanningWizard
+            :step="currentStep"
+            @next="onWizardNext"
+            @back="onWizardBack"
+            @done="onWizardDone"
+          />
+        </template>
+      </TwoRowLayout>
+    </div>
 
-      <!-- 下栏：Staging + Today + 日历/明天 + 工具栏 -->
-      <template #bottom>
-        <div class="content-container">
-          <!-- 左侧：Staging -->
-          <div class="staging-wrapper">
-            <StagingColumn />
+    <!-- 分割线 -->
+    <div class="divider"></div>
+
+    <!-- 中栏：今天的任务列表 -->
+    <div class="pane middle-pane">
+      <TwoRowLayout>
+        <template #top>
+          <!-- 上栏留空 -->
+        </template>
+        <template #bottom>
+          <TaskList
+            :title="t('time.today')"
+            :view-key="dailyViewKey"
+            :show-add-input="true"
+            :fill-remaining-space="true"
+            :collapsible="false"
+          />
+        </template>
+      </TwoRowLayout>
+    </div>
+
+    <!-- 分割线 -->
+    <div class="divider"></div>
+
+    <!-- 右栏：受工具栏控制 -->
+    <div class="pane right-pane">
+      <TwoRowLayout>
+        <template #top>
+          <!-- Projects 详情页：左上角返回图标 -->
+          <div v-if="isProjectDetail" class="right-pane-header">
+            <button
+              class="back-icon-btn"
+              @click="backToProjectList"
+              :aria-label="t('view.dailyPlanning.back')"
+              :title="t('view.dailyPlanning.back')"
+            >
+              ←
+            </button>
           </div>
 
-          <!-- 中间：Today 看板 -->
-          <div class="kanban-wrapper">
-            <SimpleKanbanColumn
-              title="Today"
-              :subtitle="today"
-              :tasks="todayTasks"
-              :view-key="`daily::${today}`"
-              drop-mode="schedule"
-              :show-add-input="true"
-              @open-task-editor="handleOpenTaskEditor"
-            />
-          </div>
-
-          <!-- 日历（始终显示） -->
-          <div class="calendar-pane">
-            <CuteCalendar :initial-date="today" @date-change="handleCalendarDateChange" />
-          </div>
-
-          <!-- 右侧：明天或即将到期 -->
-          <div class="right-pane">
-            <!-- 明天看板 -->
-            <SimpleKanbanColumn
-              v-if="currentRightView === 'tomorrow'"
-              title="Tomorrow"
-              :subtitle="tomorrow"
-              :tasks="tomorrowTasks"
-              :view-key="`daily::${tomorrow}`"
-              drop-mode="schedule"
-              :show-add-input="true"
-              @open-task-editor="handleOpenTaskEditor"
-            />
-            <!-- 即将到期看板 -->
-            <SimpleKanbanColumn
-              v-else-if="currentRightView === 'upcoming'"
-              title="Upcoming"
-              subtitle="Due in 7 days"
-              :tasks="upcomingTasks"
-              view-key="misc::deadline"
-              drop-mode="none"
-              @open-task-editor="handleOpenTaskEditor"
-            />
-          </div>
-
-          <!-- 工具栏 -->
-          <div class="toolbar-pane">
-            <div class="toolbar-content">
+          <!-- 当天视图控制栏 -->
+          <div v-else-if="currentRightView === 'daily'" class="daily-controls">
+            <div class="daily-nav">
               <button
-                :class="['toolbar-button', { active: currentRightView === 'tomorrow' }]"
-                title="Tomorrow"
-                @click="switchRightView('tomorrow')"
+                class="nav-btn"
+                :title="t('view.dailyPlanning.dailyTasksNav.prev')"
+                @click="navigateDailyPrev"
               >
-                <CuteIcon name="CalendarDays" :size="20" />
+                <CuteIcon name="ChevronLeft" :size="18" />
               </button>
               <button
-                :class="['toolbar-button', { active: currentRightView === 'upcoming' }]"
-                title="Upcoming (Due in 7 days)"
-                @click="switchRightView('upcoming')"
+                class="nav-btn today-nav-btn"
+                :title="t('view.dailyPlanning.dailyTasksNav.todayJump')"
+                @click="goToDailyTomorrow"
               >
-                <CuteIcon name="Clock" :size="20" />
+                <span class="today-text">{{ t('time.today') }}</span>
+              </button>
+              <button
+                class="nav-btn"
+                :title="t('view.dailyPlanning.dailyTasksNav.next')"
+                @click="navigateDailyNext"
+              >
+                <CuteIcon name="ChevronRight" :size="18" />
               </button>
             </div>
           </div>
-        </div>
-      </template>
-    </TwoRowLayout>
-  </div>
+        </template>
+        <template #bottom>
+          <!-- 暂存区视图 -->
+          <StagingTaskGroups v-if="currentRightView === 'staging'" />
+          <!-- Projects 视图 -->
+          <div v-else-if="currentRightView === 'projects'" class="projects-wrapper">
+            <!-- 列表页：直接复用项目页同款 ProjectListPanel（不要在这里手写列表） -->
+            <ProjectListPanel
+              v-if="isProjectsList"
+              :selected-id="undefined"
+              @select-project="handleSelectProject"
+              @create-project="goToProjectsMainView"
+              @edit-project="goToProjectsMainView"
+              @add-section="goToProjectsMainView"
+            />
 
-  <!-- 任务编辑器弹窗 -->
-  <TaskEditorModal
-    v-if="uiStore.isEditorOpen"
-    :task-id="uiStore.editorTaskId"
-    @close="handleCloseTaskEditor"
-  />
+            <!-- 详情页 -->
+            <ProjectDetailPanel v-else-if="isProjectDetail" :project-id="selectedProjectId" />
+          </div>
+          <!-- 当天视图（默认明天，跳过今天） -->
+          <div v-else-if="currentRightView === 'daily'" class="daily-wrapper">
+            <TaskList
+              :title="dailyRightLabel"
+              :view-key="`daily::${dailyRightDate}`"
+              :show-add-input="true"
+              :fill-remaining-space="true"
+              :collapsible="false"
+            />
+          </div>
+          <!-- 日历视图 -->
+          <div v-else-if="currentRightView === 'calendar'" class="calendar-wrapper">
+            <CuteCalendar :current-date="today" :view-type="'day'" :days="1" :zoom="1" />
+          </div>
+        </template>
+      </TwoRowLayout>
+    </div>
+
+    <!-- 工具栏 -->
+    <VerticalToolbar
+      :view-config="toolbarConfig"
+      :current-view="currentRightView"
+      @view-change="onRightViewChange"
+    />
+
+    <!-- 任务编辑器弹窗 -->
+    <TaskEditorModal
+      v-if="uiStore.isEditorOpen"
+      :task-id="uiStore.editorTaskId"
+      :view-key="uiStore.editorViewKey ?? undefined"
+      @close="uiStore.closeEditor"
+    />
+  </div>
 </template>
 
 <style scoped>
 /* ==================== 视图容器 ==================== */
 .daily-planning-view {
+  width: 100%;
   height: 100%;
-  width: 100%;
-  background-color: var(--color-background-content);
-}
-
-/* ==================== 上栏标题 ==================== */
-.header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0 1rem;
-  gap: 1rem;
+  gap: 3rem;
+  overflow: hidden;
+  background-color: var(--color-background-content, #f0f);
 }
 
-.header h2 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.task-count {
-  font-size: 1.3rem;
-  color: var(--color-text-tertiary);
-}
-
-/* ==================== 下栏容器 ==================== */
-.content-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+/* ==================== 三栏布局 ==================== */
+.pane {
   height: 100%;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: transparent;
+}
+
+.left-pane,
+.middle-pane,
+.right-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ==================== 分割线 ==================== */
+.divider {
+  width: 1px;
+  height: 100%;
+  background-color: var(--color-border-adaptive-light-subtle-dark-none, #f0f);
+  flex-shrink: 0;
+}
+
+/* ==================== 日历包装器 ==================== */
+.calendar-wrapper {
+  height: 100%;
   overflow: hidden;
 }
 
-/* ==================== Staging 容器 ==================== */
-.staging-wrapper {
-  width: 28rem;
-  min-width: 28rem;
+/* ==================== 当天视图（右栏） ==================== */
+.daily-controls {
+  width: 100%;
   height: 100%;
-  overflow: auto;
-}
-
-/* ==================== Today 看板容器 ==================== */
-.kanban-wrapper {
-  width: 28rem;
-  min-width: 28rem;
-  height: 100%;
-  overflow: auto;
-}
-
-/* ==================== 日历面板 ==================== */
-.calendar-pane {
-  width: 28rem;
-  min-width: 28rem;
-  height: 100%;
-  overflow: auto;
-}
-
-/* ==================== 右侧面板 ==================== */
-.right-pane {
-  width: 28rem;
-  min-width: 28rem;
-  height: 100%;
-  overflow: auto;
-}
-
-/* ==================== 工具栏 ==================== */
-.toolbar-pane {
-  width: 6rem;
-  min-width: 6rem;
+  padding: 1.2rem 0.8rem 1.2rem 1.6rem;
   display: flex;
-  flex-direction: column;
-}
-
-.toolbar-content {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 1rem 0;
-  gap: 0.5rem;
-  height: 100%;
+  justify-content: flex-end;
+  gap: 1.2rem;
 }
 
-.toolbar-button {
-  width: 4.8rem;
-  height: 4.8rem;
+.daily-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.daily-controls .nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 3.6rem;
+  padding: 0 1.2rem;
+  color: var(--color-text-secondary, #f0f);
   background-color: transparent;
-  border: none;
-  border-radius: 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: var(--color-text-tertiary);
-  position: relative;
 }
 
-.toolbar-button:hover {
+.daily-controls .nav-btn:hover {
+  color: var(--color-text-primary, #f0f);
   background-color: var(--color-background-hover, #f0f);
-  color: var(--color-text-secondary);
+  border-color: var(--color-border-default, #f0f);
 }
 
-.toolbar-button.active {
-  background-color: var(--color-button-primary-bg, #f0f);
-  color: var(--color-button-primary-text, #f0f);
-}
-
-.toolbar-button.active::before {
-  content: '';
-  position: absolute;
-  left: -0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0.3rem;
-  height: 2.4rem;
-  background-color: var(--color-button-primary-bg, #f0f);
-  border-radius: 0 0.2rem 0.2rem 0;
-}
-
-.toolbar-button:active {
+.daily-controls .nav-btn:active {
   transform: scale(0.95);
+}
+
+.daily-controls .today-nav-btn {
+  padding: 0 1.4rem;
+}
+
+.daily-controls .today-text {
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.daily-wrapper {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ==================== Projects 右栏 ==================== */
+.right-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0 1rem;
+  height: 100%;
+}
+
+.back-icon-btn {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--color-border-default, #f0f);
+  background: transparent;
+  color: var(--color-text-secondary, #f0f);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.back-icon-btn:hover {
+  background: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
+}
+
+.projects-wrapper {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 </style>

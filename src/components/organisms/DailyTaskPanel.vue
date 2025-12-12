@@ -4,30 +4,30 @@
       <template #top>
         <div class="daily-header">
           <div class="header-left">
-            <span class="date-text">{{ taskListTitle }}</span>
-            <span class="task-count">{{ taskListRef?.taskCount ?? 0 }}</span>
+            <span class="date-text">{{ $t('toolbar.dailyTasks') }}</span>
           </div>
         </div>
       </template>
       <template #bottom>
-        <TaskList
-          ref="taskListRef"
-          :key="viewKey"
-          :title="taskListTitle"
-          :view-key="viewKey"
-          :show-add-input="true"
-          :default-collapsed="false"
-          :collapsible="false"
-          :hide-header="true"
-          fill-remaining-space
-        />
+        <div class="task-list-wrapper">
+          <TaskList
+            :key="viewKey"
+            :title="taskListTitle"
+            :view-key="viewKey"
+            :show-add-input="true"
+            :default-collapsed="false"
+            :collapsible="false"
+            :hide-header="false"
+            fill-remaining-space
+          />
+        </div>
       </template>
     </TwoRowLayout>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
 import TaskList from '@/components/assembles/tasks/list/TaskList.vue'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
@@ -40,9 +40,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: () => getTodayDateString(),
 })
-
-// TaskList 引用
-const taskListRef = ref<InstanceType<typeof TaskList> | null>(null)
 
 // 计算 view-key，格式为 daily::YYYY-MM-DD
 const viewKey = computed(() => `daily::${props.modelValue}`)
@@ -73,12 +70,17 @@ const taskListTitle = computed(() => {
   flex-direction: column;
 }
 
-/* 标题栏样式 - 与 HomeCalendarPanel 对齐 */
+/* 标题栏样式 - 与 TaskList 标题对齐 */
 .daily-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+
+  /* TwoRowLayout top-row 有 padding: 0 1rem，TaskList header 有 padding: 1rem 1.6rem */
+
+  /* 需要补充 0.6rem 使总 padding 达到 1.6rem */
+  padding-left: 0.6rem;
 }
 
 .header-left {
@@ -95,18 +97,9 @@ const taskListTitle = computed(() => {
   white-space: nowrap;
 }
 
-.task-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0 0.6rem;
-  font-size: 1.2rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--color-text-secondary, #f0f);
-  background-color: var(--color-background-secondary, #f0f);
-  border-radius: 1rem;
+.task-list-wrapper {
+  height: 100%;
+  padding: 1rem;
+  overflow-y: auto;
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import ProjectsPanel from '@/components/organisms/ProjectsPanel.vue'
+import StagingPanel from '@/components/organisms/StagingPanel.vue'
 import ArchiveColumn from '@/components/assembles/tasks/kanban/ArchiveColumn.vue'
 import DoubleRowTimeline from '@/components/parts/timeline/DoubleRowTimeline.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
@@ -33,8 +33,8 @@ const rightPaneViewConfig = computed(() => ({
 
 // ==================== 初始化 ====================
 onMounted(() => {
-  logger.info(LogTags.VIEW_HOME, 'ProjectsView mounted')
-  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'projects')
+  logger.info(LogTags.VIEW_HOME, 'StagingView mounted')
+  registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_VIEW, 'staging')
 })
 
 // ==================== 事件处理 ====================
@@ -45,10 +45,10 @@ function switchRightPaneView(view: string | null) {
 </script>
 
 <template>
-  <div class="projects-view-container">
-    <!-- 主内容区域：项目面板 -->
+  <div class="staging-view-container">
+    <!-- 主内容区域：暂存区面板 -->
     <div class="main-content-pane">
-      <ProjectsPanel />
+      <StagingPanel />
     </div>
 
     <!-- 右边栏：控制选项 -->
@@ -89,7 +89,7 @@ function switchRightPaneView(view: string | null) {
 </template>
 
 <style scoped>
-.projects-view-container {
+.staging-view-container {
   display: flex;
   height: 100%;
   width: 100%;
@@ -104,11 +104,6 @@ function switchRightPaneView(view: string | null) {
   border-right: 1px solid var(--color-border-adaptive-light-normal-dark-none, #f0f);
   position: relative;
   overflow: hidden;
-}
-
-/* ProjectsView 专属：给 ProjectDetailPanel 恢复“大留白”的头部间距 */
-.projects-view-container :deep(.project-detail-panel) {
-  --project-detail-header-padding: 7rem 1.6rem 4rem;
 }
 
 /* ==================== 右边栏：控制面板 ==================== */

@@ -30,21 +30,7 @@
         v-model="selectedDate"
       />
       <!-- 暂存区 -->
-      <template v-else-if="currentRightView === 'staging'">
-        <TwoRowLayout>
-          <template #top>
-            <div class="staging-header">
-              <div class="header-left">
-                <span class="staging-title">{{ $t('task.label.scheduled') }}</span>
-                <span class="task-count">{{ stagingListRef?.taskCount ?? 0 }}</span>
-              </div>
-            </div>
-          </template>
-          <template #bottom>
-            <StagingList ref="stagingListRef" :hide-header="true" />
-          </template>
-        </TwoRowLayout>
-      </template>
+      <HomeStagingPanel v-else-if="currentRightView === 'staging'" />
     </div>
 
     <!-- 右侧垂直图标栏 -->
@@ -69,8 +55,7 @@ import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalendarPanel from '@/components/organisms/CalendarPanel.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
-import TwoRowLayout from '@/components/templates/TwoRowLayout.vue'
-import StagingList from '@/components/assembles/tasks/list/StagingList.vue'
+import HomeStagingPanel from '@/components/organisms/HomeStagingPanel.vue'
 import DailyTaskPanel from '@/components/organisms/DailyTaskPanel.vue'
 import { useRegisterStore } from '@/stores/register'
 import { useUIStore } from '@/stores/ui'
@@ -86,7 +71,6 @@ const uiStore = useUIStore()
 type RightView = 'daily' | 'staging'
 const currentRightView = ref<RightView>('daily')
 const selectedDate = ref<string>(getTodayDateString())
-const stagingListRef = ref<InstanceType<typeof StagingList> | null>(null)
 
 // 工具栏配置
 const toolbarConfig = computed(() => ({
@@ -287,42 +271,5 @@ onBeforeUnmount(() => {
 .divider:hover::after {
   opacity: 1;
   background-color: var(--color-text-secondary);
-}
-
-/* 暂存区标题 */
-.staging-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.staging-title {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary, #f0f);
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.task-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0 0.6rem;
-  font-size: 1.2rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--color-text-secondary, #f0f);
-  background-color: var(--color-background-secondary, #f0f);
-  border-radius: 1rem;
 }
 </style>

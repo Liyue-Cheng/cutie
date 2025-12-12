@@ -240,6 +240,10 @@ const showMoreMenu = () => {
   height: 100%;
   background: var(--color-background-content, #f0f);
   overflow: hidden;
+
+  /* 默认：更紧凑的头部间距（DailyPlanning 等复用场景更合适）
+     如需“大留白”风格（ProjectsView），在外层视图中覆盖该变量即可 */
+  --project-detail-header-padding: 2.4rem 1.6rem 2.4rem;
 }
 
 .empty-state {
@@ -273,7 +277,7 @@ const showMoreMenu = () => {
 /* Things 3 风格头部 */
 .project-header {
   flex-shrink: 0;
-  padding: 7rem 1.6rem 4rem; /* 上边距增大，左右与 TaskList 对齐 */
+  padding: var(--project-detail-header-padding);
 }
 
 .header-title-row {
@@ -285,7 +289,7 @@ const showMoreMenu = () => {
 .project-title {
   flex: 1;
   font-size: 2.2rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-primary, #f0f);
   margin: 0;
   line-height: 1.4;

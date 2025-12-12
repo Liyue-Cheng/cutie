@@ -7,8 +7,9 @@ export default {
     calendar: '日历',
     projects: '项目',
     templates: '模板',
-    dailyOverview: '每日概览',
+    dailyOverview: '每日规划',
     dailyShutdown: '每日收尾',
+    stagingKanban: '暂存区看板',
     timelineKanban: '时间轴看板',
     calendarKanban: '日历看板',
     areas: '区域',
@@ -100,6 +101,9 @@ export default {
     count: {
       overdue: '{n} 个已逾期',
       tasks: '任务',
+    },
+    empty: {
+      noStagingTasks: '暂无暂存区任务',
     },
   },
 
@@ -240,6 +244,7 @@ export default {
     minutesAgo: '{n} 分钟前',
     hoursAgo: '{n} 小时前',
     daysAgo: '{n} 天前',
+    yesterday: '昨天',
     today: '今天',
     tomorrow: '明天',
     thisWeek: '本周',
@@ -372,8 +377,16 @@ export default {
   // ==================== 视图标题 ====================
   view: {
     staging: {
-      title: '待安排任务',
+      title: '暂存区',
       areaCount: '{n} 个区域',
+      empty: {
+        selectCategory: '选择一个分类查看任务',
+        notExist: '分类不存在',
+      },
+      desc: {
+        recentCarryover: '过去 5 天内有排期但目前属于暂存区的任务',
+        noArea: '未分配区域的暂存区任务',
+      },
     },
     upcoming: {
       title: '即将到来',
@@ -385,6 +398,26 @@ export default {
       dailyRecurring: '每日循环',
       noDailyRecurring: '今天没有每日循环任务',
       todaysTasks: '今日任务',
+    },
+    dailyPlanning: {
+      dailyTasksNav: {
+        prev: '上一天（跳过今天）',
+        next: '下一天（跳过今天）',
+        todayJump: '今天（实际上会跳到明天）',
+      },
+      step1: {
+        title: '今天想做些什么有趣的事？',
+        subtitle: '从暂存区挑选任务吧～',
+        hint: '先挑最重要的几件事，Cutie 会帮你把今天过得更轻松～',
+      },
+      step2: {
+        title: '想什么时候做呢？',
+        subtitle: '把任务拖到右边的日历里～',
+        hint: '给专注留点位置，Cutie 会替你守住这段时间～',
+      },
+      next: 'Next',
+      done: 'Done',
+      back: '返回',
     },
     dailyShutdown: {
       title: '每日收尾',

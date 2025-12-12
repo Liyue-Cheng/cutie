@@ -31,7 +31,7 @@
               <CuteIcon name="Clock" :size="16" /><span>{{ $t('nav.recent') }}</span>
             </li>
             <li class="nav-item-with-action">
-              <div class="nav-item-main" @click="$router.push('/staging-kanban')">
+              <div class="nav-item-main" @click="$router.push('/staging')">
                 <CuteIcon name="Layers" :size="16" /><span>{{ $t('nav.staging') }}</span>
               </div>
               <button
@@ -54,7 +54,7 @@
             <span class="divider-label">{{ $t('nav.section.dailyRoutines') }}</span>
           </div>
           <ul class="nav-group">
-            <li @click="$router.push('/daily-overview')">
+            <li @click="$router.push('/daily-planning')">
               <CuteIcon name="Calendar" :size="16" /><span>{{ $t('nav.dailyOverview') }}</span>
             </li>
             <li @click="$router.push('/daily-shutdown')">
@@ -66,6 +66,9 @@
             <span class="divider-label">{{ $t('nav.section.kanban') }}</span>
           </div>
           <ul class="nav-group">
+            <li @click="$router.push('/staging-kanban')">
+              <CuteIcon name="Layers" :size="16" /><span>{{ $t('nav.stagingKanban') }}</span>
+            </li>
             <li @click="$router.push('/timeline-kanban')">
               <CuteIcon name="LayoutGrid" :size="16" /><span>{{ $t('nav.timelineKanban') }}</span>
             </li>

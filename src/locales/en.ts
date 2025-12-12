@@ -7,8 +7,9 @@ export default {
     calendar: 'Calendar',
     projects: 'Projects',
     templates: 'Templates',
-    dailyOverview: 'Daily Overview',
+    dailyOverview: 'Daily Planning',
     dailyShutdown: 'Daily Shutdown',
+    stagingKanban: 'Staging Kanban',
     timelineKanban: 'Timeline Kanban',
     calendarKanban: 'Calendar Kanban',
     areas: 'Areas',
@@ -100,6 +101,9 @@ export default {
     count: {
       overdue: '{n} overdue',
       tasks: 'tasks',
+    },
+    empty: {
+      noStagingTasks: 'No staging tasks',
     },
   },
 
@@ -236,6 +240,7 @@ export default {
     minutesAgo: '{n} minute(s) ago',
     hoursAgo: '{n} hour(s) ago',
     daysAgo: '{n} day(s) ago',
+    yesterday: 'Yesterday',
     today: 'Today',
     tomorrow: 'Tomorrow',
     thisWeek: 'This Week',
@@ -371,8 +376,16 @@ export default {
   // ==================== View Titles ====================
   view: {
     staging: {
-      title: 'Unscheduled Tasks',
+      title: 'Staging',
       areaCount: '{n} area(s)',
+      empty: {
+        selectCategory: 'Select a category to view tasks',
+        notExist: 'Category does not exist',
+      },
+      desc: {
+        recentCarryover: 'Tasks scheduled in the past 5 days but currently in staging',
+        noArea: 'Staging tasks without an assigned area',
+      },
     },
     upcoming: {
       title: 'Upcoming',
@@ -384,6 +397,26 @@ export default {
       dailyRecurring: 'Daily recurring',
       noDailyRecurring: 'No daily recurring tasks today',
       todaysTasks: "Today's tasks",
+    },
+    dailyPlanning: {
+      dailyTasksNav: {
+        prev: 'Previous day (skip today)',
+        next: 'Next day (skip today)',
+        todayJump: 'Today (actually jumps to tomorrow)',
+      },
+      step1: {
+        title: 'What fun things do you want to do today?',
+        subtitle: 'Pick tasks from your staging area',
+        hint: 'Pick a few that matter most—Cutie will help you make today feel lighter~',
+      },
+      step2: {
+        title: 'When do you want to do it?',
+        subtitle: 'Drag tasks onto the calendar on the right~',
+        hint: 'Save a little space for focus—Cutie will protect that time for you~',
+      },
+      next: 'Next',
+      done: 'Done',
+      back: 'Back',
     },
     dailyShutdown: {
       title: 'Daily Shutdown',

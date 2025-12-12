@@ -14,71 +14,75 @@
     <template #bottom>
       <!-- 项目列表 -->
       <div class="project-list">
-      <!-- 无项目选项（置顶） -->
-      <div
-        class="project-card"
-        :class="{ active: selectedId === null }"
-        @click="emit('select-project', null)"
-      >
-        <div class="project-row">
-          <div class="project-left">
-            <div class="no-project-icon">
-              <CuteIcon name="Inbox" :size="16" />
+        <!-- 无项目选项（置顶） -->
+        <div
+          class="project-card"
+          :class="{ active: selectedId === null }"
+          @click="emit('select-project', null)"
+        >
+          <div class="project-row">
+            <div class="project-left">
+              <div class="no-project-icon">
+                <CuteIcon name="Inbox" :size="16" />
+              </div>
+              <div class="project-name">{{ $t('project.title.noProject') }}</div>
             </div>
-            <div class="project-name">{{ $t('project.title.noProject') }}</div>
-          </div>
 
-          <div class="project-right">
-            <span class="task-count">
-              {{ noProjectStats.completed }}/{{ noProjectStats.total }}
-              {{ $t('task.count.tasks') }}
-            </span>
+            <div class="project-right">
+              <span class="task-count">
+                {{ noProjectStats.completed }}/{{ noProjectStats.total }}
+                {{ $t('task.count.tasks') }}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 普通项目列表 -->
-      <div
-        v-for="project in projects"
-        :key="project.id"
-        class="project-card"
-        :class="{
-          active: selectedId === project.id,
-          'drop-target': isDropTarget(getProjectViewKey(project.id)),
-        }"
-        :ref="(el) => setProjectDropzoneRef(project.id, el)"
-        @click="emit('select-project', project.id)"
-        @contextmenu="showContextMenu(project, $event)"
-      >
-        <div class="project-row">
-          <div class="project-left">
-            <CircularProgress
-              :completed="getProjectStats(project.id).completed"
-              :total="getProjectStats(project.id).total"
-              size="small"
-              hide-text
-              class="progress"
-            />
-            <div class="project-name">{{ project.name }}</div>
-          </div>
+        <!-- 普通项目列表 -->
+        <div
+          v-for="project in projects"
+          :key="project.id"
+          class="project-card"
+          :class="{
+            active: selectedId === project.id,
+            'drop-target': isDropTarget(getProjectViewKey(project.id)),
+          }"
+          :ref="(el) => setProjectDropzoneRef(project.id, el)"
+          @click="emit('select-project', project.id)"
+          @contextmenu="showContextMenu(project, $event)"
+        >
+          <div class="project-row">
+            <div class="project-left">
+              <CircularProgress
+                :completed="getProjectStats(project.id).completed"
+                :total="getProjectStats(project.id).total"
+                size="small"
+                hide-text
+                class="progress"
+              />
+              <div class="project-name">{{ project.name }}</div>
+            </div>
 
-          <div class="project-right">
-            <span
-              v-if="projectColor(project)"
-              class="area-dot"
-              :style="{ backgroundColor: projectColor(project) }"
-            ></span>
-            <span class="task-count">
-              {{ getProjectStats(project.id).completed }}/{{ getProjectStats(project.id).total }}
-              {{ $t('task.count.tasks') }}
-            </span>
-            <span v-if="project.due_date" class="due-date">{{ formatDate(project.due_date) }}</span>
-            <span v-if="project.status === 'COMPLETED'" class="status-badge completed inline-badge"
-              >{{ $t('project.status.completed') }}</span
-            >
+            <div class="project-right">
+              <span
+                v-if="projectColor(project)"
+                class="area-dot"
+                :style="{ backgroundColor: projectColor(project) }"
+              ></span>
+              <span class="task-count">
+                {{ getProjectStats(project.id).completed }}/{{ getProjectStats(project.id).total }}
+                {{ $t('task.count.tasks') }}
+              </span>
+              <span v-if="project.due_date" class="due-date">{{
+                formatDate(project.due_date)
+              }}</span>
+              <span
+                v-if="project.status === 'COMPLETED'"
+                class="status-badge completed inline-badge"
+                >{{ $t('project.status.completed') }}</span
+              >
+            </div>
           </div>
         </div>
-      </div>
 
         <!-- 空状态 -->
         <div v-if="projects.length === 0" class="empty-state">
@@ -294,10 +298,11 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
 }
 
 .title {
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
+  line-height: 1.4;
 }
 
 .create-btn {
@@ -402,11 +407,12 @@ const showContextMenu = (project: ProjectCard, event: MouseEvent) => {
 
 .project-name {
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .project-card.drop-target .project-name {

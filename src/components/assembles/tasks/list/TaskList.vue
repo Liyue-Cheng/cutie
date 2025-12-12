@@ -368,12 +368,52 @@ async function addTask() {
 
       // 🔥 根据 viewKey 提取上下文信息
       if (type === 'misc' && identifier === 'staging' && thirdPart) {
+        // misc::staging::no-area - 无区域的 staging 任务（不设置 area_id）
+        // misc::staging::no-project - 无项目的 staging 任务（不设置 project_id）
+        // misc::staging::recent-carryover - 最近结转任务（不设置任何上下文）
+        // misc::staging::project::${projectId} - 指定项目的 staging 任务
         // misc::staging::${areaId} - 指定 area 的 staging 任务
-        taskData.area_id = thirdPart
-        logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with area context', {
-          areaId: thirdPart,
-          viewKey: props.viewKey,
-        })
+        // misc::staging::${areaId}::no-project - 指定区域的无项目 staging 任务
+        // misc::staging::${areaId}::project::${projectId} - 指定区域的指定项目 staging 任务
+        const fourthPart = parts[3]
+        const fifthPart = parts[4]
+
+        if (thirdPart === 'no-area' || thirdPart === 'no-project' || thirdPart === 'recent-carryover') {
+          // 不设置任何上下文，创建普通 staging 任务
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating staging task without context', {
+            viewKey: props.viewKey,
+          })
+        } else if (thirdPart === 'project' && fourthPart) {
+          // misc::staging::project::${projectId}
+          taskData.project_id = fourthPart
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with project context', {
+            projectId: fourthPart,
+            viewKey: props.viewKey,
+          })
+        } else if (fourthPart === 'no-project') {
+          // misc::staging::${areaId}::no-project - 指定区域的无项目任务
+          taskData.area_id = thirdPart
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with area context (no project)', {
+            areaId: thirdPart,
+            viewKey: props.viewKey,
+          })
+        } else if (fourthPart === 'project' && fifthPart) {
+          // misc::staging::${areaId}::project::${projectId} - 指定区域的指定项目任务
+          taskData.area_id = thirdPart
+          taskData.project_id = fifthPart
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with area and project context', {
+            areaId: thirdPart,
+            projectId: fifthPart,
+            viewKey: props.viewKey,
+          })
+        } else {
+          // misc::staging::${areaId} - 指定 area 的 staging 任务
+          taskData.area_id = thirdPart
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating task with area context', {
+            areaId: thirdPart,
+            viewKey: props.viewKey,
+          })
+        }
       } else if (type === 'area' && identifier) {
         // area::${areaId} - 指定 area 的所有任务
         taskData.area_id = identifier

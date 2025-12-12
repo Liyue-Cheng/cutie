@@ -23,6 +23,11 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/DailyOverviewView.vue'),
       },
       {
+        path: 'staging',
+        name: 'staging',
+        component: () => import('../views/StagingView.vue'),
+      },
+      {
         path: 'staging-kanban',
         name: 'staging-kanban',
         component: () => import('../views/StagingKanbanView.vue'),

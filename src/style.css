@@ -171,9 +171,10 @@ html {
   --color-calendar-other-month: #6e6a86;
 
   /* 2.8 组件专用色 */
-  --color-button-primary-bg: #ebbcba; /* Rose */
-  --color-button-primary-hover: #d9a8a6;
-  --color-button-primary-text: #191724; /* Base - 深色文字 */
+  /* Rose Pine: primary button 改用 Moon 的 Pine（更亮一些） */
+  --color-button-primary-bg: #3e8fb0; /* Moon Pine */
+  --color-button-primary-hover: var(--rose-pine-foam); /* Hover 稍亮一点 */
+  --color-button-primary-text: var(--rose-pine-base); /* 文字用 base（更干净） */
   --color-button-secondary-bg: transparent;
   --color-button-secondary-hover: #21202e;
   --color-button-secondary-border: rgba(110, 106, 134, 0.25);
@@ -218,7 +219,8 @@ html {
   --color-calendar-grid: #524f67;
 
   /* 2.11 默认区域色 */
-  --color-area-default: #c4a7e7;
+  /* 统一：效率灰（用于“无区域”任务/时间块的默认颜色） */
+  --color-area-default: #9ca3af;
 }
 
 
@@ -372,7 +374,8 @@ body.theme-rose-pine-dawn {
   --color-calendar-grid: #e0dce0;
 
   /* 3.11 默认区域色 */
-  --color-area-default: #56949f;
+  /* 统一：效率灰（用于“无区域”任务/时间块的默认颜色） */
+  --color-area-default: #9ca3af;
 }
 
 
@@ -526,7 +529,8 @@ body.theme-rose-pine-moon {
   --color-calendar-grid: #56526e;
 
   /* 4.11 默认区域色 */
-  --color-area-default: #9ccfd8;
+  /* 统一：效率灰（用于“无区域”任务/时间块的默认颜色） */
+  --color-area-default: #9ca3af;
 }
 
 
@@ -679,7 +683,8 @@ body.theme-cutie {
   --color-calendar-grid: #f5d4e0;
 
   /* 5.11 默认区域色 */
-  --color-area-default: #ff6b9d;
+  /* 统一：效率灰（用于“无区域”任务/时间块的默认颜色） */
+  --color-area-default: #9ca3af;
 }
 
 
@@ -832,7 +837,8 @@ body.theme-business {
   --color-calendar-grid: #e0e0e0;
 
   /* 6.11 默认区域色 */
-  --color-area-default: #1976d2;
+  /* 统一：效率灰（用于“无区域”任务/时间块的默认颜色） */
+  --color-area-default: #9ca3af;
 }
 
 

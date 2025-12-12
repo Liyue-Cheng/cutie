@@ -209,14 +209,26 @@ const isInDailyView = computed(() => {
   return props.viewKey?.startsWith('daily::')
 })
 
-// 判断是否在项目视图中
+// 判断是否在项目视图中（viewKey 包含 project 就认为是项目视图）
 const isInProjectView = computed(() => {
-  return props.viewKey?.startsWith('project::')
+  return props.viewKey?.includes('project') ?? false
 })
 
-// 判断是否在区域视图中
+// 判断是否在区域视图中（viewKey 包含区域 ID 就认为是区域视图）
 const isInAreaView = computed(() => {
-  return props.viewKey?.startsWith('area::')
+  if (!props.viewKey) return false
+  // area::{areaId} - 标准区域视图
+  if (props.viewKey.startsWith('area::')) return true
+  // misc::staging::{areaId}::... - staging 中指定区域的视图（排除特殊值）
+  if (props.viewKey.startsWith('misc::staging::')) {
+    const parts = props.viewKey.split('::')
+    const thirdPart = parts[2]
+    // 排除特殊值：no-area, no-project, recent-carryover, project
+    if (thirdPart && !['no-area', 'no-project', 'recent-carryover', 'project'].includes(thirdPart)) {
+      return true
+    }
+  }
+  return false
 })
 
 // 是否应该显示最近排期（仅在项目和区域视图）
@@ -252,12 +264,17 @@ const currentViewProject = computed(() => {
 })
 
 // 是否应该显示 Area 标签
-// 非项目视图：始终显示（如果没有项目标签）
+// 区域视图：不显示
 // 项目视图：只有当任务 Area 与项目 Area 不一致时才显示
+// 其他视图：始终显示（如果没有项目标签）
 const shouldShowAreaTag = computed(() => {
-  if (!isInProjectView.value) return true
+  // 在区域视图中，不显示区域标签
+  if (isInAreaView.value) return false
   // 在项目视图中，检查任务 Area 是否与项目 Area 不一致
-  return props.task.area_id !== currentViewProject.value?.area_id
+  if (isInProjectView.value) {
+    return props.task.area_id !== currentViewProject.value?.area_id
+  }
+  return true
 })
 
 // 获取当前视图的日期 (YYYY-MM-DD)
