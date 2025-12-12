@@ -139,3 +139,6 @@ from-kilocode/
 src-tauri/data/*.db
 src-tauri/data/*.db-shm
 src-tauri/data/*.db-wal
+
+# Windows reserved device names (cannot be deleted normally)
+nul
