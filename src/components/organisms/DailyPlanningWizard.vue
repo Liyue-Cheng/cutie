@@ -382,13 +382,15 @@ function handleNext() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 3rem;
+  padding: 1rem 3rem 3rem;
   overflow-y: auto;
 }
 
 /* ==================== 标题区域 ==================== */
 .wizard-header {
   margin-bottom: 2.5rem;
+  text-align: center;
+  padding-top: 0;
 }
 
 .wizard-title {

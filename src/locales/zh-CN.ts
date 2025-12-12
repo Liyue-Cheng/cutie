@@ -406,17 +406,17 @@ export default {
         todayJump: '今天（实际上会跳到明天）',
       },
       step1: {
-        title: '今天想做些什么有趣的事？',
+        title: '想做些什么有趣的事？',
         subtitle: '从暂存区挑选任务吧～',
-        hint: '先挑最重要的几件事，Cutie 会帮你把今天过得更轻松～',
+        hint: '不用太多，三五件刚刚好～',
       },
       step2: {
         title: '想什么时候做呢？',
         subtitle: '把任务拖到右边的日历里～',
-        hint: '给专注留点位置，Cutie 会替你守住这段时间～',
+        hint: '留点空隙，别把自己塞太满～',
       },
-      next: 'Next',
-      done: 'Done',
+      next: '下一步',
+      done: '完成',
       back: '返回',
     },
     dailyShutdown: {

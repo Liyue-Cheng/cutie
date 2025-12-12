@@ -405,7 +405,7 @@ export default {
         todayJump: 'Today (actually jumps to tomorrow)',
       },
       step1: {
-        title: 'What fun things do you want to do today?',
+        title: 'What fun things do you want to do?',
         subtitle: 'Pick tasks from your staging area',
         hint: 'Pick a few that matter most—Cutie will help you make today feel lighter~',
       },
