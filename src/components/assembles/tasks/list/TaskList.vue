@@ -63,7 +63,7 @@
 
       <!-- 任务纸条列表 -->
       <div ref="taskListRef" class="task-list-container">
-        <TransitionGroup name="task-list" tag="div" class="task-list">
+        <TransitionGroup :name="transitionEnabled ? 'task-list' : ''" tag="div" class="task-list">
           <div
             v-for="task in displayItems"
             :key="task.id"
@@ -101,13 +101,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ViewMetadata } from '@/types/drag'
-import type { TaskCard } from '@/types/dtos'
+import type { TaskCard, Template, DragObjectType } from '@/types/dtos'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import TaskStrip from './TaskStrip.vue'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
-import { dragPreviewState } from '@/infra/drag-interact'
+import { dragPreviewState, dragPreviewActions } from '@/infra/drag-interact'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
@@ -242,6 +242,16 @@ const taskInputRef = ref<HTMLInputElement | null>(null)
 const isInputFocused = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 
+/**
+ * 动画开关：用于在模板 drop 后暂时禁用动画
+ *
+ * 问题：模板创建任务时，预览元素 ID (preview-xxx) 和新任务 ID (uuid) 不同，
+ * Vue 的 TransitionGroup 会触发 leave + enter 动画。
+ *
+ * 解决：在 drop 后暂时禁用动画，等 SSE 推送新任务后再恢复。
+ */
+const transitionEnabled = ref(true)
+
 // 暴露标题栏 ref 给父组件（用于 Section 拖拽）
 defineExpose({
   headerRef,
@@ -281,6 +291,53 @@ const dragStrategy = useDragStrategy()
 // 标准化 viewKey 作为 CSS class（:: 替换为 --）
 const normalizedViewKey = computed(() => props.viewKey.replace(/::/g, '--'))
 
+/**
+ * 预览转换器：将非 TaskCard 类型的拖动对象转换为 TaskCard 预览
+ *
+ * 支持场景：
+ * - Template → TaskCard：模板拖到任务列表时显示任务预览
+ */
+const templateToTaskPreview = (draggedObject: unknown, objectType: DragObjectType): TaskCard | null => {
+  if (objectType === 'template') {
+    const template = draggedObject as Template
+    return {
+      // 使用临时 ID，带有 preview 前缀以便识别
+      id: `preview-${template.id}`,
+      title: template.title,
+      glance_note: template.glance_note_template,
+
+      // 核心状态：预览任务都是未完成、未归档、未删除
+      is_completed: false,
+      is_archived: false,
+      is_deleted: false,
+      deleted_at: null,
+
+      // 详细信息
+      subtasks: template.subtasks_template,
+      estimated_duration: template.estimated_duration_template,
+
+      // 上下文信息
+      area_id: template.area_id,
+      project_id: null,
+      section_id: null,
+
+      // 日程信息（预览时为空）
+      schedule_info: null,
+      due_date: null,
+      schedules: null,
+
+      // UI 标志
+      has_detail_note: !!template.detail_note_template,
+
+      // 循环任务相关（预览时为空）
+      recurrence_id: null,
+      recurrence_original_date: null,
+      recurrence_expiry_behavior: null,
+    }
+  }
+  return null
+}
+
 const dragApi = (() => {
   if (props.disableDrag) return null
   return useInteractDrag({
@@ -290,21 +347,38 @@ const dragApi = (() => {
     draggableSelector: `.task-draggable-${normalizedViewKey.value}`,
     objectType: 'task',
     getObjectId: (task) => task.id,
+    previewTransformer: templateToTaskPreview,
     onDrop: async (session) => {
+      // 🔥 检测是否是跨类型拖放（如模板 → 任务）
+      const isTransformedDrop = session.object?.type !== 'task'
+
+      // 🔥 在清除预览前保存所有需要的信息（清除后这些值会丢失）
+      const savedDropIndex = dragPreviewState.value?.computed.dropIndex
+      const savedTaskIds = displayItems.value.map((t) => t.id)
+      const savedDisplayTasks = [...displayItems.value]
+
+      // 如果是跨类型拖放，暂时禁用动画以避免 leave + enter 动画闪烁
+      if (isTransformedDrop) {
+        transitionEnabled.value = false
+        // 🔥 立即清除预览状态，避免预览元素和真实任务同时存在
+        dragPreviewActions.clear()
+      }
+
       logger.debug(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop event', {
         session,
         targetViewKey: props.viewKey,
-        displayItems: displayItems.value.length,
-        dropIndex: dragPreviewState.value?.computed.dropIndex,
+        displayItems: savedDisplayTasks.length,
+        dropIndex: savedDropIndex,
+        isTransformedDrop,
       })
 
-      // 🎯 执行拖放策略
+      // 🎯 执行拖放策略（使用保存的值）
       const result = await dragStrategy.executeDrop(session, props.viewKey, {
         sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
         targetContext: {
-          taskIds: displayItems.value.map((t) => t.id),
-          displayTasks: displayItems.value,
-          dropIndex: dragPreviewState.value?.computed.dropIndex,
+          taskIds: savedTaskIds,
+          displayTasks: savedDisplayTasks,
+          dropIndex: savedDropIndex,
           viewKey: props.viewKey,
         },
       })
@@ -320,6 +394,13 @@ const dragApi = (() => {
           taskId: session.object.id,
           targetViewKey: props.viewKey,
         })
+      }
+
+      // 🔥 恢复动画（延迟执行，确保 SSE 推送的新任务已渲染）
+      if (isTransformedDrop) {
+        setTimeout(() => {
+          transitionEnabled.value = true
+        }, 100)
       }
     },
   })

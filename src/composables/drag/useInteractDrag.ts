@@ -20,6 +20,18 @@ import { makeDragDecision } from '@/services/dragDecisionService'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 
 /**
+ * 预览转换器函数类型
+ *
+ * 当拖动的对象类型与目标列表类型不同时，使用此函数将拖动对象转换为目标列表可显示的预览对象
+ * 例如：将 Template 转换为 TaskCard 预览
+ *
+ * @param draggedObject 被拖动的原始对象
+ * @param objectType 被拖动对象的类型
+ * @returns 转换后的预览对象，或 null 表示不显示预览
+ */
+export type PreviewTransformer<T> = (draggedObject: unknown, objectType: DragObjectType) => T | null
+
+/**
  * useInteractDrag 配置选项
  *
  * @template T 拖放对象的类型，默认为 DragObject 联合类型
@@ -48,6 +60,16 @@ export interface UseInteractDragOptions<T = DragObject> {
 
   /** 自定义放置处理函数 */
   onDrop?: (session: any) => Promise<void>
+
+  /**
+   * 预览转换器（可选）
+   *
+   * 当拖动的对象类型与本列表的 objectType 不同时，
+   * 使用此函数将拖动对象转换为可在本列表中显示的预览对象。
+   *
+   * 典型场景：Template 拖到 Daily 看板时，转换为 TaskCard 预览
+   */
+  previewTransformer?: PreviewTransformer<T>
 }
 
 /**
@@ -65,6 +87,7 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
     objectType,
     getObjectId,
     onDrop,
+    previewTransformer,
   } = options
 
   // ==================== 响应式状态 ====================
@@ -88,11 +111,39 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
     const isSourceView = sourceZoneId === currentViewId
     const isCompact = preview.computed.isCompact === true
 
-    // 只处理匹配的对象类型
+    // ==================== 跨类型预览处理 ====================
+    // 当拖动对象类型与本列表类型不同时，尝试使用预览转换器
     if (previewObjectType !== objectType) {
+      // 如果没有预览转换器，或不是目标视图，直接返回原始列表
+      if (!previewTransformer || targetZoneId !== currentViewId) {
+        return currentItems
+      }
+
+      // 尝试转换拖动对象为本列表可显示的预览对象
+      const transformedPreview = previewTransformer(draggedObject, previewObjectType)
+      if (!transformedPreview) {
+        return currentItems
+      }
+
+      // 在目标位置插入转换后的预览对象
+      if (dropIndex !== undefined) {
+        const previewList = [...currentItems]
+        const safeIndex = Math.max(0, Math.min(dropIndex, previewList.length))
+
+        previewList.splice(safeIndex, 0, {
+          ...transformedPreview,
+          _isPreview: true,
+          _isTransformedPreview: true, // 标记为跨类型预览
+          _dragCompact: isCompact,
+        } as T & { _isPreview?: boolean; _isTransformedPreview?: boolean; _dragCompact?: boolean })
+
+        return previewList
+      }
+
       return currentItems
     }
 
+    // ==================== 同类型预览处理（原有逻辑）====================
     const draggedId = getObjectId(draggedObject as T)
 
     const applyCompactFlag = (list: T[]): T[] => {

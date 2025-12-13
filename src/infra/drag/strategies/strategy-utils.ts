@@ -27,31 +27,35 @@
  * - displayItems: any[]
  * - displayTasks: any[] (向后兼容)
  * - 自动回退到空数组
+ *
+ * 注意：会自动过滤掉预览元素（ID 以 "preview-" 开头的）
  */
 export function extractObjectIds(context: Record<string, any>): string[] {
+  let ids: string[] = []
+
   // 优先使用 itemIds (新格式)
   if (Array.isArray(context.itemIds)) {
-    return context.itemIds
+    ids = context.itemIds
   }
-
   // 向后兼容：taskIds
-  if (Array.isArray(context.taskIds)) {
-    return context.taskIds
+  else if (Array.isArray(context.taskIds)) {
+    ids = context.taskIds
   }
-
   // 回退：从 displayItems 提取
-  if (Array.isArray(context.displayItems)) {
-    return context.displayItems.map((item: any) => item.id)
+  else if (Array.isArray(context.displayItems)) {
+    ids = context.displayItems.map((item: any) => item.id)
   }
-
   // 向后兼容：从 displayTasks 提取
-  if (Array.isArray(context.displayTasks)) {
-    return context.displayTasks.map((t: any) => t.id)
+  else if (Array.isArray(context.displayTasks)) {
+    ids = context.displayTasks.map((t: any) => t.id)
+  } else {
+    // 最后回退：空数组
+    console.warn('[strategy-utils] No object IDs found in context', context)
+    return []
   }
 
-  // 最后回退：空数组
-  console.warn('[strategy-utils] No object IDs found in context', context)
-  return []
+  // 🔥 过滤掉预览元素（ID 以 "preview-" 开头的）
+  return ids.filter((id) => !id.startsWith('preview-'))
 }
 
 /**

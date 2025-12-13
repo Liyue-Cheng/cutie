@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import type { ViewMetadata } from '@/types/drag'
+import type { TaskCard, Template, DragObjectType } from '@/types/dtos'
 import { useViewTasks } from '@/composables/useViewTasks'
 import { deriveViewMetadata } from '@/services/viewAdapter'
 import CutePane from '@/components/alias/CutePane.vue'
@@ -64,6 +65,53 @@ const effectiveViewMetadata = computed<ViewMetadata>(() => {
 const kanbanContainerRef = ref<HTMLElement | null>(null)
 const dragStrategy = useDragStrategy()
 
+/**
+ * 预览转换器：将非 TaskCard 类型的拖动对象转换为 TaskCard 预览
+ *
+ * 支持场景：
+ * - Template → TaskCard：模板拖到日程时显示任务预览
+ */
+const templateToTaskPreview = (draggedObject: unknown, objectType: DragObjectType): TaskCard | null => {
+  if (objectType === 'template') {
+    const template = draggedObject as Template
+    return {
+      // 使用临时 ID，带有 preview 前缀以便识别
+      id: `preview-${template.id}`,
+      title: template.title,
+      glance_note: template.glance_note_template,
+
+      // 核心状态：预览任务都是未完成、未归档、未删除
+      is_completed: false,
+      is_archived: false,
+      is_deleted: false,
+      deleted_at: null,
+
+      // 详细信息
+      subtasks: template.subtasks_template,
+      estimated_duration: template.estimated_duration_template,
+
+      // 上下文信息
+      area_id: template.area_id,
+      project_id: null,
+      section_id: null,
+
+      // 日程信息（预览时为空）
+      schedule_info: null,
+      due_date: null,
+      schedules: null,
+
+      // UI 标志
+      has_detail_note: !!template.detail_note_template,
+
+      // 循环任务相关（预览时为空）
+      recurrence_id: null,
+      recurrence_original_date: null,
+      recurrence_expiry_behavior: null,
+    }
+  }
+  return null
+}
+
 const { displayItems } = useInteractDrag({
   viewMetadata: effectiveViewMetadata,
   items: effectiveTasks,
@@ -71,6 +119,7 @@ const { displayItems } = useInteractDrag({
   draggableSelector: `.task-draggable-${props.viewKey.replace(/::/g, '--')}`,
   objectType: 'task',
   getObjectId: (task) => task.id,
+  previewTransformer: templateToTaskPreview,
   onDrop: async (session) => {
     // 🔍 打印完整的拖放会话信息（调试用）
     console.group('🎯 Drop Event - Full Session Info')
