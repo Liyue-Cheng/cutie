@@ -25,7 +25,9 @@
           <div class="start-circle-col">
             <div class="start-circle"></div>
           </div>
-          <span class="start-title">{{ store.ritualTitle ?? $t('dailyShutdown.stage2.title') }}</span>
+          <span class="start-title">{{
+            store.ritualTitle ?? $t('dailyShutdown.stage2.title')
+          }}</span>
         </div>
         <!-- 顶部连接线 -->
         <div class="dots-connector">
@@ -166,12 +168,14 @@ async function toggle(stepId: string) {
 }
 
 .steps-wrapper {
-  width: 100%;
-  max-width: 50.4rem;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 0;
+  margin: 0 auto;
+
+  /* 视觉居中补偿：左侧轴线窄、右侧文字重，整体左移让"轴线"成为视觉中心 */
+  transform: translateX(-1.5rem);
 }
 
 .timeline-start {
