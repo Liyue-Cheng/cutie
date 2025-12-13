@@ -13,6 +13,7 @@ import { RecurrenceISA } from './recurrence-isa'
 import { UserSettingsISA } from './user-settings-isa'
 import { AreaISA } from './area-isa'
 import { ProjectISA } from './project-isa'
+import { ShutdownRitualISA } from './shutdown-ritual-isa'
 
 /**
  * 完整的ISA定义
@@ -28,6 +29,7 @@ export const ISA: ISADefinition = {
   ...UserSettingsISA,
   ...AreaISA,
   ...ProjectISA,
+  ...ShutdownRitualISA,
 }
 
 // 导出类型

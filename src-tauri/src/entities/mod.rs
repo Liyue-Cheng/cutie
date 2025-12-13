@@ -14,6 +14,7 @@ pub mod schedule;
 pub mod task;
 pub mod task_recurrence;
 pub mod template;
+pub mod shutdown_ritual;
 pub mod time_block;
 pub mod time_block_recurrence;
 pub mod time_block_recurrence_link;
@@ -76,6 +77,14 @@ pub use task::{
 
 // Template 相关类型
 pub use template::{Template, TemplateRow};
+
+// ShutdownRitual 相关类型
+pub use shutdown_ritual::{
+    CreateShutdownRitualStepRequest, ShutdownRitualProgressDto, ShutdownRitualStateDto,
+    ShutdownRitualStep, ShutdownRitualStepDto, ShutdownRitualStepRow, ToggleShutdownRitualRequest,
+    UpdateShutdownRitualStepRequest, UpdateShutdownRitualStepSortRequest,
+    UpdateShutdownRitualStepSortResponse,
+};
 
 // TaskRecurrence 相关类型
 pub use task_recurrence::{

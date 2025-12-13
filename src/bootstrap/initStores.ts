@@ -89,6 +89,13 @@ const STORE_CONFIGS: StoreInitConfig[] = [
     // 不预加载，按需加载
   },
   {
+    name: 'ShutdownRitual',
+    importFn: () => import('@/stores/shutdown-ritual'),
+    storeName: 'useShutdownRitualStore',
+    initEvents: true,
+    // 不预加载，按需加载（视图打开时加载）
+  },
+  {
     name: 'Trash',
     importFn: () => import('@/stores/trash'),
     storeName: 'useTrashStore',

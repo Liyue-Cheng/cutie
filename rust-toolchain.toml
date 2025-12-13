@@ -1,0 +1,8 @@
+[toolchain]
+# Keep the workspace-root toolchain aligned with `src-tauri/rust-toolchain.toml`.
+# This prevents rust-analyzer (often rooted at the repo) from using a different
+# rustc than Cargo when compiling proc-macros (e.g. `serde_derive`), which can
+# cause "proc macro server error: ... mismatched ABI expected ... got ..." on Windows.
+channel = "1.91.1"
+profile = "default"
+

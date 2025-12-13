@@ -424,6 +424,33 @@ export interface TimeBlockRecurrenceEditResult {
   deleted_count: number
 }
 
+// --- Daily Shutdown Ritual Types ---
+
+export interface ShutdownRitualStep {
+  id: string
+  title: string
+  order_rank: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ShutdownRitualProgress {
+  step_id: string
+  date: string // YYYY-MM-DD
+  completed_at: string | null
+}
+
+export interface ShutdownRitualState {
+  date: string // YYYY-MM-DD
+  steps: ShutdownRitualStep[]
+  progress: ShutdownRitualProgress[]
+}
+
+export interface UpdateShutdownRitualStepSortResponse {
+  step_id: string
+  new_rank: string
+}
+
 // --- Drag & Drop Type System ---
 
 /**

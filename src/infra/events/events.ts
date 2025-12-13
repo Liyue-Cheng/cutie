@@ -111,6 +111,23 @@ export class EventSubscriber {
       this.handleEvent('template.deleted', e.data)
     })
 
+    // Shutdown ritual events
+    this.eventSource.addEventListener('shutdown_ritual.step.created', (e: MessageEvent) => {
+      this.handleEvent('shutdown_ritual.step.created', e.data)
+    })
+    this.eventSource.addEventListener('shutdown_ritual.step.updated', (e: MessageEvent) => {
+      this.handleEvent('shutdown_ritual.step.updated', e.data)
+    })
+    this.eventSource.addEventListener('shutdown_ritual.step.deleted', (e: MessageEvent) => {
+      this.handleEvent('shutdown_ritual.step.deleted', e.data)
+    })
+    this.eventSource.addEventListener('shutdown_ritual.step.reordered', (e: MessageEvent) => {
+      this.handleEvent('shutdown_ritual.step.reordered', e.data)
+    })
+    this.eventSource.addEventListener('shutdown_ritual.progress.toggled', (e: MessageEvent) => {
+      this.handleEvent('shutdown_ritual.progress.toggled', e.data)
+    })
+
     // 连接成功
     this.eventSource.onopen = () => {
       logger.info(LogTags.SYSTEM_SSE, 'Connected to event stream')

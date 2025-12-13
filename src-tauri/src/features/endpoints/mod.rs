@@ -5,6 +5,7 @@
 pub mod area;
 pub mod projects;
 pub mod recurrences;
+pub mod shutdown_ritual;
 pub mod tasks;
 pub mod templates;
 pub mod time_block_recurrences;

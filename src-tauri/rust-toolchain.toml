@@ -1,0 +1,8 @@
+[toolchain]
+# Pin toolchain to avoid proc-macro ABI mismatch between rust-analyzer and cargo builds.
+# This repo currently has artifacts built with rustc 1.91.1; keeping the toolchain consistent
+# prevents errors like:
+# "proc macro server error ... mismatched ABI expected ... got ..."
+channel = "1.91.1"
+profile = "default"
+

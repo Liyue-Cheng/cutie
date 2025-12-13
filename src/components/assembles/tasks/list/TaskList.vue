@@ -74,6 +74,7 @@
               :view-key="viewKey"
               :display-mode="displayMode"
               :show-estimated-duration="showEstimatedDuration"
+              :read-only="props.readOnly"
               @toggle-complete="toggleTaskComplete(task.id)"
               @toggle-subtask="(subtaskId) => toggleSubtask(task.id, subtaskId)"
               @completing="onTaskCompleting"
@@ -114,6 +115,8 @@ interface Props {
   collapsible?: boolean // 是否可折叠
   hideDailyRecurringTasks?: boolean // 是否隐藏每日循环任务
   hideCompleted?: boolean // 是否隐藏已完成任务
+  disableDrag?: boolean // 禁用拖拽（只读展示）
+  readOnly?: boolean // 禁用复选框/子任务勾选（只读展示）
   inputBorderStyle?: 'dashed' | 'solid' | 'none' // 输入框底部边框样式
   titleColor?: string // 标题颜色（CSS 颜色值或 CSS 变量）
   displayMode?: 'simple' | 'full' // 显示模式：简单/完整
@@ -129,6 +132,8 @@ const props = withDefaults(defineProps<Props>(), {
   collapsible: true,
   hideDailyRecurringTasks: false,
   hideCompleted: false,
+  disableDrag: false,
+  readOnly: false,
   inputBorderStyle: 'dashed',
   titleColor: '',
   displayMode: 'full',
@@ -266,46 +271,51 @@ const dragStrategy = useDragStrategy()
 // 标准化 viewKey 作为 CSS class（:: 替换为 --）
 const normalizedViewKey = computed(() => props.viewKey.replace(/::/g, '--'))
 
-const { displayItems } = useInteractDrag({
-  viewMetadata: effectiveViewMetadata,
-  items: filteredTasks,
-  containerRef: taskBarRef,
-  draggableSelector: `.task-draggable-${normalizedViewKey.value}`,
-  objectType: 'task',
-  getObjectId: (task) => task.id,
-  onDrop: async (session) => {
-    logger.debug(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop event', {
-      session,
-      targetViewKey: props.viewKey,
-      displayItems: displayItems.value.length,
-      dropIndex: dragPreviewState.value?.computed.dropIndex,
-    })
-
-    // 🎯 执行拖放策略
-    const result = await dragStrategy.executeDrop(session, props.viewKey, {
-      sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
-      targetContext: {
-        taskIds: displayItems.value.map((t) => t.id),
-        displayTasks: displayItems.value,
-        dropIndex: dragPreviewState.value?.computed.dropIndex,
-        viewKey: props.viewKey,
-      },
-    })
-
-    if (!result.success) {
-      const errorMessage = result.message || result.error || 'Unknown error'
-      logger.error(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop failed', new Error(errorMessage), {
-        result,
+const dragApi = (() => {
+  if (props.disableDrag) return null
+  return useInteractDrag({
+    viewMetadata: effectiveViewMetadata,
+    items: filteredTasks,
+    containerRef: taskBarRef,
+    draggableSelector: `.task-draggable-${normalizedViewKey.value}`,
+    objectType: 'task',
+    getObjectId: (task) => task.id,
+    onDrop: async (session) => {
+      logger.debug(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop event', {
         session,
-      })
-    } else {
-      logger.info(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop succeeded', {
-        taskId: session.object.id,
         targetViewKey: props.viewKey,
+        displayItems: displayItems.value.length,
+        dropIndex: dragPreviewState.value?.computed.dropIndex,
       })
-    }
-  },
-})
+
+      // 🎯 执行拖放策略
+      const result = await dragStrategy.executeDrop(session, props.viewKey, {
+        sourceContext: (session.metadata?.sourceContext as Record<string, any>) || {},
+        targetContext: {
+          taskIds: displayItems.value.map((t) => t.id),
+          displayTasks: displayItems.value,
+          dropIndex: dragPreviewState.value?.computed.dropIndex,
+          viewKey: props.viewKey,
+        },
+      })
+
+      if (!result.success) {
+        const errorMessage = result.message || result.error || 'Unknown error'
+        logger.error(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop failed', new Error(errorMessage), {
+          result,
+          session,
+        })
+      } else {
+        logger.info(LogTags.COMPONENT_TASK_BAR, 'TaskBar drop succeeded', {
+          taskId: session.object.id,
+          targetViewKey: props.viewKey,
+        })
+      }
+    },
+  })
+})()
+
+const displayItems = dragApi ? dragApi.displayItems : computed(() => filteredTasks.value)
 
 // Methods
 function toggleCollapse() {
@@ -482,6 +492,7 @@ async function addTask() {
 
 async function toggleTaskComplete(taskId: string) {
   try {
+    if (props.readOnly) return
     // 获取当前任务的完成状态
     const task = displayItems.value.find((t) => t.id === taskId)
     if (!task) return
@@ -516,6 +527,7 @@ async function toggleTaskComplete(taskId: string) {
 
 async function toggleSubtask(taskId: string, subtaskId: string) {
   try {
+    if (props.readOnly) return
     // 获取当前任务
     const task = displayItems.value.find((t) => t.id === taskId)
     if (!task || !task.subtasks) return

@@ -432,6 +432,37 @@ export default {
     },
   },
 
+  // ==================== Daily Shutdown ====================
+  dailyShutdown: {
+    // Stage 1
+    stage1: {
+      title: "It's shutdown time~",
+      subtitle: 'Wrap up what’s left for today',
+      hint: 'You can drag unfinished tasks to tomorrow, or return them to staging~',
+    },
+    // Stage 2
+    stage2: {
+      title: 'Daily Ritual',
+      hint: 'Rest well. Tomorrow is a brand new day~',
+      emptyTitle: 'No shutdown steps yet',
+      emptyHint: 'Tap the top-right menu to add your ritual',
+    },
+    // Editor
+    editor: {
+      title: 'Edit Ritual',
+      addPlaceholder: 'Add a new step...',
+      deleteConfirm: 'Delete this step?',
+    },
+    // Buttons
+    next: 'Next',
+    back: 'Back',
+    // Toolbar
+    toolbar: {
+      completed: 'Completed',
+      daily: 'Daily',
+    },
+  },
+
   // ==================== Common Actions/Buttons ====================
   common: {
     action: {

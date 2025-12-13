@@ -432,6 +432,37 @@ export default {
     },
   },
 
+  // ==================== 每日收尾（Daily Shutdown） ====================
+  dailyShutdown: {
+    // Stage 1
+    stage1: {
+      title: '收尾时间到了～',
+      subtitle: '把今天的事情收拾一下',
+      hint: '未完成的可以拖到明天，或者放回暂存区～',
+    },
+    // Stage 2
+    stage2: {
+      title: '今日小仪式',
+      hint: '早点休息，明天又是新的一天～',
+      emptyTitle: '还没有收尾步骤',
+      emptyHint: '点击右上角编辑添加你的仪式',
+    },
+    // Editor
+    editor: {
+      title: '编辑小仪式',
+      addPlaceholder: '添加新步骤...',
+      deleteConfirm: '确定删除这个步骤吗？',
+    },
+    // Buttons
+    next: '下一步',
+    back: '返回',
+    // Toolbar
+    toolbar: {
+      completed: '已完成',
+      daily: '每日',
+    },
+  },
+
   // ==================== 通用操作/按钮 ====================
   common: {
     action: {

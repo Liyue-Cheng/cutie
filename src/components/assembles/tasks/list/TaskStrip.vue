@@ -14,13 +14,16 @@
     <div class="task-header">
       <!-- 复选框 + 标题（不可分割） -->
       <div class="task-main">
-        <CuteDualModeCheckbox
-          class="main-checkbox"
-          :state="checkboxState"
-          size="large"
-          @update:state="handleCheckboxStateChange"
-          @click.stop
-        />
+        <div class="main-checkbox-wrapper" :class="{ readonly: props.readOnly }">
+          <CuteDualModeCheckbox
+            class="main-checkbox"
+            :state="checkboxState"
+            size="large"
+            :disable-long-press="props.readOnly"
+            v-on="props.readOnly ? {} : { 'update:state': handleCheckboxStateChange }"
+            @click.stop
+          />
+        </div>
         <div class="task-title" :class="{ completed: task.is_completed }">
           {{ task.title || '新任务' }}
         </div>
@@ -110,7 +113,7 @@
           <CuteCheckbox
             :checked="subtask.is_completed"
             size="1.4rem"
-            @update:checked="() => toggleSubtask(subtask.id)"
+            v-on="props.readOnly ? {} : { 'update:checked': () => toggleSubtask(subtask.id) }"
             @click.stop
           />
         </div>
@@ -145,10 +148,12 @@ interface Props {
   task: TaskCard
   viewKey?: string
   displayMode?: 'simple' | 'full'
+  readOnly?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   displayMode: 'full',
+  readOnly: false,
 })
 
 // Emits
@@ -564,6 +569,11 @@ function onMouseDown(event: MouseEvent) {
   /* 标题 line-height: 1.4, font-size: 1.5rem, 行高 = 2.1rem */
   /* 复选框高度约 2.1rem，与第一行中线对齐 */
   margin-top: 0.05rem;
+}
+
+.main-checkbox-wrapper.readonly {
+  pointer-events: none;
+  opacity: 0.9;
 }
 
 .task-title {

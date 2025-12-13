@@ -18,6 +18,7 @@ pub mod ai;
 pub mod areas;
 pub mod projects;
 pub mod recurrences;
+pub mod shutdown_ritual;
 pub mod tasks;
 pub mod templates;
 pub mod time_block_recurrences;
@@ -43,6 +44,7 @@ pub fn create_api_router() -> Router<AppState> {
         .nest("/areas", areas::create_routes())
         .nest("/projects", projects::create_routes())
         .nest("/recurrences", recurrences::create_routes())
+        .nest("/shutdown-ritual", shutdown_ritual::create_routes())
         .nest("/tasks", tasks::create_routes())
         .nest("/templates", templates::create_routes())
         .nest("/time-block-recurrences", time_block_recurrences::create_routes())
