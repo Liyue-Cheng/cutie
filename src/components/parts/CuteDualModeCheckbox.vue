@@ -190,7 +190,8 @@ const handlePressCancel = () => {
 .cute-dual-mode-checkbox.size-custom .checkbox-box {
   width: var(--checkbox-size);
   height: var(--checkbox-size);
-  border-radius: calc(var(--checkbox-size) * 0.25);
+  border-radius: calc(var(--checkbox-size) * 0.23);
+  border-width: calc(var(--checkbox-size) * 0.1);
 }
 
 /* 完成状态 */

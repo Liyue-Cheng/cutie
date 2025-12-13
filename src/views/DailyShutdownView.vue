@@ -32,7 +32,17 @@ const todayDailyViewKey = computed(() => `daily::${today.value}`)
 
 const todayTasks = computed(() => taskStore.getTasksByDate_Mux(today.value))
 const completedCount = computed(() => todayTasks.value.filter((t) => t.is_completed).length)
-const incompleteCount = computed(() => Math.max(0, todayTasks.value.length - completedCount.value))
+const presentCount = computed(() =>
+  todayTasks.value.filter((t) => {
+    if (t.is_completed) return false
+    // 从 schedules 中查找今天的日程，检查 outcome 是否为 presence_logged
+    const todaySchedule = t.schedules?.find((s) => s.scheduled_day === today.value)
+    return todaySchedule?.outcome === 'presence_logged'
+  }).length
+)
+const incompleteCount = computed(() =>
+  Math.max(0, todayTasks.value.length - completedCount.value - presentCount.value)
+)
 
 // Right daily date (start from tomorrow)
 const dailyRightDate = ref<string>(getTomorrowDateString())
@@ -134,6 +144,7 @@ onMounted(async () => {
         <template #bottom>
           <DailyShutdownWizard
             :completed="completedCount"
+            :present="presentCount"
             :incomplete="incompleteCount"
             :title="t('dailyShutdown.stage1.title')"
             :subtitle="t('dailyShutdown.stage1.subtitle')"
@@ -157,6 +168,7 @@ onMounted(async () => {
             :title="t('view.dailyShutdown.todayIncomplete')"
             :view-key="todayDailyViewKey"
             :show-add-input="false"
+            :show-dashed-divider="true"
             :fill-remaining-space="true"
             :collapsible="false"
             :hide-completed="true"
@@ -203,10 +215,10 @@ onMounted(async () => {
               :title="t('view.dailyShutdown.todayCompleted')"
               :view-key="`misc::completed::${today}`"
               :show-add-input="false"
+              :show-dashed-divider="true"
               :fill-remaining-space="true"
               :collapsible="false"
               :disable-drag="true"
-              :read-only="true"
             />
           </div>
 

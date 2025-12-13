@@ -49,7 +49,16 @@
         </button>
       </div>
 
-      <!-- 虚线分隔符（当不显示输入框但需要分隔符时） -->
+      <!-- 副标题区域（当不显示输入框但有副标题时） -->
+      <div
+        v-else-if="subtitle"
+        class="subtitle-wrapper"
+        :class="`border-${props.inputBorderStyle}`"
+      >
+        <span class="subtitle-text">{{ subtitle }}</span>
+      </div>
+
+      <!-- 虚线分隔符（当不显示输入框、无副标题、但需要分隔符时） -->
       <div v-else-if="showDashedDivider" class="dashed-divider"></div>
 
       <!-- 任务纸条列表 -->
@@ -108,6 +117,7 @@ import { getTodayDateString } from '@/infra/utils/dateUtils'
 interface Props {
   title: string
   viewKey: string // 🔥 必需：遵循 VIEW_CONTEXT_KEY_SPEC 规范
+  subtitle?: string // 副标题（当 showAddInput=false 时显示，样式与输入框区域一致）
   defaultCollapsed?: boolean
   showAddInput?: boolean // 是否显示添加任务输入框
   showDashedDivider?: boolean // 是否显示虚线分隔符（当 showAddInput=false 时使用）
@@ -388,7 +398,11 @@ async function addTask() {
         const fourthPart = parts[3]
         const fifthPart = parts[4]
 
-        if (thirdPart === 'no-area' || thirdPart === 'no-project' || thirdPart === 'recent-carryover') {
+        if (
+          thirdPart === 'no-area' ||
+          thirdPart === 'no-project' ||
+          thirdPart === 'recent-carryover'
+        ) {
           // 不设置任何上下文，创建普通 staging 任务
           logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating staging task without context', {
             viewKey: props.viewKey,
@@ -724,9 +738,38 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   transform: translateY(-50%) scale(0.95);
 }
 
-/* 虚线分隔符 */
+/* 副标题区域（与输入框区域高度一致） */
+.subtitle-wrapper {
+  position: relative;
+  margin: 0 1.6rem 1rem; /* 与 task-input-wrapper 一致 */
+  padding: 0.8rem 0; /* 与 task-input 一致 */
+}
+
+.subtitle-wrapper.border-dashed {
+  border-bottom: 2px dashed var(--color-input-underline, #f0f);
+}
+
+.subtitle-wrapper.border-solid {
+  border-bottom: 2px solid var(--color-input-underline, #f0f);
+}
+
+.subtitle-wrapper.border-none {
+  border-bottom: none;
+}
+
+.subtitle-text {
+  font-size: 1.5rem;
+  line-height: 1.4; /* 与 task-input 一致 */
+  color: var(--color-text-tertiary, #f0f);
+  font-style: italic;
+}
+
+/* 虚线分隔符（高度与输入框区域一致，确保分割线对齐） */
 .dashed-divider {
-  margin: 0 1.6rem 1rem;
+  margin: 0 1.6rem 1rem; /* 与 task-input-wrapper 一致 */
+  padding: 0.8rem 0; /* 与 task-input 一致 */
+  min-height: calc(1.5rem * 1.4); /* 与 task-input 文字高度一致 (font-size * line-height) */
+  box-sizing: border-box;
   border-bottom: 2px dashed var(--color-input-underline, #f0f);
 }
 

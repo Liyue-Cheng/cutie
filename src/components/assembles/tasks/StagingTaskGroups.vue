@@ -4,9 +4,9 @@
     <TaskList
       v-if="recentCarryoverTasks.length > 0"
       :title="$t('task.label.recentCarryover')"
+      :subtitle="$t('view.staging.desc.recentCarryover')"
       view-key="misc::staging::recent-carryover"
       :show-add-input="false"
-      :show-dashed-divider="true"
       :collapsible="true"
       :default-collapsed="false"
     />

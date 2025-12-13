@@ -95,6 +95,7 @@ export default {
     },
     status: {
       completed: 'Completed',
+      present: 'Present',
       incomplete: 'Incomplete',
       inProgress: 'In Progress',
     },

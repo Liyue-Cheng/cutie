@@ -21,6 +21,11 @@
             <span class="legend-count">{{ completed }}</span>
           </div>
           <div class="legend-item">
+            <span class="dot present"></span>
+            <span class="legend-name">{{ $t('task.status.present') }}</span>
+            <span class="legend-count">{{ present }}</span>
+          </div>
+          <div class="legend-item">
             <span class="dot incomplete"></span>
             <span class="legend-name">{{ $t('task.status.incomplete') }}</span>
             <span class="legend-count">{{ incomplete }}</span>
@@ -54,6 +59,7 @@ use([CanvasRenderer, PieChart, TooltipComponent, GraphicComponent])
 
 interface Props {
   completed: number
+  present: number
   incomplete: number
   title: string
   subtitle: string
@@ -68,6 +74,7 @@ const chartFontFamily = ref(
   'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif'
 )
 const completedColor = ref('#f0f')
+const presentColor = ref('#f0f')
 const incompleteColor = ref('#f0f')
 
 onMounted(() => {
@@ -82,6 +89,8 @@ onMounted(() => {
 
   const statusCompleted = styles.getPropertyValue('--color-status-completed').trim()
   completedColor.value = statusCompleted || '#f0f'
+  const statusPresent = styles.getPropertyValue('--color-status-present').trim()
+  presentColor.value = statusPresent || '#f0f'
   const textTertiary = styles.getPropertyValue('--color-text-tertiary').trim()
   incompleteColor.value = textTertiary || '#f0f'
 
@@ -89,7 +98,7 @@ onMounted(() => {
   if (bodyFont) chartFontFamily.value = bodyFont
 })
 
-const total = computed(() => Math.max(0, props.completed + props.incomplete))
+const total = computed(() => Math.max(0, props.completed + props.present + props.incomplete))
 const percent = computed(() => {
   if (total.value === 0) return 0
   return Math.round((props.completed / total.value) * 100)
@@ -118,6 +127,16 @@ const chartOption = computed<ECBasicOption>(() => {
           value: props.completed,
           itemStyle: {
             color: completedColor.value,
+            borderColor: bg,
+            borderWidth: 6,
+            borderRadius: 6,
+          },
+        },
+        {
+          name: 'present',
+          value: props.present,
+          itemStyle: {
+            color: presentColor.value,
             borderColor: bg,
             borderWidth: 6,
             borderRadius: 6,
@@ -276,6 +295,10 @@ const chartOption = computed<ECBasicOption>(() => {
 
 .dot.completed {
   background: var(--color-status-completed, #f0f);
+}
+
+.dot.present {
+  background: var(--color-status-present, #f0f);
 }
 
 .dot.incomplete {

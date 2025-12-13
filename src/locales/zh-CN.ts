@@ -95,6 +95,7 @@ export default {
     },
     status: {
       completed: '已完成',
+      present: '已参与',
       incomplete: '未完成',
       inProgress: '进行中',
     },
