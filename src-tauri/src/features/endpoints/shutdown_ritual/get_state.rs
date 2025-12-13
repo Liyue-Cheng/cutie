@@ -23,17 +23,18 @@ use crate::{
    GET /api/shutdown-ritual/state?date=YYYY-MM-DD
 
 2. High-Level Behavior
-   Return ordered ritual steps and per-step completion state for the given day.
+   Return ordered ritual steps, per-step completion state for the given day, and ritual settings (title).
 
 3. Input/Output Specification
    Query: date (YYYY-MM-DD)
-   Response: { date, steps: [...], progress: [...] }
+   Response: { date, title, steps: [...], progress: [...] }
 
 4. Validation Rules
    - date must be valid YYYY-MM-DD.
 
 5. Business Logic Walkthrough
    - Validate date
+   - SELECT settings (singleton) for title
    - SELECT steps ORDER BY order_rank ASC
    - SELECT progress WHERE date = ?
    - Return state
@@ -41,6 +42,7 @@ use crate::{
 6. Edge Cases
    - No steps: steps=[], progress=[]
    - Steps exist but no progress rows yet: progress=[]
+   - Settings row missing: title=null
 
 7. Expected Side Effects
    - Read-only, no outbox events
@@ -90,6 +92,20 @@ mod logic {
         validation::validate_date(date)?;
 
         let pool = app_state.db_pool();
+
+        // settings (singleton)
+        let title: Option<String> = sqlx::query_scalar::<_, Option<String>>(
+            r#"
+            SELECT title
+            FROM shutdown_ritual_settings
+            WHERE id = 'default'
+            LIMIT 1
+            "#,
+        )
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.into()))?
+        .flatten();
 
         // steps
         let step_rows = sqlx::query_as::<_, crate::entities::shutdown_ritual::ShutdownRitualStepRow>(
@@ -145,6 +161,7 @@ mod logic {
 
         Ok(ShutdownRitualStateDto {
             date: date.to_string(),
+            title,
             steps,
             progress,
         })

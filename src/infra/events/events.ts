@@ -127,6 +127,9 @@ export class EventSubscriber {
     this.eventSource.addEventListener('shutdown_ritual.progress.toggled', (e: MessageEvent) => {
       this.handleEvent('shutdown_ritual.progress.toggled', e.data)
     })
+    this.eventSource.addEventListener('shutdown_ritual.settings.updated', (e: MessageEvent) => {
+      this.handleEvent('shutdown_ritual.settings.updated', e.data)
+    })
 
     // 连接成功
     this.eventSource.onopen = () => {

@@ -7,6 +7,7 @@ export const useShutdownRitualStore = defineStore('shutdown-ritual', () => {
   return {
     // STATE
     currentDate: core.currentDate,
+    ritualTitle: core.ritualTitle,
     steps: core.steps,
     progressByStepId: core.progressByStepId,
 
@@ -19,6 +20,7 @@ export const useShutdownRitualStore = defineStore('shutdown-ritual', () => {
 
     // MUTATIONS
     setState_mut: core.setState_mut,
+    setTitle_mut: core.setTitle_mut,
     addOrUpdateStep_mut: core.addOrUpdateStep_mut,
     removeStep_mut: core.removeStep_mut,
     updateStepRank_mut: core.updateStepRank_mut,
@@ -37,6 +39,7 @@ export type {
   DeleteShutdownRitualStepPayload,
   ReorderShutdownRitualStepPayload,
   ToggleShutdownRitualProgressPayload,
+  UpdateShutdownRitualSettingsPayload,
   UpdateShutdownRitualStepPayload,
 } from './types'
 

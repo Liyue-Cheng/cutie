@@ -22,4 +22,8 @@ export interface ToggleShutdownRitualProgressPayload {
   date: string // YYYY-MM-DD
 }
 
+export interface UpdateShutdownRitualSettingsPayload {
+  title: string | null
+}
+
 

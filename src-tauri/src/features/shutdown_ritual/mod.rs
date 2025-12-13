@@ -16,6 +16,7 @@ mod endpoints {
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/state", get(endpoints::get_state))
+        .route("/settings", patch(endpoints::update_settings))
         .route("/steps", post(endpoints::create_step))
         .route("/steps/:id", patch(endpoints::update_step))
         .route("/steps/:id", delete(endpoints::delete_step))

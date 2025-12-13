@@ -9,6 +9,18 @@
       </div>
 
       <div class="modal-body">
+        <div class="settings-section">
+          <div class="field-label">{{ $t('dailyShutdown.editor.ritualTitleLabel') }}</div>
+          <input
+            v-model="localRitualTitle"
+            class="title-input"
+            type="text"
+            :placeholder="$t('dailyShutdown.editor.ritualTitlePlaceholder')"
+            @blur="saveRitualTitle"
+            @keydown.enter.prevent="saveRitualTitle"
+          />
+        </div>
+
         <div class="step-list">
           <div
             v-for="step in localSteps"
@@ -80,6 +92,18 @@ watch(
 )
 
 const newTitle = ref('')
+
+const localRitualTitle = ref('')
+const originalRitualTitle = ref<string | null>(null)
+
+watch(
+  () => store.ritualTitle,
+  (title) => {
+    originalRitualTitle.value = title ?? null
+    localRitualTitle.value = title ?? ''
+  },
+  { immediate: true }
+)
 
 const draggingId = ref<string | null>(null)
 const dragOverId = ref<string | null>(null)
@@ -159,6 +183,21 @@ async function confirmDelete(stepId: string) {
   if (!confirm(t('dailyShutdown.editor.deleteConfirm'))) return
   await pipeline.dispatch('shutdown_ritual.step.delete', { id: stepId })
 }
+
+async function saveRitualTitle() {
+  const next = localRitualTitle.value.trim()
+  const prev = (originalRitualTitle.value ?? '').trim()
+
+  // Treat empty as "use default" (clear DB title -> fallback to i18n)
+  if (!next) {
+    if (!prev) return
+    await pipeline.dispatch('shutdown_ritual.settings.update', { title: null })
+    return
+  }
+
+  if (next === prev) return
+  await pipeline.dispatch('shutdown_ritual.settings.update', { title: next })
+}
 </script>
 
 <style scoped>
@@ -226,6 +265,33 @@ async function confirmDelete(stepId: string) {
 
 .modal-body {
   padding: 1.6rem 2rem 2rem;
+}
+
+.settings-section {
+  margin-bottom: 1.2rem;
+}
+
+.field-label {
+  font-size: 1.25rem;
+  color: var(--color-text-tertiary, #f0f);
+  line-height: 1.4;
+  margin-bottom: 0.6rem;
+}
+
+.title-input {
+  width: 100%;
+  height: 4rem;
+  padding: 0 1.2rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--color-border-default, #f0f);
+  background: var(--color-background-primary, #f0f);
+  color: var(--color-text-primary, #f0f);
+  font-size: 1.5rem;
+  line-height: 1.4;
+}
+
+.title-input::placeholder {
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .step-list {

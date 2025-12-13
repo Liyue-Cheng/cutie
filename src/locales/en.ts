@@ -450,6 +450,8 @@ export default {
     // Editor
     editor: {
       title: 'Edit Ritual',
+      ritualTitleLabel: 'Ritual title',
+      ritualTitlePlaceholder: 'Leave empty to use the default title',
       addPlaceholder: 'Add a new step...',
       deleteConfirm: 'Delete this step?',
     },

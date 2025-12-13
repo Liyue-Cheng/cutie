@@ -21,8 +21,15 @@ pub struct ShutdownRitualProgressDto {
 #[derive(Debug, Clone, Serialize)]
 pub struct ShutdownRitualStateDto {
     pub date: String, // YYYY-MM-DD
+    pub title: Option<String>,
     pub steps: Vec<ShutdownRitualStepDto>,
     pub progress: Vec<ShutdownRitualProgressDto>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ShutdownRitualSettingsDto {
+    pub title: Option<String>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -1,6 +1,7 @@
 import type { ISADefinition } from '@cutie/cpu-pipeline'
 import type {
   ShutdownRitualProgress,
+  ShutdownRitualSettings,
   ShutdownRitualState,
   ShutdownRitualStep,
   UpdateShutdownRitualStepSortResponse,
@@ -11,6 +12,7 @@ import type {
   DeleteShutdownRitualStepPayload,
   ReorderShutdownRitualStepPayload,
   ToggleShutdownRitualProgressPayload,
+  UpdateShutdownRitualSettingsPayload,
   UpdateShutdownRitualStepPayload,
 } from '@/stores/shutdown-ritual'
 
@@ -30,6 +32,27 @@ export const ShutdownRitualISA: ISADefinition = {
     commit: async (result: ShutdownRitualState) => {
       const store = useShutdownRitualStore()
       store.setState_mut(result)
+    },
+  },
+
+  'shutdown_ritual.settings.update': {
+    meta: {
+      description: '更新每日收尾小仪式配置（标题等）',
+      category: 'shutdown_ritual',
+      resourceIdentifier: () => ['shutdown_ritual:settings'],
+      priority: 6,
+      timeout: 10000,
+    },
+    request: {
+      method: 'PATCH',
+      url: '/shutdown-ritual/settings',
+      body: (payload: UpdateShutdownRitualSettingsPayload) => ({
+        title: payload.title,
+      }),
+    },
+    commit: async (result: ShutdownRitualSettings) => {
+      const store = useShutdownRitualStore()
+      store.setTitle_mut(result.title)
     },
   },
 

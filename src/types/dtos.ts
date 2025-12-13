@@ -442,8 +442,16 @@ export interface ShutdownRitualProgress {
 
 export interface ShutdownRitualState {
   date: string // YYYY-MM-DD
+  /** NULL = use frontend fallback/i18n */
+  title: string | null
   steps: ShutdownRitualStep[]
   progress: ShutdownRitualProgress[]
+}
+
+export interface ShutdownRitualSettings {
+  /** NULL = use frontend fallback/i18n */
+  title: string | null
+  updated_at: string
 }
 
 export interface UpdateShutdownRitualStepSortResponse {

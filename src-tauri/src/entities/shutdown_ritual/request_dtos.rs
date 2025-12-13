@@ -23,4 +23,9 @@ pub struct ToggleShutdownRitualRequest {
     pub date: String, // YYYY-MM-DD
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateShutdownRitualSettingsRequest {
+    pub title: Option<String>,
+}
+
 

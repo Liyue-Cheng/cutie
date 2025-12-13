@@ -9,6 +9,7 @@ import type { ShutdownRitualProgress, ShutdownRitualState, ShutdownRitualStep } 
  */
 
 export const currentDate = ref<string | null>(null)
+export const ritualTitle = ref<string | null>(null)
 export const steps = ref(new Map<string, ShutdownRitualStep>())
 export const progressByStepId = ref(new Map<string, ShutdownRitualProgress>())
 
@@ -36,6 +37,7 @@ export const totalCount = computed(() => steps.value.size)
 
 export function setState_mut(state: ShutdownRitualState) {
   currentDate.value = state.date
+  ritualTitle.value = state.title
 
   const stepMap = new Map<string, ShutdownRitualStep>()
   for (const s of state.steps) stepMap.set(s.id, s)
@@ -44,6 +46,10 @@ export function setState_mut(state: ShutdownRitualState) {
   const progressMap = new Map<string, ShutdownRitualProgress>()
   for (const p of state.progress) progressMap.set(p.step_id, p)
   progressByStepId.value = progressMap
+}
+
+export function setTitle_mut(title: string | null) {
+  ritualTitle.value = title
 }
 
 export function addOrUpdateStep_mut(step: ShutdownRitualStep) {

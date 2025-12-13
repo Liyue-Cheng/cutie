@@ -17,6 +17,7 @@ export function initEventSubscriptions() {
     interruptHandler.on('shutdown_ritual.step.deleted', handleEvent)
     interruptHandler.on('shutdown_ritual.step.reordered', handleEvent)
     interruptHandler.on('shutdown_ritual.progress.toggled', handleEvent)
+    interruptHandler.on('shutdown_ritual.settings.updated', handleEvent)
 
     logger.info(LogTags.SYSTEM_PIPELINE, 'Shutdown ritual event subscriptions initialized (via INT)')
   })
@@ -28,6 +29,10 @@ async function handleEvent(event: any) {
     const payload = event.payload
 
     switch (eventType) {
+      case 'shutdown_ritual.settings.updated': {
+        core.setTitle_mut((payload as { title: string | null }).title ?? null)
+        break
+      }
       case 'shutdown_ritual.step.created':
       case 'shutdown_ritual.step.updated': {
         core.addOrUpdateStep_mut(payload as ShutdownRitualStep)

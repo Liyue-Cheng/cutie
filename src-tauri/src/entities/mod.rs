@@ -80,8 +80,9 @@ pub use template::{Template, TemplateRow};
 
 // ShutdownRitual 相关类型
 pub use shutdown_ritual::{
-    CreateShutdownRitualStepRequest, ShutdownRitualProgressDto, ShutdownRitualStateDto,
-    ShutdownRitualStep, ShutdownRitualStepDto, ShutdownRitualStepRow, ToggleShutdownRitualRequest,
+    CreateShutdownRitualStepRequest, ShutdownRitualProgressDto, ShutdownRitualSettingsDto,
+    ShutdownRitualSettingsRow, ShutdownRitualStateDto, ShutdownRitualStep, ShutdownRitualStepDto,
+    ShutdownRitualStepRow, ToggleShutdownRitualRequest, UpdateShutdownRitualSettingsRequest,
     UpdateShutdownRitualStepRequest, UpdateShutdownRitualStepSortRequest,
     UpdateShutdownRitualStepSortResponse,
 };

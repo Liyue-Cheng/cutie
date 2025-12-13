@@ -450,6 +450,8 @@ export default {
     // Editor
     editor: {
       title: '编辑小仪式',
+      ritualTitleLabel: '仪式标题',
+      ritualTitlePlaceholder: '留空则使用默认标题',
       addPlaceholder: '添加新步骤...',
       deleteConfirm: '确定删除这个步骤吗？',
     },

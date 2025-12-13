@@ -25,7 +25,7 @@
           <div class="start-circle-col">
             <div class="start-circle"></div>
           </div>
-          <span class="start-title">{{ $t('dailyShutdown.stage2.title') }}</span>
+          <span class="start-title">{{ store.ritualTitle ?? $t('dailyShutdown.stage2.title') }}</span>
         </div>
         <!-- 顶部连接线 -->
         <div class="dots-connector">
@@ -39,7 +39,7 @@
             <div class="step-checkbox-col">
               <CuteCheckbox
                 :checked="isCompleted(step.id)"
-                size="3.2rem"
+                size="2.88rem"
                 @update:checked="() => toggle(step.id)"
               />
             </div>
@@ -167,7 +167,7 @@ async function toggle(stepId: string) {
 
 .steps-wrapper {
   width: 100%;
-  max-width: 56rem;
+  max-width: 50.4rem;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -177,27 +177,27 @@ async function toggle(stepId: string) {
 .timeline-start {
   display: flex;
   align-items: center;
-  gap: 2.4rem;
-  padding: 0.4rem 0;
+  gap: 2.16rem;
+  padding: 0.36rem 0;
 }
 
 .start-circle-col {
-  width: 3.2rem;
+  width: 2.88rem;
   display: flex;
   justify-content: center;
   flex-shrink: 0;
 }
 
 .start-circle {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.16rem;
+  height: 2.16rem;
   border-radius: 50%;
   background-color: var(--color-text-tertiary, #f0f);
   opacity: 0.6;
 }
 
 .start-title {
-  font-size: 3.2rem;
+  font-size: 2.88rem;
   color: var(--color-text-tertiary, #f0f);
   line-height: 1.4;
   font-weight: 500;
@@ -206,35 +206,35 @@ async function toggle(stepId: string) {
 .step-item {
   display: flex;
   align-items: center;
-  gap: 2.4rem;
-  padding: 0.4rem 0;
+  gap: 2.16rem;
+  padding: 0.36rem 0;
 }
 
 .step-checkbox-col {
-  width: 3.2rem;
+  width: 2.88rem;
   display: flex;
   justify-content: center;
   flex-shrink: 0;
 }
 
 .step-title {
-  font-size: 3.2rem;
+  font-size: 2.88rem;
   color: var(--color-text-primary, #f0f);
   line-height: 1.4;
 }
 
 .dots-connector {
-  width: 3.2rem;
+  width: 2.88rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.8rem 0;
+  gap: 0.54rem;
+  padding: 0.72rem 0;
 }
 
 .dot {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.45rem;
+  height: 0.45rem;
   border-radius: 50%;
   background-color: var(--color-text-tertiary, #f0f);
   opacity: 0.6;
@@ -244,7 +244,7 @@ async function toggle(stepId: string) {
   margin-top: auto;
   padding-top: 2.4rem;
   text-align: center;
-  font-size: 1.35rem;
+  font-size: 1.215rem;
   color: var(--color-text-tertiary, #f0f);
   line-height: 1.6;
   font-style: italic;
