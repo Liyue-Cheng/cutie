@@ -884,9 +884,11 @@ class InteractDragController {
   }
 
   /**
-   * 在当前 dropzone 内，基于“方向进入触发区”仅步进一次
+   * 在当前 dropzone 内，基于"方向进入触发区"步进
    * 规则：
    * - 仅当鼠标向下移动，且从触发区外进入下一项的触发区时，索引 +1
+   * - 仅当鼠标向上移动，且从触发区外进入上一项的触发区时，索引 -1
+   * - 🔥 修复：检测到进入触发区后，继续循环检测是否应该继续步进（处理快速移动）
    * - 其他情况返回当前索引（保持稳定）
    */
   private calculateDropIndexWithDirectionalGate(pointerY: number, element: HTMLElement): number {
@@ -902,6 +904,9 @@ class InteractDragController {
     }
 
     const deltaY = pointerY - this.lastMouseY
+    const ZONE_RATIO = 0.1
+    const MIN_ZONE_PX = 8
+    const zonePx = (h: number) => Math.max(h * ZONE_RATIO, MIN_ZONE_PX)
 
     // 仅处理向下进入触发区的情形
     if (deltaY > 0) {
@@ -910,14 +915,26 @@ class InteractDragController {
         const nextEl = wrappers[nextIndex]
         if (!nextEl) return lastIndex
         const rect = nextEl.getBoundingClientRect()
-        const zonePx = Math.max(rect.height * 0.1, 8)
-        const enterThreshold = rect.top + zonePx
+        const enterThreshold = rect.top + zonePx(rect.height)
 
         const wasOutside = this.lastMouseY < enterThreshold
         const nowInside = pointerY >= enterThreshold
 
         if (wasOutside && nowInside) {
-          return lastIndex + 1
+          // 🔥 检测到进入触发区，继续循环检测是否应该继续下移
+          let newIndex = lastIndex + 1
+          while (newIndex < wrappers.length) {
+            const checkEl = wrappers[newIndex]
+            if (!checkEl) break
+            const checkRect = checkEl.getBoundingClientRect()
+            const checkThreshold = checkRect.top + zonePx(checkRect.height)
+            if (pointerY >= checkThreshold) {
+              newIndex++
+            } else {
+              break
+            }
+          }
+          return Math.min(newIndex, wrappers.length)
         }
       }
       return lastIndex
@@ -930,14 +947,27 @@ class InteractDragController {
         const prevEl = wrappers[prevIndex]
         if (!prevEl) return lastIndex
         const rect = prevEl.getBoundingClientRect()
-        const zonePx = Math.max(rect.height * 0.1, 8)
-        const enterThreshold = rect.bottom - zonePx
+        const enterThreshold = rect.bottom - zonePx(rect.height)
 
         const wasOutside = this.lastMouseY > enterThreshold
         const nowInside = pointerY <= enterThreshold
 
         if (wasOutside && nowInside) {
-          return Math.max(lastIndex - 1, 0)
+          // 🔥 检测到进入触发区，继续循环检测是否应该继续上移
+          let newIndex = lastIndex - 1
+          while (newIndex > 0) {
+            const checkIndex = newIndex - 1
+            const checkEl = wrappers[checkIndex]
+            if (!checkEl) break
+            const checkRect = checkEl.getBoundingClientRect()
+            const checkThreshold = checkRect.bottom - zonePx(checkRect.height)
+            if (pointerY <= checkThreshold) {
+              newIndex--
+            } else {
+              break
+            }
+          }
+          return Math.max(newIndex, 0)
         }
       }
       return lastIndex
