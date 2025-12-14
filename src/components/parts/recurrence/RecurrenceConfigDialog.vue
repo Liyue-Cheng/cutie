@@ -7,6 +7,7 @@ import { useTemplateStore } from '@/stores/template'
 import { useRecurrenceStore } from '@/stores/recurrence'
 import { pipeline } from '@/cpu'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   task: TaskCard
@@ -127,7 +128,7 @@ async function handleSave() {
     emit('close')
   } catch (error) {
     console.error('Failed to create recurrence:', error)
-    alert(t('message.error.createRecurrenceFailed'))
+    await dialog.alert(t('message.error.createRecurrenceFailed'))
   }
 }
 

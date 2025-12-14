@@ -9,6 +9,7 @@ import AreaTag from '@/components/parts/AreaTag.vue'
 import { pipeline } from '@/cpu'
 import draggable from 'vuedraggable'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 
 interface Subtask {
   id: string
@@ -117,7 +118,7 @@ function handleClose() {
 async function handleCreate() {
   const title = titleInput.value.trim()
   if (!title) {
-    alert(t('template.message.enterTitle'))
+    await dialog.alert(t('template.message.enterTitle'))
     return
   }
 
@@ -137,7 +138,7 @@ async function handleCreate() {
       'Failed to create template',
       error instanceof Error ? error : new Error(String(error))
     )
-    alert(t('template.message.createFailed'))
+    await dialog.alert(t('template.message.createFailed'))
   }
 }
 </script>

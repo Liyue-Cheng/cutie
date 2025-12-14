@@ -53,6 +53,7 @@ import { pipeline } from '@/cpu'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
 import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 import ContextMenu from '@/components/assembles/ContextMenu/shared/CuteContextMenu.vue'
 import MenuItem from '@/components/assembles/ContextMenu/shared/CuteMenuItem.vue'
 import MenuSection from '@/components/assembles/ContextMenu/shared/CuteMenuSection.vue'
@@ -242,7 +243,7 @@ const handleAction = async (action: ActionType) => {
   } else if (action === 'delete-all-instances') {
     if (!props.task.recurrence_id) return
 
-    const confirmed = confirm(
+    const confirmed = await dialog.confirm(
       t('confirm.deleteAllRecurrenceInstances', { title: props.task.title })
     )
 

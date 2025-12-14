@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { RRule, Frequency } from 'rrule'
 import type { TaskRecurrence } from '@/types/dtos'
 import { pipeline } from '@/cpu'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   recurrence: TaskRecurrence | null
@@ -195,7 +196,7 @@ async function handleSave() {
     // ✅ 视图刷新由 CPU 指令的 commit 阶段统一处理
   } catch (error) {
     console.error('Failed to update recurrence:', error)
-    alert('更新循环规则失败')
+    await dialog.alert('更新循环规则失败')
   }
 }
 

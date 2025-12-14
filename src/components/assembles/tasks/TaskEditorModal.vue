@@ -17,6 +17,7 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 import draggable from 'vuedraggable'
 import { useRecurrenceOperations } from '@/composables/useRecurrenceOperations'
+import { dialog } from '@/composables/useDialog'
 
 interface Subtask {
   id: string
@@ -491,42 +492,44 @@ async function handleStopRepeating() {
     await loadRecurrence()
   } catch (error) {
     console.error('Failed to stop repeating:', error)
-    alert('操作失败，请重试')
+    await dialog.alert('操作失败，请重试')
   }
 }
 
 async function handleExtendRecurrence() {
   if (!currentRecurrence.value) return
 
-  if (confirm(t('confirm.resumeRecurrence'))) {
-    try {
-      // 🔥 使用CPU指令更新循环规则
-      await pipeline.dispatch('recurrence.update', {
-        id: currentRecurrence.value.id,
-        end_date: null,
-      })
-      // 重新加载以更新状态
-      await loadRecurrence()
-      // ✅ 视图刷新由 CPU 指令的 commit 阶段统一处理
-    } catch (error) {
-      console.error('Failed to extend recurrence:', error)
-      alert(t('message.error.operationFailed'))
-    }
+  const confirmed = await dialog.confirm(t('confirm.resumeRecurrence'))
+  if (!confirmed) return
+
+  try {
+    // 🔥 使用CPU指令更新循环规则
+    await pipeline.dispatch('recurrence.update', {
+      id: currentRecurrence.value.id,
+      end_date: null,
+    })
+    // 重新加载以更新状态
+    await loadRecurrence()
+    // ✅ 视图刷新由 CPU 指令的 commit 阶段统一处理
+  } catch (error) {
+    console.error('Failed to extend recurrence:', error)
+    await dialog.alert(t('message.error.operationFailed'))
   }
 }
 
 async function handleDeleteRecurrence() {
   if (!currentRecurrence.value) return
 
-  if (confirm(t('confirm.deleteRecurrence', { rule: recurrenceDescription.value || '' }))) {
-    try {
-      await recurrenceOps.deleteAllInstancesAndStop(currentRecurrence.value.id)
-      currentRecurrence.value = null
-      await loadRecurrence()
-    } catch (error) {
-      console.error('Failed to delete recurrence:', error)
-      alert(t('message.error.deleteFailed'))
-    }
+  const confirmed = await dialog.confirm(t('confirm.deleteRecurrence', { rule: recurrenceDescription.value || '' }))
+  if (!confirmed) return
+
+  try {
+    await recurrenceOps.deleteAllInstancesAndStop(currentRecurrence.value.id)
+    currentRecurrence.value = null
+    await loadRecurrence()
+  } catch (error) {
+    console.error('Failed to delete recurrence:', error)
+    await dialog.alert(t('message.error.deleteFailed'))
   }
 }
 </script>

@@ -86,6 +86,7 @@ import { pipeline } from '@/cpu'
 import { useAreaStore } from '@/stores/area'
 import { useProjectStore } from '@/stores/project'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   show: boolean
@@ -167,7 +168,7 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '项目更新失败', error)
-    alert(t('message.error.updateProjectFailed'))
+    await dialog.alert(t('message.error.updateProjectFailed'))
   } finally {
     isSubmitting.value = false
   }

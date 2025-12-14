@@ -9,6 +9,7 @@ import { useAreaStore } from '@/stores/area'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { apiPost } from '@/stores/shared'
 import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
+import { dialog } from '@/composables/useDialog'
 
 export function useCalendarDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -361,7 +362,7 @@ export function useCalendarDrag(
             'Failed to link task',
             error instanceof Error ? error : new Error(String(error))
           )
-          alert('链接任务失败：' + errorMessage)
+          dialog.alert('链接任务失败：' + errorMessage)
         } finally {
           // 清理状态
           clearPreviewEvent()
@@ -524,7 +525,7 @@ export function useCalendarDrag(
           'Drop failed',
           new Error(result.error || 'Unknown error')
         )
-        alert(`创建时间块失败: ${result.error}`)
+        dialog.alert(`创建时间块失败: ${result.error}`)
         clearPreviewEvent()
       }
     } catch (error) {
@@ -550,7 +551,7 @@ export function useCalendarDrag(
         'Time block creation failed',
         new Error(errorMessage)
       )
-      alert(`创建时间块失败: ${errorMessage}`)
+      dialog.alert(`创建时间块失败: ${errorMessage}`)
     } finally {
       // 无论成功还是失败，都要重置标志
       isProcessingDrop.value = false

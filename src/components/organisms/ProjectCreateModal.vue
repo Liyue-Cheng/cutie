@@ -77,6 +77,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { useAreaStore } from '@/stores/area'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   show: boolean
@@ -149,7 +150,7 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '项目创建失败', error)
-    alert(t('message.error.createProjectFailed'))
+    await dialog.alert(t('message.error.createProjectFailed'))
   } finally {
     isSubmitting.value = false
   }

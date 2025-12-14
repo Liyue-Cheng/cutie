@@ -10,6 +10,7 @@ import type {
 } from '@/types/dtos'
 import { getNowLocalISOStringMinutes } from '@/infra/utils/dateUtils'
 import { useUIStore } from '@/stores/ui'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   recurrenceId: string
@@ -172,7 +173,7 @@ async function loadRecurrenceDetail() {
     resetForm()
   } catch (error) {
     console.error('Failed to load recurrence detail', error)
-    alert(t('message.error.loadRecurrenceFailed'))
+    await dialog.alert(t('message.error.loadRecurrenceFailed'))
     emit('close')
   } finally {
     loading.value = false
@@ -200,12 +201,12 @@ async function handleSave() {
 
     await pipeline.dispatch('timeblock-recurrence.edit', payload)
     saving.value = false
-    alert(t('message.success.updateRecurrence'))
+    await dialog.alert(t('message.success.updateRecurrence'))
     closeDialog()
   } catch (error) {
     saving.value = false
     console.error('Failed to edit recurrence', error)
-    alert(t('message.error.updateRecurrenceFailed'))
+    await dialog.alert(t('message.error.updateRecurrenceFailed'))
   }
 }
 

@@ -11,6 +11,7 @@ import { pipeline } from '@/cpu'
 import { useInteractDrag } from '@/composables/drag/useInteractDrag'
 import { useDragStrategy } from '@/composables/drag/useDragStrategy'
 import { dragPreviewState } from '@/infra/drag-interact/preview-state'
+import { dialog } from '@/composables/useDialog'
 
 const templateStore = useTemplateStore()
 const pendingInit = ref(new Set<string>())
@@ -146,7 +147,7 @@ async function handleCreateTemplate() {
       'Failed to create template',
       error instanceof Error ? error : new Error(String(error))
     )
-    alert(t('template.message.createFailed'))
+    await dialog.alert(t('template.message.createFailed'))
   }
 }
 

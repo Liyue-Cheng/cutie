@@ -5,6 +5,7 @@ import { RRule, Frequency } from 'rrule'
 import type { TimeBlockView } from '@/types/dtos'
 import { pipeline } from '@/cpu'
 import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   timeBlock: TimeBlockView
@@ -129,7 +130,7 @@ async function handleSave() {
     emit('close')
   } catch (error) {
     console.error('Failed to create time block recurrence:', error)
-    alert(t('message.error.createRecurrenceFailed'))
+    await dialog.alert(t('message.error.createRecurrenceFailed'))
   }
 }
 

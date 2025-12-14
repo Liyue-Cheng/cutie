@@ -5,6 +5,7 @@ import { useAiStore } from '@/stores/ai'
 import type { MessageImage } from '@/types/ai'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import AiToolCallCard from './AiToolCallCard.vue'
+import { dialog } from '@/composables/useDialog'
 
 const emit = defineEmits<{
   close: []
@@ -58,8 +59,9 @@ function handleClose() {
   emit('close')
 }
 
-function handleClearHistory() {
-  if (confirm(t('ai.confirm.clearHistory'))) {
+async function handleClearHistory() {
+  const confirmed = await dialog.confirm(t('ai.confirm.clearHistory'))
+  if (confirmed) {
     aiStore.clearMessages()
   }
 }
@@ -84,13 +86,13 @@ async function handleFileChange(event: Event) {
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
-    alert(t('ai.message.selectImageFile'))
+    await dialog.alert(t('ai.message.selectImageFile'))
     return
   }
 
   // 文件大小限制 (5MB)
   if (file.size > 5 * 1024 * 1024) {
-    alert(t('ai.message.imageMaxSize'))
+    await dialog.alert(t('ai.message.imageMaxSize'))
     return
   }
 

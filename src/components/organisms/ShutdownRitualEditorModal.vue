@@ -67,6 +67,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { useShutdownRitualStore } from '@/stores/shutdown-ritual'
 import type { ShutdownRitualStep } from '@/types/dtos'
+import { dialog } from '@/composables/useDialog'
 
 defineProps<{ show: boolean }>()
 defineEmits<{ close: [] }>()
@@ -180,7 +181,8 @@ async function addStep() {
 }
 
 async function confirmDelete(stepId: string) {
-  if (!confirm(t('dailyShutdown.editor.deleteConfirm'))) return
+  const confirmed = await dialog.confirm(t('dailyShutdown.editor.deleteConfirm'))
+  if (!confirmed) return
   await pipeline.dispatch('shutdown_ritual.step.delete', { id: stepId })
 }
 

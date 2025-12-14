@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useAreaStore } from '@/stores/area'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
+import { dialog } from '@/composables/useDialog'
 
 defineEmits(['close'])
 
@@ -33,13 +34,13 @@ async function handleCreate() {
     newAreaColor.value = '#4A90E2'
   } catch (error) {
     console.error('创建 Area 失败:', error)
-    alert(t('message.error.createAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
+    await dialog.alert(t('message.error.createAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
 async function handleAiSuggestColor() {
   if (!newAreaName.value.trim()) {
-    alert(t('area.message.enterName'))
+    await dialog.alert(t('area.message.enterName'))
     return
   }
 
@@ -51,7 +52,7 @@ async function handleAiSuggestColor() {
     newAreaColor.value = result.suggested_color
   } catch (error) {
     console.error('AI 染色失败:', error)
-    alert(t('message.error.aiColorFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
+    await dialog.alert(t('message.error.aiColorFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     isAiColorLoading.value = false
   }
@@ -82,13 +83,13 @@ async function saveEdit() {
     editingArea.value = null
   } catch (error) {
     console.error('更新 Area 失败:', error)
-    alert(t('message.error.updateAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
+    await dialog.alert(t('message.error.updateAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
 async function handleEditAiSuggestColor() {
   if (!editingArea.value?.name.trim()) {
-    alert(t('area.message.enterName'))
+    await dialog.alert(t('area.message.enterName'))
     return
   }
 
@@ -100,19 +101,20 @@ async function handleEditAiSuggestColor() {
     editingArea.value.color = result.suggested_color
   } catch (error) {
     console.error('AI 染色失败:', error)
-    alert(t('message.error.aiColorFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
+    await dialog.alert(t('message.error.aiColorFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     isEditAiColorLoading.value = false
   }
 }
 
 async function handleDelete(id: string) {
-  if (confirm(t('confirm.deleteArea'))) {
+  const confirmed = await dialog.confirm(t('confirm.deleteArea'))
+  if (confirmed) {
     try {
       await pipeline.dispatch('area.delete', { id })
     } catch (error) {
       console.error('删除 Area 失败:', error)
-      alert(t('message.error.deleteAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
+      await dialog.alert(t('message.error.deleteAreaFailed') + ': ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 }

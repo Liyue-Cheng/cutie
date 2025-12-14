@@ -6,6 +6,7 @@
 
 import type { Position } from './types'
 import type { TaskCard } from '@/types/dtos'
+import { dialog } from '@/composables/useDialog'
 
 // ==================== DOM 操作工具 ====================
 
@@ -255,8 +256,7 @@ export function isInAllDayZone(mouseY: number, calendarElement: HTMLElement): bo
 export function showErrorMessage(message: string): void {
   // 使用简单的 alert，实际项目中应该使用统一的 toast 系统
   console.error('[DragSystem]', message)
-  // TODO: 集成项目的 toast 系统
-  alert(message)
+  dialog.alert(message)
 }
 
 /**
@@ -265,8 +265,7 @@ export function showErrorMessage(message: string): void {
  */
 export function showWarningMessage(message: string): void {
   console.warn('[DragSystem]', message)
-  // TODO: 集成项目的 toast 系统
-  alert(message)
+  dialog.alert(message)
 }
 
 // ==================== 调试工具 ====================

@@ -19,6 +19,7 @@ import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 import { useTaskStore } from '@/stores/task'
 import { useUIStore } from '@/stores/ui'
+import { dialog } from '@/composables/useDialog'
 
 export function useCalendarHandlers(
   previewEvent: Ref<EventInput | null>,
@@ -254,7 +255,7 @@ export function useCalendarHandlers(
       }
 
       logger.error(LogTags.COMPONENT_CALENDAR, 'Event update failed', new Error(errorMessage))
-      alert(`更新事件失败: ${errorMessage}`)
+      dialog.alert(`更新事件失败: ${errorMessage}`)
 
       changeInfo.revert() // Revert the change on the calendar
     }

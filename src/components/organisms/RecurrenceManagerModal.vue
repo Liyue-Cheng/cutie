@@ -133,6 +133,7 @@ import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 import type { TaskRecurrence } from '@/types/dtos'
+import { dialog } from '@/composables/useDialog'
 
 interface Props {
   show: boolean
@@ -266,7 +267,7 @@ async function toggleActive(recurrence: TaskRecurrence) {
 
   // 如果是暂停（设置为 false），需要确认并删除今天之后的未完成任务
   if (!willBeActive) {
-    const confirmed = confirm(t('confirm.pauseRecurrence'))
+    const confirmed = await dialog.confirm(t('confirm.pauseRecurrence'))
     if (!confirmed) return
   }
 
@@ -371,7 +372,7 @@ async function handleSaveEdit(updates: Partial<TaskRecurrence>) {
 
 // 删除循环规则
 async function deleteRecurrence(recurrence: TaskRecurrence) {
-  const confirmed = confirm(
+  const confirmed = await dialog.confirm(
     t('confirm.deleteRecurrence', { rule: formatRule(recurrence.rule) })
   )
   if (!confirmed) return

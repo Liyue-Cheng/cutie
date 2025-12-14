@@ -17,6 +17,7 @@ import { isTaskCard, isTemplate } from '@/types/dtos'
 import { apiPost } from '@/stores/shared'
 import { parseDateString } from '@/infra/utils/dateUtils'
 import { getDefaultAreaColor } from '@/infra/utils/themeUtils'
+import { dialog } from '@/composables/useDialog'
 
 export function useCalendarInteractDrag(
   calendarRef: Ref<InstanceType<typeof FullCalendar> | null>,
@@ -324,7 +325,7 @@ export function useCalendarInteractDrag(
               'Failed to link task',
               error instanceof Error ? error : new Error(String(error))
             )
-            alert('链接任务失败：' + errorMessage)
+            dialog.alert('链接任务失败：' + errorMessage)
           }
           return
         }

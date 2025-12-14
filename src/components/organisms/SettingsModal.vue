@@ -339,6 +339,7 @@ import { useUserSettingsStore } from '@/stores/user-settings'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import type { ValueType } from '@/types/user-settings'
+import { dialog } from '@/composables/useDialog'
 
 defineProps<{
   show: boolean
@@ -388,7 +389,8 @@ function updateSetting(key: string, event: Event, valueType: ValueType) {
 }
 
 async function resetAllSettings() {
-  if (confirm(t('confirm.resetSettings'))) {
+  const confirmed = await dialog.confirm(t('confirm.resetSettings'))
+  if (confirmed) {
     await pipeline.dispatch('user_settings.reset', {})
   }
 }

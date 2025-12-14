@@ -279,6 +279,7 @@ import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
 import { useUIStore } from '@/stores/ui'
 import { useUserSettingsStore } from '@/stores/user-settings'
 import { pipeline } from '@/cpu'
+import { dialog } from '@/composables/useDialog'
 
 // Props
 interface Props {
@@ -613,7 +614,7 @@ async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: stri
     } else if (typeof error === 'string') {
       errorMessage = error
     }
-    alert(`创建失败: ${errorMessage}`)
+    await dialog.alert(`创建失败: ${errorMessage}`)
   }
 }
 

@@ -54,6 +54,7 @@ import { useI18n } from 'vue-i18n'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   show: boolean
@@ -119,7 +120,7 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '章节创建失败', error)
-    alert(t('message.error.createSectionFailed'))
+    await dialog.alert(t('message.error.createSectionFailed'))
   } finally {
     isSubmitting.value = false
   }

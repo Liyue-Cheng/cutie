@@ -63,6 +63,7 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useProjectStore } from '@/stores/project'
 import { pipeline } from '@/cpu'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   show: boolean
@@ -141,7 +142,7 @@ async function handleSubmit() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '章节更新失败', error)
-    alert(t('message.error.updateSectionFailed'))
+    await dialog.alert(t('message.error.updateSectionFailed'))
   } finally {
     isSubmitting.value = false
   }
@@ -150,7 +151,7 @@ async function handleSubmit() {
 async function handleDelete() {
   if (!props.sectionId) return
 
-  const confirmed = confirm(t('project.confirm.deleteSection'))
+  const confirmed = await dialog.confirm(t('project.confirm.deleteSection'))
   if (!confirmed) return
 
   isSubmitting.value = true
@@ -171,7 +172,7 @@ async function handleDelete() {
     close()
   } catch (error) {
     logger.error(LogTags.UI, '章节删除失败', error)
-    alert(t('message.error.deleteSectionFailed'))
+    await dialog.alert(t('message.error.deleteSectionFailed'))
   } finally {
     isSubmitting.value = false
   }
