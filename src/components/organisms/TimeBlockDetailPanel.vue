@@ -100,6 +100,10 @@ function handleClickOutside(event: MouseEvent) {
     return
   }
 
+  // 阻止事件传播，防止其他组件响应
+  event.stopPropagation()
+  event.preventDefault()
+
   // 点击外部，关闭面板
   emit('close')
 }
