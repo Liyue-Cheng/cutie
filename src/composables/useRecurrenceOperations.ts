@@ -5,6 +5,7 @@ import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
+import { dialog } from '@/composables/useDialog'
 
 interface RecurrenceCleanupOptions {
   removeAfterDateExclusive?: string | null
@@ -114,7 +115,7 @@ export function useRecurrenceOperations() {
    * 停止重复（设置结束日期为当前任务的原始日期）
    */
   async function stopRepeating(recurrenceId: string, originalDate: string) {
-    const confirmed = confirm(
+    const confirmed = await dialog.confirm(
       `确定停止此循环吗？\n将从 ${originalDate} 之后停止生成新任务。\n已生成的任务不会被删除。`
     )
 
@@ -166,7 +167,7 @@ export function useRecurrenceOperations() {
    * @param sourceTask 源任务（TaskCard），用于获取 taskId
    */
   async function updateAllInstances(recurrenceId: string, sourceTask: TaskCard) {
-    const confirmed = confirm(
+    const confirmed = await dialog.confirm(
       `确定将所有未完成的循环任务实例更新为与当前任务相同吗？\n` +
         `这将更新标题、笔记、预期时长、子任务、区域等信息。\n` +
         `同时也会更新循环模板，影响未来生成的新实例。\n` +
@@ -257,7 +258,7 @@ export function useRecurrenceOperations() {
 
       // ✅ 视图刷新已由 CPU 指令的 commit 阶段统一处理
 
-      alert(
+      await dialog.alert(
         `成功更新了模板${template_updated ? '和' : '，'}${instances_updated_count} 个未完成的任务实例。\n未来生成的新实例也会使用更新后的内容。`
       )
     } catch (error) {
@@ -267,7 +268,7 @@ export function useRecurrenceOperations() {
         error instanceof Error ? error : new Error(String(error)),
         { recurrenceId, sourceTaskId: sourceTask.id }
       )
-      alert('批量更新失败，请查看控制台日志或重试。')
+      await dialog.alert('批量更新失败，请查看控制台日志或重试。')
       throw error
     }
   }
@@ -298,7 +299,7 @@ export function useRecurrenceOperations() {
         error instanceof Error ? error : new Error(String(error)),
         { recurrenceId }
       )
-      alert('删除失败，请重试。')
+      await dialog.alert('删除失败，请重试。')
       throw error
     }
   }

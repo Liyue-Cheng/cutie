@@ -5,6 +5,7 @@ import { useTrashStore } from '@/stores/trash'
 import KanbanTaskCard from '@/components/assembles/tasks/kanban/KanbanTaskCard.vue'
 import type { TaskCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
+import { dialog } from '@/composables/useDialog'
 
 const { t } = useI18n()
 const trashStore = useTrashStore()
@@ -51,7 +52,8 @@ function formatDeletedAt(deletedAt: string | null): string {
 
 // 恢复任务
 async function handleRestore(task: TaskCard) {
-  if (!confirm(t('confirm.restoreTask', { title: task.title }))) return
+  const confirmed = await dialog.confirm(t('confirm.restoreTask', { title: task.title }))
+  if (!confirmed) return
 
   try {
     await trashStore.restoreTask(task.id)
@@ -63,13 +65,16 @@ async function handleRestore(task: TaskCard) {
       error instanceof Error ? error : new Error(String(error)),
       { taskId: task.id }
     )
-    alert(t('message.error.restoreFailed'))
+    await dialog.alert(t('message.error.restoreFailed'))
   }
 }
 
 // 彻底删除任务
 async function handlePermanentlyDelete(task: TaskCard) {
-  if (!confirm(t('confirm.permanentDeleteTask', { title: task.title }))) return
+  const confirmed = await dialog.confirm(t('confirm.permanentDeleteTask', { title: task.title }), {
+    danger: true,
+  })
+  if (!confirmed) return
 
   try {
     await trashStore.permanentlyDeleteTask(task.id)
@@ -81,27 +86,26 @@ async function handlePermanentlyDelete(task: TaskCard) {
       error instanceof Error ? error : new Error(String(error)),
       { taskId: task.id }
     )
-    alert(t('message.error.deleteFailed'))
+    await dialog.alert(t('message.error.deleteFailed'))
   }
 }
 
 // 清空回收站
 async function handleEmptyTrash() {
-  if (!confirm(t('confirm.emptyTrash'))) {
-    return
-  }
+  const confirmed = await dialog.confirm(t('confirm.emptyTrash'), { danger: true })
+  if (!confirmed) return
 
   try {
     const deletedCount = await trashStore.emptyTrash({ olderThanDays: 0 })
     logger.info(LogTags.VIEW_TRASH, 'Trash emptied', { deletedCount })
-    alert(t('message.success.trashEmptied', { count: deletedCount }))
+    await dialog.alert(t('message.success.trashEmptied', { count: deletedCount }))
   } catch (error) {
     logger.error(
       LogTags.VIEW_TRASH,
       'Failed to empty trash',
       error instanceof Error ? error : new Error(String(error))
     )
-    alert(t('message.error.emptyTrashFailed'))
+    await dialog.alert(t('message.error.emptyTrashFailed'))
   }
 }
 
