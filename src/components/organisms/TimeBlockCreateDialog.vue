@@ -415,6 +415,7 @@ async function updatePopoverPosition() {
   justify-content: flex-end;
   gap: 1rem;
   padding: 1.6rem 2rem;
+  background-color: var(--color-background-elevated, #f0f);
   border-top: 1px solid var(--color-border-default, #f0f);
   border-radius: 0 0 0.8rem 0.8rem; /* 继承父元素圆角 */
 }

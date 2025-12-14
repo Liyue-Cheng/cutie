@@ -558,7 +558,7 @@ function getCategoryName(categoryId: string): string {
   gap: 1.6rem;
   padding: 1.6rem;
   background-color: var(--color-background-secondary, #f0f);
-  border: 1px solid var(--color-border-soft, #f0f);
+  border: 1px solid var(--color-border-light, #f0f);
   border-radius: 0.8rem;
 }
 
@@ -650,7 +650,7 @@ function getCategoryName(categoryId: string): string {
 }
 
 .setting-input:hover {
-  border-color: rgb(0 0 0 / 15%);
+  border-color: var(--color-border-input-hover, #f0f);
 }
 
 .setting-input:focus {
@@ -674,7 +674,7 @@ function getCategoryName(categoryId: string): string {
 }
 
 .setting-select:hover {
-  border-color: rgb(0 0 0 / 15%);
+  border-color: var(--color-border-input-hover, #f0f);
 }
 
 .setting-select:focus {

@@ -85,12 +85,9 @@ function handleClick(event: MouseEvent) {
   color: var(--color-danger, #f0f);
 }
 
-.cute-menu-item.is-danger:hover:not(.is-disabled) {
-  background-color: var(--color-danger-bg, #f0f);
-}
-
+.cute-menu-item.is-danger:hover:not(.is-disabled),
 .cute-menu-item.is-danger:active:not(.is-disabled) {
-  background-color: var(--color-danger-bg-active, #f0f);
+  background-color: transparent;
 }
 
 /* 禁用状态 */
