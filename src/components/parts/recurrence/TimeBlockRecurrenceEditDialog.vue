@@ -34,7 +34,6 @@ const byweekday = ref<number[]>([])
 const bymonthday = ref<number | null>(null)
 const bymonth = ref<number | null>(null)
 const endDate = ref<string | null>(null)
-const skipConflicts = ref(true)
 const deleteFutureInstances = ref(true)
 
 const title = ref<string | null>(null)
@@ -57,7 +56,6 @@ function resetForm() {
   bymonthday.value = null
   bymonth.value = null
   endDate.value = recurrence.value?.end_date ?? null
-  skipConflicts.value = recurrence.value?.skip_conflicts ?? true
   deleteFutureInstances.value = true
 
   title.value = templateInfo.value?.title ?? null
@@ -189,7 +187,6 @@ async function handleSave() {
       id: recurrence.value.id,
       rule: ruleString.value,
       end_date: endDate.value || null,
-      skip_conflicts: skipConflicts.value,
       time_type: recurrence.value.time_type,
       title: title.value ?? null,
       glance_note_template: glanceNote.value ?? null,
@@ -318,26 +315,6 @@ watch(
               {{ day }} {{ t('recurrence.label.monthDaySuffix') }}
             </option>
           </select>
-        </section>
-
-        <section class="form-section">
-          <label class="section-label">{{ t('recurrence.label.conflictBehavior') }}</label>
-          <div class="radio-group">
-            <label class="radio-item">
-              <input type="radio" :value="true" v-model="skipConflicts" />
-              <span>
-                <strong>{{ t('recurrence.conflict.skip') }}</strong>
-                <div class="radio-description">{{ t('recurrence.conflict.skipDesc') }}</div>
-              </span>
-            </label>
-            <label class="radio-item">
-              <input type="radio" :value="false" v-model="skipConflicts" />
-              <span>
-                <strong>{{ t('recurrence.conflict.error') }}</strong>
-                <div class="radio-description">{{ t('recurrence.conflict.errorDesc') }}</div>
-              </span>
-            </label>
-          </div>
         </section>
 
         <section class="form-section">

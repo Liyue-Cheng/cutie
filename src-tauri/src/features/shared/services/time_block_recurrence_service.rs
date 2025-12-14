@@ -13,7 +13,7 @@ use crate::{
             TimeBlockRecurrenceLinkRepository, TimeBlockRecurrenceRepository, TimeBlockRepository,
             TimeBlockTemplateRepository,
         },
-        TimeBlockConflictChecker, TransactionHelper,
+        TransactionHelper,
     },
     infra::{
         core::{utils::time_utils, AppError, AppResult},
@@ -212,33 +212,7 @@ impl TimeBlockRecurrenceInstantiationService {
         // 4. 开启事务
         let mut tx = TransactionHelper::begin(pool).await?;
 
-        // 5. 检查时间冲突（在事务中）
-        let has_conflict = TimeBlockConflictChecker::check_in_tx(
-            &mut tx,
-            &start_time,
-            &end_time,
-            template.is_all_day,
-            None,
-        )
-        .await?;
-
-        if has_conflict {
-            // 回滚事务
-            drop(tx);
-            if recurrence.skip_conflicts {
-                tracing::info!(
-                    "🔄 [TB_RECURRENCE] Conflict detected on {}, skipping",
-                    date_str
-                );
-                return Ok(None);
-            } else {
-                return Err(AppError::conflict(
-                    "该时间段与现有时间块重叠，时间块不允许重叠",
-                ));
-            }
-        }
-
-        // 6. 创建时间块实例
+        // 5. 创建时间块实例
         let source_info_json = serde_json::json!({
             "source_type": "native::from_time_block_recurrence",
             "recurrence_id": recurrence.id.to_string(),

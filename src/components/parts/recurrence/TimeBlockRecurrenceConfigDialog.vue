@@ -26,7 +26,6 @@ const bymonthday = ref<number | null>(null)
 const bymonth = ref<number | null>(null)
 const startDate = ref<string | null>(null)
 const endDate = ref<string | null>(null)
-const skipConflicts = ref<boolean>(true)
 
 // 监听对话框打开，自动设置初始值
 watch(
@@ -121,7 +120,6 @@ async function handleSave() {
       rule: ruleString.value,
       start_date: startDate.value,
       end_date: endDate.value,
-      skip_conflicts: skipConflicts.value,
 
       // 将当前时间块作为第一个实例
       source_time_block_id: props.timeBlock.id,
@@ -231,31 +229,6 @@ function setWeekly() {
             {{ day }} {{ $t('recurrence.label.monthDaySuffix') }}
           </option>
         </select>
-      </section>
-
-      <!-- 冲突处理 -->
-      <section class="form-section">
-        <label class="section-label">{{ $t('recurrence.label.conflictBehavior') }}</label>
-        <div class="radio-group">
-          <label class="radio-item">
-            <input type="radio" :value="true" v-model="skipConflicts" />
-            <span>
-              <strong>{{ $t('recurrence.conflict.skip') }}</strong>
-              <div class="radio-description">
-                {{ $t('recurrence.conflict.skipDesc') }}
-              </div>
-            </span>
-          </label>
-          <label class="radio-item">
-            <input type="radio" :value="false" v-model="skipConflicts" />
-            <span>
-              <strong>{{ $t('recurrence.conflict.error') }}</strong>
-              <div class="radio-description">
-                {{ $t('recurrence.conflict.errorDesc') }}
-              </div>
-            </span>
-          </label>
-        </div>
       </section>
 
       <!-- 结束日期 -->

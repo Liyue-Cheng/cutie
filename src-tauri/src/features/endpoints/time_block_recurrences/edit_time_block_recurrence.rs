@@ -16,7 +16,6 @@ POST /api/time-block-recurrences/:id/edit
   "rule": "string (optional)",
   "end_date": "YYYY-MM-DD | null (optional)",
   "timezone": "string | null (optional)",
-  "skip_conflicts": "boolean (optional)",
   "time_type": "FLOATING | FIXED (optional)",
   "title": "string | null (optional)",
   "glance_note_template": "string | null (optional)",
@@ -242,7 +241,6 @@ mod logic {
             start_date: None, // 起始日期禁止修改
             end_date: request.end_date.clone(),
             timezone: request.timezone.clone(),
-            skip_conflicts: request.skip_conflicts,
             is_active: None,
         }
     }
@@ -264,7 +262,6 @@ mod logic {
             || update.time_type.is_some()
             || update.end_date.is_some()
             || update.timezone.is_some()
-            || update.skip_conflicts.is_some()
     }
 
     async fn cleanup_future_time_blocks(
@@ -421,7 +418,6 @@ mod logic {
             start_date: recurrence.start_date,
             end_date: recurrence.end_date,
             timezone: recurrence.timezone,
-            skip_conflicts: recurrence.skip_conflicts,
             is_active: recurrence.is_active,
             created_at: recurrence.created_at,
             updated_at: recurrence.updated_at,

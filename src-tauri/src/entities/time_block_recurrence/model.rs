@@ -34,9 +34,6 @@ pub struct TimeBlockRecurrence {
     /// 时区 (可选，仅 FIXED 类型使用)
     pub timezone: Option<String>,
 
-    /// 遇到冲突时是否跳过（而不是报错）
-    pub skip_conflicts: bool,
-
     /// 是否激活
     pub is_active: bool,
 
@@ -57,7 +54,6 @@ pub struct TimeBlockRecurrenceRow {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub timezone: Option<String>,
-    pub skip_conflicts: bool,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -81,7 +77,6 @@ impl TryFrom<TimeBlockRecurrenceRow> for TimeBlockRecurrence {
             start_date: row.start_date,
             end_date: row.end_date,
             timezone: row.timezone,
-            skip_conflicts: row.skip_conflicts,
             is_active: row.is_active,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -106,7 +101,6 @@ impl TimeBlockRecurrence {
             start_date: None,
             end_date: None,
             timezone: None,
-            skip_conflicts: true,
             is_active: true,
             created_at,
             updated_at: created_at,

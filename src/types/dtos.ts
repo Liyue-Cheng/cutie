@@ -336,7 +336,6 @@ export interface TimeBlockRecurrence {
   start_date: string | null
   end_date: string | null
   timezone: string | null
-  skip_conflicts: boolean // 遇到冲突时是否跳过
   is_active: boolean
   created_at: string
   updated_at: string
@@ -376,7 +375,6 @@ export interface CreateTimeBlockRecurrencePayload {
   start_date?: string | null
   end_date?: string | null
   timezone?: string | null
-  skip_conflicts?: boolean
 
   // 源时间块（可选）
   source_time_block_id?: string
@@ -391,7 +389,6 @@ export interface UpdateTimeBlockRecurrencePayload {
   start_date?: string | null
   end_date?: string | null
   timezone?: string | null
-  skip_conflicts?: boolean
   is_active?: boolean
 }
 
@@ -403,7 +400,6 @@ export interface EditTimeBlockRecurrencePayload {
   rule?: string
   end_date?: string | null
   timezone?: string | null
-  skip_conflicts?: boolean
   time_type?: TimeType
   title?: string | null
   glance_note_template?: string | null

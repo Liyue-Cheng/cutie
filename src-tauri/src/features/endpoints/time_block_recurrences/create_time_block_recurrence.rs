@@ -38,7 +38,6 @@ POST /api/time-block-recurrences
   "rule": "string (required, RRULE格式)",
   "start_date": "YYYY-MM-DD (optional)",
   "end_date": "YYYY-MM-DD (optional)",
-  "skip_conflicts": "boolean (optional, default: true)",
 
   // 源时间块（可选）
   "source_time_block_id": "uuid (optional)"
@@ -53,7 +52,6 @@ POST /api/time-block-recurrences
   "time_type": "FLOATING | FIXED",
   "start_date": "YYYY-MM-DD | null",
   "end_date": "YYYY-MM-DD | null",
-  "skip_conflicts": boolean,
   "is_active": boolean,
   "created_at": "ISO8601",
   "updated_at": "ISO8601",
@@ -131,7 +129,6 @@ pub struct CreateTimeBlockRecurrenceFullRequest {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub timezone: Option<String>,
-    pub skip_conflicts: Option<bool>,
 
     // 源时间块（可选）
     pub source_time_block_id: Option<Uuid>,
@@ -277,7 +274,6 @@ mod logic {
             start_date: request.start_date.clone(),
             end_date: request.end_date.clone(),
             timezone: request.timezone.clone(),
-            skip_conflicts: request.skip_conflicts.unwrap_or(true),
             is_active: true,
             created_at: now,
             updated_at: now,
@@ -339,7 +335,6 @@ mod logic {
             start_date: recurrence.start_date,
             end_date: recurrence.end_date,
             timezone: recurrence.timezone,
-            skip_conflicts: recurrence.skip_conflicts,
             is_active: recurrence.is_active,
             created_at: recurrence.created_at,
             updated_at: recurrence.updated_at,

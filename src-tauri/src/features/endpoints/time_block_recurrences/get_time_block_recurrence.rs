@@ -89,7 +89,6 @@ mod logic {
             start_date: recurrence.start_date,
             end_date: recurrence.end_date,
             timezone: recurrence.timezone,
-            skip_conflicts: recurrence.skip_conflicts,
             is_active: recurrence.is_active,
             created_at: recurrence.created_at,
             updated_at: recurrence.updated_at,

@@ -25,9 +25,6 @@ pub struct CreateTimeBlockRecurrenceRequest {
     /// 时区 (可选)
     pub timezone: Option<String>,
 
-    /// 遇到冲突时是否跳过（可选，默认 true）
-    pub skip_conflicts: Option<bool>,
-
     /// 是否激活 (可选，默认 true)
     pub is_active: Option<bool>,
 
@@ -56,9 +53,6 @@ pub struct UpdateTimeBlockRecurrenceRequest {
     /// 时区 (可选，使用 Option<Option<String>> 支持设置为 null)
     pub timezone: Option<Option<String>>,
 
-    /// 遇到冲突时是否跳过 (可选)
-    pub skip_conflicts: Option<bool>,
-
     /// 是否激活 (可选)
     pub is_active: Option<bool>,
 }
@@ -74,9 +68,6 @@ pub struct EditTimeBlockRecurrenceRequest {
 
     /// 时区 (可选，使用 Option<Option<String>> 支持设置为 null)
     pub timezone: Option<Option<String>>,
-
-    /// 遇到冲突时是否跳过 (可选)
-    pub skip_conflicts: Option<bool>,
 
     /// 时间类型 (可选)
     pub time_type: Option<TimeType>,

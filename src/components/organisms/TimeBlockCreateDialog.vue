@@ -332,6 +332,7 @@ async function updatePopoverPosition() {
   flex-direction: column;
   gap: 1.6rem;
   background-color: var(--color-background-elevated, #f0f);
+  border-radius: 0.8rem 0.8rem 0 0; /* 继承父元素圆角，防止尖角叠在圆角上 */
 }
 
 /* 标题行 */
@@ -415,6 +416,7 @@ async function updatePopoverPosition() {
   gap: 1rem;
   padding: 1.6rem 2rem;
   border-top: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0 0 0.8rem 0.8rem; /* 继承父元素圆角 */
 }
 
 .cancel-button,

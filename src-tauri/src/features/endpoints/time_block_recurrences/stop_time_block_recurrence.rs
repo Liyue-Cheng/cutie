@@ -150,7 +150,6 @@ mod logic {
             start_date: None,
             end_date: Some(Some(request.stop_date.clone())), // 使用请求中的字符串
             timezone: None,
-            skip_conflicts: None,
             is_active: None,
         };
         let updated = TimeBlockRecurrenceRepository::update_in_tx(
@@ -180,7 +179,6 @@ mod logic {
             start_date: updated.start_date,
             end_date: updated.end_date,
             timezone: updated.timezone,
-            skip_conflicts: updated.skip_conflicts,
             is_active: updated.is_active,
             created_at: updated.created_at,
             updated_at: updated.updated_at,

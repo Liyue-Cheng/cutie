@@ -16,7 +16,6 @@ PATCH /api/time-block-recurrences/:id
   "rule": "string (optional)",
   "start_date": "YYYY-MM-DD | null (optional)",
   "end_date": "YYYY-MM-DD | null (optional)",
-  "skip_conflicts": "boolean (optional)",
   "is_active": "boolean (optional)"
 }
 
@@ -101,7 +100,6 @@ mod logic {
             start_date: updated.start_date,
             end_date: updated.end_date,
             timezone: updated.timezone,
-            skip_conflicts: updated.skip_conflicts,
             is_active: updated.is_active,
             created_at: updated.created_at,
             updated_at: updated.updated_at,

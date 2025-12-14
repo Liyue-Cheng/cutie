@@ -18,7 +18,7 @@ impl TimeBlockRecurrenceRepository {
     ) -> AppResult<Option<TimeBlockRecurrence>> {
         let query = r#"
             SELECT id, template_id, rule, time_type, start_date, end_date,
-                   timezone, skip_conflicts, is_active, created_at, updated_at
+                   timezone, is_active, created_at, updated_at
             FROM time_block_recurrences
             WHERE id = ?
         "#;
@@ -46,7 +46,7 @@ impl TimeBlockRecurrenceRepository {
     ) -> AppResult<Option<TimeBlockRecurrence>> {
         let query = r#"
             SELECT id, template_id, rule, time_type, start_date, end_date,
-                   timezone, skip_conflicts, is_active, created_at, updated_at
+                   timezone, is_active, created_at, updated_at
             FROM time_block_recurrences
             WHERE id = ?
         "#;
@@ -80,8 +80,8 @@ impl TimeBlockRecurrenceRepository {
         let query = r#"
             INSERT INTO time_block_recurrences (
                 id, template_id, rule, time_type, start_date, end_date,
-                timezone, skip_conflicts, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                timezone, is_active, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
@@ -92,7 +92,6 @@ impl TimeBlockRecurrenceRepository {
             .bind(&recurrence.start_date)
             .bind(&recurrence.end_date)
             .bind(&recurrence.timezone)
-            .bind(recurrence.skip_conflicts)
             .bind(recurrence.is_active)
             .bind(recurrence.created_at)
             .bind(recurrence.updated_at)
@@ -130,9 +129,6 @@ impl TimeBlockRecurrenceRepository {
         if request.timezone.is_some() {
             set_clauses.push("timezone = ?");
         }
-        if request.skip_conflicts.is_some() {
-            set_clauses.push("skip_conflicts = ?");
-        }
         if request.is_active.is_some() {
             set_clauses.push("is_active = ?");
         }
@@ -167,9 +163,6 @@ impl TimeBlockRecurrenceRepository {
         }
         if let Some(ref timezone_opt) = request.timezone {
             q = q.bind(timezone_opt.clone());
-        }
-        if let Some(skip_conflicts) = request.skip_conflicts {
-            q = q.bind(skip_conflicts);
         }
         if let Some(is_active) = request.is_active {
             q = q.bind(is_active);
@@ -233,7 +226,7 @@ impl TimeBlockRecurrenceRepository {
     pub async fn find_all_active(pool: &SqlitePool) -> AppResult<Vec<TimeBlockRecurrence>> {
         let query = r#"
             SELECT id, template_id, rule, time_type, start_date, end_date,
-                   timezone, skip_conflicts, is_active, created_at, updated_at
+                   timezone, is_active, created_at, updated_at
             FROM time_block_recurrences
             WHERE is_active = 1
             ORDER BY created_at DESC
@@ -257,7 +250,7 @@ impl TimeBlockRecurrenceRepository {
     ) -> AppResult<Vec<TimeBlockRecurrence>> {
         let query = r#"
             SELECT id, template_id, rule, time_type, start_date, end_date,
-                   timezone, skip_conflicts, is_active, created_at, updated_at
+                   timezone, is_active, created_at, updated_at
             FROM time_block_recurrences
             WHERE template_id = ?
             ORDER BY created_at DESC
@@ -282,7 +275,7 @@ impl TimeBlockRecurrenceRepository {
     ) -> AppResult<Vec<TimeBlockRecurrence>> {
         let query = r#"
             SELECT id, template_id, rule, time_type, start_date, end_date,
-                   timezone, skip_conflicts, is_active, created_at, updated_at
+                   timezone, is_active, created_at, updated_at
             FROM time_block_recurrences
             WHERE is_active = 1
               AND (start_date IS NULL OR start_date <= ?)
