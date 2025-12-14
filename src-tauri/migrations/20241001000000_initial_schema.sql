@@ -100,6 +100,7 @@ CREATE TABLE tasks (
     external_source_metadata TEXT, -- JSON
     recurrence_original_date TEXT, -- YYYY-MM-DD (日历日期字符串)
     recurrence_id TEXT, -- 关联循环规则表
+    sort_positions TEXT NOT NULL DEFAULT '{}', -- JSON: LexoRank positions per view context
     
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (section_id) REFERENCES project_sections(id),
@@ -126,6 +127,9 @@ CREATE INDEX idx_tasks_archived_at ON tasks(archived_at);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX idx_tasks_recurrence_id ON tasks(recurrence_id);
 CREATE INDEX idx_tasks_recurrence_original_date ON tasks(recurrence_original_date);
+CREATE INDEX idx_tasks_sort_positions ON tasks(sort_positions);
+CREATE INDEX idx_tasks_sort_staging ON tasks(json_extract(sort_positions, '$.misc::staging'))
+    WHERE json_extract(sort_positions, '$.misc::staging') IS NOT NULL;
 
 -- 创建 time_blocks 表 (时间块表)
 CREATE TABLE time_blocks (
@@ -179,10 +183,11 @@ CREATE TABLE templates (
     subtasks_template TEXT, -- JSON
     area_id TEXT,
     category TEXT NOT NULL DEFAULT 'GENERAL' CHECK (category IN ('GENERAL', 'RECURRENCE')),
+    sort_rank TEXT, -- LexoRank for ordering
     created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     updated_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    
+
     FOREIGN KEY (area_id) REFERENCES areas(id)
 );
 
@@ -191,6 +196,7 @@ CREATE INDEX idx_templates_updated_at ON templates(updated_at);
 CREATE INDEX idx_templates_is_deleted ON templates(is_deleted);
 CREATE INDEX idx_templates_area_id ON templates(area_id);
 CREATE INDEX idx_templates_category ON templates(category);
+CREATE INDEX idx_templates_sort_rank ON templates(sort_rank);
 
 -- 创建 task_schedules 表 (任务日程表)
 CREATE TABLE task_schedules (
@@ -366,31 +372,133 @@ CREATE INDEX idx_reminders_task_id ON reminders(task_id);
 CREATE INDEX idx_reminders_time_block_id ON reminders(time_block_id);
 
 -- ============================================================
--- 视图排序偏好表 (View Preferences)
+-- 时间块循环模板表 (Time Block Templates)
 -- ============================================================
--- 用于存储用户在各种视图中的任务排序配置
---
--- Context Key 格式规范：
--- - 杂项视图: misc::{id}           例如: misc::staging, misc::planned
--- - 日期看板: daily::{YYYY-MM-DD}   例如: daily::2025-10-01
--- - 区域看板: area::{area_uuid}     例如: area::a1b2c3d4-1234...
--- - 项目看板: project::{proj_uuid}  例如: project::proj-uuid-1234
+-- 存储循环时间块的模板信息
+-- 与任务模板分开，因为时间块有不同的字段（时间段、时长等）
+CREATE TABLE time_block_templates (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT,                           -- 标题模板
+    glance_note_template TEXT,            -- 快览笔记模板
+    detail_note_template TEXT,            -- 详细笔记模板
+    duration_minutes INTEGER NOT NULL,    -- 时长（分钟）
+    start_time_local TEXT NOT NULL,       -- 每天开始时间 (HH:MM:SS，如 "08:00:00")
+    time_type TEXT NOT NULL DEFAULT 'FLOATING' CHECK (time_type IN ('FLOATING', 'FIXED')),
+    is_all_day BOOLEAN NOT NULL DEFAULT FALSE,
+    area_id TEXT,
+    created_at TEXT NOT NULL,             -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL,             -- UTC timestamp in RFC 3339 format
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
 
-CREATE TABLE view_preferences (
-    -- 视图上下文唯一标识（复合主键）
-    context_key TEXT PRIMARY KEY NOT NULL,
-    
-    -- 排序后的任务ID数组（JSON字符串格式）
-    -- 示例: '["uuid-1", "uuid-2", "uuid-3"]'
-    -- 数组顺序即为任务在该视图中的显示顺序
-    sorted_task_ids TEXT NOT NULL,
-    
-    -- 最后更新时间（UTC timestamp in RFC 3339 format）
-    updated_at TEXT NOT NULL
+    FOREIGN KEY (area_id) REFERENCES areas(id)
 );
 
--- 为常用查询创建索引
-CREATE INDEX idx_view_prefs_updated_at ON view_preferences(updated_at);
+-- 为 time_block_templates 表创建索引
+CREATE INDEX idx_time_block_templates_updated_at ON time_block_templates(updated_at);
+CREATE INDEX idx_time_block_templates_is_deleted ON time_block_templates(is_deleted);
+CREATE INDEX idx_time_block_templates_area_id ON time_block_templates(area_id);
+
+-- ============================================================
+-- 时间块循环规则表 (Time Block Recurrences)
+-- ============================================================
+-- 存储时间块的循环规则
+CREATE TABLE time_block_recurrences (
+    id TEXT PRIMARY KEY NOT NULL,
+    template_id TEXT NOT NULL,
+    rule TEXT NOT NULL,                   -- RRULE 标准字符串 (如 "FREQ=DAILY", "FREQ=WEEKLY;BYDAY=MO,WE,FR")
+    time_type TEXT NOT NULL DEFAULT 'FLOATING' CHECK (time_type IN ('FLOATING', 'FIXED')),
+    start_date TEXT,                      -- 生效起始日期 (YYYY-MM-DD)
+    end_date TEXT,                        -- 生效结束日期 (YYYY-MM-DD)
+    timezone TEXT,                        -- 时区 (如 "Asia/Shanghai")
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TEXT NOT NULL,             -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL,             -- UTC timestamp in RFC 3339 format
+
+    FOREIGN KEY (template_id) REFERENCES time_block_templates(id) ON DELETE CASCADE
+);
+
+-- 为 time_block_recurrences 表创建索引
+CREATE INDEX idx_time_block_recurrences_template_id ON time_block_recurrences(template_id);
+CREATE INDEX idx_time_block_recurrences_is_active ON time_block_recurrences(is_active);
+CREATE INDEX idx_time_block_recurrences_start_date ON time_block_recurrences(start_date);
+CREATE INDEX idx_time_block_recurrences_end_date ON time_block_recurrences(end_date);
+
+-- ============================================================
+-- 时间块循环实例链接表 (Time Block Recurrence Links)
+-- ============================================================
+-- 记录循环规则在特定日期生成的时间块实例
+-- 语义：
+--   - (recurrence_id, instance_date) 联合唯一，保证同一规则同一天只有一个时间块
+--   - time_block_id 唯一，防止同一时间块被多条规则/多天重复链接
+CREATE TABLE time_block_recurrence_links (
+    recurrence_id TEXT NOT NULL,
+    instance_date TEXT NOT NULL,          -- YYYY-MM-DD (日历日期字符串)
+    time_block_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,             -- UTC timestamp in RFC 3339 format
+
+    PRIMARY KEY (recurrence_id, instance_date),
+    FOREIGN KEY (recurrence_id) REFERENCES time_block_recurrences(id) ON DELETE CASCADE,
+    FOREIGN KEY (time_block_id) REFERENCES time_blocks(id) ON DELETE CASCADE
+);
+
+-- 为 time_block_recurrence_links 表创建索引
+CREATE UNIQUE INDEX idx_time_block_recurrence_links_time_block_id ON time_block_recurrence_links(time_block_id);
+CREATE INDEX idx_time_block_recurrence_links_date ON time_block_recurrence_links(instance_date);
+CREATE INDEX idx_time_block_recurrence_links_recurrence ON time_block_recurrence_links(recurrence_id);
+
+-- 为现有 time_blocks 表添加索引
+CREATE INDEX idx_time_blocks_recurrence_parent_id ON time_blocks(recurrence_parent_id);
+CREATE INDEX idx_time_blocks_recurrence_original_date ON time_blocks(recurrence_original_date);
+
+-- ============================================================
+-- 关机仪式步骤表 (Shutdown Ritual Steps)
+-- ============================================================
+CREATE TABLE shutdown_ritual_steps (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    order_rank TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL  -- UTC timestamp in RFC 3339 format
+);
+
+CREATE INDEX idx_shutdown_ritual_steps_order_rank ON shutdown_ritual_steps(order_rank);
+
+-- ============================================================
+-- 关机仪式进度表 (Shutdown Ritual Progress)
+-- ============================================================
+CREATE TABLE shutdown_ritual_progress (
+    id TEXT PRIMARY KEY NOT NULL,
+    step_id TEXT NOT NULL,
+    date TEXT NOT NULL,          -- YYYY-MM-DD (local day string)
+    completed_at TEXT,           -- UTC timestamp in RFC 3339 format, NULL = incomplete
+    created_at TEXT NOT NULL,    -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL,    -- UTC timestamp in RFC 3339 format
+
+    FOREIGN KEY (step_id) REFERENCES shutdown_ritual_steps(id) ON DELETE CASCADE,
+    UNIQUE (step_id, date)
+);
+
+CREATE INDEX idx_shutdown_ritual_progress_date ON shutdown_ritual_progress(date);
+CREATE INDEX idx_shutdown_ritual_progress_step_id ON shutdown_ritual_progress(step_id);
+
+-- ============================================================
+-- 关机仪式设置表 (Shutdown Ritual Settings) - Singleton
+-- ============================================================
+CREATE TABLE shutdown_ritual_settings (
+    id TEXT PRIMARY KEY NOT NULL, -- singleton key, e.g. 'default'
+    title TEXT,                   -- NULL = use frontend fallback/i18n
+    created_at TEXT NOT NULL,     -- UTC timestamp in RFC 3339 format
+    updated_at TEXT NOT NULL      -- UTC timestamp in RFC 3339 format
+);
+
+-- Insert default singleton row
+INSERT INTO shutdown_ritual_settings (id, title, created_at, updated_at)
+VALUES (
+    'default',
+    NULL,
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+);
 
 -- ============================================================
 -- 事件发件箱表 (Event Outbox)
