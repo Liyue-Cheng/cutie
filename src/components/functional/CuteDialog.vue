@@ -104,14 +104,14 @@ function handleCancel() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: var(--color-overlay-heavy, #f0f);
   backdrop-filter: blur(2px);
 }
 
 .dialog-container {
   width: 90%;
   max-width: 400px;
-  background-color: var(--color-background-elevated, #f0f);
+  background-color: var(--color-background-content, #f0f);
   border: 1px solid var(--color-border-default, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-xl, #f0f);

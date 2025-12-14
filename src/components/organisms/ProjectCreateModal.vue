@@ -163,7 +163,7 @@ const { t } = useI18n()
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: var(--color-overlay-medium);
+  background-color: var(--color-overlay-heavy, #f0f);
   display: flex;
   align-items: center;
   justify-content: center;

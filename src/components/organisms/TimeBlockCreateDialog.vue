@@ -257,7 +257,7 @@ async function updatePopoverPosition() {
 
 .create-dialog {
   position: relative;
-  background-color: var(--color-background-elevated, #f0f);
+  background-color: var(--color-background-content, #f0f);
   border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   box-shadow: var(--shadow-lg);

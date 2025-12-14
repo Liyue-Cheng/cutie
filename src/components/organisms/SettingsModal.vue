@@ -421,7 +421,7 @@ function getCategoryName(categoryId: string): string {
   width: 90rem;
   max-width: 95vw;
   height: 80vh; /* 固定高度 */
-  background-color: var(--color-background-primary, #f0f);
+  background-color: var(--color-background-content, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-xl);
   display: flex;

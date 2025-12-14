@@ -512,6 +512,7 @@ export default {
     resumeRecurrence: '确定继续此循环吗？将清除结束日期，继续生成新任务。',
     deleteRecurrence: '确定要删除这个循环规则吗？\n\n{rule}\n\n将会删除所有未完成的任务实例。',
     resetSettings: '确定要将所有设置重置为默认值吗？',
+    deleteSection: '确定要删除这个章节吗？',
   },
 
   // ==================== 错误与提示 ====================
@@ -602,12 +603,14 @@ export default {
       status: '项目状态',
       sectionTitle: '章节标题',
       sectionDescription: '章节描述',
+      sections: '章节',
     },
     placeholder: {
       name: '输入项目名称...',
       description: '输入项目描述...',
       sectionTitle: '输入章节标题...',
       sectionDescription: '输入章节描述...',
+      addSection: '添加新章节...',
     },
     status: {
       active: '进行中',
@@ -618,6 +621,7 @@ export default {
       noProjectTasks: '未分配到项目的任务',
       uncategorized: '未分类任务',
       unassignedToProject: '显示所有未分配到任何项目的任务',
+      noSections: '暂无章节',
     },
     empty: {
       noProjects: '暂无项目',

@@ -62,6 +62,63 @@
               <option value="COMPLETED">{{ $t('project.status.completed') }}</option>
             </select>
           </div>
+
+          <!-- 节段管理区域 -->
+          <div class="section-manager">
+            <div class="section-header">
+              <CuteIcon name="List" :size="18" />
+              <span class="section-title">{{ $t('project.field.sections') }}</span>
+            </div>
+            <div class="section-body">
+              <!-- 添加新节段输入框 -->
+              <div class="add-section-input">
+                <input
+                  v-model="newSectionTitle"
+                  class="section-input"
+                  :placeholder="$t('project.placeholder.addSection')"
+                  @keydown.enter="handleAddSection"
+                />
+              </div>
+              <!-- 节段列表 -->
+              <draggable
+                v-model="sections"
+                item-key="id"
+                class="sections-list"
+                handle=".drag-handle"
+                @end="handleSectionReorder"
+              >
+                <template #item="{ element: section }">
+                  <div class="section-item">
+                    <div class="drag-handle">⋮⋮</div>
+                    <div v-if="editingSectionId !== section.id" class="section-content">
+                      <span class="section-name">{{ section.title }}</span>
+                      <div class="section-actions">
+                        <button class="action-btn edit" @click="startEditSection(section)">
+                          <CuteIcon name="Pencil" :size="14" />
+                        </button>
+                        <button class="action-btn delete" @click="handleDeleteSection(section.id)">
+                          <CuteIcon name="Trash2" :size="14" />
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else class="section-edit">
+                      <input
+                        ref="editInputRef"
+                        v-model="editingSectionTitle"
+                        class="section-edit-input"
+                        @keydown.enter="saveEditSection"
+                        @keydown.escape="cancelEditSection"
+                        @blur="saveEditSection"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </draggable>
+              <div v-if="sections.length === 0" class="empty-sections">
+                {{ $t('project.label.noSections') }}
+              </div>
+            </div>
+          </div>
         </div>
         <div class="dialog-footer">
           <button class="cancel-button" @click="close">{{ $t('common.action.cancel') }}</button>
@@ -87,6 +144,8 @@ import { useAreaStore } from '@/stores/area'
 import { useProjectStore } from '@/stores/project'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { dialog } from '@/composables/useDialog'
+import draggable from 'vuedraggable'
+import type { ProjectSection } from '@/types/dtos'
 
 const props = defineProps<{
   show: boolean
@@ -103,6 +162,7 @@ const areaStore = useAreaStore()
 const projectStore = useProjectStore()
 
 const nameInputRef = ref<HTMLInputElement | null>(null)
+const editInputRef = ref<HTMLInputElement | null>(null)
 const isSubmitting = ref(false)
 
 const formData = ref({
@@ -112,6 +172,12 @@ const formData = ref({
   due_date: '',
   status: 'ACTIVE' as 'ACTIVE' | 'COMPLETED',
 })
+
+// 节段相关状态
+const newSectionTitle = ref('')
+const sections = ref<ProjectSection[]>([])
+const editingSectionId = ref<string | null>(null)
+const editingSectionTitle = ref('')
 
 const areas = computed(() => areaStore.allAreas)
 
@@ -130,12 +196,44 @@ watch(
           status: project.status,
         }
       }
+      // 加载节段数据
+      await loadSections()
       isSubmitting.value = false
       await nextTick()
       nameInputRef.value?.focus()
+    } else {
+      // 关闭时重置状态
+      newSectionTitle.value = ''
+      sections.value = []
+      editingSectionId.value = null
+      editingSectionTitle.value = ''
     }
   }
 )
+
+// 监听 store 中 sections 的变化
+watch(
+  () => props.projectId ? projectStore.getSectionsByProject(props.projectId) : [],
+  (newSections) => {
+    if (props.show && props.projectId) {
+      sections.value = [...newSections]
+    }
+  },
+  { deep: true }
+)
+
+async function loadSections() {
+  if (!props.projectId) return
+
+  try {
+    await pipeline.dispatch('project_section.fetch_all', {
+      project_id: props.projectId,
+    })
+    sections.value = [...projectStore.getSectionsByProject(props.projectId)]
+  } catch (error) {
+    logger.error(LogTags.UI, '加载节段失败', error)
+  }
+}
 
 function close() {
   emit('close')
@@ -173,13 +271,118 @@ async function handleSubmit() {
     isSubmitting.value = false
   }
 }
+
+// 添加新节段
+async function handleAddSection() {
+  if (!props.projectId || !newSectionTitle.value.trim()) return
+
+  try {
+    await pipeline.dispatch('project_section.create', {
+      project_id: props.projectId,
+      title: newSectionTitle.value.trim(),
+      sort_order: `section_${Date.now()}`,
+    })
+    newSectionTitle.value = ''
+    logger.info(LogTags.UI, '节段创建成功')
+  } catch (error) {
+    logger.error(LogTags.UI, '节段创建失败', error)
+    await dialog.alert(t('message.error.createSectionFailed'))
+  }
+}
+
+// 开始编辑节段
+function startEditSection(section: ProjectSection) {
+  editingSectionId.value = section.id
+  editingSectionTitle.value = section.title
+  nextTick(() => {
+    editInputRef.value?.focus()
+    editInputRef.value?.select()
+  })
+}
+
+// 保存编辑
+async function saveEditSection() {
+  if (!editingSectionId.value || !editingSectionTitle.value.trim() || !props.projectId) {
+    cancelEditSection()
+    return
+  }
+
+  const section = sections.value.find(s => s.id === editingSectionId.value)
+  if (!section || section.title === editingSectionTitle.value.trim()) {
+    cancelEditSection()
+    return
+  }
+
+  try {
+    await pipeline.dispatch('project_section.update', {
+      project_id: props.projectId,
+      id: editingSectionId.value,
+      title: editingSectionTitle.value.trim(),
+    })
+    logger.info(LogTags.UI, '节段更新成功')
+  } catch (error) {
+    logger.error(LogTags.UI, '节段更新失败', error)
+    await dialog.alert(t('message.error.updateSectionFailed'))
+  } finally {
+    cancelEditSection()
+  }
+}
+
+// 取消编辑
+function cancelEditSection() {
+  editingSectionId.value = null
+  editingSectionTitle.value = ''
+}
+
+// 删除节段
+async function handleDeleteSection(sectionId: string) {
+  if (!props.projectId) return
+
+  const confirmed = await dialog.confirm(t('confirm.deleteSection'))
+  if (!confirmed) return
+
+  try {
+    await pipeline.dispatch('project_section.delete', {
+      project_id: props.projectId,
+      id: sectionId,
+    })
+    logger.info(LogTags.UI, '节段删除成功')
+  } catch (error) {
+    logger.error(LogTags.UI, '节段删除失败', error)
+    await dialog.alert(t('message.error.deleteSectionFailed'))
+  }
+}
+
+// 节段重新排序
+async function handleSectionReorder() {
+  if (!props.projectId || sections.value.length < 2) return
+
+  // 逐个更新排序
+  for (let i = 0; i < sections.value.length; i++) {
+    const section = sections.value[i]
+    if (!section) continue
+    const prevSection = i > 0 ? sections.value[i - 1] : null
+    const nextSection = i < sections.value.length - 1 ? sections.value[i + 1] : null
+
+    try {
+      await pipeline.dispatch('project_section.reorder', {
+        project_id: props.projectId,
+        section_id: section.id,
+        prev_section_id: prevSection?.id ?? null,
+        next_section_id: nextSection?.id ?? null,
+      })
+    } catch (error) {
+      logger.error(LogTags.UI, '节段排序失败', error)
+    }
+  }
+}
 </script>
 
 <style scoped>
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: var(--color-overlay-medium);
+  background-color: var(--color-overlay-heavy, #f0f);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,7 +396,7 @@ async function handleSubmit() {
   border-radius: 1.2rem;
   box-shadow: var(--shadow-lg);
   width: 90%;
-  max-width: 520px;
+  max-width: 560px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -297,6 +500,167 @@ async function handleSubmit() {
   gap: 1.6rem;
 }
 
+/* ==================== 节段管理区域 ==================== */
+.section-manager {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border-light, #f0f);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+  color: var(--color-text-primary, #f0f);
+}
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.add-section-input {
+  margin-bottom: 0.4rem;
+}
+
+.section-input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-primary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  transition: all 0.15s ease;
+}
+
+.section-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, #f0f);
+}
+
+.section-input::placeholder {
+  color: var(--color-text-tertiary, #f0f);
+}
+
+.sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.section-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  background-color: var(--color-background-hover, #f0f);
+  border-radius: 0.6rem;
+  transition: background-color 0.15s ease;
+}
+
+.section-item:hover {
+  background-color: var(--color-background-active, #f0f);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--color-text-tertiary, #f0f);
+  font-size: 1.2rem;
+  user-select: none;
+  padding: 0.2rem;
+  border-radius: 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.drag-handle:hover {
+  color: var(--color-text-secondary, #f0f);
+  background-color: var(--color-background-hover, #f0f);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.section-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.section-name {
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  line-height: 1.4;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.section-item:hover .section-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  color: var(--color-text-tertiary, #f0f);
+  transition: all 0.15s ease;
+}
+
+.action-btn.edit:hover {
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
+}
+
+.action-btn.delete:hover {
+  background-color: var(--color-danger-light, #f0f);
+  color: var(--color-danger, #f0f);
+}
+
+.section-edit {
+  flex: 1;
+}
+
+.section-edit-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-primary, #f0f);
+  border: 1px solid var(--color-border-focus, #f0f);
+  border-radius: 0.4rem;
+  outline: none;
+}
+
+.empty-sections {
+  padding: 1.6rem;
+  text-align: center;
+  font-size: 1.3rem;
+  color: var(--color-text-tertiary, #f0f);
+}
+
+/* ==================== 底部按钮 ==================== */
 .dialog-footer {
   display: flex;
   align-items: center;

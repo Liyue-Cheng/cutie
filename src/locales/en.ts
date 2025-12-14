@@ -516,6 +516,7 @@ export default {
     deleteRecurrence:
       'Are you sure you want to delete this recurrence rule?\n\n{rule}\n\nAll incomplete task instances will be deleted.',
     resetSettings: 'Reset all settings to defaults?',
+    deleteSection: 'Are you sure you want to delete this section?',
   },
 
   // ==================== Messages ====================
@@ -606,12 +607,14 @@ export default {
       status: 'Status',
       sectionTitle: 'Section Title',
       sectionDescription: 'Section Description',
+      sections: 'Sections',
     },
     placeholder: {
       name: 'Enter project name...',
       description: 'Enter project description...',
       sectionTitle: 'Enter section title...',
       sectionDescription: 'Enter section description...',
+      addSection: 'Add new section...',
     },
     status: {
       active: 'Active',
@@ -621,6 +624,7 @@ export default {
       noArea: 'No Area',
       noProjectTasks: 'Tasks not assigned to any project',
       uncategorized: 'Uncategorized Tasks',
+      noSections: 'No sections yet',
     },
     empty: {
       noProjects: 'No projects',

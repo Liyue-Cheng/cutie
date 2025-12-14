@@ -302,7 +302,7 @@ async function handleCreate() {
   max-width: 90vw;
   max-height: 90vh;
   border: 1px solid var(--color-border-subtle, #f0f);
-  background-color: var(--color-card-available);
+  background-color: var(--color-background-content, #f0f);
   border-radius: 0.8rem;
   overflow-y: auto;
   padding: 0;

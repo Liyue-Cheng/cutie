@@ -270,7 +270,7 @@ async function handleDelete(id: string) {
   width: 70rem;
   max-width: 90vw;
   max-height: 85vh;
-  background-color: var(--color-background-primary, #f0f);
+  background-color: var(--color-background-content, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-xl);
   display: flex;

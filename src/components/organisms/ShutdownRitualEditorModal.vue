@@ -217,7 +217,7 @@ async function saveRitualTitle() {
 .modal-container {
   width: 56rem;
   max-width: 95vw;
-  background-color: var(--color-background-primary, #f0f);
+  background-color: var(--color-background-content, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-xl, #f0f);
   display: flex;

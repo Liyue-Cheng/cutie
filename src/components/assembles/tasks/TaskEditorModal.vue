@@ -834,7 +834,7 @@ async function handleDeleteRecurrence() {
   max-width: 90vw;
   max-height: 90vh;
   border: 1px solid var(--color-border-subtle, #f0f);
-  background-color: var(--color-card-available);
+  background-color: var(--color-background-content, #f0f);
   border-radius: 0.8rem;
   overflow-y: auto;
   padding: 0; /* Override CuteCard's default 1.6rem padding */
@@ -886,7 +886,7 @@ async function handleDeleteRecurrence() {
   position: absolute;
   top: calc(100% + 0.5rem);
   left: 0;
-  background: var(--color-card-available);
+  background: var(--color-background-content, #f0f);
   border: 1px solid var(--color-border-default);
   border-radius: 0.6rem;
   box-shadow: var(--shadow-md, #f0f);
