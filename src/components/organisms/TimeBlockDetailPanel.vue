@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTimeBlockRecurrenceOperations } from '@/composables/useTimeBlockRecurrenceOperations'
@@ -18,6 +18,39 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
 }>()
+
+// 面板引用，用于点击外部关闭
+const panelRef = ref<HTMLElement | null>(null)
+
+// 点击外部关闭
+function handleClickOutside(event: MouseEvent) {
+  if (!panelRef.value) return
+
+  const target = event.target as HTMLElement
+
+  // 检查是否点击在面板内部
+  if (panelRef.value.contains(target)) {
+    return
+  }
+
+  // 检查是否点击在循环配置对话框内部（对话框可能在面板外部）
+  const dialogEl = document.querySelector('.recurrence-config-dialog')
+  if (dialogEl && dialogEl.contains(target)) {
+    return
+  }
+
+  // 点击外部，关闭面板
+  emit('close')
+}
+
+onMounted(() => {
+  // 使用 capture 阶段捕获点击，防止其他组件先响应
+  document.addEventListener('mousedown', handleClickOutside, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', handleClickOutside, true)
+})
 
 const timeBlockStore = useTimeBlockStore()
 const recurrenceOps = useTimeBlockRecurrenceOperations()
@@ -131,7 +164,7 @@ async function handleResumeRepeating() {
 </script>
 
 <template>
-  <div v-if="timeBlock" class="time-block-detail-panel" :style="panelStyle">
+  <div v-if="timeBlock" ref="panelRef" class="time-block-detail-panel" :style="panelStyle">
     <div class="panel-header">
       <h3>{{ $t('timeBlock.title.detail') }}</h3>
       <button class="close-btn" @click="emit('close')">
