@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTimeBlockRecurrenceOperations } from '@/composables/useTimeBlockRecurrenceOperations'
@@ -19,8 +19,69 @@ const emit = defineEmits<{
   close: []
 }>()
 
-// 面板引用，用于点击外部关闭
+// 面板引用，用于点击外部关闭和位置调整
 const panelRef = ref<HTMLElement | null>(null)
+
+// 调整后的位置（考虑视口边界）
+const adjustedPosition = ref<{ top: number; left: number } | null>(null)
+
+// 视口边距
+const VIEWPORT_PADDING = 16
+
+// 调整面板位置，确保不超出视口
+function adjustPanelPosition() {
+  if (!panelRef.value || !props.panelPosition) return
+
+  const panel = panelRef.value
+  const panelRect = panel.getBoundingClientRect()
+  const viewportHeight = window.innerHeight
+  const viewportWidth = window.innerWidth
+
+  let { top, left } = props.panelPosition
+
+  // 面板实际渲染后的高度
+  const panelHeight = panelRect.height
+  const panelWidth = panelRect.width
+
+  // 检查底部是否超出视口
+  // 注意：面板使用 transform: translate(-100% - 1.2rem, 0)，所以实际位置在 left 左边
+  // top 是面板顶部位置
+  if (top + panelHeight > viewportHeight - VIEWPORT_PADDING) {
+    // 往上移动，使面板底部距离视口底部有 VIEWPORT_PADDING 的距离
+    top = viewportHeight - panelHeight - VIEWPORT_PADDING
+  }
+
+  // 确保顶部不超出视口
+  if (top < VIEWPORT_PADDING) {
+    top = VIEWPORT_PADDING
+  }
+
+  // 检查左侧是否超出视口（面板在锚点左边）
+  // 面板右边缘在 left - 1.2rem 处，左边缘在 left - 1.2rem - panelWidth 处
+  const panelLeftEdge = left - 12 - panelWidth // 1.2rem ≈ 12px
+  if (panelLeftEdge < VIEWPORT_PADDING) {
+    // 面板太靠左，调整 left 使面板左边缘有足够边距
+    left = panelWidth + 12 + VIEWPORT_PADDING
+  }
+
+  adjustedPosition.value = { top, left }
+}
+
+// 监听 panelPosition 变化和 timeBlockId 变化，重新调整位置
+watch(
+  [() => props.panelPosition, () => props.timeBlockId],
+  () => {
+    // 重置调整位置，等待下一帧重新计算
+    adjustedPosition.value = null
+    nextTick(() => {
+      // 等待 DOM 更新后再调整
+      nextTick(() => {
+        adjustPanelPosition()
+      })
+    })
+  },
+  { immediate: true }
+)
 
 // 点击外部关闭
 function handleClickOutside(event: MouseEvent) {
@@ -58,8 +119,17 @@ const recurrenceOps = useTimeBlockRecurrenceOperations()
 // 循环配置对话框状态
 const showRecurrenceDialog = ref(false)
 
-// 动态计算面板位置
+// 动态计算面板位置（优先使用调整后的位置）
 const panelStyle = computed(() => {
+  // 优先使用调整后的位置
+  if (adjustedPosition.value) {
+    return {
+      top: `${adjustedPosition.value.top}px`,
+      left: `${adjustedPosition.value.left}px`,
+    }
+  }
+
+  // 首次渲染时使用原始位置
   const top =
     props.panelPosition?.top ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
   const left =
