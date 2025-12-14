@@ -419,7 +419,7 @@ function getCategoryName(categoryId: string): string {
   width: 90rem;
   max-width: 95vw;
   height: 80vh; /* 固定高度 */
-  background-color: var(--color-background-primary, #faf4ed);
+  background-color: var(--color-background-primary, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-xl);
   display: flex;
@@ -534,13 +534,13 @@ function getCategoryName(categoryId: string): string {
 .panel-title {
   font-size: 2rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   margin: 0 0 0.8rem;
 }
 
 .panel-description {
   font-size: 1.4rem;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   margin: 0;
 }
 
@@ -644,7 +644,7 @@ function getCategoryName(categoryId: string): string {
 }
 
 .setting-input::placeholder {
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .setting-input:hover {
@@ -662,10 +662,10 @@ function getCategoryName(categoryId: string): string {
   width: 20rem;
   height: 3.6rem;
   padding: 0 1.2rem;
-  border: 1.5px solid var(--color-border-default, rgb(0 0 0 / 10%));
+  border: 1.5px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
-  background: var(--color-background-primary, #faf4ed);
-  color: var(--color-text-primary, #575279);
+  background: var(--color-background-primary, #f0f);
+  color: var(--color-text-primary, #f0f);
   font-size: 1.4rem;
   transition: all 0.2s ease;
   cursor: pointer;
@@ -698,7 +698,7 @@ function getCategoryName(categoryId: string): string {
 
 .checkbox-label {
   font-size: 1.4rem;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   font-weight: 500;
 }
 
@@ -720,7 +720,7 @@ function getCategoryName(categoryId: string): string {
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background-color: var(--color-border-default, rgb(0 0 0 / 15%));
+  background-color: var(--color-border-default, #f0f);
   transition: 0.3s;
   border-radius: 2.8rem;
 }
@@ -752,8 +752,8 @@ input:checked + .toggle-slider::before {
   justify-content: space-between;
   align-items: center;
   padding: 2rem 2.4rem;
-  border-top: 1px solid var(--color-border-default, rgb(0 0 0 / 10%));
-  background-color: var(--color-background-secondary, #fffaf3);
+  border-top: 1px solid var(--color-border-default, #f0f);
+  background-color: var(--color-background-secondary, #f0f);
   gap: 1rem;
 }
 

@@ -703,13 +703,13 @@ function handleClose() {
 
 .secondary-btn {
   color: var(--color-text-secondary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default, #e0d8c8);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
 }
 
 .secondary-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover, #c8c0b0);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
 .primary-btn {

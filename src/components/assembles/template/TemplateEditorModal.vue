@@ -653,7 +653,7 @@ function handleClose() {
 }
 
 .subtask-item:hover {
-  background-color: var(--color-background-hover, #f5f5f5);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .drag-handle {
@@ -680,7 +680,7 @@ function handleClose() {
 
 .drag-handle:hover {
   color: var(--color-text-secondary);
-  background-color: var(--color-background-hover, #f5f5f5);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .drag-handle:active {

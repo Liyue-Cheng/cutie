@@ -468,7 +468,7 @@ async function handleDelete(id: string) {
   flex: 1;
   overflow-y: auto;
   padding: 2rem 2.4rem;
-  background-color: var(--color-background-primary, #faf4ed);
+  background-color: var(--color-background-primary, #f0f);
 }
 
 .section-header {
@@ -481,9 +481,9 @@ async function handleDelete(id: string) {
 .area-count {
   font-size: 1.3rem;
   font-weight: 500;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
   padding: 0.4rem 1rem;
-  background-color: var(--color-background-secondary, #fffaf3);
+  background-color: var(--color-background-secondary, #f0f);
   border-radius: 1.2rem;
 }
 
@@ -498,7 +498,7 @@ async function handleDelete(id: string) {
 }
 
 .empty-icon {
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
   opacity: 0.5;
   margin-bottom: 1.6rem;
 }
@@ -506,7 +506,7 @@ async function handleDelete(id: string) {
 .empty-text {
   font-size: 1.6rem;
   font-weight: 500;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   margin: 0 0 0.8rem;
 }
 

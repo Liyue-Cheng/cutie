@@ -190,10 +190,10 @@ async function handleStateChange(nextState: CheckboxState) {
 }
 
 .calendar-task-recurring-icon {
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .calendar-task-due-icon {
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, #f0f);
 }
 </style>

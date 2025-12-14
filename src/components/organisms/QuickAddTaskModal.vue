@@ -194,7 +194,7 @@ async function handleAdd() {
 }
 
 .quick-add-dialog {
-  background-color: var(--color-background-content, #faf4ed);
+  background-color: var(--color-background-content, #f0f);
   border: 1px solid var(--color-border-subtle, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-lg);
@@ -209,14 +209,14 @@ async function handleAdd() {
   align-items: center;
   justify-content: space-between;
   padding: 1.6rem 2rem;
-  border-bottom: 1px solid var(--color-border-soft, rgb(87 82 121 / 8%));
+  border-bottom: 1px solid var(--color-border-soft, #f0f);
 }
 
 .dialog-header h3 {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .close-button {
@@ -228,13 +228,13 @@ async function handleAdd() {
   height: 3.2rem;
   border-radius: 0.6rem;
   cursor: pointer;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   transition: all 0.15s ease;
 }
 
 .close-button:hover {
-  background-color: var(--color-background-hover, rgb(87 82 121 / 5%));
-  color: var(--color-text-primary, #575279);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .dialog-body {
@@ -245,10 +245,10 @@ async function handleAdd() {
   width: 100%;
   padding: 1.2rem 1.6rem;
   font-size: 1.6rem;
-  border: 2px solid var(--color-border-default, #dfdad9);
+  border: 2px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
-  background-color: var(--color-background-primary, #fffaf3);
-  color: var(--color-text-primary, #575279);
+  background-color: var(--color-background-primary, #f0f);
+  color: var(--color-text-primary, #f0f);
   transition: all 0.15s ease;
   box-sizing: border-box;
 }
@@ -260,7 +260,7 @@ async function handleAdd() {
 }
 
 .task-input::placeholder {
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .dialog-footer {
@@ -269,7 +269,7 @@ async function handleAdd() {
   justify-content: flex-end;
   gap: 1rem;
   padding: 1.6rem 2rem;
-  border-top: 1px solid var(--color-border-soft, rgb(87 82 121 / 8%));
+  border-top: 1px solid var(--color-border-soft, #f0f);
 }
 
 .cancel-button,
@@ -285,12 +285,12 @@ async function handleAdd() {
 
 .cancel-button {
   background-color: transparent;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .cancel-button:hover {
-  background-color: var(--color-background-hover, rgb(87 82 121 / 5%));
-  color: var(--color-text-primary, #575279);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .add-button {

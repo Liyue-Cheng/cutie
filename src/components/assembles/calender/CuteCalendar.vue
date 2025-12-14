@@ -1114,7 +1114,7 @@ defineExpose({
 .fc-event .fc-event-time,
 .fc-timegrid-event .fc-event-title,
 .fc-timegrid-event .fc-event-time {
-  color: var(--color-text-primary, #575279) !important; /* 🎨 统一主要文本色 */
+  color: var(--color-text-primary, #f0f) !important; /* 🎨 统一主要文本色 */
   font-weight: 500 !important; /* 📝 中等字重 */
 }
 
@@ -1202,7 +1202,7 @@ defineExpose({
 /* ⚡ 创建中事件 - 脉冲动画提供视觉反馈 */
 .fc-event.creating-event {
   background-color: var(--color-background-accent-light) !important; /* 🎨 浅色强调背景 */
-  color: var(--color-text-primary, #575279) !important; /* 📝 主要文本色 */
+  color: var(--color-text-primary, #f0f) !important; /* 📝 主要文本色 */
   border-color: var(--color-info) !important; /* 🔷 信息色边框 */
   opacity: 0.8; /* 👻 轻微透明 */
   animation: pulse 1s infinite; /* 🎬 无限脉冲动画 */
@@ -1259,7 +1259,7 @@ defineExpose({
 .fc-event.task-event .fc-event-main,
 .fc-event.timeblock-allday .fc-event-main,
 .fc-event.due-date-event .fc-event-main {
-  color: var(--color-text-primary, #575279) !important; /* 🎨 统一主要文本色 */
+  color: var(--color-text-primary, #f0f) !important; /* 🎨 统一主要文本色 */
 }
 
 /* 🎯 特殊样式差异化处理 */

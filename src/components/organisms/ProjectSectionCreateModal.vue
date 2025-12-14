@@ -139,7 +139,7 @@ async function handleSubmit() {
 }
 
 .modal-dialog {
-  background-color: var(--color-background-content, #faf4ed);
+  background-color: var(--color-background-content, #f0f);
   border: 1px solid var(--color-border-subtle, #f0f);
   border-radius: 1.2rem;
   box-shadow: var(--shadow-lg);
@@ -163,7 +163,7 @@ async function handleSubmit() {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 
 .close-button {
@@ -175,13 +175,13 @@ async function handleSubmit() {
   height: 3.2rem;
   border-radius: 0.6rem;
   cursor: pointer;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
   transition: all 0.15s ease;
 }
 
 .close-button:hover {
-  background-color: var(--color-background-hover, rgb(87 82 121 / 5%));
-  color: var(--color-text-primary, #575279);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .dialog-body {
@@ -215,9 +215,9 @@ async function handleSubmit() {
   width: 100%;
   padding: 1rem 1.2rem;
   font-size: 1.4rem;
-  color: var(--color-text-primary, #575279);
-  background-color: var(--color-background-primary, #fffaf3);
-  border: 2px solid var(--color-border-default, #dfdad9);
+  color: var(--color-text-primary, #f0f);
+  background-color: var(--color-background-primary, #f0f);
+  border: 2px solid var(--color-border-default, #f0f);
   border-radius: 0.8rem;
   transition: all 0.15s ease;
   box-sizing: border-box;
@@ -237,7 +237,7 @@ async function handleSubmit() {
 
 .form-input::placeholder,
 .form-textarea::placeholder {
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
 }
 
 .dialog-footer {
@@ -262,12 +262,12 @@ async function handleSubmit() {
 
 .cancel-button {
   background-color: transparent;
-  color: var(--color-text-secondary, #797593);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .cancel-button:hover {
-  background-color: var(--color-background-hover, rgb(87 82 121 / 5%));
-  color: var(--color-text-primary, #575279);
+  background-color: var(--color-background-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
 .submit-button {

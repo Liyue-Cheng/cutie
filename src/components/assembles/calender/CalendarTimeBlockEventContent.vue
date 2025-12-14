@@ -38,6 +38,6 @@ defineProps<Props>()
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
 }
 </style>

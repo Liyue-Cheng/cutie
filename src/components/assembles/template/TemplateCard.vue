@@ -252,7 +252,7 @@ function showContextMenu(event: MouseEvent) {
 
 .estimated-duration {
   padding: 0.4rem 0.8rem;
-  background-color: var(--color-bg-secondary, #f5f5f5);
+  background-color: var(--color-bg-secondary, #f0f);
   border: none;
   border-radius: 0.4rem;
   font-size: 1.2rem;
@@ -262,7 +262,7 @@ function showContextMenu(event: MouseEvent) {
 }
 
 .estimated-duration:hover {
-  background-color: var(--color-bg-hover, #e0e0e0);
+  background-color: var(--color-bg-hover, #f0f);
   color: var(--color-text-primary);
 }
 

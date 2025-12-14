@@ -225,8 +225,8 @@ function handleOpenEditor(templateId: string) {
 }
 
 .add-template-button:hover {
-  border-color: var(--color-primary, #4a90e2);
-  color: var(--color-primary, #4a90e2);
+  border-color: var(--color-primary, #f0f);
+  color: var(--color-primary, #f0f);
 }
 
 .plus-icon {

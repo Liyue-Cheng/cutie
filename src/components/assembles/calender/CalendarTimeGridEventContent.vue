@@ -246,7 +246,7 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
 .time-range {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--color-text-secondary, #6e6a86);
+  color: var(--color-text-secondary, #f0f);
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
@@ -272,7 +272,7 @@ async function handleCheckboxStateChange(newState: CheckboxState) {
   flex: 1;
   font-size: 1.3rem;
   font-weight: 600;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;

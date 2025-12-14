@@ -278,7 +278,7 @@ const groupedTasks = computed(() => {
   font-size: 1.2rem;
   font-weight: 400;
   color: var(--color-text-secondary);
-  background-color: var(--color-background-secondary, #f0f0f0);
+  background-color: var(--color-background-secondary, #f0f);
   border-radius: 1.2rem;
 }
 
@@ -316,7 +316,7 @@ const groupedTasks = computed(() => {
 }
 
 .group-header:hover {
-  background-color: var(--color-background-hover, rgb(0 0 0 / 2%));
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .group-collapse-icon {

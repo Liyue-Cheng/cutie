@@ -60,7 +60,7 @@ function handleClick(event: MouseEvent) {
   /* 外观 */
   background-color: transparent;
   border-radius: 0.6rem;
-  color: var(--color-text-primary, #575279);
+  color: var(--color-text-primary, #f0f);
   font-size: 1.4rem;
   font-weight: 500;
   text-align: left;
@@ -73,24 +73,24 @@ function handleClick(event: MouseEvent) {
 }
 
 .cute-menu-item:hover:not(.is-disabled) {
-  background-color: var(--color-background-hover, rgb(87 82 121 / 5%));
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .cute-menu-item:active:not(.is-disabled) {
-  background-color: var(--color-background-active, rgb(87 82 121 / 8%));
+  background-color: var(--color-background-active, #f0f);
 }
 
 /* 危险操作样式 */
 .cute-menu-item.is-danger {
-  color: var(--color-danger, #b4637a);
+  color: var(--color-danger, #f0f);
 }
 
 .cute-menu-item.is-danger:hover:not(.is-disabled) {
-  background-color: var(--color-danger-bg, rgb(180 99 122 / 8%));
+  background-color: var(--color-danger-bg, #f0f);
 }
 
 .cute-menu-item.is-danger:active:not(.is-disabled) {
-  background-color: var(--color-danger-bg-active, rgb(180 99 122 / 12%));
+  background-color: var(--color-danger-bg-active, #f0f);
 }
 
 /* 禁用状态 */

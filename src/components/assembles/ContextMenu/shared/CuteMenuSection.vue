@@ -40,7 +40,7 @@ withDefaults(
   padding: 0.4rem 1.2rem;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--color-text-tertiary, #9893a5);
+  color: var(--color-text-tertiary, #f0f);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   line-height: 1.4;

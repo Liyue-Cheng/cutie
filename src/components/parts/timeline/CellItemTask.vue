@@ -113,7 +113,7 @@ function handleCheckboxChange(newState: CheckboxState) {
 }
 
 .cell-item-task:hover {
-  background: var(--color-background-hover, rgb(0 0 0 / 3%));
+  background: var(--color-background-hover, #f0f);
 }
 
 .task-checkbox {

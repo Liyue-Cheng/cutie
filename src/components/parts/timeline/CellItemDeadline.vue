@@ -47,19 +47,19 @@ function handleClick() {
 }
 
 .cell-item-deadline:hover {
-  background: var(--color-background-hover, rgb(0 0 0 / 3%));
+  background: var(--color-background-hover, #f0f);
 }
 
 .deadline-icon {
   flex-shrink: 0;
-  color: var(--color-warning, #f59e0b);
+  color: var(--color-warning, #f0f);
   display: flex;
   align-items: center;
   margin-top: 0.1rem;
 }
 
 .cell-item-deadline.is-overdue .deadline-icon {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error, #f0f);
 }
 
 .deadline-title {

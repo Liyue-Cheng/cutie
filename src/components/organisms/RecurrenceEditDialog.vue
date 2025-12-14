@@ -136,7 +136,7 @@ function handleSave() {
 }
 
 .close-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
+  background-color: var(--color-background-hover, #f0f);
   color: var(--color-text-primary);
 }
 
@@ -164,8 +164,8 @@ function handleSave() {
   padding: 0.8rem 1.2rem;
   font-size: 1.4rem;
   color: var(--color-text-primary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default, #e0d8c8);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
   border-radius: 0.6rem;
   transition: all 0.2s ease;
 }
@@ -173,8 +173,8 @@ function handleSave() {
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--color-primary, #286983);
-  background-color: var(--color-background-primary, #faf4ed);
+  border-color: var(--color-primary, #f0f);
+  background-color: var(--color-background-primary, #f0f);
 }
 
 .form-hint {
@@ -189,7 +189,7 @@ function handleSave() {
   justify-content: flex-end;
   gap: 1.2rem;
   padding: 1.6rem 2rem;
-  border-top: 1px solid var(--color-border-default, #e0d8c8);
+  border-top: 1px solid var(--color-border-default, #f0f);
 }
 
 .dialog-btn {
@@ -205,13 +205,13 @@ function handleSave() {
 
 .secondary-btn {
   color: var(--color-text-secondary);
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border: 1px solid var(--color-border-default, #e0d8c8);
+  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-default, #f0f);
 }
 
 .secondary-btn:hover {
-  background-color: var(--color-background-hover, #e8e8e8);
-  border-color: var(--color-border-hover, #c8c0b0);
+  background-color: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
 .primary-btn {

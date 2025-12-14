@@ -475,7 +475,7 @@ function handleTitleClick() {
 }
 
 .title-row.clickable:hover .title {
-  color: var(--rose-pine-foam, #56949f);
+  color: var(--rose-pine-foam, #f0f);
 }
 
 .calendar-icon {
@@ -495,7 +495,7 @@ function handleTitleClick() {
 
 .title-row.clickable:hover .calendar-icon {
   opacity: 1;
-  color: var(--rose-pine-foam, #56949f); /* hover 时才变绿色 */
+  color: var(--rose-pine-foam, #f0f); /* hover 时才变绿色 */
 }
 
 .subtitle-row {

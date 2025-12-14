@@ -576,7 +576,7 @@ async function handleCreate() {
 }
 
 .subtask-item:hover {
-  background-color: var(--color-background-hover, #f5f5f5);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .drag-handle {
@@ -603,7 +603,7 @@ async function handleCreate() {
 
 .drag-handle:hover {
   color: var(--color-text-secondary);
-  background-color: var(--color-background-hover, #f5f5f5);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 .drag-handle:active {
@@ -684,7 +684,7 @@ async function handleCreate() {
 }
 
 .cancel-footer-button:hover {
-  background-color: var(--color-background-hover, #f5f5f5);
+  background-color: var(--color-background-hover, #f0f);
   border-color: var(--color-text-secondary);
 }
 
