@@ -51,50 +51,51 @@
       <div class="task-meta">
         <!-- 所属项目（优先）或 Area 标签 -->
         <!-- 在项目视图内部不显示项目标签 -->
-        <InfoTag
-          v-if="project && !isInProjectView"
-          icon="FolderKanban"
-          :icon-color="area?.color || 'var(--color-text-tertiary)'"
-          :text="project.name"
-        />
+        <span v-if="project && !isInProjectView" class="meta-tag project-tag">
+          <CuteIcon
+            name="FolderKanban"
+            size="1.5rem"
+            :color="area?.color || 'var(--color-text-tertiary)'"
+          />
+          <span class="meta-tag-text">{{ project.name }}</span>
+        </span>
         <!-- 在项目视图中，只有当任务 Area 与项目 Area 不一致时才显示 -->
-        <InfoTag
-          v-else-if="area && shouldShowAreaTag"
-          icon="Hash"
-          :icon-color="area.color"
-          :text="area.name"
-        />
+        <span v-else-if="area && shouldShowAreaTag" class="meta-tag area-tag">
+          <CuteIcon name="Hash" size="1.5rem" :color="area.color" />
+          <span class="meta-tag-text">{{ area.name }}</span>
+        </span>
 
         <!-- 截止日期 -->
-        <InfoTag
+        <span
           v-if="task.due_date"
-          :icon="task.due_date.type === 'HARD' ? 'Flag' : undefined"
-          :icon-color="
-            task.due_date.is_overdue
-              ? 'var(--color-deadline-overdue)'
-              : 'var(--color-text-tertiary)'
-          "
-          :text="formatDueDate(task.due_date.date)"
-          :danger="task.due_date.is_overdue && task.due_date.type === 'HARD'"
+          class="meta-tag due-date-tag"
+          :class="{ danger: task.due_date.is_overdue && task.due_date.type === 'HARD' }"
         >
-          <template v-if="task.due_date.type !== 'HARD'" #icon>
-            <span class="soft-deadline-icon">~</span>
-          </template>
-        </InfoTag>
+          <CuteIcon
+            v-if="task.due_date.type === 'HARD'"
+            name="Flag"
+            size="1.5rem"
+            :color="
+              task.due_date.is_overdue
+                ? 'var(--color-deadline-overdue)'
+                : 'var(--color-text-tertiary)'
+            "
+          />
+          <span v-else class="soft-deadline-icon">~</span>
+          <span class="meta-tag-text">{{ formatDueDate(task.due_date.date) }}</span>
+        </span>
 
         <!-- 最近排期（仅在项目和区域视图显示） -->
-        <InfoTag
-          v-if="shouldShowNextSchedule && nextScheduleDate"
-          icon="CalendarDays"
-          :text="formatScheduleDate(nextScheduleDate)"
-        />
+        <span v-if="shouldShowNextSchedule && nextScheduleDate" class="meta-tag schedule-tag">
+          <CuteIcon name="CalendarDays" size="1.5rem" />
+          <span class="meta-tag-text">{{ formatScheduleDate(nextScheduleDate) }}</span>
+        </span>
 
         <!-- Daily view：时间块显示（如果有） -->
-        <InfoTag
-          v-if="isInDailyView && todayTimeBlocks.length > 0"
-          icon="Clock"
-          :text="timeBlocksDisplayText"
-        />
+        <span v-if="isInDailyView && todayTimeBlocks.length > 0" class="meta-tag time-block-tag">
+          <CuteIcon name="Clock" size="1.5rem" />
+          <span class="meta-tag-text">{{ timeBlocksDisplayText }}</span>
+        </span>
       </div>
     </div>
 
@@ -140,7 +141,6 @@ import { pipeline } from '@/cpu'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
-import InfoTag from '@/components/parts/InfoTag.vue'
 import KanbanTaskCardMenu from '@/components/assembles/tasks/kanban/KanbanTaskCardMenu.vue'
 
 // Props
@@ -665,5 +665,49 @@ function onMouseDown(event: MouseEvent) {
   color: var(--color-text-tertiary, #f0f);
   font-weight: 400;
   line-height: 1;
+}
+
+/* ========== Meta Tags ========== */
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.4rem;
+  color: var(--color-text-tertiary, #f0f);
+  line-height: 1.4;
+}
+
+.meta-tag-text {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 项目标签 */
+.project-tag {
+  /* 可以后续添加特定样式 */
+}
+
+/* 区域标签 */
+.area-tag {
+  /* 可以后续添加特定样式 */
+}
+
+/* 截止日期标签 */
+.due-date-tag {
+  /* 可以后续添加特定样式 */
+}
+
+.due-date-tag.danger {
+  color: var(--color-danger, #f0f);
+}
+
+/* 排期标签 */
+.schedule-tag {
+  /* 可以后续添加特定样式 */
+}
+
+/* 时间块标签 */
+.time-block-tag {
+  /* 可以后续添加特定样式 */
 }
 </style>
