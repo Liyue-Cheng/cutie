@@ -257,8 +257,8 @@ function openCreateModal() {
   gap: 0.4rem;
   padding: 0.6rem 1.2rem;
   border-radius: 0.6rem;
-  border: 1px solid var(--color-border-default, #f0f);
-  background-color: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-button-secondary-border, #f0f);
+  background-color: var(--color-button-secondary-bg, #f0f);
   color: var(--color-text-primary, #f0f);
   font-size: 1.3rem;
   font-weight: 500;
@@ -267,8 +267,7 @@ function openCreateModal() {
 }
 
 .add-btn:hover {
-  border-color: var(--color-border-hover, #f0f);
-  background-color: var(--color-background-hover, #f0f);
+  background-color: var(--color-button-secondary-hover, #f0f);
 }
 
 .add-btn:active {
@@ -320,8 +319,8 @@ function openCreateModal() {
   padding: 0.8rem 1.6rem;
   font-size: 1.4rem;
   font-weight: 500;
-  color: var(--color-text-on-accent, #f0f);
-  background-color: var(--color-background-accent, #f0f);
+  color: var(--color-button-primary-text, #f0f);
+  background-color: var(--color-button-primary-bg, #f0f);
   border: none;
   border-radius: 0.6rem;
   cursor: pointer;
@@ -329,7 +328,7 @@ function openCreateModal() {
 }
 
 .create-first-btn:hover {
-  opacity: 0.9;
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 
 .create-first-btn:active {

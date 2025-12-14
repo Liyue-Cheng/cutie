@@ -216,8 +216,8 @@ function handleOpenEditor() {
   padding: 0.6rem 1.2rem;
   font-size: 1.2rem;
   font-weight: 500;
-  color: var(--color-text-on-accent);
-  background-color: var(--color-danger);
+  color: var(--color-button-danger-text, #f0f);
+  background-color: var(--color-button-danger-bg, #f0f);
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
@@ -225,8 +225,7 @@ function handleOpenEditor() {
 }
 
 .empty-trash-btn:hover {
-  background-color: var(--color-danger);
-  filter: brightness(0.9);
+  background-color: var(--color-button-danger-hover, #f0f);
 }
 
 .column-content {
@@ -316,23 +315,21 @@ function handleOpenEditor() {
 }
 
 .restore-btn {
-  color: var(--color-text-on-accent);
-  background-color: var(--color-success);
+  color: var(--color-button-primary-text, #f0f);
+  background-color: var(--color-button-primary-bg, #f0f);
 }
 
 .restore-btn:hover {
-  background-color: var(--color-success);
-  filter: brightness(0.9);
+  background-color: var(--color-button-primary-hover, #f0f);
 }
 
 .delete-btn {
-  color: var(--color-text-on-accent);
-  background-color: var(--color-danger);
+  color: var(--color-button-danger-text, #f0f);
+  background-color: var(--color-button-danger-bg, #f0f);
 }
 
 .delete-btn:hover {
-  background-color: var(--color-danger);
-  filter: brightness(0.9);
+  background-color: var(--color-button-danger-hover, #f0f);
 }
 
 .action-btn:active {

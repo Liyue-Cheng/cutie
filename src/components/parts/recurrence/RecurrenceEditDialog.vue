@@ -560,21 +560,21 @@ h3 {
 }
 
 .btn-secondary {
-  background: var(--color-background-secondary);
-  color: var(--color-text-secondary);
+  background: var(--color-button-secondary-bg, #f0f);
+  color: var(--color-text-secondary, #f0f);
+  border: 1px solid var(--color-button-secondary-border, #f0f);
 }
 
 .btn-secondary:hover {
-  background: var(--color-background-hover);
+  background: var(--color-button-secondary-hover, #f0f);
 }
 
 .btn-primary {
-  background: var(--color-success);
-  color: var(--color-text-on-accent);
+  background: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
 }
 
 .btn-primary:hover {
-  background: var(--color-success);
-  filter: brightness(0.9);
+  background: var(--color-button-primary-hover, #f0f);
 }
 </style>
