@@ -59,7 +59,8 @@
       "WebFetch(domain:lucide.dev)",
       "WebFetch(domain:highdream915.medium.com)",
       "WebFetch(domain:copyprogramming.com)",
-      "Bash(npm search:*)"
+      "Bash(npm search:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
