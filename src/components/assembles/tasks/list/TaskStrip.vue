@@ -93,7 +93,6 @@
 
         <!-- Daily view：时间块显示（如果有） -->
         <span v-if="isInDailyView && todayTimeBlocks.length > 0" class="meta-tag time-block-tag">
-          <CuteIcon name="Clock" size="1.5rem" />
           <span class="meta-tag-text">{{ timeBlocksDisplayText }}</span>
         </span>
       </div>
