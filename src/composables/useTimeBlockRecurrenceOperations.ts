@@ -3,6 +3,7 @@ import { useViewStore } from '@/stores/view'
 import { useUIStore } from '@/stores/ui'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
+import { dialog } from '@/composables/useDialog'
 
 /**
  * 时间块循环操作 Composable
@@ -24,7 +25,7 @@ export function useTimeBlockRecurrenceOperations() {
    * @param stopDate 停止日期（YYYY-MM-DD），该日期之后的实例将被删除
    */
   async function stopRepeating(recurrenceId: string, stopDate: string) {
-    const confirmed = confirm(
+    const confirmed = await dialog.confirm(
       `确定停止此时间块循环吗？\n将从 ${stopDate} 之后停止生成新时间块，并删除之后的实例。`
     )
 
@@ -47,7 +48,7 @@ export function useTimeBlockRecurrenceOperations() {
         error instanceof Error ? error : new Error(String(error)),
         { recurrenceId, stopDate }
       )
-      alert('停止循环失败，请重试。')
+      await dialog.alert('停止循环失败，请重试。')
       throw error
     }
   }
@@ -58,7 +59,7 @@ export function useTimeBlockRecurrenceOperations() {
    * @param recurrenceId 循环规则ID
    */
   async function resumeRecurrence(recurrenceId: string) {
-    const confirmed = confirm('确定继续此时间块循环吗？\n将恢复生成新的时间块实例。')
+    const confirmed = await dialog.confirm('确定继续此时间块循环吗？\n将恢复生成新的时间块实例。')
 
     if (!confirmed) return
 
@@ -77,7 +78,7 @@ export function useTimeBlockRecurrenceOperations() {
         error instanceof Error ? error : new Error(String(error)),
         { recurrenceId }
       )
-      alert('继续循环失败，请重试。')
+      await dialog.alert('继续循环失败，请重试。')
       throw error
     }
   }
@@ -112,7 +113,7 @@ export function useTimeBlockRecurrenceOperations() {
         error instanceof Error ? error : new Error(String(error)),
         { recurrenceId }
       )
-      alert('删除失败，请重试。')
+      await dialog.alert('删除失败，请重试。')
       throw error
     }
   }
