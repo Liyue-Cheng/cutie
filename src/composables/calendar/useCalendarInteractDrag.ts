@@ -429,7 +429,7 @@ export function useCalendarInteractDrag(
           previewEvent.value = null
         } else {
           logger.error(LogTags.COMPONENT_CALENDAR, result.message || 'Drop failed')
-          alert(result.message || '创建时间块失败')
+          dialog.alert(result.message || '创建时间块失败')
         }
       },
     })
