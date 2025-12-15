@@ -471,6 +471,7 @@ async function addTask() {
       // 🔥 根据 viewKey 提取上下文信息
       if (type === 'misc' && identifier === 'staging' && thirdPart) {
         // misc::staging::no-area - 无区域的 staging 任务（不设置 area_id）
+        // misc::staging::no-area::no-project - 无区域且无项目的 staging 任务（不设置任何上下文）
         // misc::staging::no-project - 无项目的 staging 任务（不设置 project_id）
         // misc::staging::recent-carryover - 最近结转任务（不设置任何上下文）
         // misc::staging::project::${projectId} - 指定项目的 staging 任务
@@ -480,7 +481,12 @@ async function addTask() {
         const fourthPart = parts[3]
         const fifthPart = parts[4]
 
-        if (
+        if (thirdPart === 'no-area' && fourthPart === 'no-project') {
+          // misc::staging::no-area::no-project - 无区域且无项目的 staging 任务
+          logger.debug(LogTags.COMPONENT_TASK_BAR, 'Creating staging task without area and project', {
+            viewKey: props.viewKey,
+          })
+        } else if (
           thirdPart === 'no-area' ||
           thirdPart === 'no-project' ||
           thirdPart === 'recent-carryover'

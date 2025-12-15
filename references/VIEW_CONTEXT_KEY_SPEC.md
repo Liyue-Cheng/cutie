@@ -33,15 +33,23 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 
 | 视图名称              | Context Key 格式              | 说明                       |
 | --------------------- | ----------------------------- | -------------------------- |
-| 无区域 Staging        | `misc::staging::no-area`      | 未分配区域的 staging 任务  |
+| 无区域 Staging        | `misc::staging::no-area`      | 未分配区域的 staging 任务（不管项目）  |
 | 指定区域 Staging      | `misc::staging::{area_uuid}`  | 指定区域的 staging 任务    |
 
 **Staging 扩展格式**（按项目筛选）：
 
 | 视图名称              | Context Key 格式                      | 说明                       |
 | --------------------- | ------------------------------------- | -------------------------- |
-| 无项目 Staging        | `misc::staging::no-project`           | 未分配项目的 staging 任务  |
+| 无项目 Staging        | `misc::staging::no-project`           | 未分配项目的 staging 任务（不管区域）  |
 | 指定项目 Staging      | `misc::staging::project::{project_uuid}` | 指定项目的 staging 任务 |
+
+**Staging 扩展格式**（组合筛选）：
+
+| 视图名称              | Context Key 格式                           | 说明                           |
+| --------------------- | ------------------------------------------ | ------------------------------ |
+| 无区域且无项目 Staging | `misc::staging::no-area::no-project`      | 未分配区域且未分配项目的 staging 任务 |
+| 指定区域的无项目 Staging | `misc::staging::{area_uuid}::no-project` | 指定区域下未分配项目的 staging 任务   |
+| 指定区域的指定项目 Staging | `misc::staging::{area_uuid}::project::{project_uuid}` | 指定区域下指定项目的 staging 任务 |
 
 **Staging 扩展格式**（最近结转）：
 
@@ -56,15 +64,19 @@ Context Key 用于唯一标识一个视图上下文，作为排序配置的主�
 context_key: 'misc::staging'
 sorted_task_ids: '["uuid-1", "uuid-2", "uuid-3"]'
 
-// 无区域的 staging 任务
+// 无区域的 staging 任务（不管有没有项目）
 context_key: 'misc::staging::no-area'
 sorted_task_ids: '["uuid-4", "uuid-5"]'
+
+// 无区域且无项目的 staging 任务
+context_key: 'misc::staging::no-area::no-project'
+sorted_task_ids: '["uuid-4a", "uuid-4b"]'
 
 // 指定区域的 staging 任务
 context_key: 'misc::staging::a1b2c3d4-1234-5678-90ab-cdef12345678'
 sorted_task_ids: '["uuid-6", "uuid-7"]'
 
-// 无项目的 staging 任务
+// 无项目的 staging 任务（不管有没有区域）
 context_key: 'misc::staging::no-project'
 sorted_task_ids: '["uuid-8", "uuid-9"]'
 
@@ -447,6 +459,11 @@ GET /view-preferences/area::a1b2c3d4-1234-5678-90ab-cdef12345678
 'misc::staging::no-project'
 'misc::staging::project::proj-uuid-1234-5678-90ab'
 
+// Staging 扩展（组合筛选）
+'misc::staging::no-area::no-project'
+'misc::staging::a1b2c3d4::no-project'
+'misc::staging::a1b2c3d4::project::proj-uuid-1234'
+
 // 日期看板
 'daily::2025-10-01'
 'daily::2025-10-02'
@@ -545,15 +562,38 @@ function validateContextKey(key: string): boolean {
     // staging 扩展格式验证
     if (parts[1] === 'staging' && parts.length > 2) {
       const thirdPart = parts[2]
-      if (thirdPart === 'no-area' || thirdPart === 'no-project') {
-        // misc::staging::no-area 或 misc::staging::no-project
+      const fourthPart = parts[3]
+      const fifthPart = parts[4]
+
+      if (thirdPart === 'no-area') {
+        // misc::staging::no-area 或 misc::staging::no-area::no-project
+        if (parts.length === 3) {
+          // misc::staging::no-area
+          return true
+        } else if (parts.length === 4 && fourthPart === 'no-project') {
+          // misc::staging::no-area::no-project
+          return true
+        }
+        return false
+      } else if (thirdPart === 'no-project' || thirdPart === 'recent-carryover') {
+        // misc::staging::no-project 或 misc::staging::recent-carryover
         if (parts.length !== 3) return false
       } else if (thirdPart === 'project') {
         // misc::staging::project::{projectId}
-        if (parts.length !== 4 || !isUuid(parts[3])) return false
+        if (parts.length !== 4 || !isUuid(fourthPart)) return false
       } else if (isUuid(thirdPart)) {
-        // misc::staging::{areaId}
-        if (parts.length !== 3) return false
+        // misc::staging::{areaId} 或更深层的组合
+        if (parts.length === 3) {
+          // misc::staging::{areaId}
+          return true
+        } else if (parts.length === 4 && fourthPart === 'no-project') {
+          // misc::staging::{areaId}::no-project
+          return true
+        } else if (parts.length === 5 && fourthPart === 'project' && isUuid(fifthPart)) {
+          // misc::staging::{areaId}::project::{projectId}
+          return true
+        }
+        return false
       } else {
         return false
       }

@@ -45,7 +45,7 @@
           <div class="task-section">
             <TaskList
               :title="$t('project.title.noProject')"
-              view-key="misc::staging::no-project"
+              view-key="misc::staging::no-area::no-project"
               :show-add-input="true"
               :collapsible="false"
             />

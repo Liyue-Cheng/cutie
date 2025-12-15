@@ -345,13 +345,12 @@ export function createTaskCore() {
         case 'misc':
           if (subtype === 'staging') {
             if (identifier === 'no-project') {
-              // misc::staging::no-project - 无区域且无项目的 staging 任务
+              // misc::staging::no-project - 无项目的 staging 任务（不管有没有区域）
               const today = getTodayDateString()
               const filteredTasks = allTasksArray.value.filter((task) => {
-                // 基础检查：必须没有 project_id 且没有 area_id
+                // 基础检查：必须没有 project_id（不检查 area_id）
                 if (
                   task.project_id ||
-                  task.area_id ||
                   task.is_completed ||
                   task.is_archived ||
                   task.is_deleted
@@ -485,11 +484,57 @@ export function createTaskCore() {
 
               return filteredTasks
             } else if (identifier === 'no-area') {
-              // misc::staging::no-area - 无区域的 staging 任务
+              // 检查是否是 misc::staging::no-area::no-project
+              if (extraIdentifier === 'no-project') {
+                // misc::staging::no-area::no-project - 无区域且无项目的 staging 任务
+                const today = getTodayDateString()
+                const filteredTasks = allTasksArray.value.filter((task) => {
+                  // 基础检查：必须没有 area_id 且没有 project_id
+                  if (
+                    task.area_id ||
+                    task.project_id ||
+                    task.is_completed ||
+                    task.is_archived ||
+                    task.is_deleted
+                  ) {
+                    return false
+                  }
+
+                  // 🔥 实时计算：没有当前或未来的日程 = staging
+                  const hasFutureOrTodaySchedule =
+                    task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
+                  if (hasFutureOrTodaySchedule) {
+                    return false
+                  }
+
+                  // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                  if (
+                    task.recurrence_id &&
+                    task.recurrence_original_date &&
+                    task.recurrence_expiry_behavior === 'EXPIRE'
+                  ) {
+                    if (task.recurrence_original_date < today) {
+                      return false
+                    }
+                  }
+
+                  return true
+                })
+
+                logger.debug(LogTags.STORE_TASKS, 'No-area-no-project staging filter result', {
+                  viewKey,
+                  totalTasks: allTasksArray.value.length,
+                  filteredCount: filteredTasks.length,
+                })
+
+                return filteredTasks
+              }
+
+              // misc::staging::no-area - 无区域的 staging 任务（不管有没有项目）
               // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
               const today = getTodayDateString()
               const filteredTasks = allTasksArray.value.filter((task) => {
-                // 基础检查：必须没有 area_id
+                // 基础检查：必须没有 area_id（不检查 project_id）
                 if (task.area_id || task.is_completed || task.is_archived || task.is_deleted) {
                   return false
                 }
