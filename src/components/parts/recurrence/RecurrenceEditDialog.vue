@@ -178,10 +178,7 @@ async function handleSave() {
       payload.end_date = endDate.value || null // 空字符串转为 null
     }
 
-    // 🔥 只有当 expiry_behavior 发生变化时才包含该字段
-    if (expiryBehavior.value !== props.recurrence.expiry_behavior) {
-      payload.expiry_behavior = expiryBehavior.value
-    }
+    // 🔥 expiry_behavior 不允许在编辑时修改，所以不发送该字段
 
     console.log('Updating recurrence with payload:', payload)
 
@@ -313,28 +310,22 @@ function setWeekdays() {
         </div>
       </section>
 
-      <!-- 过期行为 -->
+      <!-- 过期行为（只读显示，不可编辑） -->
       <section class="form-section">
-        <label class="section-label">过期后的处理方式</label>
-        <div class="radio-group">
-          <label class="radio-item">
-            <input type="radio" value="CARRYOVER_TO_STAGING" v-model="expiryBehavior" />
-            <span>
-              <strong>结转到暂存区</strong>
-              <div class="radio-description">
-                如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）
-              </div>
-            </span>
-          </label>
-          <label class="radio-item">
-            <input type="radio" value="EXPIRE" v-model="expiryBehavior" />
-            <span>
-              <strong>自动过期</strong>
-              <div class="radio-description">
-                如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）
-              </div>
-            </span>
-          </label>
+        <label class="section-label">过期后的处理方式（不可修改）</label>
+        <div class="expiry-readonly">
+          <template v-if="expiryBehavior === 'CARRYOVER_TO_STAGING'">
+            <strong>结转到暂存区</strong>
+            <div class="radio-description">
+              如果今天忘记完成，任务会进入暂存区等待处理（如：交水电费）
+            </div>
+          </template>
+          <template v-else>
+            <strong>自动过期</strong>
+            <div class="radio-description">
+              如果今天没完成，任务自动失效，不再提醒（如：每日签到、游戏日常）
+            </div>
+          </template>
         </div>
       </section>
 
@@ -354,6 +345,7 @@ function setWeekdays() {
 </template>
 
 <style scoped>
+/* 模态框背景遮罩 */
 .dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -364,212 +356,308 @@ function setWeekdays() {
   z-index: 1000;
 }
 
+/* 对话框主体 */
 .dialog-content {
-  background: var(--color-background-primary, #f0f);
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 600px;
+  background: var(--color-background-content, #f0f);
+  border: 1px solid var(--color-border-light, #f0f);
+  border-radius: 0.8rem;
+  padding: 2.4rem;
+  max-width: 54rem;
   width: 90%;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-xl, #f0f);
+  box-shadow: var(--shadow-lg, #f0f);
 }
 
+/* 标题 */
 h3 {
-  margin: 0 0 8px;
+  margin: 0 0 0.8rem;
   font-size: 1.8rem;
-  color: var(--color-text-primary);
+  font-weight: 600;
+  color: var(--color-text-primary, #f0f);
 }
 
+/* 信息提示 */
 .info-text {
-  margin: 0 0 20px;
+  color: var(--color-text-secondary, #f0f);
   font-size: 1.4rem;
-  color: var(--color-text-secondary);
+  margin-bottom: 2.4rem;
+  line-height: 1.5;
 }
 
+/* 表单区块 */
 .form-section {
-  margin-bottom: 20px;
+  margin-bottom: 2.4rem;
 }
 
+/* 区块标签 */
 .section-label {
   display: block;
-  font-size: 1.4rem;
   font-weight: 600;
-  color: var(--color-text-secondary);
-  margin-bottom: 12px;
+  font-size: 1.4rem;
+  margin-bottom: 1.2rem;
+  color: var(--color-text-secondary, #f0f);
 }
 
+/* 单选组 */
 .radio-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.8rem;
 }
 
+/* 单选项 */
 .radio-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.2rem;
+  background: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-light, #f0f);
+  border-radius: 0.6rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .radio-item:hover {
-  background: var(--color-background-hover);
-  border-color: var(--color-border-hover);
+  background: var(--color-background-hover, #f0f);
+  border-color: var(--color-border-hover, #f0f);
 }
 
 .radio-item input[type='radio'] {
+  margin-top: 0.2rem;
   cursor: pointer;
   flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 .radio-item span {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.4rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
 }
 
 .radio-description {
-  font-size: 0.85em;
-  color: var(--color-text-tertiary);
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary, #f0f);
   font-weight: normal;
-  line-height: 1.4;
+  line-height: 1.6;
 }
 
+/* 星期按钮组 */
 .weekday-buttons {
   display: flex;
-  gap: 8px;
+  gap: 0.8rem;
   flex-wrap: wrap;
 }
 
 .weekday-btn {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
+  padding: 0.8rem 1.6rem;
+  border: 1px solid var(--color-border-default, #f0f);
+  border-radius: 0.6rem;
+  background: var(--color-background-secondary, #f0f);
+  color: var(--color-text-primary, #f0f);
+  font-size: 1.4rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  user-select: none;
 }
 
 .weekday-btn:hover {
-  background: var(--color-background-hover);
+  border-color: var(--color-border-hover, #f0f);
+  background: var(--color-background-hover, #f0f);
 }
 
 .weekday-btn.active {
-  background: var(--color-success);
-  color: var(--color-text-on-accent);
-  border-color: var(--color-success);
+  background: var(--color-button-primary-bg, #f0f);
+  color: var(--color-button-primary-text, #f0f);
+  border-color: var(--color-button-primary-bg, #f0f);
 }
 
+/* 间隔控件 */
 .interval-control {
-  margin-top: 12px;
+  margin-top: 1.2rem;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
 }
 
 .interval-input {
-  width: 60px;
-  padding: 4px 8px;
-  margin: 0 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  width: 6rem;
+  padding: 0.6rem 1rem;
+  margin: 0 0.8rem;
+  border: 1px solid var(--color-border-input, #f0f);
+  border-radius: 0.4rem;
+  background: var(--color-background-input, #f0f);
+  color: var(--color-text-primary, #f0f);
+  font-size: 1.4rem;
   text-align: center;
+  transition: border-color 0.2s ease;
 }
 
+.interval-input:hover {
+  border-color: var(--color-border-input-hover, #f0f);
+}
+
+.interval-input:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus, #f0f);
+  box-shadow: var(--shadow-focus, #f0f);
+}
+
+/* 下拉选择框 */
 .select-input {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--color-border-input, #f0f);
+  border-radius: 0.6rem;
+  background: var(--color-background-input, #f0f);
+  color: var(--color-text-primary, #f0f);
   font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+.select-input:hover {
+  border-color: var(--color-border-input-hover, #f0f);
+  background: var(--color-background-input-hover, #f0f);
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus, #f0f);
+  box-shadow: var(--shadow-focus, #f0f);
+}
+
+/* 内联输入组 */
 .inline-inputs {
   display: flex;
-  gap: 12px;
+  gap: 1.2rem;
 }
 
 .inline-inputs .select-input {
   flex: 1;
 }
 
+/* 日期输入区域 */
 .date-inputs {
   display: flex;
-  gap: 12px;
+  gap: 1.2rem;
 }
 
 .date-input-wrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.6rem;
 }
 
 .date-input-wrapper label {
   font-size: 1.2rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #f0f);
 }
 
+/* 日期输入框 */
 .date-input {
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--color-border-input, #f0f);
+  border-radius: 0.6rem;
+  background: var(--color-background-input, #f0f);
+  color: var(--color-text-primary, #f0f);
   font-size: 1.4rem;
+  transition: all 0.2s ease;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
+.date-input:hover:not(:disabled) {
+  border-color: var(--color-border-input-hover, #f0f);
+  background: var(--color-background-input-hover, #f0f);
 }
 
-.checkbox-label input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+.date-input:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus, #f0f);
+  box-shadow: var(--shadow-focus, #f0f);
 }
 
+.date-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--color-background-secondary, #f0f);
+}
+
+/* 过期行为只读显示 */
+.expiry-readonly {
+  padding: 1.2rem;
+  background: var(--color-background-secondary, #f0f);
+  border: 1px solid var(--color-border-light, #f0f);
+  border-radius: 0.6rem;
+}
+
+.expiry-readonly strong {
+  display: block;
+  font-size: 1.4rem;
+  color: var(--color-text-primary, #f0f);
+  margin-bottom: 0.4rem;
+}
+
+.expiry-readonly .radio-description {
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary, #f0f);
+  line-height: 1.6;
+}
+
+/* 规则预览区块 */
 .preview-section {
-  background: var(--color-background-secondary);
-  padding: 16px;
-  border-radius: 6px;
+  background: var(--color-background-secondary, #f0f);
+  padding: 1.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-border-light, #f0f);
 }
 
 .rule-preview {
   font-size: 1.4rem;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #f0f);
   line-height: 1.5;
 }
 
+/* 操作按钮组 */
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 1.2rem;
+  margin-top: 2.4rem;
+  padding-top: 2.4rem;
+  border-top: 1px solid var(--color-divider, #f0f);
 }
 
+/* 按钮基础样式 */
 .btn {
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
+  padding: 1rem 2.4rem;
+  border-radius: 0.6rem;
   font-size: 1.4rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  border: none;
 }
 
+/* 次要按钮 */
 .btn-secondary {
   background: var(--color-button-secondary-bg, #f0f);
-  color: var(--color-text-secondary, #f0f);
   border: 1px solid var(--color-button-secondary-border, #f0f);
+  color: var(--color-text-secondary, #f0f);
 }
 
 .btn-secondary:hover {
   background: var(--color-button-secondary-hover, #f0f);
+  color: var(--color-text-primary, #f0f);
 }
 
+/* 主要按钮 */
 .btn-primary {
   background: var(--color-button-primary-bg, #f0f);
   color: var(--color-button-primary-text, #f0f);
@@ -577,5 +665,9 @@ h3 {
 
 .btn-primary:hover {
   background: var(--color-button-primary-hover, #f0f);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
 }
 </style>

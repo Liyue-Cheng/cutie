@@ -13,6 +13,7 @@ import CuteDualModeCheckbox from '@/components/parts/CuteDualModeCheckbox.vue'
 import AreaTag from '@/components/parts/AreaTag.vue'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import RecurrenceConfigDialog from '@/components/parts/recurrence/RecurrenceConfigDialog.vue'
+import RecurrenceEditDialog from '@/components/parts/recurrence/RecurrenceEditDialog.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
 import draggable from 'vuedraggable'
@@ -802,11 +803,20 @@ async function handleDeleteRecurrence() {
       </div>
     </CuteCard>
 
-    <!-- 循环配置对话框 -->
+    <!-- 循环配置对话框（创建模式：任务还没有循环规则） -->
     <RecurrenceConfigDialog
-      v-if="showRecurrenceDialog && task"
+      v-if="showRecurrenceDialog && task && !currentRecurrence"
       :task="task"
       :view-key="props.viewKey"
+      :open="showRecurrenceDialog"
+      @close="showRecurrenceDialog = false"
+      @success="handleRecurrenceSuccess"
+    />
+
+    <!-- 循环编辑对话框（编辑模式：任务已有循环规则） -->
+    <RecurrenceEditDialog
+      v-if="showRecurrenceDialog && task && currentRecurrence"
+      :recurrence="currentRecurrence"
       :open="showRecurrenceDialog"
       @close="showRecurrenceDialog = false"
       @success="handleRecurrenceSuccess"

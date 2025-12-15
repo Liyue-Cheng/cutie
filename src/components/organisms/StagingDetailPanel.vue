@@ -66,7 +66,7 @@
     </div>
 
     <!-- 区域视图：按项目分组 -->
-    <div v-else-if="area" class="staging-detail">
+    <div v-else-if="area" :key="categoryId" class="staging-detail">
       <div class="content-container">
         <div class="staging-header">
           <div class="header-title-row">
