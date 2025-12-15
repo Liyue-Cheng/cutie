@@ -385,6 +385,7 @@ function handleTitleClick() {
             :placeholder="$t('task.action.addTask')"
             class="add-task-input"
             :disabled="isCreatingTask"
+            autocomplete="off"
             @keydown.enter="handleAddTask"
           />
       </div>

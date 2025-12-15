@@ -18,6 +18,7 @@
               type="text"
               class="form-input"
               :placeholder="$t('project.placeholder.name')"
+              autocomplete="off"
               @keydown.enter="handleSubmit"
             />
           </div>
@@ -76,6 +77,7 @@
                   v-model="newSectionTitle"
                   class="section-input"
                   :placeholder="$t('project.placeholder.addSection')"
+                  autocomplete="off"
                   @keydown.enter="handleAddSection"
                 />
               </div>

@@ -40,6 +40,7 @@
           class="task-input"
           :placeholder="$t('task.action.addNewTask')"
           :disabled="isCreatingTask"
+          autocomplete="off"
           @keydown.enter="addTask"
           @focus="isInputFocused = true"
           @blur="isInputFocused = false"

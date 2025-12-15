@@ -34,6 +34,7 @@
               type="text"
               class="title-input"
               :placeholder="getPlaceholder()"
+              autocomplete="off"
               @keydown.enter="handleConfirm"
               @keydown.esc="handleCancel"
             />

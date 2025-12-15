@@ -254,6 +254,7 @@ async function handleDelete(id: string) {
             type="text"
             :placeholder="$t('area.placeholder.name')"
             class="name-input"
+            autocomplete="off"
             @keyup.enter="handleCreate"
           />
           
@@ -323,6 +324,7 @@ async function handleDelete(id: string) {
                     type="text"
                     class="edit-name-input"
                     placeholder="Area 名称"
+                    autocomplete="off"
                     @keyup.enter="saveEdit"
                     @keyup.esc="cancelEdit"
                   />

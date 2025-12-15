@@ -15,6 +15,7 @@
             type="text"
             class="task-input"
             :placeholder="$t('task.placeholder.title')"
+            autocomplete="off"
             @keydown.enter="handleAdd"
             @keydown.esc="close"
           />

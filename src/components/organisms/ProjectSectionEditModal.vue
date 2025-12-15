@@ -21,6 +21,7 @@
               type="text"
               class="form-input"
               :placeholder="$t('project.placeholder.sectionTitle')"
+              autocomplete="off"
               @keydown.enter="handleSubmit"
             />
           </div>

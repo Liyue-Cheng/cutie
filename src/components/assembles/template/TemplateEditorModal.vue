@@ -274,6 +274,7 @@ function handleClose() {
               v-model="titleInput"
               class="title-input"
               :placeholder="$t('template.placeholder.title')"
+              autocomplete="off"
               @blur="updateTitle"
               @keydown.enter="updateTitle"
             />
@@ -314,6 +315,7 @@ function handleClose() {
                   v-model="newSubtaskTitle"
                   class="add-subtask-input"
                   :placeholder="$t('task.placeholder.addSubtaskTemplate')"
+                  autocomplete="off"
                   @keydown.enter="handleAddSubtask"
                 />
               </div>

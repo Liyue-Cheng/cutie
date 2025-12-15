@@ -16,6 +16,7 @@
             class="title-input"
             type="text"
             :placeholder="$t('dailyShutdown.editor.ritualTitlePlaceholder')"
+            autocomplete="off"
             @blur="saveRitualTitle"
             @keydown.enter.prevent="saveRitualTitle"
           />
@@ -36,6 +37,7 @@
             <input
               class="step-input"
               :value="step.title"
+              autocomplete="off"
               @input="(e) => onTitleInput(step.id, e)"
               @blur="() => onTitleBlur(step.id)"
               @keydown.enter.prevent="() => onTitleBlur(step.id)"
@@ -52,6 +54,7 @@
             class="add-input"
             type="text"
             :placeholder="$t('dailyShutdown.editor.addPlaceholder')"
+            autocomplete="off"
             @keydown.enter.prevent="addStep"
           />
         </div>

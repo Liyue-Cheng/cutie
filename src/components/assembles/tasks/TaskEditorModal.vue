@@ -664,6 +664,7 @@ async function handleDeleteRecurrence() {
                 v-model="titleInput"
                 class="title-input"
                 :class="{ completed: task.is_completed }"
+                autocomplete="off"
                 @blur="updateTitle"
                 @keydown.enter="updateTitle"
               />
@@ -759,6 +760,7 @@ async function handleDeleteRecurrence() {
                   v-model="newSubtaskTitle"
                   class="add-subtask-input"
                   :placeholder="$t('task.placeholder.addSubtask')"
+                  autocomplete="off"
                   @keydown.enter="handleAddSubtask"
                 />
               </div>

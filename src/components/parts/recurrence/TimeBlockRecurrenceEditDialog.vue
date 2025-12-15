@@ -336,7 +336,7 @@ watch(
 
         <section class="form-section">
           <label class="section-label">{{ t('recurrence.label.templateTitle') }}</label>
-          <input type="text" v-model="title" class="text-input" />
+          <input type="text" v-model="title" class="text-input" autocomplete="off" />
         </section>
 
         <section class="form-section">

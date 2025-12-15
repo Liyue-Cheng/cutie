@@ -198,6 +198,7 @@ async function handleCreate() {
             v-model="titleInput"
             class="title-input"
             :placeholder="$t('template.placeholder.title')"
+            autocomplete="off"
             @keydown.enter="handleCreate"
           />
         </div>
@@ -236,6 +237,7 @@ async function handleCreate() {
                 v-model="newSubtaskTitle"
                 class="add-subtask-input"
                 :placeholder="$t('task.placeholder.addSubtaskTemplate')"
+                autocomplete="off"
                 @keydown.enter="handleAddSubtask"
               />
             </div>

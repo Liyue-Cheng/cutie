@@ -176,6 +176,7 @@ const { t } = useI18n()
           type="text"
           :placeholder="$t('template.placeholder.name')"
           class="add-task-input"
+          autocomplete="off"
           @keyup.enter="handleCreateTemplate"
         />
       </div>
