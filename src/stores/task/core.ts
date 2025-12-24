@@ -41,6 +41,22 @@ export function createTaskCore() {
   // ============================================================
 
   /**
+   * 检查任务是否为已过期且行为为 EXPIRE 的循环任务
+   * 这类任务不应出现在任何视图中
+   * @param task - 任务
+   * @param today - 今天的日期字符串 (YYYY-MM-DD)
+   * @returns true 表示该任务已过期且应被过滤掉
+   */
+  function isExpiredRecurringTask(task: TaskCard, today: string): boolean {
+    return !!(
+      task.recurrence_id &&
+      task.recurrence_original_date &&
+      task.recurrence_expiry_behavior === 'EXPIRE' &&
+      task.recurrence_original_date < today
+    )
+  }
+
+  /**
    * 对循环任务进行去重，每个循环规则只保留最近的未完成任务
    * @param tasks - 待处理的任务列表
    * @returns 去重后的任务列表
@@ -121,27 +137,16 @@ export function createTaskCore() {
         return false
       }
 
+      // 🔥 排除 EXPIRE 类型且已过期的循环任务
+      if (isExpiredRecurringTask(task, today)) {
+        return false
+      }
+
       // 🔥 实时计算：没有当前或未来的日程 = staging
       const hasFutureOrTodaySchedule =
         task.schedules?.some((schedule) => schedule.scheduled_day >= today) ?? false
 
-      if (hasFutureOrTodaySchedule) {
-        return false
-      }
-
-      // 🔥 排除 EXPIRE 类型且已过期的循环任务
-      if (
-        task.recurrence_id &&
-        task.recurrence_original_date &&
-        task.recurrence_expiry_behavior === 'EXPIRE'
-      ) {
-        // 判断是否过期：原始日期 < 今天
-        if (task.recurrence_original_date < today) {
-          return false
-        }
-      }
-
-      return true
+      return !hasFutureOrTodaySchedule
     })
   })
 
@@ -151,6 +156,7 @@ export function createTaskCore() {
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
    * ✅ 实时计算：根据 schedules 数组判断，不依赖 schedule_status
+   * ✅ 排除 EXPIRE 类型且已过期的循环任务
    */
   const plannedTasks = computed(() => {
     // ⚠️ 使用 getTodayDateString() 获取本地日期，符合 TIME_CONVENTION.md
@@ -159,6 +165,11 @@ export function createTaskCore() {
     return allTasksArray.value.filter((task) => {
       // 基础过滤：未完成 + 未删除
       if (task.is_completed || task.is_deleted) {
+        return false
+      }
+
+      // 🔥 排除 EXPIRE 类型且已过期的循环任务
+      if (isExpiredRecurringTask(task, today)) {
         return false
       }
 
@@ -175,9 +186,20 @@ export function createTaskCore() {
    * ✅ 动态过滤：任务完成后自动消失
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
+   * ✅ 排除 EXPIRE 类型且已过期的循环任务
    */
   const incompleteTasks = computed(() => {
-    return allTasksArray.value.filter((task) => !task.is_completed && !task.is_deleted)
+    const today = getTodayDateString()
+    return allTasksArray.value.filter((task) => {
+      if (task.is_completed || task.is_deleted) {
+        return false
+      }
+      // 🔥 排除 EXPIRE 类型且已过期的循环任务
+      if (isExpiredRecurringTask(task, today)) {
+        return false
+      }
+      return true
+    })
   })
 
   /**
@@ -205,13 +227,22 @@ export function createTaskCore() {
    * ✅ 排除已删除和已归档的任务
    * ✅ 循环任务去重：每个循环规则只保留最近的未完成任务
    * ✅ 按截止日期排序（最近的在前）
+   * ✅ 排除 EXPIRE 类型且已过期的循环任务
    *
    * 对应 viewKey: misc::deadline
    */
   const deadlineTasks = computed(() => {
-    const tasksWithDueDate = allTasksArray.value.filter(
-      (task) => task.due_date && !task.is_archived && !task.is_completed && !task.is_deleted
-    )
+    const today = getTodayDateString()
+    const tasksWithDueDate = allTasksArray.value.filter((task) => {
+      if (!task.due_date || task.is_archived || task.is_completed || task.is_deleted) {
+        return false
+      }
+      // 🔥 排除 EXPIRE 类型且已过期的循环任务
+      if (isExpiredRecurringTask(task, today)) {
+        return false
+      }
+      return true
+    })
 
     // 对循环任务去重：每个循环规则只保留最近的未完成任务
     const deduplicated = deduplicateRecurringTasks(tasksWithDueDate)
@@ -258,33 +289,28 @@ export function createTaskCore() {
    * ✅ 单一数据源：从 TaskStore 过滤，自动响应变化
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 过滤归档和已删除任务：这些任务不会出现在日期看板
+   * ✅ 排除 EXPIRE 类型且已过期的循环任务
    * ✅ 纯函数，不调用 API
    */
   const getTasksByDate_Mux = computed(() => (date: string) => {
+    const today = getTodayDateString()
     const result = allTasksArray.value.filter((task) => {
-      // 🔍 调试：打印每个任务的 schedules 信息
-      // if (task.schedules && task.schedules.length > 0) {
-      //   console.log('[getTasksByDate] Task:', task.id, 'schedules:', task.schedules)
-      // }
-
       // 排除归档和已删除的任务
       if (task.is_archived || task.is_deleted) {
+        return false
+      }
+
+      // 🔥 排除 EXPIRE 类型且已过期的循环任务
+      if (isExpiredRecurringTask(task, today)) {
         return false
       }
 
       // 检查任务是否有该日期的 schedule
       const hasSchedule = task.schedules?.some((schedule) => schedule.scheduled_day === date)
 
-      // if (hasSchedule) {
-      //   console.log(`[getTasksByDate] ✅ Task ${task.id} matches date ${date}`)
-      // }
-
       return hasSchedule ?? false
     })
 
-    // console.log(
-    //   `[getTasksByDate] Date: ${date}, Total tasks: ${allTasksArray.value.length}, Matched: ${result.length}`
-    // )
     return result
   })
 
@@ -293,13 +319,22 @@ export function createTaskCore() {
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
    * ✅ 循环任务去重：每个循环规则只保留最近的未完成任务
+   * ✅ 排除 EXPIRE 类型且已过期的循环任务
    * ✅ 纯函数，不调用 API
    */
   const getTasksByProject_Mux = computed(() => {
     return (projectId: string) => {
-      const projectTasks = allTasksArray.value.filter(
-        (task) => task.project_id === projectId && !task.is_deleted
-      )
+      const today = getTodayDateString()
+      const projectTasks = allTasksArray.value.filter((task) => {
+        if (task.project_id !== projectId || task.is_deleted) {
+          return false
+        }
+        // 🔥 排除 EXPIRE 类型且已过期的循环任务
+        if (isExpiredRecurringTask(task, today)) {
+          return false
+        }
+        return true
+      })
       return deduplicateRecurringTasks(projectTasks)
     }
   })
@@ -309,13 +344,22 @@ export function createTaskCore() {
    * ✅ 性能优化：复用 allTasksArray
    * ✅ 排除已删除的任务：删除后立即消失
    * ✅ 循环任务去重：每个循环规则只保留最近的未完成任务
+   * ✅ 排除 EXPIRE 类型且已过期的循环任务
    * ✅ 纯函数，不调用 API
    */
   const getTasksByArea_Mux = computed(() => {
     return (areaId: string) => {
-      const areaTasks = allTasksArray.value.filter(
-        (task) => task.area_id === areaId && !task.is_deleted
-      )
+      const today = getTodayDateString()
+      const areaTasks = allTasksArray.value.filter((task) => {
+        if (task.area_id !== areaId || task.is_deleted) {
+          return false
+        }
+        // 🔥 排除 EXPIRE 类型且已过期的循环任务
+        if (isExpiredRecurringTask(task, today)) {
+          return false
+        }
+        return true
+      })
       return deduplicateRecurringTasks(areaTasks)
     }
   })
@@ -349,12 +393,7 @@ export function createTaskCore() {
               const today = getTodayDateString()
               const filteredTasks = allTasksArray.value.filter((task) => {
                 // 基础检查：必须没有 project_id（不检查 area_id）
-                if (
-                  task.project_id ||
-                  task.is_completed ||
-                  task.is_archived ||
-                  task.is_deleted
-                ) {
+                if (task.project_id || task.is_completed || task.is_archived || task.is_deleted) {
                   return false
                 }
 
@@ -366,14 +405,8 @@ export function createTaskCore() {
                 }
 
                 // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                if (
-                  task.recurrence_id &&
-                  task.recurrence_original_date &&
-                  task.recurrence_expiry_behavior === 'EXPIRE'
-                ) {
-                  if (task.recurrence_original_date < today) {
-                    return false
-                  }
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
                 }
 
                 return true
@@ -409,14 +442,8 @@ export function createTaskCore() {
                 }
 
                 // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                if (
-                  task.recurrence_id &&
-                  task.recurrence_original_date &&
-                  task.recurrence_expiry_behavior === 'EXPIRE'
-                ) {
-                  if (task.recurrence_original_date < today) {
-                    return false
-                  }
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
                 }
 
                 // 🔥 必须在过去5天内有排期（不含今天）
@@ -462,14 +489,8 @@ export function createTaskCore() {
                 }
 
                 // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                if (
-                  task.recurrence_id &&
-                  task.recurrence_original_date &&
-                  task.recurrence_expiry_behavior === 'EXPIRE'
-                ) {
-                  if (task.recurrence_original_date < today) {
-                    return false
-                  }
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
                 }
 
                 return true
@@ -508,14 +529,8 @@ export function createTaskCore() {
                   }
 
                   // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                  if (
-                    task.recurrence_id &&
-                    task.recurrence_original_date &&
-                    task.recurrence_expiry_behavior === 'EXPIRE'
-                  ) {
-                    if (task.recurrence_original_date < today) {
-                      return false
-                    }
+                  if (isExpiredRecurringTask(task, today)) {
+                    return false
                   }
 
                   return true
@@ -547,14 +562,8 @@ export function createTaskCore() {
                 }
 
                 // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                if (
-                  task.recurrence_id &&
-                  task.recurrence_original_date &&
-                  task.recurrence_expiry_behavior === 'EXPIRE'
-                ) {
-                  if (task.recurrence_original_date < today) {
-                    return false
-                  }
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
                 }
 
                 return true
@@ -595,14 +604,8 @@ export function createTaskCore() {
                   }
 
                   // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                  if (
-                    task.recurrence_id &&
-                    task.recurrence_original_date &&
-                    task.recurrence_expiry_behavior === 'EXPIRE'
-                  ) {
-                    if (task.recurrence_original_date < today) {
-                      return false
-                    }
+                  if (isExpiredRecurringTask(task, today)) {
+                    return false
                   }
 
                   return true
@@ -641,14 +644,8 @@ export function createTaskCore() {
                   }
 
                   // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                  if (
-                    task.recurrence_id &&
-                    task.recurrence_original_date &&
-                    task.recurrence_expiry_behavior === 'EXPIRE'
-                  ) {
-                    if (task.recurrence_original_date < today) {
-                      return false
-                    }
+                  if (isExpiredRecurringTask(task, today)) {
+                    return false
                   }
 
                   return true
@@ -689,15 +686,8 @@ export function createTaskCore() {
                 }
 
                 // 🔥 排除 EXPIRE 类型且已过期的循环任务
-                if (
-                  task.recurrence_id &&
-                  task.recurrence_original_date &&
-                  task.recurrence_expiry_behavior === 'EXPIRE'
-                ) {
-                  // 判断是否过期：原始日期 < 今天
-                  if (task.recurrence_original_date < today) {
-                    return false
-                  }
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
                 }
 
                 if (task.area_id === identifier) {
@@ -804,10 +794,18 @@ export function createTaskCore() {
             // misc::no-project - 无项目任务
             // 🔥 过滤已完成和已归档的任务
             // 🔥 对于循环任务，只显示每个循环规则的最近未完成任务
-            const noProjectTasks = allTasksArray.value.filter(
-              (task) =>
-                !task.project_id && !task.is_deleted && !task.is_completed && !task.is_archived
-            )
+            // 🔥 排除 EXPIRE 类型且已过期的循环任务
+            const today = getTodayDateString()
+            const noProjectTasks = allTasksArray.value.filter((task) => {
+              if (task.project_id || task.is_deleted || task.is_completed || task.is_archived) {
+                return false
+              }
+              // 🔥 排除 EXPIRE 类型且已过期的循环任务
+              if (isExpiredRecurringTask(task, today)) {
+                return false
+              }
+              return true
+            })
             const tasks = deduplicateRecurringTasks(noProjectTasks)
 
             logger.debug(LogTags.STORE_TASKS, 'Using no-project tasks', {
@@ -852,12 +850,20 @@ export function createTaskCore() {
             // project::${projectId}::section::{sectionId|all}
             const projectId = subtype
             const sectionId = extraIdentifier
+            const today = getTodayDateString()
 
             if (sectionId === 'all') {
               // project::${projectId}::section::all - 项目无section任务
-              const noSectionTasks = allTasksArray.value.filter(
-                (task) => task.project_id === projectId && !task.section_id && !task.is_deleted
-              )
+              const noSectionTasks = allTasksArray.value.filter((task) => {
+                if (task.project_id !== projectId || task.section_id || task.is_deleted) {
+                  return false
+                }
+                // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
+                }
+                return true
+              })
               const tasks = deduplicateRecurringTasks(noSectionTasks)
               logger.debug(LogTags.STORE_TASKS, 'Using project no-section tasks', {
                 viewKey,
@@ -868,9 +874,16 @@ export function createTaskCore() {
               return tasks
             } else {
               // project::${projectId}::section::${sectionId} - 特定section任务
-              const sectionTasks = allTasksArray.value.filter(
-                (task) => task.section_id === sectionId && !task.is_deleted
-              )
+              const sectionTasks = allTasksArray.value.filter((task) => {
+                if (task.section_id !== sectionId || task.is_deleted) {
+                  return false
+                }
+                // 🔥 排除 EXPIRE 类型且已过期的循环任务
+                if (isExpiredRecurringTask(task, today)) {
+                  return false
+                }
+                return true
+              })
               const tasks = deduplicateRecurringTasks(sectionTasks)
               logger.debug(LogTags.STORE_TASKS, 'Using project section tasks', {
                 viewKey,

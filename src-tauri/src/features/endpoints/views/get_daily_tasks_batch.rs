@@ -311,6 +311,8 @@ mod database {
         task: TaskRow,
     }
 
+    /// 查询日期范围内的所有任务
+    /// 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
     pub async fn find_tasks_for_range(
         pool: &sqlx::SqlitePool,
         start_date: &NaiveDate,
@@ -318,6 +320,8 @@ mod database {
     ) -> AppResult<Vec<DailyTaskRecord>> {
         let start_str = time_utils::format_date_yyyy_mm_dd(start_date);
         let end_str = time_utils::format_date_yyyy_mm_dd(end_date);
+        // 获取今天的日期用于过滤过期的循环任务
+        let today_str = time_utils::format_date_yyyy_mm_dd(&chrono::Local::now().date_naive());
 
         let query = r#"
             SELECT
@@ -328,12 +332,24 @@ mod database {
             WHERE ts.scheduled_date BETWEEN ? AND ?
               AND t.deleted_at IS NULL
               AND t.archived_at IS NULL
+              AND NOT (
+                  -- 排除 EXPIRE 类型且已过期的循环任务
+                  t.recurrence_id IS NOT NULL
+                  AND t.recurrence_original_date IS NOT NULL
+                  AND t.recurrence_original_date < ?
+                  AND EXISTS (
+                      SELECT 1 FROM task_recurrences tr
+                      WHERE tr.id = t.recurrence_id
+                        AND tr.expiry_behavior = 'EXPIRE'
+                  )
+              )
             ORDER BY ts.scheduled_date ASC, t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, TaskWithDateRow>(query)
             .bind(&start_str)
             .bind(&end_str)
+            .bind(&today_str)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

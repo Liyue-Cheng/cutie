@@ -266,6 +266,9 @@ mod logic {
         // 9. 在事务内填充 schedules 字段
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
 
+        // 9.1 填充 recurrence_expiry_behavior（使用 pool 查询，task_recurrences 表不在事务内修改）
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, pool).await?;
+
         // 10. 写入领域事件到 outbox
         use crate::infra::events::{
             models::DomainEvent,

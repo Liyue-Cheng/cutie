@@ -140,8 +140,14 @@ mod logic {
     pub async fn execute(app_state: &AppState) -> AppResult<Vec<TaskCardDto>> {
         let pool = app_state.db_pool();
 
-        // 1. 获取所有已排期任务
-        let tasks = database::find_planned_tasks(pool).await?;
+        // 1. 计算本地时间的今天日期
+        use crate::infra::core::utils::time_utils;
+        use chrono::Local;
+        let today = Local::now().date_naive();
+        let today_str = time_utils::format_date_yyyy_mm_dd(&today);
+
+        // 2. 获取所有已排期任务（排除 EXPIRE 过期循环任务）
+        let tasks = database::find_planned_tasks(pool, &today_str).await?;
 
         // 2. 为每个任务组装 TaskCardDto
         let mut task_cards = Vec::new();
@@ -163,6 +169,9 @@ mod logic {
         let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
         card.schedules = schedules;
 
+        // 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
+
         Ok(card)
     }
 }
@@ -172,7 +181,9 @@ mod database {
     use super::*;
     use crate::entities::TaskRow;
 
-    pub async fn find_planned_tasks(pool: &sqlx::SqlitePool) -> AppResult<Vec<Task>> {
+    /// 查询所有已排期的任务
+    /// 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
+    pub async fn find_planned_tasks(pool: &sqlx::SqlitePool, today: &str) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT DISTINCT
                 t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
@@ -183,10 +194,22 @@ mod database {
             FROM tasks t
             INNER JOIN task_schedules ts ON t.id = ts.task_id
             WHERE t.deleted_at IS NULL AND t.completed_at IS NULL AND t.archived_at IS NULL
+              AND NOT (
+                  -- 排除 EXPIRE 类型且已过期的循环任务
+                  t.recurrence_id IS NOT NULL
+                  AND t.recurrence_original_date IS NOT NULL
+                  AND t.recurrence_original_date < ?
+                  AND EXISTS (
+                      SELECT 1 FROM task_recurrences tr
+                      WHERE tr.id = t.recurrence_id
+                        AND tr.expiry_behavior = 'EXPIRE'
+                  )
+              )
             ORDER BY ts.scheduled_date ASC, t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, TaskRow>(query)
+            .bind(today)
             .fetch_all(pool)
             .await
             .map_err(|e| {

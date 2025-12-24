@@ -297,6 +297,9 @@ mod logic {
         task_card.schedules =
             TaskAssembler::assemble_schedules(app_state.db_pool(), task.id).await?;
 
+        // 8.1 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, app_state.db_pool()).await?;
+
         // 9. ✅ 异步 AI 自动分类（不阻塞返回）
         // 条件：未指定 area_id 且不是从模板创建
         if task.area_id.is_none() && task.source_info.is_none() {

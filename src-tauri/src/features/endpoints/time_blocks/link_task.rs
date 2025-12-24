@@ -294,6 +294,9 @@ mod logic {
         task_card.schedules = TaskAssembler::assemble_schedules(pool, task_id).await?;
         // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
+        // 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, pool).await?;
+
         // 11. 组装更新后的时间块数据（用于SSE事件）
         let updated_time_block = TimeBlockRepository::find_by_id(pool, block_id).await?;
         let time_block_view = crate::entities::TimeBlockViewDto {

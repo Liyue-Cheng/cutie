@@ -256,6 +256,9 @@ mod logic {
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
         // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
+        // 11.1 填充 recurrence_expiry_behavior（使用 pool 查询，task_recurrences 表不在事务内修改）
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, app_state.db_pool()).await?;
+
         // 12. 构建统一的事务结果
         // ✅ HTTP 响应和 SSE 事件使用相同的数据结构
         let transaction_result = TaskTransactionResult {

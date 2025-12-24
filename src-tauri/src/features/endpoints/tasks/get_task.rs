@@ -153,6 +153,9 @@ mod logic {
         task_card.schedules = schedules;
         // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
+        // 4. 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, pool).await?;
+
         // 5. 组装 TaskDetailDto
         let task_detail = TaskDetailDto {
             card: task_card,

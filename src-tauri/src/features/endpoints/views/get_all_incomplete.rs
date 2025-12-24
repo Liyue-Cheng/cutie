@@ -139,8 +139,14 @@ mod logic {
         // 1. 为所有活跃的循环规则实例化未来最近的一个实例
         instantiate_next_recurrence_instances(app_state).await?;
 
-        // 2. 获取所有未完成任务（包括刚实例化的循环任务）
-        let tasks = database::find_all_incomplete_tasks(pool).await?;
+        // 2. 计算本地时间的今天日期
+        use crate::infra::core::utils::time_utils;
+        use chrono::Local;
+        let today = Local::now().date_naive();
+        let today_str = time_utils::format_date_yyyy_mm_dd(&today);
+
+        // 3. 获取所有未完成任务（排除 EXPIRE 过期循环任务）
+        let tasks = database::find_all_incomplete_tasks(pool, &today_str).await?;
 
         // 3. 为每个任务组装 TaskCardDto
         let mut task_cards = Vec::new();
@@ -242,6 +248,9 @@ mod logic {
         let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
         card.schedules = schedules;
 
+        // 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut card, pool).await?;
+
         Ok(card)
     }
 }
@@ -251,7 +260,12 @@ mod database {
     use super::*;
     use crate::entities::TaskRow;
 
-    pub async fn find_all_incomplete_tasks(pool: &sqlx::SqlitePool) -> AppResult<Vec<Task>> {
+    /// 查询所有未完成任务
+    /// 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
+    pub async fn find_all_incomplete_tasks(
+        pool: &sqlx::SqlitePool,
+        today: &str,
+    ) -> AppResult<Vec<Task>> {
         let query = r#"
             SELECT
                 id, title, glance_note, detail_note, estimated_duration,
@@ -259,12 +273,24 @@ mod database {
                 created_at, updated_at, deleted_at, source_info,
                 external_source_id, external_source_provider, external_source_metadata,
                 recurrence_id, recurrence_original_date
-            FROM tasks
-            WHERE deleted_at IS NULL AND completed_at IS NULL AND archived_at IS NULL
-            ORDER BY created_at DESC
+            FROM tasks t
+            WHERE t.deleted_at IS NULL AND t.completed_at IS NULL AND t.archived_at IS NULL
+              AND NOT (
+                  -- 排除 EXPIRE 类型且已过期的循环任务
+                  t.recurrence_id IS NOT NULL
+                  AND t.recurrence_original_date IS NOT NULL
+                  AND t.recurrence_original_date < ?
+                  AND EXISTS (
+                      SELECT 1 FROM task_recurrences tr
+                      WHERE tr.id = t.recurrence_id
+                        AND tr.expiry_behavior = 'EXPIRE'
+                  )
+              )
+            ORDER BY t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, TaskRow>(query)
+            .bind(today)
             .fetch_all(pool)
             .await
             .map_err(|e| {

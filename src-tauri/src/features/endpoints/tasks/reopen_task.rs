@@ -268,6 +268,9 @@ mod logic {
             TaskAssembler::assemble_schedules(app_state.db_pool(), task_id).await?;
         // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
+        // 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, app_state.db_pool()).await?;
+
         tracing::info!(
             "[PERF] reopen_task ASSEMBLE_RESPONSE took {:.3}ms",
             assemble_start.elapsed().as_secs_f64() * 1000.0

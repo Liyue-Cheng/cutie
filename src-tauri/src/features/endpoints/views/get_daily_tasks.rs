@@ -229,11 +229,14 @@ mod database {
     use crate::infra::core::utils::time_utils;
 
     /// 查询指定日期的所有任务
+    /// 排除 EXPIRE 类型且已过期的循环任务（recurrence_original_date < today）
     pub async fn find_tasks_for_date(
         pool: &sqlx::SqlitePool,
         target_date: NaiveDate,
     ) -> AppResult<Vec<Task>> {
         let date_str = time_utils::format_date_yyyy_mm_dd(&target_date);
+        // 获取今天的日期用于过滤过期的循环任务
+        let today_str = time_utils::format_date_yyyy_mm_dd(&chrono::Local::now().date_naive());
 
         let query = r#"
             SELECT DISTINCT t.id, t.title, t.glance_note, t.detail_note, t.estimated_duration,
@@ -246,11 +249,23 @@ mod database {
             WHERE ts.scheduled_date = ?
               AND t.deleted_at IS NULL
               AND t.archived_at IS NULL
+              AND NOT (
+                  -- 排除 EXPIRE 类型且已过期的循环任务
+                  t.recurrence_id IS NOT NULL
+                  AND t.recurrence_original_date IS NOT NULL
+                  AND t.recurrence_original_date < ?
+                  AND EXISTS (
+                      SELECT 1 FROM task_recurrences tr
+                      WHERE tr.id = t.recurrence_id
+                        AND tr.expiry_behavior = 'EXPIRE'
+                  )
+              )
             ORDER BY t.created_at DESC
         "#;
 
         let rows = sqlx::query_as::<_, crate::entities::TaskRow>(query)
-            .bind(date_str)
+            .bind(&date_str)
+            .bind(&today_str)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::DatabaseError(e.into()))?;

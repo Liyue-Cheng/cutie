@@ -55,7 +55,7 @@
           <CuteIcon
             name="FolderKanban"
             size="1.5rem"
-            :color="area?.color || 'var(--color-text-tertiary)'"
+            :color="area?.color || 'var(--color-text-secondary)'"
           />
           <span class="meta-tag-text">{{ project.name }}</span>
         </span>
@@ -78,7 +78,7 @@
             :color="
               task.due_date.is_overdue
                 ? 'var(--color-deadline-overdue)'
-                : 'var(--color-text-tertiary)'
+                : 'var(--color-text-secondary)'
             "
           />
           <span v-else class="soft-deadline-icon">~</span>
@@ -228,7 +228,10 @@ const isInAreaView = computed(() => {
     const parts = props.viewKey.split('::')
     const thirdPart = parts[2]
     // 排除特殊值：no-area, no-project, recent-carryover, project
-    if (thirdPart && !['no-area', 'no-project', 'recent-carryover', 'project'].includes(thirdPart)) {
+    if (
+      thirdPart &&
+      !['no-area', 'no-project', 'recent-carryover', 'project'].includes(thirdPart)
+    ) {
       return true
     }
   }
@@ -248,7 +251,7 @@ const nextScheduleDate = computed(() => {
 
   // 筛选出今天及未来的排期，并排序
   const futureSchedules = props.task.schedules
-    .filter(s => s.scheduled_day >= today)
+    .filter((s) => s.scheduled_day >= today)
     .sort((a, b) => a.scheduled_day.localeCompare(b.scheduled_day))
 
   return futureSchedules.length > 0 ? futureSchedules[0].scheduled_day : null
@@ -565,7 +568,9 @@ function onMouseDown(event: MouseEvent) {
 /* 主要完成复选框：与标题第一行中线对齐 */
 .main-checkbox {
   flex-shrink: 0;
+
   /* 标题 line-height: 1.4, font-size: 1.5rem, 行高 = 2.1rem */
+
   /* 复选框高度约 2.1rem，与第一行中线对齐 */
   margin-top: 0.05rem;
 }
@@ -613,7 +618,7 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .row-icon {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary, #f0f);
 }
 
 /* 概览笔记文本 */
@@ -635,8 +640,8 @@ function onMouseDown(event: MouseEvent) {
 }
 
 .indicator-icon {
-  color: var(--color-text-tertiary, #f0f);
-  opacity: 0.7;
+  color: var(--color-text-secondary, #f0f);
+  opacity: 0.8;
 }
 
 /* 子任务显示区 */
@@ -661,7 +666,7 @@ function onMouseDown(event: MouseEvent) {
 /* 软截止日期波浪号图标 */
 .soft-deadline-icon {
   font-size: 1.65rem;
-  color: var(--color-text-tertiary, #f0f);
+  color: var(--color-text-secondary, #f0f);
   font-weight: 400;
   line-height: 1;
 }
@@ -672,7 +677,7 @@ function onMouseDown(event: MouseEvent) {
   align-items: center;
   gap: 0.4rem;
   font-size: 1.4rem;
-  color: var(--color-text-tertiary, #f0f);
+  color: var(--color-text-secondary, #f0f);
   line-height: 1.4;
 }
 

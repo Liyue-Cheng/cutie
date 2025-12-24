@@ -204,6 +204,9 @@ mod logic {
         let mut task_card = TaskAssembler::task_to_card_basic(&task);
         task_card.schedules = TaskAssembler::assemble_schedules_in_tx(&mut tx, task_id).await?;
 
+        // 2.6 填充 recurrence_expiry_behavior（使用 pool 查询，task_recurrences 表不在事务内修改）
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, app_state.db_pool()).await?;
+
         // 3. 查询任务链接的所有时间块（用于后续孤儿检查）
         let linked_blocks =
             TaskTimeBlockLinkRepository::find_linked_time_blocks_in_tx(&mut tx, task_id).await?;

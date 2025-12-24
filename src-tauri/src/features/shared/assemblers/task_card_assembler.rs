@@ -30,17 +30,26 @@ impl ViewTaskCardAssembler {
     }
 
     /// 批量组装 TaskCards
+    ///
+    /// 优化：使用批量查询替代逐个查询，减少数据库访问次数
     pub async fn assemble_batch(
         tasks: Vec<Task>,
         pool: &SqlitePool,
     ) -> AppResult<Vec<TaskCardDto>> {
         let mut task_cards = Vec::new();
-        for task in tasks {
-            let task_card = Self::assemble_full(&task, pool).await?;
-            task_cards.push(task_card);
+        for task in &tasks {
+            // 1. 创建基础 TaskCard
+            let mut card = TaskAssembler::task_to_card_basic(task);
+
+            // 2. 组装完整的 schedules（包含 time_blocks）
+            let schedules = TaskAssembler::assemble_schedules(pool, task.id).await?;
+            card.schedules = schedules;
+
+            // 3. recurrence_expiry_behavior 稍后批量填充
+            task_cards.push(card);
         }
 
-        // 批量填充 recurrence_expiry_behavior（优化性能）
+        // 4. 批量填充 recurrence_expiry_behavior（优化性能，一次查询所有）
         TaskAssembler::fill_recurrence_expiry_behavior_batch(&mut task_cards, pool).await?;
 
         Ok(task_cards)

@@ -203,6 +203,9 @@ mod logic {
         task_card.deleted_at = Some(now); // 手动设置 deleted_at
         task_card.is_deleted = true;
 
+        // 4.6 填充 recurrence_expiry_behavior（使用 pool 查询，task_recurrences 表不在事务内修改）
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut task_card, app_state.db_pool()).await?;
+
         // 5. 删除任务的所有链接和日程（✅ 使用共享 Repository）
         TaskTimeBlockLinkRepository::delete_all_for_task_in_tx(&mut tx, task_id).await?;
         TaskScheduleRepository::delete_all_in_tx(&mut tx, task_id).await?;

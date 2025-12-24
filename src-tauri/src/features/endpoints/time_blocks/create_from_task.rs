@@ -463,6 +463,9 @@ mod logic {
             TaskAssembler::assemble_schedules(app_state.db_pool(), request.task_id).await?;
         // schedule_status 已删除 - 前端根据 schedules 字段实时计算
 
+        // 12.1 填充 recurrence_expiry_behavior
+        TaskAssembler::fill_recurrence_expiry_behavior(&mut updated_task, app_state.db_pool()).await?;
+
         // 13. 发送 SSE 事件（通知其他视图时间块已创建）
         use crate::features::shared::TransactionHelper;
         use crate::infra::events::{
