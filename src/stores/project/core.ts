@@ -76,20 +76,36 @@ export const getSectionById = computed(() => {
  *
  * 基于 task store 中的任务数据响应式计算项目的任务统计
  * 任务变化时统计会自动更新，无需手动维护
+ *
+ * ⚠️ 重要：
+ * - 过滤已删除、EXPIRE 类型过期的循环任务
+ * - 对循环任务去重（每个循环规则只计一个未完成任务）
  */
 export const getProjectStatsRealtime = computed(() => {
   const taskStore = useTaskStore()
 
   return (projectId: string): { total: number; completed: number } => {
     const allTasks = Array.from(taskStore.tasks.values())
+    const today = new Date().toISOString().split('T')[0]!
+
+    // 1. 基础过滤：项目匹配 + 未删除 + 未归档
     const projectTasks = allTasks.filter(
-      (task) => task.project_id === projectId && !task.is_deleted
+      (task) => task.project_id === projectId && !task.is_deleted && !task.is_archived
     )
 
-    return {
-      total: projectTasks.length,
-      completed: projectTasks.filter((task) => task.is_completed).length,
-    }
+    // 2. 过滤 EXPIRE 类型的过期循环任务
+    const filteredTasks = projectTasks.filter(
+      (task) => !taskStore.isExpiredRecurringTask(task, today)
+    )
+
+    // 3. 对循环任务去重（每个循环规则只计一个未完成任务）
+    const deduplicatedTasks = taskStore.deduplicateRecurringTasks(filteredTasks)
+
+    // 4. 统计完成和总数
+    const completed = deduplicatedTasks.filter((task) => task.is_completed).length
+    const total = deduplicatedTasks.length
+
+    return { total, completed }
   }
 })
 

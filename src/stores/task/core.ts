@@ -1025,6 +1025,10 @@ export function createTaskCore() {
     getTasksByArea_Mux,
     getTasksByViewKey_Mux,
 
+    // Utility functions (供外部统计使用)
+    isExpiredRecurringTask,
+    deduplicateRecurringTasks,
+
     // Actions
     addOrUpdateTasks,
     addOrUpdateTask,

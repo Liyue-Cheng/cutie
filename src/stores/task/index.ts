@@ -74,6 +74,10 @@ export const useTaskStore = defineStore('task', () => {
     getTasksByArea_Mux: core.getTasksByArea_Mux,
     getTasksByViewKey_Mux: core.getTasksByViewKey_Mux,
 
+    // 工具函数（供外部统计使用）
+    isExpiredRecurringTask: core.isExpiredRecurringTask,
+    deduplicateRecurringTasks: core.deduplicateRecurringTasks,
+
     // ============================================================
     // MUTATIONS (寄存器写入) - 纯数据操作
     // ============================================================

@@ -143,12 +143,29 @@ const getProjectStats = (projectId: string) => {
 }
 
 // 获取无项目任务的统计
+// ⚠️ 重要：
+// - 过滤已删除、EXPIRE 类型过期的循环任务
+// - 对循环任务去重（每个循环规则只计一个未完成任务）
 const noProjectStats = computed(() => {
+  const today = new Date().toISOString().split('T')[0]!
+
+  // 1. 基础过滤：无项目 + 未删除 + 未归档
   const noProjectTasks = taskStore.allTasks.filter(
     (task) => !task.project_id && !task.is_deleted && !task.is_archived
   )
-  const completed = noProjectTasks.filter((task) => task.is_completed).length
-  const total = noProjectTasks.length
+
+  // 2. 过滤 EXPIRE 类型的过期循环任务
+  const filteredTasks = noProjectTasks.filter(
+    (task) => !taskStore.isExpiredRecurringTask(task, today)
+  )
+
+  // 3. 对循环任务去重（每个循环规则只计一个未完成任务）
+  const deduplicatedTasks = taskStore.deduplicateRecurringTasks(filteredTasks)
+
+  // 4. 统计完成和总数
+  const completed = deduplicatedTasks.filter((task) => task.is_completed).length
+  const total = deduplicatedTasks.length
+
   return { completed, total }
 })
 

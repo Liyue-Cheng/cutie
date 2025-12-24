@@ -156,22 +156,34 @@ const sections = computed(() => {
 })
 
 // 计算项目进度统计
+// ⚠️ 使用 projectStore.getProjectStatsRealtime 统一计算，确保过滤和去重一致
 const projectStats = computed(() => {
   if (!props.projectId) return { completed: 0, total: 0 }
-  const projectTasks = taskStore.allTasks.filter(
-    (task) => task.project_id === props.projectId && !task.is_deleted
-  )
-  const completed = projectTasks.filter((task) => task.is_completed).length
-  return { completed, total: projectTasks.length }
+  return projectStore.getProjectStatsRealtime(props.projectId)
 })
 
 // 检查是否有无 section 的任务
+// ⚠️ 过滤 EXPIRE 过期任务并去重循环任务
 const hasTasksWithoutSection = computed(() => {
   if (!props.projectId) return false
+  const today = new Date().toISOString().split('T')[0]!
+
+  // 1. 基础过滤
   const tasks = taskStore.allTasks.filter(
-    (task) => task.project_id === props.projectId && !task.section_id && !task.is_deleted
+    (task) =>
+      task.project_id === props.projectId &&
+      !task.section_id &&
+      !task.is_deleted &&
+      !task.is_archived
   )
-  return tasks.length > 0
+
+  // 2. 过滤 EXPIRE 过期任务
+  const filtered = tasks.filter((task) => !taskStore.isExpiredRecurringTask(task, today))
+
+  // 3. 去重循环任务
+  const deduplicated = taskStore.deduplicateRecurringTasks(filtered)
+
+  return deduplicated.length > 0
 })
 
 // TaskList ref 存储（用于获取标题栏元素）

@@ -59,13 +59,27 @@ const timeRangeBoundaries = computed(() => {
 })
 
 // 获取所有活跃任务
+// ⚠️ 过滤 EXPIRE 过期任务并去重循环任务
 const activeTasks = computed(() => {
-  return taskStore.allTasks.filter((task) => {
+  const today = new Date().toISOString().split('T')[0]!
+
+  // 1. 基础过滤
+  const filtered = taskStore.allTasks.filter((task) => {
     if (completingTaskIds.value.has(task.id)) {
       return true
     }
-    return !task.is_completed && !task.is_deleted && !task.is_archived
+    if (task.is_completed || task.is_deleted || task.is_archived) {
+      return false
+    }
+    // 2. 过滤 EXPIRE 过期任务
+    if (taskStore.isExpiredRecurringTask(task, today)) {
+      return false
+    }
+    return true
   })
+
+  // 3. 去重循环任务
+  return taskStore.deduplicateRecurringTasks(filtered)
 })
 
 // 判断日期字符串是否在指定时间范围内
