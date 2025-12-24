@@ -192,7 +192,7 @@ function setWeekdays() {
   <div v-if="open && recurrence" class="dialog-backdrop" @click.self="handleCancel">
     <div class="dialog-content">
       <h3>编辑循环规则</h3>
-      <p class="info-text">编辑循环规则，已生成的任务不会受影响</p>
+      <p class="info-text">编辑循环规则，已完成的任务不会受影响，但未完成的任务可能会被清理</p>
 
       <!-- REPEATS 部分 -->
       <section class="form-section">
