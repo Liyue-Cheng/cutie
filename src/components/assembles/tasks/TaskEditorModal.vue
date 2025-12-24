@@ -875,23 +875,27 @@ async function handleDeleteRecurrence() {
 
 /* 区域标签 */
 .area-tag-wrapper {
+  display: flex;
+  align-items: center;
+  height: 3.2rem;
+  padding: 0 1rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
 }
 
 .area-tag-wrapper:hover {
-  opacity: 0.7;
+  border-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-bg);
 }
 
 .no-area-placeholder {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   color: var(--color-text-tertiary);
-  padding: 0.4rem 0.8rem;
-  border: 1px dashed var(--color-border-default);
-  border-radius: 0.4rem;
 }
 
 .area-selector-dropdown {
@@ -929,7 +933,11 @@ async function handleDeleteRecurrence() {
 }
 
 .due-date-button {
-  padding: 0.6rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  height: 3.2rem;
   font-size: 1.3rem;
   color: var(--color-text-secondary);
   background: transparent;
@@ -1096,23 +1104,26 @@ async function handleDeleteRecurrence() {
 
 /* 关闭按钮 */
 .close-button {
-  font-size: 3rem;
+  font-size: 2.4rem;
   line-height: 1;
   color: var(--color-text-tertiary);
   background: none;
-  border: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.4rem;
   cursor: pointer;
-  padding: 0.4rem;
-  width: 3rem;
-  height: 3rem;
+  padding: 0;
+  width: 3.2rem;
+  height: 3.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
+  transition: all 0.2s;
 }
 
 .close-button:hover {
-  color: var(--color-text-primary);
+  border-color: var(--color-button-primary-bg);
+  background-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text, #f0f);
 }
 
 /* ==================== 主内容区 ==================== */
