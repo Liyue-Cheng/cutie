@@ -880,14 +880,17 @@ async function handleDeleteRecurrence() {
   height: 3.2rem;
   padding: 0 1rem;
   border: 1px solid var(--color-border-default);
-  border-radius: 0.4rem;
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .area-tag-wrapper:hover {
   border-color: var(--color-button-primary-bg);
-  color: var(--color-button-primary-bg);
+}
+
+.area-tag-wrapper:has(.no-area-placeholder) {
+  border-style: dashed;
 }
 
 .no-area-placeholder {
@@ -935,14 +938,13 @@ async function handleDeleteRecurrence() {
 .due-date-button {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 1rem;
   height: 3.2rem;
+  padding: 0 1rem;
   font-size: 1.3rem;
   color: var(--color-text-secondary);
   background: transparent;
   border: 1px solid var(--color-border-default);
-  border-radius: 0.4rem;
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1078,7 +1080,7 @@ async function handleDeleteRecurrence() {
   height: 3.2rem;
   padding: 0;
   border: 1px solid var(--color-border-default);
-  border-radius: 0.4rem;
+  border-radius: 0.6rem;
   background-color: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -1108,8 +1110,8 @@ async function handleDeleteRecurrence() {
   line-height: 1;
   color: var(--color-text-tertiary);
   background: none;
-  border: 1px solid var(--color-border-default);
-  border-radius: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
   cursor: pointer;
   padding: 0;
   width: 3.2rem;
@@ -1121,9 +1123,9 @@ async function handleDeleteRecurrence() {
 }
 
 .close-button:hover {
-  border-color: var(--color-button-primary-bg);
-  background-color: var(--color-button-primary-bg);
-  color: var(--color-button-primary-text, #f0f);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+  background-color: var(--color-background-hover, #f0f);
 }
 
 /* ==================== 主内容区 ==================== */
