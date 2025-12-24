@@ -130,26 +130,6 @@ const ruleString = computed(() => {
   return rule.toString().replace('RRULE:', '') // 移除 RRULE: 前缀
 })
 
-// 人类可读的规则描述
-const ruleDescription = computed(() => {
-  try {
-    const rule = new RRule({
-      freq: freq.value,
-      interval: interval.value,
-      ...(freq.value === RRule.WEEKLY && byweekday.value.length > 0
-        ? { byweekday: byweekday.value }
-        : {}),
-      ...(freq.value === RRule.MONTHLY && bymonthday.value ? { bymonthday: bymonthday.value } : {}),
-      ...(freq.value === RRule.YEARLY && bymonth.value && bymonthday.value
-        ? { bymonth: bymonth.value, bymonthday: bymonthday.value }
-        : {}),
-    })
-    return rule.toText()
-  } catch (e) {
-    return '无效的规则'
-  }
-})
-
 function toggleWeekday(day: number) {
   const index = byweekday.value.indexOf(day)
   if (index > -1) {
@@ -327,12 +307,6 @@ function setWeekdays() {
             </div>
           </template>
         </div>
-      </section>
-
-      <!-- 规则预览 -->
-      <section class="form-section preview-section">
-        <label class="section-label">规则预览</label>
-        <div class="rule-preview">{{ ruleDescription }}</div>
       </section>
 
       <!-- 操作按钮 -->
@@ -608,20 +582,6 @@ h3 {
   font-size: 1.2rem;
   color: var(--color-text-tertiary, #f0f);
   line-height: 1.6;
-}
-
-/* 规则预览区块 */
-.preview-section {
-  background: var(--color-background-secondary, #f0f);
-  padding: 1.6rem;
-  border-radius: 0.6rem;
-  border: 1px solid var(--color-border-light, #f0f);
-}
-
-.rule-preview {
-  font-size: 1.4rem;
-  color: var(--color-text-primary, #f0f);
-  line-height: 1.5;
 }
 
 /* 操作按钮组 */
