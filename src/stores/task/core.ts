@@ -466,14 +466,13 @@ export function createTaskCore() {
 
               return filteredTasks
             } else if (identifier === 'project' && extraIdentifier) {
-              // misc::staging::project::{projectId} - 无区域的指定项目的 staging 任务
+              // misc::staging::project::{projectId} - 指定项目的 staging 任务（不限区域）
               const projectId = extraIdentifier
               const today = getTodayDateString()
               const filteredTasks = allTasksArray.value.filter((task) => {
-                // 基础检查：必须属于指定项目且没有 area_id
+                // 基础检查：必须属于指定项目
                 if (
                   task.project_id !== projectId ||
-                  task.area_id ||
                   task.is_completed ||
                   task.is_archived ||
                   task.is_deleted
