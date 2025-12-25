@@ -211,6 +211,7 @@ export default {
       deleteFutureInstances: 'Delete future instances',
     },
     menuSection: 'Task recurrence:',
+    timeBlockMenuSection: 'Time block recurrence:',
     empty: {
       title: 'No recurring task rules',
       hint: 'You can set up recurring rules in the task editor',

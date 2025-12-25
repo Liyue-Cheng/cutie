@@ -2,7 +2,7 @@
   <ContextMenu>
     <!-- 循环时间块相关操作 -->
     <template v-if="isRecurringTimeBlock">
-      <MenuSection divider :title="$t('recurrence.menuSection')">
+      <MenuSection :title="$t('recurrence.timeBlockMenuSection')">
         <!-- 停止和继续是互斥的：有 end_date 时显示继续，否则显示停止 -->
         <MenuItem v-if="!isRecurrenceStopped" icon="Square" @click="handleStopRepeating">
           {{ $t('recurrence.action.stop') }}
@@ -17,7 +17,7 @@
     </template>
 
     <!-- 危险操作 -->
-    <MenuItem divider icon="Trash2" variant="danger" @click="handleDelete">
+    <MenuItem :divider="isRecurringTimeBlock" icon="Trash2" variant="danger" @click="handleDelete">
       {{ $t('timeBlock.action.delete') }}
     </MenuItem>
   </ContextMenu>

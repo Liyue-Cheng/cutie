@@ -215,6 +215,7 @@ export default {
       deleteFutureInstances: '删除未来实例',
     },
     menuSection: '任务循环设置：',
+    timeBlockMenuSection: '时间块循环设置：',
     empty: {
       title: '暂无循环任务规则',
       hint: '在任务编辑器中可以为任务设置循环规则',

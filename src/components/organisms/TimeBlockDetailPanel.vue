@@ -87,16 +87,16 @@ watch(
 function handleClickOutside(event: MouseEvent) {
   if (!panelRef.value) return
 
+  // 如果循环配置对话框打开，不处理点击外部关闭
+  // 对话框有自己的 backdrop 处理关闭逻辑
+  if (showRecurrenceDialog.value) {
+    return
+  }
+
   const target = event.target as HTMLElement
 
   // 检查是否点击在面板内部
   if (panelRef.value.contains(target)) {
-    return
-  }
-
-  // 检查是否点击在循环配置对话框内部（对话框可能在面板外部）
-  const dialogEl = document.querySelector('.recurrence-config-dialog')
-  if (dialogEl && dialogEl.contains(target)) {
     return
   }
 
@@ -289,7 +289,7 @@ async function handleResumeRepeating() {
       <div v-if="isRecurringTimeBlock" class="recurrence-actions-section">
         <div class="section-header">
           <CuteIcon name="Repeat" :size="16" />
-          <span>{{ $t('recurrence.menuSection') }}</span>
+          <span>{{ $t('recurrence.timeBlockMenuSection') }}</span>
         </div>
         <div class="recurrence-actions">
           <!-- 停止和继续是互斥的：有 end_date 时显示继续，否则显示停止 -->
