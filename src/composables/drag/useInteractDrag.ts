@@ -196,6 +196,11 @@ export function useInteractDrag<T = DragObject>(options: UseInteractDragOptions<
 
     // 场景B: 实体元素在其他列表中预览（从本列表移除）
     if (sourceZoneId === currentViewId && targetZoneId !== currentViewId) {
+      // 🔥 特殊逻辑：模板类型永远保留源元素（模板跨列表拖动是"实例化"，不是"移动"）
+      if (objectType === 'template') {
+        return applyCompactFlag(currentItems)
+      }
+
       // 🔥 特殊逻辑：仅对任务类型使用决策服务
       if (objectType === 'task') {
         const sourceViewKey = viewMetadata.value.id
