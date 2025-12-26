@@ -774,7 +774,7 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
 
 .task-input {
   width: 100%;
-  padding: 0.8rem 0; /* 移除左右 padding，由 wrapper 的 margin 控制对齐 */
+  padding: 0.8rem 0.4rem; /* 轻微右移占位文案与光标起始位置 */
   padding-right: 3.4rem; /* 为按钮留空间 */
   font-size: 1.5rem;
   line-height: 1.4; /* 固定行高，避免中英文高度差异 */
