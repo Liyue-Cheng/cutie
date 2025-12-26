@@ -13,20 +13,6 @@
         <span class="task-count">{{ displayItems.length }}</span>
       </div>
       <div class="header-right">
-        <!-- Section 操作按钮（仅当有 sectionId 时显示） -->
-        <template v-if="sectionId">
-          <span
-            class="header-icon drag-icon"
-            draggable="true"
-            @dragstart="handleDragStart"
-            @mousedown.stop
-          >
-            <CuteIcon name="GripVertical" :size="16" />
-          </span>
-          <span class="header-icon edit-icon" @click.stop="handleEditSection">
-            <CuteIcon name="Pencil" :size="16" />
-          </span>
-        </template>
         <CuteIcon
           v-if="props.collapsible"
           name="ChevronDown"
@@ -35,11 +21,6 @@
           :class="{ rotated: isCollapsed }"
         />
       </div>
-    </div>
-
-    <!-- 节段描述（可折叠时跟随折叠） -->
-    <div v-if="!isCollapsed && sectionDescription" class="section-description">
-      {{ sectionDescription }}
     </div>
 
     <!-- 内容区（可折叠） -->
@@ -117,8 +98,6 @@ import { useRecurrenceStore } from '@/stores/recurrence'
 interface Props {
   title: string
   viewKey: string // 🔥 必需：遵循 VIEW_CONTEXT_KEY_SPEC 规范（project::${projectId}::section::${sectionId}）
-  sectionId?: string // Section ID（有值时显示拖拽和编辑按钮）
-  sectionDescription?: string // Section 描述
   defaultCollapsed?: boolean
   showAddInput?: boolean // 是否显示添加任务输入框
   collapsible?: boolean // 是否可折叠
@@ -127,8 +106,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  sectionId: undefined,
-  sectionDescription: undefined,
   defaultCollapsed: false,
   showAddInput: true,
   collapsible: true,
@@ -139,8 +116,6 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   'add-task': [title: string]
-  'edit-section': [sectionId: string]
-  'drag-start': [event: DragEvent]
 }>()
 
 // 🔥 使用 useViewTasks 获取任务数据
@@ -281,17 +256,6 @@ const { displayItems } = useInteractDrag({
 // Methods
 function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value
-}
-
-// Section 操作
-function handleEditSection() {
-  if (props.sectionId) {
-    emit('edit-section', props.sectionId)
-  }
-}
-
-function handleDragStart(event: DragEvent) {
-  emit('drag-start', event)
 }
 
 // 🔥 处理任务完成事件：缓存任务快照并延迟消失
@@ -497,48 +461,9 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   color: var(--color-text-primary, #f0f);
 }
 
-/* 拖拽把手 */
-.drag-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  opacity: 0.5;
-}
-
-.drag-icon:hover {
-  opacity: 1;
-}
-
-.drag-icon:active {
-  cursor: grabbing;
-}
-
-/* 编辑按钮 */
-.edit-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0.5;
-}
-
-.edit-icon:hover {
-  opacity: 1;
-}
-
 /* 折叠箭头 */
 .collapse-icon.rotated {
   transform: rotate(-90deg);
-}
-
-/* 节段描述 */
-.section-description {
-  padding: 0 1.6rem 0.8rem;
-  font-size: 1.3rem;
-  color: var(--color-text-secondary, #f0f);
-  line-height: 1.5;
-  white-space: pre-wrap;
 }
 
 .task-bar-title {

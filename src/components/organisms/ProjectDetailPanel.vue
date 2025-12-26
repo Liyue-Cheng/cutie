@@ -55,7 +55,7 @@
         </div>
 
         <!-- 任务列表区域 -->
-        <div class="tasks-area" @dragover="onContainerDragOver">
+        <div class="tasks-area">
           <!-- 无 section 的任务（即使没有任务也要显示） -->
           <div class="task-section">
             <ProjectTaskList
@@ -66,32 +66,14 @@
             />
           </div>
 
-          <!-- 各个 section 的任务（支持拖放排序） -->
-          <template v-for="(section, index) in sections" :key="section.id">
-            <!-- 拖放指示线（在元素之前） -->
-            <div v-if="dropTargetIndex === index" class="section-drop-indicator" />
-
-            <div
-              class="task-section is-draggable"
-              :class="{ 'is-dragging': draggingSection?.id === section.id }"
-              @dragover="onSectionDragOver($event, index)"
-              @dragleave="onSectionDragLeave($event)"
-            >
-              <ProjectTaskList
-                :ref="(el) => setTaskListRef(section.id, el)"
-                :title="section.title"
-                :view-key="`project::${project.id}::section::${section.id}`"
-                :section-id="section.id"
-                :section-description="section.description"
-                title-color="var(--color-text-accent)"
-                @edit-section="handleEditSection"
-                @drag-start="(e) => handleDragStart(section, index, e)"
-              />
-            </div>
-          </template>
-
-          <!-- 末尾拖放指示线 -->
-          <div v-if="dropTargetIndex === sections.length" class="section-drop-indicator" />
+          <!-- 各个 section 的任务 -->
+          <div v-for="section in sections" :key="section.id" class="task-section">
+            <ProjectTaskList
+              :title="section.title"
+              :view-key="`project::${project.id}::section::${section.id}`"
+              title-color="var(--color-text-accent)"
+            />
+          </div>
 
           <!-- 空状态 -->
           <div v-if="!hasTasksWithoutSection && sections.length === 0" class="no-tasks">
@@ -110,16 +92,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type ComponentPublicInstance } from 'vue'
+import { computed } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { useAreaStore } from '@/stores/area'
 import { useTaskStore } from '@/stores/task'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CircularProgress from '@/components/parts/CircularProgress.vue'
 import ProjectTaskList from '@/components/assembles/tasks/list/ProjectTaskList.vue'
-import { useSectionDrag } from '@/composables/drag/useSectionDrag'
-import { pipeline } from '@/cpu'
-import type { ProjectSection } from '@/types/dtos'
 
 interface Props {
   projectId?: string | null
@@ -129,8 +108,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'edit-project': [id: string]
-  'create-section': []
-  'edit-section': [sectionId: string]
 }>()
 
 const projectStore = useProjectStore()
@@ -186,58 +163,7 @@ const hasTasksWithoutSection = computed(() => {
   return deduplicated.length > 0
 })
 
-// TaskList ref 存储（用于获取标题栏元素）
-const taskListRefs = new Map<string, ComponentPublicInstance | null>()
-
-function setTaskListRef(sectionId: string, el: ComponentPublicInstance | null) {
-  if (el) {
-    taskListRefs.set(sectionId, el)
-  } else {
-    taskListRefs.delete(sectionId)
-  }
-}
-
-// Section 拖放排序
-const {
-  draggingSection,
-  dropTargetIndex,
-  onDragStart,
-  onSectionDragOver,
-  onSectionDragLeave,
-  onContainerDragOver,
-} = useSectionDrag({
-  sections,
-  onReorder: async (sectionId, prevId, nextId) => {
-    if (!props.projectId) return
-
-    await pipeline.dispatch('project_section.reorder', {
-      project_id: props.projectId,
-      section_id: sectionId,
-      prev_section_id: prevId,
-      next_section_id: nextId,
-    })
-  },
-})
-
-// 处理拖动开始（获取标题栏元素）
-function handleDragStart(section: ProjectSection, index: number, event: DragEvent) {
-  const taskListInstance = taskListRefs.get(section.id)
-  const headerElement = (taskListInstance as any)?.headerRef as HTMLElement | null
-  onDragStart(section, index, event, headerElement)
-}
-
-// 格式化日期
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
-}
-
-// 编辑章节
-const handleEditSection = (sectionId: string) => {
-  emit('edit-section', sectionId)
-}
-
-// 显示更多菜单（暂时触发编辑项目）
+// 显示更多菜单（触发编辑项目）
 const showMoreMenu = () => {
   if (project.value) {
     emit('edit-project', project.value.id)

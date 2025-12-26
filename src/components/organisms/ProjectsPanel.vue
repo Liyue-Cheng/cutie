@@ -16,8 +16,6 @@
       <ProjectDetailPanel
         :project-id="selectedProjectId"
         @edit-project="handleEditProject"
-        @create-section="handleCreateSection"
-        @edit-section="handleEditSection"
       />
     </div>
 
@@ -44,13 +42,6 @@
       @success="handleSectionCreated"
     />
 
-    <!-- 编辑章节对话框 -->
-    <ProjectSectionEditModal
-      :show="showEditSectionModal"
-      :section-id="editingSectionId"
-      @close="showEditSectionModal = false"
-      @success="handleSectionUpdated"
-    />
   </div>
 </template>
 
@@ -64,7 +55,6 @@ import ProjectDetailPanel from '@/components/organisms/ProjectDetailPanel.vue'
 import ProjectCreateModal from '@/components/organisms/ProjectCreateModal.vue'
 import ProjectEditModal from '@/components/organisms/ProjectEditModal.vue'
 import ProjectSectionCreateModal from '@/components/organisms/ProjectSectionCreateModal.vue'
-import ProjectSectionEditModal from '@/components/organisms/ProjectSectionEditModal.vue'
 
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
@@ -76,9 +66,7 @@ const selectedProjectId = ref<string | null | undefined>(undefined)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showCreateSectionModal = ref(false)
-const showEditSectionModal = ref(false)
 const editingProjectId = ref<string | null>(null)
-const editingSectionId = ref<string | null>(null)
 
 // 选择项目
 const handleSelectProject = (id: string | null) => {
@@ -127,11 +115,6 @@ const handleProjectUpdated = () => {
   console.log('✅ 项目更新成功')
 }
 
-// 创建章节
-const handleCreateSection = () => {
-  showCreateSectionModal.value = true
-}
-
 // 从列表右键菜单添加章节（需要先选中项目）
 const handleAddSectionFromList = (projectId: string) => {
   // 先选中该项目
@@ -143,17 +126,6 @@ const handleAddSectionFromList = (projectId: string) => {
 // 章节创建成功
 const handleSectionCreated = () => {
   console.log('✅ 章节创建成功')
-}
-
-// 编辑章节
-const handleEditSection = (sectionId: string) => {
-  editingSectionId.value = sectionId
-  showEditSectionModal.value = true
-}
-
-// 章节更新成功
-const handleSectionUpdated = () => {
-  console.log('✅ 章节更新成功')
 }
 
 // 初始化时加载项目数据
