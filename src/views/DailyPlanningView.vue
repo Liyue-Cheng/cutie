@@ -369,15 +369,14 @@ onMounted(async () => {
             <ProjectDetailPanel v-else-if="isProjectDetail" :project-id="selectedProjectId" />
           </div>
           <!-- 当天视图（默认明天，跳过今天） -->
-          <div v-else-if="currentRightView === 'daily'" class="daily-wrapper">
-            <TaskList
-              :title="dailyRightLabel"
-              :view-key="`daily::${dailyRightDate}`"
-              :show-add-input="true"
-              :fill-remaining-space="true"
-              :collapsible="false"
-            />
-          </div>
+          <TaskList
+            v-else-if="currentRightView === 'daily'"
+            :title="dailyRightLabel"
+            :view-key="`daily::${dailyRightDate}`"
+            :show-add-input="true"
+            :fill-remaining-space="true"
+            :collapsible="false"
+          />
           <!-- 日历视图 -->
           <div v-else-if="currentRightView === 'calendar'" class="calendar-wrapper">
             <CuteCalendar :current-date="today" :view-type="'day'" :days="1" :zoom="1" />
@@ -493,11 +492,6 @@ onMounted(async () => {
   font-size: 1.4rem;
   font-weight: 600;
   line-height: 1.4;
-}
-
-.daily-wrapper {
-  height: 100%;
-  overflow: hidden;
 }
 
 /* ==================== Projects 右栏 ==================== */

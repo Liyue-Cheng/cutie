@@ -18,18 +18,20 @@
       :show-add-input="true"
       :collapsible="false"
       :hide-header="false"
+      :fill-remaining-space="projectGroups.length === 0"
     />
 
     <!-- 各项目任务列表 -->
-    <div v-for="group in projectGroups" :key="group.projectId" class="project-task-group">
-      <TaskList
-        :title="group.projectName"
-        :view-key="`misc::staging::project::${group.projectId}`"
-        :show-add-input="false"
-        :collapsible="true"
-        :default-collapsed="false"
-      />
-    </div>
+    <TaskList
+      v-for="(group, index) in projectGroups"
+      :key="group.projectId"
+      :title="group.projectName"
+      :view-key="`misc::staging::project::${group.projectId}`"
+      :show-add-input="false"
+      :collapsible="true"
+      :default-collapsed="false"
+      :fill-remaining-space="index === projectGroups.length - 1"
+    />
   </div>
 </template>
 
@@ -83,10 +85,6 @@ const projectGroups = computed(() => {
   gap: 0;
   overflow-y: auto;
   height: 100%;
-}
-
-.project-task-group {
-  /* 项目分组之间无额外间距，由 TaskList 自身控制 */
 }
 </style>
 

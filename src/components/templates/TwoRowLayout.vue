@@ -28,6 +28,8 @@
   flex-grow: 1;
   min-height: 0; /* 关键：允许flex子元素收缩 */
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 
   /* scrollbar-gutter: stable; */
 }

@@ -210,27 +210,25 @@ onMounted(async () => {
           </div>
         </template>
         <template #bottom>
-          <div v-if="currentRightView === 'completed'" class="right-wrapper">
-            <TaskList
-              :title="t('view.dailyShutdown.todayCompleted')"
-              :view-key="`misc::completed::${today}`"
-              :show-add-input="false"
-              :show-dashed-divider="true"
-              :fill-remaining-space="true"
-              :collapsible="false"
-              :disable-drag="true"
-            />
-          </div>
+          <TaskList
+            v-if="currentRightView === 'completed'"
+            :title="t('view.dailyShutdown.todayCompleted')"
+            :view-key="`misc::completed::${today}`"
+            :show-add-input="false"
+            :show-dashed-divider="true"
+            :fill-remaining-space="true"
+            :collapsible="false"
+            :disable-drag="true"
+          />
 
-          <div v-else class="right-wrapper">
-            <TaskList
-              :title="dailyRightLabel"
-              :view-key="`daily::${dailyRightDate}`"
-              :show-add-input="true"
-              :fill-remaining-space="true"
-              :collapsible="false"
-            />
-          </div>
+          <TaskList
+            v-else
+            :title="dailyRightLabel"
+            :view-key="`daily::${dailyRightDate}`"
+            :show-add-input="true"
+            :fill-remaining-space="true"
+            :collapsible="false"
+          />
         </template>
       </TwoRowLayout>
     </div>
@@ -280,11 +278,6 @@ onMounted(async () => {
   height: 100%;
   background-color: var(--color-border-adaptive-light-subtle-dark-none, #f0f);
   flex-shrink: 0;
-}
-
-.right-wrapper {
-  height: 100%;
-  overflow: hidden;
 }
 
 .daily-controls {
