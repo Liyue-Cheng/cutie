@@ -9,8 +9,19 @@
  */
 
 import type { ISADefinition } from '@cutie/cpu-pipeline'
-import type { ProjectCard, ProjectSection } from '@/types/dtos'
+import type { ProjectCard, ProjectSection, TaskCard, TimeBlockView } from '@/types/dtos'
 import { useProjectStore } from '@/stores/project'
+
+/**
+ * 删除项目的响应结构
+ */
+interface DeleteProjectResult {
+  id: string
+  side_effects?: {
+    deleted_tasks?: TaskCard[]
+    deleted_time_blocks?: TimeBlockView[]
+  }
+}
 
 export const ProjectISA: ISADefinition = {
   // ==================== Project 指令 ====================
@@ -173,9 +184,26 @@ export const ProjectISA: ISADefinition = {
       url: (payload) => `/projects/${payload.id}`,
     },
 
-    commit: async (_result, payload) => {
+    commit: async (result: DeleteProjectResult, payload) => {
       const projectStore = useProjectStore()
       projectStore.removeProject_mut(payload.id)
+
+      // 处理副作用：删除关联的 tasks 和 time_blocks
+      if (result.side_effects?.deleted_tasks) {
+        const { useTaskStore } = await import('@/stores/task')
+        const taskStore = useTaskStore()
+        for (const task of result.side_effects.deleted_tasks) {
+          taskStore.removeTask_mut(task.id)
+        }
+      }
+
+      if (result.side_effects?.deleted_time_blocks) {
+        const { useTimeBlockStore } = await import('@/stores/timeblock')
+        const timeBlockStore = useTimeBlockStore()
+        for (const block of result.side_effects.deleted_time_blocks) {
+          timeBlockStore.removeTimeBlock_mut(block.id)
+        }
+      }
     },
   },
 

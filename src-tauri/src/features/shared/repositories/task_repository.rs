@@ -420,4 +420,29 @@ impl TaskRepository {
             .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
         Ok(())
     }
+
+    /// 在事务中查询项目下的所有未删除任务
+    pub async fn find_by_project_in_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        project_id: Uuid,
+    ) -> AppResult<Vec<Task>> {
+        let query = r#"
+            SELECT id, title, glance_note, detail_note, estimated_duration,
+                   subtasks, sort_positions, project_id, section_id, area_id, due_date, due_date_type, completed_at, archived_at,
+                   created_at, updated_at, deleted_at, source_info,
+                   external_source_id, external_source_provider, external_source_metadata,
+                   recurrence_id, recurrence_original_date
+            FROM tasks
+            WHERE project_id = ? AND deleted_at IS NULL
+        "#;
+
+        let rows = sqlx::query_as::<_, TaskRow>(query)
+            .bind(project_id.to_string())
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(DbError::ConnectionError(e)))?;
+
+        let tasks: Result<Vec<Task>, String> = rows.into_iter().map(Task::try_from).collect();
+        tasks.map_err(|e| AppError::DatabaseError(DbError::QueryError(e)))
+    }
 }
