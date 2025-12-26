@@ -15,6 +15,7 @@ import MenuItem from '@/components/assembles/ContextMenu/shared/CuteMenuItem.vue
 import type { ProjectCard } from '@/types/dtos'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
+import { dialog } from '@/composables/useDialog'
 
 const props = defineProps<{
   project: ProjectCard
@@ -42,6 +43,13 @@ const handleAction = async (action: 'edit' | 'add-section' | 'delete') => {
       projectId: props.project.id,
     })
   } else if (action === 'delete') {
+    // 确认删除
+    const confirmed = await dialog.confirm(t('project.confirm.delete'))
+    if (!confirmed) {
+      emit('close')
+      return
+    }
+
     try {
       await pipeline.dispatch('project.delete', { id: props.project.id })
       logger.info(LogTags.COMPONENT_KANBAN_COLUMN, 'Project deleted', {
