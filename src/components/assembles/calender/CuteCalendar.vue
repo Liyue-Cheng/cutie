@@ -32,6 +32,7 @@ import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import { useRegisterStore } from '@/stores/register'
 import { useUserSettingsStore } from '@/stores/user-settings'
+import { useUIStore } from '@/stores/ui'
 import { useAutoScroll } from '@/composables/calendar/useAutoScroll'
 import { useTimePosition } from '@/composables/calendar/useTimePosition'
 import { useCalendarEvents } from '@/composables/calendar/useCalendarEvents'
@@ -48,6 +49,7 @@ const timeBlockStore = useTimeBlockStore()
 const taskStore = useTaskStore()
 const registerStore = useRegisterStore()
 const userSettingsStore = useUserSettingsStore()
+const uiStore = useUIStore()
 
 // ==================== Props ====================
 const props = withDefaults(
@@ -274,6 +276,17 @@ watch(
       updateDisplayDates()
       syncColumnWidths()
     })
+  }
+)
+
+// 当创建对话框关闭时，清理 FullCalendar 的选区高亮（避免在非 CalendarPanel 页面残留高亮）
+watch(
+  () => uiStore.isTimeBlockCreateDialogOpen,
+  (isOpen, wasOpen) => {
+    if (wasOpen && !isOpen) {
+      const api = calendarRef.value?.getApi()
+      api?.unselect()
+    }
   }
 )
 

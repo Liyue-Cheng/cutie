@@ -254,14 +254,6 @@
         </div>
       </template>
     </TwoRowLayout>
-
-    <!-- 时间块创建对话框（贴靠时间片左侧的浮动面板） -->
-    <TimeBlockCreateDialog
-      :show="uiStore.isTimeBlockCreateDialogOpen"
-      :position="timeBlockDialogPosition"
-      @confirm="handleTimeBlockCreate"
-      @cancel="handleTimeBlockDialogCancel"
-    />
   </div>
 </template>
 
@@ -273,13 +265,10 @@ import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
 import CuteDropdown from '@/components/parts/CuteDropdown.vue'
 import CuteDropdownItem from '@/components/parts/CuteDropdownItem.vue'
-import TimeBlockCreateDialog from '@/components/organisms/TimeBlockCreateDialog.vue'
 import { logger, LogTags } from '@/infra/logging/logger'
 import { getTodayDateString, toDateString } from '@/infra/utils/dateUtils'
-import { useUIStore } from '@/stores/ui'
 import { useUserSettingsStore } from '@/stores/user-settings'
 import { pipeline } from '@/cpu'
-import { dialog } from '@/composables/useDialog'
 
 // Props
 interface Props {
@@ -305,37 +294,7 @@ const emit = defineEmits<{
 }>()
 
 // ==================== Stores ====================
-const uiStore = useUIStore()
 const userSettingsStore = useUserSettingsStore()
-
-// 创建对话框位置（根据 UI Store 中的锚点信息计算）
-const timeBlockDialogPosition = computed(() => {
-  const context = uiStore.timeBlockCreateContext as {
-    anchorTop?: number
-    anchorLeft?: number
-  } | null
-
-  if (!context || context.anchorTop == null || context.anchorLeft == null) {
-    return undefined
-  }
-
-  return {
-    top: context.anchorTop,
-    left: context.anchorLeft,
-  }
-})
-
-function handleTimeBlockDialogCancel() {
-  // 关闭对话框
-  uiStore.closeTimeBlockCreateDialog()
-
-  // 同时清理日历中的选区高亮
-  const calendarComponent = calendarRef.value
-  if (calendarComponent?.calendarRef) {
-    const calendarApi = calendarComponent.calendarRef.getApi()
-    calendarApi?.unselect()
-  }
-}
 
 // ==================== 日历模式状态 ====================
 // 从用户设置中读取默认值
@@ -526,96 +485,6 @@ function cycleZoom() {
   logger.debug(LogTags.COMPONENT_KANBAN_COLUMN, 'Calendar zoom cycled', {
     zoom: calendarZoom.value,
   })
-}
-
-// ==================== 时间块创建逻辑 ====================
-async function handleTimeBlockCreate(data: { type: 'task' | 'event'; title: string; description?: string }) {
-  const context = uiStore.timeBlockCreateContext
-  if (!context) {
-    logger.error(
-      LogTags.COMPONENT_CALENDAR,
-      'No context available for time block creation',
-      new Error('Context is null')
-    )
-    return
-  }
-
-  try {
-    if (data.type === 'task') {
-      // 创建任务并关联时间块：
-      // 1. 先创建任务（返回 TaskCard）
-      const taskCard = await pipeline.dispatch('task.create', {
-        title: data.title,
-        glance_note: data.description || null,
-        estimated_duration: 60, // 默认 60 分钟
-      })
-
-      // 2. 使用 time_block.create_from_task 创建时间块并关联
-      await pipeline.dispatch('time_block.create_from_task', {
-        task_id: taskCard.id,
-        start_time: context.startISO,
-        end_time: context.endISO,
-        start_time_local: context.startTimeLocal,
-        end_time_local: context.endTimeLocal,
-        time_type: 'FLOATING', // 默认使用浮动时间
-        creation_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        is_all_day: context.isAllDay,
-      })
-
-      logger.info(LogTags.COMPONENT_CALENDAR, 'Created task with time block from calendar', {
-        title: data.title,
-        taskId: taskCard.id,
-        startISO: context.startISO,
-        endISO: context.endISO,
-      })
-    } else {
-      // 创建事件：使用 time_block.create
-      await pipeline.dispatch('time_block.create', {
-        title: data.title,
-        description: data.description || null,
-        start_time: context.startISO,
-        end_time: context.endISO,
-        start_time_local: context.startTimeLocal,
-        end_time_local: context.endTimeLocal,
-        time_type: 'FLOATING', // 默认使用浮动时间
-        creation_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        is_all_day: context.isAllDay,
-      })
-
-      logger.info(LogTags.COMPONENT_CALENDAR, 'Created time block from calendar', {
-        title: data.title,
-        startISO: context.startISO,
-        endISO: context.endISO,
-        isAllDay: context.isAllDay,
-      })
-    }
-
-    // 关闭对话框
-    uiStore.closeTimeBlockCreateDialog()
-
-    // 清理日历中的选区高亮
-    const calendarComponent = calendarRef.value
-    if (calendarComponent?.calendarRef) {
-      const calendarApi = calendarComponent.calendarRef.getApi()
-      calendarApi?.unselect()
-    }
-  } catch (error) {
-    logger.error(
-      LogTags.COMPONENT_CALENDAR,
-      'Failed to create from calendar',
-      error instanceof Error ? error : new Error(String(error)),
-      { type: data.type, title: data.title }
-    )
-
-    // 显示错误信息
-    let errorMessage = '创建失败，请重试'
-    if (error instanceof Error) {
-      errorMessage = error.message
-    } else if (typeof error === 'string') {
-      errorMessage = error
-    }
-    await dialog.alert(`创建失败: ${errorMessage}`)
-  }
 }
 
 // ==================== 生命周期 ====================

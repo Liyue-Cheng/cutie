@@ -230,10 +230,24 @@ async function updatePopoverPosition() {
   const margin = VIEWPORT_MARGIN
   const gap = ANCHOR_GAP
 
-  // 水平位置：优先使用 anchorLeft，超出则收敛到视口内
-  let left = anchorLeft
-  const maxLeft = viewportWidth - margin - popupWidth
-  left = Math.min(Math.max(left, margin), Math.max(margin, maxLeft))
+  // 水平位置：
+  // 1) 优先放在锚点左侧（更像“从日历左侧浮出”）
+  // 2) 如果左侧空间不足，自动放到右侧
+  // 3) 无论哪侧，都做严格的 viewport clamp，避免“看起来没弹出”（其实在屏幕外）
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
+
+  const maxLeft = Math.max(margin, viewportWidth - margin - popupWidth)
+  const leftCandidate = anchorLeft - popupWidth - gap
+  const rightCandidate = anchorLeft + gap
+
+  const overflowScore = (candidate: number) => {
+    const overflowLeft = Math.max(0, margin - candidate)
+    const overflowRight = Math.max(0, candidate + popupWidth - (viewportWidth - margin))
+    return overflowLeft + overflowRight
+  }
+
+  const pickLeft = overflowScore(leftCandidate) <= overflowScore(rightCandidate)
+  const left = clamp(pickLeft ? leftCandidate : rightCandidate, margin, maxLeft)
 
   // 垂直位置：优先放在下方，空间不足则翻转到上方
   let top = anchorTop + gap
@@ -253,7 +267,6 @@ async function updatePopoverPosition() {
 .create-dialog-popover {
   position: fixed;
   z-index: 10000;
-  transform: translate(calc(-100% - 1.2rem), 0);
 }
 
 .create-dialog {

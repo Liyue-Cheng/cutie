@@ -5,6 +5,7 @@
     @close="isRecurrenceManagerOpen = false"
   />
   <SettingsModal :show="isSettingsOpen" @close="isSettingsOpen = false" />
+  <TimeBlockCreateDialogHost />
   <CutePane class="main-frame">
     <div class="title-bar" @mousedown="handleTitleBarMouseDown">
       <div class="window-controls" @mousedown.stop>
@@ -122,6 +123,7 @@ import AreaManager from '@/components/parts/AreaManager.vue'
 import QuickAddTaskModal from '@/components/organisms/QuickAddTaskModal.vue'
 import RecurrenceManagerModal from '@/components/organisms/RecurrenceManagerModal.vue'
 import SettingsModal from '@/components/organisms/SettingsModal.vue'
+import TimeBlockCreateDialogHost from '@/components/organisms/TimeBlockCreateDialogHost.vue'
 import AiChatDialog from '@/components/parts/ai/AiChatDialog.vue'
 import { useMidnightRefresh } from '@/composables/useMidnightRefresh'
 

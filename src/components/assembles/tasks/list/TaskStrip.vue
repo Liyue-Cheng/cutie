@@ -254,7 +254,7 @@ const nextScheduleDate = computed(() => {
     .filter((s) => s.scheduled_day >= today)
     .sort((a, b) => a.scheduled_day.localeCompare(b.scheduled_day))
 
-  return futureSchedules.length > 0 ? futureSchedules[0].scheduled_day : null
+  return futureSchedules.length > 0 ? futureSchedules[0]!.scheduled_day : null
 })
 
 // 从 viewKey 提取当前项目视图的项目 ID
@@ -499,7 +499,7 @@ function onMouseDown(event: MouseEvent) {
   border: none;
   border-radius: 0.8rem;
   padding: 0.8rem 1.6rem;
-  margin-bottom: 0;
+  margin: 0.25rem 0;
   cursor: pointer;
   display: flex;
   flex-direction: column;
