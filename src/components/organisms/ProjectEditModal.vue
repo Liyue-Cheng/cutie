@@ -356,26 +356,32 @@ async function handleDeleteSection(sectionId: string) {
 }
 
 // 节段重新排序
-async function handleSectionReorder() {
-  if (!props.projectId || sections.value.length < 2) return
+async function handleSectionReorder(event: { oldIndex?: number; newIndex?: number }) {
+  if (!props.projectId) return
 
-  // 逐个更新排序
-  for (let i = 0; i < sections.value.length; i++) {
-    const section = sections.value[i]
-    if (!section) continue
-    const prevSection = i > 0 ? sections.value[i - 1] : null
-    const nextSection = i < sections.value.length - 1 ? sections.value[i + 1] : null
+  const { oldIndex, newIndex } = event
+  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return
 
-    try {
-      await pipeline.dispatch('project_section.reorder', {
-        project_id: props.projectId,
-        section_id: section.id,
-        prev_section_id: prevSection?.id ?? null,
-        next_section_id: nextSection?.id ?? null,
-      })
-    } catch (error) {
-      logger.error(LogTags.UI, '节段排序失败', error)
-    }
+  // 获取被移动的节段（此时 sections.value 已被 vuedraggable 更新为新顺序）
+  const movedSection = sections.value[newIndex]
+  if (!movedSection) return
+
+  // 计算新位置的前后邻居
+  const prevSection = newIndex > 0 ? sections.value[newIndex - 1] : null
+  const nextSection = newIndex < sections.value.length - 1 ? sections.value[newIndex + 1] : null
+
+  try {
+    await pipeline.dispatch('project_section.reorder', {
+      project_id: props.projectId,
+      section_id: movedSection.id,
+      prev_section_id: prevSection?.id ?? null,
+      next_section_id: nextSection?.id ?? null,
+    })
+    logger.info(LogTags.UI, '节段排序成功', { sectionId: movedSection.id, newIndex })
+  } catch (error) {
+    logger.error(LogTags.UI, '节段排序失败', error)
+    // 排序失败时，从 store 重新加载以恢复正确顺序
+    await loadSections()
   }
 }
 </script>
