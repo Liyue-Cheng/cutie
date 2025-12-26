@@ -28,6 +28,7 @@
       :title="group.projectName"
       :view-key="`misc::staging::project::${group.projectId}`"
       :show-add-input="false"
+      :show-dashed-divider="true"
       :collapsible="true"
       :default-collapsed="false"
       :fill-remaining-space="index === projectGroups.length - 1"

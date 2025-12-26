@@ -22,6 +22,7 @@
               :title="$t('task.label.recentCarryover')"
               view-key="misc::staging::recent-carryover"
               :show-add-input="false"
+              :show-dashed-divider="true"
               :hide-header="true"
               fill-remaining-space
             />
