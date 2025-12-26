@@ -87,6 +87,7 @@
                 item-key="id"
                 class="sections-list"
                 handle=".drag-handle"
+                @change="handleSectionReorder"
                 @end="handleSectionReorder"
               >
                 <template #item="{ element: section }">
@@ -282,7 +283,7 @@ async function handleAddSection() {
     await pipeline.dispatch('project_section.create', {
       project_id: props.projectId,
       title: newSectionTitle.value.trim(),
-      sort_order: `section_${Date.now()}`,
+      // 让后端使用 LexoRank 自动生成排序
     })
     newSectionTitle.value = ''
     logger.info(LogTags.UI, '节段创建成功')
@@ -355,33 +356,51 @@ async function handleDeleteSection(sectionId: string) {
   }
 }
 
-// 节段重新排序
-async function handleSectionReorder(event: { oldIndex?: number; newIndex?: number }) {
+// 节段重新排序：兼容 change/end 事件，保证仅对实际移动发送一次指令
+const lastReorderSignature = ref<string | null>(null)
+
+async function handleSectionReorder(event?: {
+  moved?: { newIndex: number; oldIndex: number }
+  newIndex?: number | null
+  oldIndex?: number | null
+}) {
   if (!props.projectId) return
 
-  const { oldIndex, newIndex } = event
-  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return
+  const newIndex = event?.moved?.newIndex ?? event?.newIndex ?? null
+  const oldIndex = event?.moved?.oldIndex ?? event?.oldIndex ?? null
 
-  // 获取被移动的节段（此时 sections.value 已被 vuedraggable 更新为新顺序）
-  const movedSection = sections.value[newIndex]
-  if (!movedSection) return
+  if (newIndex === null || oldIndex === null || newIndex === undefined || oldIndex === undefined) return
+  if (newIndex === oldIndex) return
 
-  // 计算新位置的前后邻居
-  const prevSection = newIndex > 0 ? sections.value[newIndex - 1] : null
-  const nextSection = newIndex < sections.value.length - 1 ? sections.value[newIndex + 1] : null
+  // 避免 change + end 双触发重复发送
+  const signature = `${oldIndex}->${newIndex}`
+  if (lastReorderSignature.value === signature) return
+  lastReorderSignature.value = signature
+
+  // 等待 DOM & v-model 同步完成，拿到最新顺序
+  await nextTick()
+
+  const ordered = sections.value
+  const section = ordered[newIndex]
+  if (!section) return
+
+  const prevSection = newIndex > 0 ? ordered[newIndex - 1] : null
+  const nextSection = newIndex < ordered.length - 1 ? ordered[newIndex + 1] : null
 
   try {
     await pipeline.dispatch('project_section.reorder', {
       project_id: props.projectId,
-      section_id: movedSection.id,
+      section_id: section.id,
       prev_section_id: prevSection?.id ?? null,
       next_section_id: nextSection?.id ?? null,
     })
-    logger.info(LogTags.UI, '节段排序成功', { sectionId: movedSection.id, newIndex })
   } catch (error) {
     logger.error(LogTags.UI, '节段排序失败', error)
-    // 排序失败时，从 store 重新加载以恢复正确顺序
-    await loadSections()
+  } finally {
+    // 允许后续不同移动再次触发
+    setTimeout(() => {
+      lastReorderSignature.value = null
+    }, 0)
   }
 }
 </script>
