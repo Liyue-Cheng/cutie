@@ -644,7 +644,8 @@ export default {
       createSection: 'Create Section',
     },
     confirm: {
-      delete: 'Are you sure you want to delete this project?',
+      delete:
+        'Are you sure you want to delete this project?\n\nAll tasks and time blocks in this project will also be deleted. This action cannot be undone.',
       deleteSection:
         'Are you sure you want to delete this section? Tasks in this section will be moved to "Uncategorized".',
     },

@@ -640,7 +640,7 @@ export default {
       createSection: '创建章节',
     },
     confirm: {
-      delete: '确定要删除这个项目吗？',
+      delete: '确定要删除这个项目吗？\n\n项目内的所有任务和时间块也会被删除，此操作不可恢复。',
       deleteSection: '确定要删除这个章节吗？章节内的任务将移至"未分类"。',
     },
   },
