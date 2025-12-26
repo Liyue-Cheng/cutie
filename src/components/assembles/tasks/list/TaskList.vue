@@ -781,7 +781,8 @@ async function toggleSubtask(taskId: string, subtaskId: string) {
   color: var(--color-text-primary, #f0f);
   background-color: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: 0.6rem;
+  background-clip: padding-box;
   outline: none;
   transition: all 0.2s ease;
   box-sizing: border-box;
