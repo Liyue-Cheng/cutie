@@ -121,14 +121,25 @@ async function handleStateChange(nextState: CheckboxState) {
 
 <template>
   <div class="calendar-task-event-content" :class="{ 'is-preview': !isInteractive }">
-    <CuteDualModeCheckbox
-      class="calendar-task-checkbox"
-      size="1.6rem"
-      :state="localState"
-      :interaction-key="checkboxInteractionKey"
-      @update:state="handleStateChange"
-      @click.stop
-    />
+    <!--
+      🔒 checkbox-wrapper 隔离层（故意不加任何 CSS）
+      
+      原理：空的 <div> 默认是 display: block，会创建块级格式化上下文（BFC），
+      天然隔离内部 inline-flex checkbox 的行框影响（baseline、line-height 等），
+      防止 checkbox 状态变化时导致外层容器高度抖动。
+      
+      ⚠️ 不要给这个 div 加 display: flex！flex 容器反而会让子元素的布局特性传递出去。
+    -->
+    <div class="checkbox-wrapper">
+      <CuteDualModeCheckbox
+        class="calendar-task-checkbox"
+        size="1.6rem"
+        :state="localState"
+        :interaction-key="checkboxInteractionKey"
+        @update:state="handleStateChange"
+        @click.stop
+      />
+    </div>
     <span class="calendar-task-title" :class="titleClass">{{ title }}</span>
     <div class="calendar-task-icons">
       <CuteIcon

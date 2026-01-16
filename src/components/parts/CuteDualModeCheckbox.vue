@@ -157,13 +157,20 @@ const handlePressCancel = () => {
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* 🔒 防止外溢：固定尺寸 + 隔离内部布局 */
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 0;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .checkbox-box {
-  display: inline-flex;
+  display: flex; /* 改为 flex，避免 inline 的行框问题 */
   align-items: center;
   justify-content: center;
   width: 1.6rem;
@@ -172,6 +179,7 @@ const handlePressCancel = () => {
   border: 0.2rem solid var(--color-status-pending-checkbox);
   border-radius: 0.4rem; /* 圆角方形 */
   background-color: transparent;
+  overflow: hidden; /* 🔒 隔离内部负边距，防止外溢 */
 
   /* 只对边框颜色和背景色应用过渡，避免拖拽时的残影 */
   transition:
@@ -180,6 +188,11 @@ const handlePressCancel = () => {
 }
 
 /* Large size variant */
+.cute-dual-mode-checkbox.size-large {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+
 .cute-dual-mode-checkbox.size-large .checkbox-box {
   width: 2.1rem;
   height: 2.1rem;
@@ -187,6 +200,11 @@ const handlePressCancel = () => {
 }
 
 /* Custom size variant */
+.cute-dual-mode-checkbox.size-custom {
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+}
+
 .cute-dual-mode-checkbox.size-custom .checkbox-box {
   width: var(--checkbox-size);
   height: var(--checkbox-size);

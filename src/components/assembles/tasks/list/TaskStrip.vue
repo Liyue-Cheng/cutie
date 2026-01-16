@@ -135,7 +135,6 @@ import { useRegisterStore } from '@/stores/register'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { useViewContext } from '@/composables/useViewContext'
 import { getTodayDateString } from '@/infra/utils/dateUtils'
-import { logger, LogTags } from '@/infra/logging/logger'
 import { pipeline } from '@/cpu'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import CuteCheckbox from '@/components/parts/CuteCheckbox.vue'
@@ -196,11 +195,6 @@ const area = computed(() => {
 // 通过 project_id 从 store 获取完整 project 信息
 const project = computed(() => {
   return props.task.project_id ? projectStore.getProjectById(props.task.project_id) : null
-})
-
-// 判断是否在即将到期列表中
-const isInUpcomingList = computed(() => {
-  return props.viewKey === 'misc::deadline' || props.viewKey?.startsWith('upcoming::')
 })
 
 // 是否有子任务
@@ -310,22 +304,6 @@ const todayTimeBlocks = computed(() => {
   })
 })
 
-// 计算今日时间块的总时长（分钟）
-const todayTimeBlocksTotalDuration = computed(() => {
-  if (todayTimeBlocks.value.length === 0) return 0
-
-  let totalMinutes = 0
-  for (const block of todayTimeBlocks.value) {
-    const start = new Date(block.start_time)
-    const end = new Date(block.end_time)
-    const durationMs = end.getTime() - start.getTime()
-    const durationMinutes = Math.round(durationMs / (1000 * 60))
-    totalMinutes += durationMinutes
-  }
-
-  return totalMinutes
-})
-
 // 时间块显示文本：第一个时间 + 剩余数量
 const timeBlocksDisplayText = computed(() => {
   if (todayTimeBlocks.value.length === 0) return ''
@@ -380,7 +358,7 @@ function formatTimeBlockStart(timeBlock: any): string {
 // 格式化截止日期
 // ✅ due_date.date 现在是 YYYY-MM-DD 格式
 function formatDueDate(dateString: string): string {
-  const [year, month, day] = dateString.split('-')
+  const [, month, day] = dateString.split('-')
   return `${month}/${day}`
 }
 
@@ -401,7 +379,7 @@ function formatScheduleDate(dateString: string): string {
     return '明天'
   }
 
-  const [year, month, day] = dateString.split('-')
+  const [, month, day] = dateString.split('-')
   return `${month}/${day}`
 }
 
@@ -551,6 +529,17 @@ function onMouseDown(event: MouseEvent) {
   min-width: 0;
 }
 
+/* 主复选框外层：用 flex + 固定尺寸，避免行框(baseline/line-height)导致的高度抖动 */
+.main-checkbox-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.1rem; /* 与 CuteDualModeCheckbox large size 一致 */
+  height: 2.1rem; /* 与标题第一行 line-height 对齐 */
+  line-height: 0; /* 彻底消除 inline 行框高度影响 */
+}
+
 /* 元信息区域：空间不够时换行到第二行 */
 .task-meta {
   display: flex;
@@ -687,31 +676,12 @@ function onMouseDown(event: MouseEvent) {
 }
 
 /* 项目标签 */
-.project-tag {
-  /* 可以后续添加特定样式 */
-}
-
 /* 区域标签 */
-.area-tag {
-  /* 可以后续添加特定样式 */
-}
-
 /* 截止日期标签 */
-.due-date-tag {
-  /* 可以后续添加特定样式 */
-}
-
 .due-date-tag.danger {
   color: var(--color-danger, #f0f);
 }
 
 /* 排期标签 */
-.schedule-tag {
-  /* 可以后续添加特定样式 */
-}
-
 /* 时间块标签 */
-.time-block-tag {
-  /* 可以后续添加特定样式 */
-}
 </style>

@@ -282,7 +282,8 @@ export function useCalendarOptions(
       if (extended?.type === 'task' && arg.view.type === 'dayGridMonth') {
         const container = document.createElement('div')
         container.style.width = '100%'
-        container.style.height = '100%'
+        // ⚠️ 不设置 height: 100%，让内容自然撑开高度
+        // 否则 checkbox 状态变化时会触发 FullCalendar 重新计算高度，导致 2px 抖动
 
         // 获取最新的任务数据
         let isCompleted = extended.isCompleted ?? false
