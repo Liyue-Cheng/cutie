@@ -81,9 +81,13 @@ const taskStore = useTaskStore()
 const areaStore = useAreaStore()
 
 // ECharts 是 Canvas 渲染：不能直接使用 `var(--css-variable)` 作为颜色值
-// 这里在运行时读取真实背景色，避免扇区 borderColor 退化成黑色导致“黑边”
+// 这里在运行时读取真实背景色，避免扇区 borderColor 退化成黑色导致"黑边"
 const chartBgColor = ref('#f0f')
 const chartTextColor = ref('#f0f')
+const chartTextSecondaryColor = ref('#f0f')
+const chartBorderColor = ref('#f0f')
+const chartTooltipBgColor = ref('#f0f')
+const chartShadow = ref('0 4px 12px rgba(0, 0, 0, 0.10)')
 const chartFontFamily = ref(
   'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif'
 )
@@ -96,6 +100,20 @@ onMounted(() => {
 
   const textPrimary = styles.getPropertyValue('--color-text-primary').trim()
   chartTextColor.value = textPrimary || '#f0f'
+
+  const textSecondary = styles.getPropertyValue('--color-text-secondary').trim()
+  chartTextSecondaryColor.value = textSecondary || '#f0f'
+
+  // Tooltip 专用样式
+  const elevatedBg = styles.getPropertyValue('--color-background-elevated').trim()
+  const cardBg = styles.getPropertyValue('--color-card-background').trim()
+  chartTooltipBgColor.value = elevatedBg || cardBg || '#f0f'
+
+  const borderDefault = styles.getPropertyValue('--color-border-default').trim()
+  chartBorderColor.value = borderDefault || '#f0f'
+
+  const shadowMd = styles.getPropertyValue('--shadow-md').trim()
+  chartShadow.value = shadowMd || '0 4px 12px rgba(0, 0, 0, 0.10)'
 
   // Canvas 不支持 fontFamily: 'inherit'，需要注入真实字体栈
   const bodyFont = getComputedStyle(document.body).fontFamily?.trim()
@@ -308,12 +326,25 @@ const chartOption = computed<ECBasicOption>(() => {
       ? { show: false }
       : {
           trigger: 'item',
+          backgroundColor: chartTooltipBgColor.value,
+          borderColor: chartBorderColor.value,
+          borderWidth: 1,
+          borderRadius: 8,
+          padding: [10, 14],
+          extraCssText: `box-shadow: ${chartShadow.value};`,
+          textStyle: {
+            color: chartTextColor.value,
+            fontSize: 14,
+            fontFamily: chartFontFamily.value,
+          },
           formatter: (p: any) => {
             const v = typeof p?.value === 'number' ? p.value : 0
+            const nameColor = chartTextSecondaryColor.value
+            const valueColor = chartTextColor.value
             if (isStage2.value) {
-              return `${p.name}: ${formatMinutesCompact(v)}`
+              return `<span style="color:${nameColor}">${p.name}</span> <span style="color:${valueColor};font-weight:600">${formatMinutesCompact(v)}</span>`
             }
-            return `${p.name}: ${Math.round(v)} ${t('task.count.tasks')}`
+            return `<span style="color:${nameColor}">${p.name}</span> <span style="color:${valueColor};font-weight:600">${Math.round(v)}</span> <span style="color:${nameColor}">${t('task.count.tasks')}</span>`
           },
         },
     series: [

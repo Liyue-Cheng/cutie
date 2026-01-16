@@ -137,7 +137,7 @@
             :view-key="dateInfo.viewKey"
             :fill-remaining-space="index === dateList.length - 1"
             :hide-daily-recurring-tasks="!showDailyRecurringTasks"
-            :hide-completed="!showCompletedTasks"
+            :hide-completed="!dateInfo.isPast && !showCompletedTasks"
             :show-estimated-duration="false"
             :title-color="dateInfo.isToday ? 'var(--color-text-accent)' : undefined"
           />
@@ -277,6 +277,7 @@ interface DateInfo {
   viewKey: string
   label: string
   isToday: boolean
+  isPast: boolean // 是否是过去的日期（用于过滤逻辑）
 }
 
 const dateList = computed<DateInfo[]>(() => {
@@ -295,6 +296,7 @@ const dateList = computed<DateInfo[]>(() => {
       viewKey: `daily::${dateString}`,
       label,
       isToday: dateString === today,
+      isPast: dateString < today, // 字符串比较，YYYY-MM-DD 格式天然支持
     })
   }
 

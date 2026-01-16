@@ -11,6 +11,7 @@ import DailyPlanningWizard from '@/components/organisms/DailyPlanningWizard.vue'
 import VerticalToolbar from '@/components/functional/VerticalToolbar.vue'
 import TaskEditorModal from '@/components/assembles/tasks/TaskEditorModal.vue'
 import CuteCalendar from '@/components/assembles/calender/CuteCalendar.vue'
+import HomeTemplatesPanel from '@/components/organisms/HomeTemplatesPanel.vue'
 import { pipeline } from '@/cpu'
 import CuteIcon from '@/components/parts/CuteIcon.vue'
 import { useTaskStore } from '@/stores/task'
@@ -39,7 +40,7 @@ const dailyViewKey = computed(() => `daily::${today.value}`)
 
 // ==================== 步骤与右栏视图管理 ====================
 type WizardStep = 1 | 2
-type RightPaneView = 'staging' | 'projects' | 'daily' | 'calendar'
+type RightPaneView = 'staging' | 'projects' | 'daily' | 'calendar' | 'templates'
 
 const currentStep = ref<WizardStep>(1)
 const currentRightView = ref<RightPaneView>('staging')
@@ -177,13 +178,15 @@ const viewToStep: Record<RightPaneView, WizardStep> = {
   staging: 1,
   projects: 1,
   daily: 1,
+  templates: 1,
   calendar: 2,
 }
 
-// 工具栏配置：staging 下方增加 projects
+// 工具栏配置：staging 下方增加 projects、templates
 const toolbarConfig = computed(() => ({
   staging: { icon: 'Layers' as const, label: t('toolbar.staging') },
   projects: { icon: 'Folder' as const, label: t('toolbar.projects') },
+  templates: { icon: 'FileText' as const, label: t('toolbar.templates') },
   daily: { icon: 'List' as const, label: t('toolbar.dailyTasks') },
   calendar: { icon: 'Calendar' as const, label: t('toolbar.calendar') },
 }))
@@ -377,6 +380,8 @@ onMounted(async () => {
             :fill-remaining-space="true"
             :collapsible="false"
           />
+          <!-- 模板视图 -->
+          <HomeTemplatesPanel v-else-if="currentRightView === 'templates'" />
           <!-- 日历视图 -->
           <div v-else-if="currentRightView === 'calendar'" class="calendar-wrapper">
             <CuteCalendar :current-date="today" :view-type="'day'" :days="1" :zoom="1" />
