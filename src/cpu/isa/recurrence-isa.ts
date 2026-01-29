@@ -7,7 +7,7 @@
  * 3. 统一的 commit 逻辑
  */
 
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import type { TaskRecurrence } from '@/types/dtos'
 import { useViewStore } from '@/stores/view'
 import { useTaskStore } from '@/stores/task'

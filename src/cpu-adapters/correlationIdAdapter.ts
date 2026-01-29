@@ -5,7 +5,7 @@
  */
 
 import { generateCorrelationId } from '@/infra/correlation/correlationId'
-import type { ICorrelationIdGenerator } from '@cutie/cpu-pipeline'
+import type { ICorrelationIdGenerator } from 'front-cpu'
 
 export const correlationIdAdapter: ICorrelationIdGenerator = {
   generate: () => generateCorrelationId(),

@@ -4,14 +4,12 @@ import path from 'path' // <--- 【新增】导入 Node.js 的 path 模块
 
 // https://vite.dev/config/
 export default defineConfig({
-  // 【保留】原有的 plugins 配置
   plugins: [vue()],
 
-  // 【新增】resolve.alias 配置，用于设置路径别名
+  // 仅保留项目内部 alias；front-cpu 走 node_modules（npm 包）
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@cutie/cpu-pipeline': path.resolve(__dirname, '../cpu-pipeline/src/index.ts'),
     },
   },
 

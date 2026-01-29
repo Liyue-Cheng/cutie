@@ -14,6 +14,13 @@ import { logger } from '@/infra/logging/logger'
 import './style.css'
 
 async function main() {
+  // 开发环境启用 FrontCPU 指令日志/控制台（debug 入口会初始化 logging provider）
+  if (import.meta.env.DEV) {
+    const { cpuConsole } = await import('front-cpu/debug')
+    // 强制中文输出
+    cpuConsole.setLocale('zh-CN')
+  }
+
   const app = createApp(App)
 
   try {

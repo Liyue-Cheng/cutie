@@ -1,4 +1,4 @@
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import type {
   ShutdownRitualProgress,
   ShutdownRitualSettings,

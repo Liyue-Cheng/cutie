@@ -7,7 +7,7 @@
  * 3. 支持批量操作
  */
 
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import type {
   UserSettingDto,
   UpdateSettingRequest,

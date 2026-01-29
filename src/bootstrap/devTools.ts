@@ -83,7 +83,8 @@ export function setupDevTools(): void {
 
 💡 CPU Pipeline 日志:
   前往 CPU 调试页面调整控制台级别，或使用：
-  const { cpuConsole, ConsoleLevel } = await import('@/cpu/logging')
+  // 使用 debug 入口加载日志与观测能力
+  const { cpuConsole, ConsoleLevel } = await import('front-cpu/debug')
   cpuConsole.setLevel(ConsoleLevel.VERBOSE)
       `)
     },

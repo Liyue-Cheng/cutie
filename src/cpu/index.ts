@@ -9,7 +9,7 @@ import {
   setHttpClient,
   setCorrelationIdGenerator,
   registerISA,
-} from '@cutie/cpu-pipeline'
+} from 'front-cpu'
 import { httpAdapter } from '@/cpu-adapters/httpAdapter'
 import { correlationIdAdapter } from '@/cpu-adapters/correlationIdAdapter'
 import { createVueReactiveState } from '@/cpu-adapters/vueAdapter'
@@ -40,7 +40,7 @@ export type {
   InstructionContext,
   InstructionStatus,
   PipelineStage,
-} from '@cutie/cpu-pipeline'
+} from 'front-cpu'
 
 // 开发环境：暴露到window用于调试
 if (import.meta.env.DEV) {

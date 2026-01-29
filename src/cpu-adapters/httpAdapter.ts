@@ -5,7 +5,7 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from '@/stores/shared'
-import type { IHttpClient, IRequestConfig } from '@cutie/cpu-pipeline'
+import type { IHttpClient, IRequestConfig } from 'front-cpu'
 
 export const httpAdapter: IHttpClient = {
   async get<T>(url: string, config?: IRequestConfig): Promise<T> {

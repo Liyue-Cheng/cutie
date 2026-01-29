@@ -5,7 +5,7 @@
  */
 
 import { ref, watch } from 'vue'
-import type { IReactiveState } from '@cutie/cpu-pipeline'
+import type { IReactiveState } from 'front-cpu'
 
 /**
  * 创建Vue响应式状态

@@ -20,7 +20,7 @@ import {
 import { useTimeBlockStore } from '@/stores/timeblock'
 import { useTaskStore } from '@/stores/task'
 import type { TimeBlockView } from '@/types/dtos'
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 
 export const TimeBlockISA: ISADefinition = {
   'time_block.create_from_task': {
@@ -218,7 +218,9 @@ export const TimeBlockISA: ISADefinition = {
           ...timeBlock,
           // 只更新 payload.updates 中提供的字段
           ...(payload.updates.title !== undefined && { title: payload.updates.title }),
-          ...(payload.updates.start_time !== undefined && { start_time: payload.updates.start_time }),
+          ...(payload.updates.start_time !== undefined && {
+            start_time: payload.updates.start_time,
+          }),
           ...(payload.updates.end_time !== undefined && { end_time: payload.updates.end_time }),
           ...(payload.updates.start_time_local !== undefined && {
             start_time_local: payload.updates.start_time_local,
@@ -227,7 +229,9 @@ export const TimeBlockISA: ISADefinition = {
             end_time_local: payload.updates.end_time_local,
           }),
           ...(payload.updates.time_type !== undefined && { time_type: payload.updates.time_type }),
-          ...(payload.updates.is_all_day !== undefined && { is_all_day: payload.updates.is_all_day }),
+          ...(payload.updates.is_all_day !== undefined && {
+            is_all_day: payload.updates.is_all_day,
+          }),
         }
 
         timeBlockStore.addOrUpdateTimeBlock_mut(updatedTimeBlock)

@@ -21,6 +21,7 @@
     "@tauri-apps/api": "^2.8.0",
     "apexcharts": "^5.3.6",
     "echarts": "^6.0.0",
+    "front-cpu": "0.1.2",
     "interactjs": "^1.10.27",
     "lucide-vue-next": "^0.544.0",
     "nanoid": "^5.1.6",

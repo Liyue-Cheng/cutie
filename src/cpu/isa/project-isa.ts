@@ -8,7 +8,7 @@
  * 4. 支持 ProjectSection 管理
  */
 
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import type { ProjectCard, ProjectSection, TaskCard, TimeBlockView } from '@/types/dtos'
 import { useProjectStore } from '@/stores/project'
 

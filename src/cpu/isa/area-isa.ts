@@ -8,7 +8,7 @@
  * 4. 完整的 CRUD 操作
  */
 
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import type { Area } from '@/stores/area'
 import { useAreaStore } from '@/stores/area'
 

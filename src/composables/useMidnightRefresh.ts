@@ -1,28 +1,21 @@
 import { onMounted, onBeforeUnmount } from 'vue'
-import { useTimeBlockStore } from '@/stores/timeblock'
-import { useTaskStore } from '@/stores/task'
-import { useRegisterStore } from '@/stores/register'
 import { logger, LogTags } from '@/infra/logging/logger'
 
 /**
  * 全局午夜刷新机制
  *
  * 该 composable 用于监测本地时间跨越午夜 00:00 的时刻，
- * 并自动刷新所有可能包含过期信息的数据。
+ * 并自动刷新页面以确保所有 UI 状态都是最新的。
  *
  * 主要功能：
- * 1. 每分钟检查一次当前日期是否变化
- * 2. 当检测到日期变化（跨越午夜）时，触发全局数据刷新
+ * 1. 智能调度检查（距离午夜远时每小时检查，接近时每分钟检查）
+ * 2. 当检测到日期变化（跨越午夜）时，直接刷新页面
  * 3. 自动清理定时器，防止内存泄漏
  *
  * 使用方式：
  * - 在 MainLayout.vue 或 App.vue 中调用 `useMidnightRefresh()`
  */
 export function useMidnightRefresh() {
-  const timeBlockStore = useTimeBlockStore()
-  const taskStore = useTaskStore()
-  const registerStore = useRegisterStore()
-
   let timerId: number | null = null
   let lastKnownDate: string = getCurrentDateString()
 
@@ -48,64 +41,21 @@ export function useMidnightRefresh() {
   }
 
   /**
-   * 刷新所有数据
+   * 午夜刷新 - 直接刷新页面
+   *
+   * 采用页面刷新而非增量更新的原因：
+   * 1. 确保所有 UI 状态（包括各种缓存、计算属性）都能正确更新
+   * 2. 避免遗漏某些需要刷新的状态
+   * 3. 午夜时用户通常不在使用，页面刷新不影响体验
    */
-  async function refreshAllData() {
-    logger.info(LogTags.COMPONENT_CALENDAR, 'Midnight detected - refreshing all data', {
+  function refreshAllData() {
+    logger.info(LogTags.COMPONENT_CALENDAR, 'Midnight detected - reloading page', {
       oldDate: lastKnownDate,
       newDate: getCurrentDateString(),
     })
 
-    try {
-      // 1. 刷新当前日历日期周围的时间块数据
-      const currentCalendarDate = registerStore.readRegister<string>(
-        registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME
-      )
-
-      if (currentCalendarDate && typeof currentCalendarDate === 'string') {
-        // 刷新当前日期及其前后各1个月的时间块数据
-        const centerDate = new Date(currentCalendarDate)
-        const startDate = new Date(centerDate.getFullYear(), centerDate.getMonth() - 1, 1)
-        const endDate = new Date(centerDate.getFullYear(), centerDate.getMonth() + 2, 0)
-
-        // 🔥 使用本地日期格式（YYYY-MM-DD），符合 TIME_CONVENTION.md 规范
-        const formatDate = (d: Date) => {
-          const y = d.getFullYear()
-          const m = String(d.getMonth() + 1).padStart(2, '0')
-          const day = String(d.getDate()).padStart(2, '0')
-          return `${y}-${m}-${day}`
-        }
-
-        const startDateStr = formatDate(startDate)
-        const endDateStr = formatDate(endDate)
-
-        logger.debug(LogTags.COMPONENT_CALENDAR, 'Refreshing time blocks after midnight', {
-          startDate: startDateStr,
-          endDate: endDateStr,
-        })
-
-        await timeBlockStore.fetchTimeBlocksForRange(startDateStr, endDateStr)
-      }
-
-      // 2. 刷新今天的任务数据（如果有DMA缓存）
-      const today = getCurrentDateString()
-      await taskStore.fetchDailyTasks_DMA(today)
-
-      // 3. 更新日历日期到新的今天（如果当前正在显示"今天"）
-      if (currentCalendarDate && currentCalendarDate === lastKnownDate) {
-        // 用户正在查看的是旧的"今天"，自动切换到新的今天
-        registerStore.writeRegister(registerStore.RegisterKeys.CURRENT_CALENDAR_DATE_HOME, today)
-        logger.info(LogTags.COMPONENT_CALENDAR, 'Auto-switched to new today', { newDate: today })
-      }
-
-      logger.info(LogTags.COMPONENT_CALENDAR, 'Midnight refresh completed successfully')
-    } catch (error) {
-      logger.error(
-        LogTags.COMPONENT_CALENDAR,
-        'Failed to refresh data after midnight',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    }
+    // 直接刷新页面，等同于 F5
+    window.location.reload()
   }
 
   /**

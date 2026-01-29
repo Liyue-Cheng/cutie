@@ -2,7 +2,7 @@
  * ISA指令集聚合导出
  */
 
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import { DebugISA } from './debug-isa'
 import { TaskISA } from './task-isa'
 import { ScheduleISA } from './schedule-isa'
@@ -33,4 +33,4 @@ export const ISA: ISADefinition = {
 }
 
 // 导出类型
-export type { InstructionDefinition, InstructionMeta, ISADefinition } from '@cutie/cpu-pipeline'
+export type { InstructionDefinition, InstructionMeta, ISADefinition } from 'front-cpu'

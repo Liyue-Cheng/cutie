@@ -29,6 +29,9 @@ importers:
       echarts:
         specifier: ^6.0.0
         version: 6.0.0
+      front-cpu:
+        specifier: 0.1.2
+        version: 0.1.2(vue@3.5.22(typescript@5.8.3))
       interactjs:
         specifier: ^1.10.27
         version: 1.10.27
@@ -1116,6 +1119,14 @@ packages:
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
 
+  front-cpu@0.1.2:
+    resolution: {integrity: sha512-mQJqvG+aKTE4IwrLtJ3rBb7m624njFsHxnJ3Knlyr1y55nq2C2wjQFc+6fICSiAQ8YZZ4I2IXBBoux/RuQrteg==}
+    peerDependencies:
+      vue: ^3.0.0
+    peerDependenciesMeta:
+      vue:
+        optional: true
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -1280,6 +1291,11 @@ packages:
 
   lucide-vue-next@0.544.0:
     resolution: {integrity: sha512-mDp/AdGOPIDkpFHnFiTWgQgCST9aBXHVaiobZfOMIvv7nrOukzF/TP+7KoOwrngdWRaH9TMiepMBIX1vsgKJ3g==}
+    peerDependencies:
+      vue: '>=3.0.1'
+
+  lucide-vue-next@0.547.0:
+    resolution: {integrity: sha512-nRjVvyRuzifcT4o3VdMDtImPYkT5PPNJj18kb23TtdZIUKJeVKdqI5m9ZCdrZ/KjZiMA1JTZ+cq8tjTKVCr+iA==}
     peerDependencies:
       vue: '>=3.0.1'
 
@@ -2697,6 +2713,12 @@ snapshots:
 
   flatted@3.3.3: {}
 
+  front-cpu@0.1.2(vue@3.5.22(typescript@5.8.3)):
+    dependencies:
+      lucide-vue-next: 0.547.0(vue@3.5.22(typescript@5.8.3))
+    optionalDependencies:
+      vue: 3.5.22(typescript@5.8.3)
+
   fsevents@2.3.3:
     optional: true
 
@@ -2833,6 +2855,10 @@ snapshots:
   lodash.truncate@4.4.2: {}
 
   lucide-vue-next@0.544.0(vue@3.5.22(typescript@5.8.3)):
+    dependencies:
+      vue: 3.5.22(typescript@5.8.3)
+
+  lucide-vue-next@0.547.0(vue@3.5.22(typescript@5.8.3)):
     dependencies:
       vue: 3.5.22(typescript@5.8.3)
 

@@ -7,7 +7,7 @@
  * 3. 统一的 commit 逻辑
  */
 
-import type { ISADefinition } from '@cutie/cpu-pipeline'
+import type { ISADefinition } from 'front-cpu'
 import type {
   EditTimeBlockRecurrencePayload,
   TimeBlockRecurrence,
@@ -374,7 +374,10 @@ export const TimeBlockRecurrenceISA: ISADefinition = {
 
       addOrUpdateTimeBlockRecurrence(result.recurrence)
 
-      if (Array.isArray(result.deleted_time_block_ids) && result.deleted_time_block_ids.length > 0) {
+      if (
+        Array.isArray(result.deleted_time_block_ids) &&
+        result.deleted_time_block_ids.length > 0
+      ) {
         timeBlockStore.batchRemoveTimeBlocks_mut(result.deleted_time_block_ids)
       }
 
